@@ -40,6 +40,7 @@
   "exclude": [
     "node_modules",
     "prisma.config.ts",
-    "desktop-app"
+    "desktop-app",
+    "promo"
   ]
 }

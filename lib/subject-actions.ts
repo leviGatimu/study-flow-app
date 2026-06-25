@@ -67,12 +67,16 @@ export async function getSubjects() {
     }
 
     if (officialSubjects.size > 0) {
-      // Seed ONLY the official 15 subjects
+      // Seed ONLY the official 15 subjects.
+      // skipDuplicates guards against the race where two concurrent dashboard
+      // loads both see count === 0 and try to seed the same names (Postgres
+      // would otherwise throw P2002 on the (userId, name) unique constraint).
       await prisma.subject.createMany({
         data: Array.from(officialSubjects).map(name => ({
           userId,
           name
-        }))
+        })),
+        skipDuplicates: true
       });
     } else {
       // 2. Fallback to scanning all tables if no report cards exist yet
@@ -121,12 +125,13 @@ export async function getSubjects() {
       }
 
       if (subjectNames.size > 0) {
-        // Batch create subjects
+        // Batch create subjects (skipDuplicates: safe under concurrent seeds)
         await prisma.subject.createMany({
           data: Array.from(subjectNames).map(name => ({
             userId,
             name,
           })),
+          skipDuplicates: true
         });
       }
     }
