@@ -211,6 +211,22 @@ export function LiveFocusCard({
 
   const isActuallyRunning = !!activeTask && step === 'FOCUS';
 
+  const hudState = isActuallyRunning
+    ? (isPaused ? 'paused' : 'studying')
+    : activeSchoolLesson ? 'school'
+    : currentScheduledTask ? 'scheduled'
+    : nextSchoolLesson ? 'schoolBreak'
+    : 'break';
+
+  const hudLabel = {
+    studying: isActuallyRunning ? `Studying: ${activeTask.subject}` : '',
+    paused: isActuallyRunning ? `Paused: ${activeTask.subject}` : '',
+    school: activeSchoolLesson ? `School Session: ${activeSchoolLesson.subject}` : '',
+    scheduled: currentScheduledTask ? `Scheduled: ${currentScheduledTask.subject}` : '',
+    schoolBreak: nextSchoolLesson ? `Next School Lesson: ${nextSchoolLesson.subject}` : '',
+    break: 'Self-Guided Mode',
+  }[hudState];
+
   const renderCardContent = () => {
     // 1. HIGHEST PRIORITY: MANUALLY STARTED FOCUS SESSION
     if (isActuallyRunning) {
@@ -488,34 +504,60 @@ export function LiveFocusCard({
   return (
     <div className="w-full space-y-4">
       {/* Sync Control Header / HUD */}
-      <div className="bg-card/40 backdrop-blur-xl border border-border/40 px-6 py-3.5 rounded-[24px] flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-            <School className="w-4 h-4 text-primary" />
+      <div className="bg-card/60 backdrop-blur-xl border border-border/40 px-5 py-3 rounded-[20px] flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={cn(
+            "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors",
+            hudState === 'studying' ? "bg-primary/10 text-primary" :
+            hudState === 'paused' ? "bg-amber-500/10 text-amber-600" :
+            hudState === 'school' ? "bg-blue-600/10 text-blue-600" :
+            hudState === 'scheduled' ? "bg-orange-500/10 text-orange-600" :
+            hudState === 'schoolBreak' ? "bg-indigo-500/10 text-indigo-600" :
+            "bg-emerald-500/10 text-emerald-600"
+          )}>
+            <School className="w-4 h-4" />
           </div>
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground block leading-none mb-1">
+          <div className="min-w-0">
+            <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground leading-none mb-1.5">
+              <span className="relative flex h-1.5 w-1.5 shrink-0">
+                <span className={cn(
+                  "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
+                  hudState === 'studying' ? "bg-primary" :
+                  hudState === 'paused' ? "bg-amber-500" :
+                  hudState === 'school' ? "bg-blue-600" :
+                  hudState === 'scheduled' ? "bg-orange-500" :
+                  hudState === 'schoolBreak' ? "bg-indigo-500" :
+                  "bg-emerald-500"
+                )} />
+                <span className={cn(
+                  "relative inline-flex rounded-full h-1.5 w-1.5",
+                  hudState === 'studying' ? "bg-primary" :
+                  hudState === 'paused' ? "bg-amber-500" :
+                  hudState === 'school' ? "bg-blue-600" :
+                  hudState === 'scheduled' ? "bg-orange-500" :
+                  hudState === 'schoolBreak' ? "bg-indigo-500" :
+                  "bg-emerald-500"
+                )} />
+              </span>
               Dashboard HUD
             </span>
-            <span className="text-xs font-bold text-foreground">
-              {activeSchoolLesson ? `School Session: ${activeSchoolLesson.subject}` : 
-               isActuallyRunning ? `Studying: ${activeTask.subject}` :
-               currentScheduledTask ? `Scheduled: ${currentScheduledTask.subject}` :
-               nextSchoolLesson ? `Next School Lesson: ${nextSchoolLesson.subject}` : 'Self-Guided Mode'}
+            <span className="block text-xs font-bold text-foreground truncate">
+              {hudLabel}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 shrink-0">
+          <div className="h-8 w-px bg-border/60" />
           <div className="flex flex-col text-right select-none">
             <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1">Timetable Sync</span>
             <span className="text-[11px] font-bold text-foreground leading-none">
               {isTimetableSynced ? 'Synced (Active)' : 'Unsynced (Off-School)'}
             </span>
           </div>
-          <Switch 
-            checked={isTimetableSynced} 
-            onCheckedChange={handleToggleSync} 
+          <Switch
+            checked={isTimetableSynced}
+            onCheckedChange={handleToggleSync}
             aria-label="Toggle Timetable Sync"
           />
         </div>
