@@ -115,23 +115,15 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
             key={task.id} 
             transition={{ type: "spring", stiffness: 250, damping: 30 }}
             className={cn(
-              "relative overflow-hidden bg-card border p-5 rounded-[28px] transition-all duration-300 hover:shadow-xl active:scale-[0.99] group cursor-pointer",
-              task.isDone ? "bg-success/5 border-success/20 opacity-80" : 
-              task.isMissed ? "bg-destructive/5 border-destructive/20 opacity-70" :
-              isActiveSession ? "border-primary shadow-xl shadow-primary/10 bg-primary/[0.01]" :
-              isUrgent ? "border-orange-500 shadow-lg shadow-orange-500/20 bg-orange-500/[0.02]" : "border-border shadow-sm"
+              "relative overflow-hidden bg-card border border-l-4 shadow-sm p-5 rounded-[28px] transition-all duration-300 hover:shadow-md active:scale-[0.99] group cursor-pointer",
+              task.isDone ? "bg-success/5 border-border border-l-success opacity-80" :
+              task.isMissed ? "bg-destructive/5 border-border border-l-destructive opacity-70" :
+              isActiveSession ? "border-border border-l-primary bg-primary/[0.01]" :
+              isUrgent ? "border-border border-l-orange-500 bg-orange-500/[0.02]" : "border-border border-l-transparent"
             )}
             style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
             onClick={() => navigateToSubject(task.subject)}
           >
-            {/* Background Glow */}
-            {(isUrgent || isActiveSession) && !task.isDone && !task.isMissed && (
-              <div className={cn(
-                "absolute top-0 right-0 w-48 h-48 rounded-full blur-[64px] -z-0 translate-x-1/3 -translate-y-1/3 animate-pulse",
-                isActiveSession ? "bg-primary/10" : "bg-orange-500/10"
-              )} />
-            )}
-
             <div className="flex items-center justify-between relative z-10 flex-wrap gap-4">
               <div className="flex items-start sm:items-center space-x-5 flex-1 min-w-0">
                 <div 
@@ -167,7 +159,7 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
                     {isActiveSession && (
                       <div className={cn(
                         "flex items-center gap-1.5 text-white text-[10px] font-black px-3 py-1 rounded-full animate-in zoom-in duration-500",
-                        isPaused ? "bg-amber-500 shadow-lg shadow-amber-500/30" : "bg-primary shadow-lg shadow-primary/30"
+                        isPaused ? "bg-amber-500" : "bg-primary"
                       )}>
                         {isPaused ? <Pause className="w-3 h-3" /> : <Zap className="w-3 h-3 fill-current animate-pulse" />}
                         {isPaused ? 'SESSION PAUSED' : 'SESSION ACTIVE'}
@@ -182,7 +174,7 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
                       task.isDone ? "bg-success/10 text-success border-success/20" : 
                       task.isMissed ? "bg-destructive/10 text-destructive border-destructive/20" :
                       isActiveSession ? "bg-primary text-white border-primary/20" :
-                      isUrgent ? "bg-orange-500 text-white border-orange-600 shadow-md shadow-orange-500/20" : "bg-primary/5 text-primary border-primary/20"
+                      isUrgent ? "bg-orange-500 text-white border-orange-600" : "bg-primary/5 text-primary border-primary/20"
                     )}>
                       <Clock className="w-4 h-4" />
                       <span>{task.startTime} — {task.endTime}</span>
@@ -230,7 +222,7 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
                       size="sm" 
                       className={cn(
                         "rounded-xl gap-2 font-black transition-all hover:scale-105 active:scale-95",
-                        isPaused ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20" : "bg-primary hover:bg-primary/90 shadow-primary/20"
+                        isPaused ? "bg-amber-500 hover:bg-amber-600" : "bg-primary hover:bg-primary/90"
                       )}
                     >
                       <Zap className={cn("w-4 h-4 fill-current", !isPaused && "animate-pulse")} />
@@ -259,10 +251,10 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
 
                 <div className={cn(
                   "text-[10px] font-black px-4 py-2 rounded-full tracking-[0.1em] uppercase transition-all shrink-0",
-                  task.isDone ? "bg-success text-white shadow-lg shadow-success/20" : 
-                  task.isMissed ? "bg-destructive text-white shadow-lg shadow-destructive/20" :
-                  isActiveSession ? "bg-white text-primary shadow-xl" :
-                  isUrgent ? "bg-orange-500 text-white shadow-orange-500/40 shadow-xl scale-105" :
+                  task.isDone ? "bg-success text-white" :
+                  task.isMissed ? "bg-destructive text-white" :
+                  isActiveSession ? "bg-white text-primary border border-primary/20" :
+                  isUrgent ? "bg-orange-500 text-white" :
                   isHomework ? "bg-primary/10 text-primary border border-primary/20" : "bg-orange-500/10 text-orange-600 border border-orange-200 dark:border-orange-900/30"
                 )}>
                   {task.isDone ? 'DONE' : task.isMissed ? 'MISSED' : task.type}
@@ -271,7 +263,7 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
                 <DeleteTaskButton taskId={task.id} className="h-10 w-10" />
 
                 <Link href={`/studio/${encodeURIComponent(task.subject.replace(/\s*\(revision\)\s*/gi, '').replace(/'/g, '').trim())}`} onClick={(e) => e.stopPropagation()}>
-                   <Button variant="ghost" size="sm" className="rounded-xl h-10 w-10 p-0 text-primary hover:bg-primary/10 transition-all border border-primary/10 shadow-sm shadow-primary/5">
+                   <Button variant="ghost" size="sm" className="rounded-xl h-10 w-10 p-0 text-primary hover:bg-primary/10 transition-all border border-primary/10 shadow-sm">
                       <Sparkles className="w-4 h-4" />
                    </Button>
                 </Link>

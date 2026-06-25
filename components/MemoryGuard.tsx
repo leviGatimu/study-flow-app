@@ -1,11 +1,24 @@
 "use client";
 
 import { TutorModule } from "@/lib/types";
-import { Brain, ChevronRight, Clock, Sparkles, AlertCircle } from "lucide-react";
+import { Brain, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { differenceInCalendarDays } from "date-fns";
+
+const understandingDot: Record<string, string> = {
+  Master: "bg-emerald-500",
+  Intermediate: "bg-blue-500",
+  Beginner: "bg-orange-500",
+};
+
+function getUrgency(nextReviewAt: Date | string | null) {
+  const days = nextReviewAt ? differenceInCalendarDays(new Date(), new Date(nextReviewAt)) : 0;
+  if (days >= 3) return { label: `${days}d overdue`, dot: "bg-red-500", text: "text-red-600", bg: "bg-red-500/10" };
+  if (days >= 1) return { label: `${days}d overdue`, dot: "bg-orange-500", text: "text-orange-600", bg: "bg-orange-500/10" };
+  return { label: "Due today", dot: "bg-blue-500", text: "text-blue-600", bg: "bg-blue-500/10" };
+}
 
 export function MemoryGuard({ dueModules }: { dueModules: TutorModule[] }) {
   if (dueModules.length === 0) return null;
@@ -14,10 +27,12 @@ export function MemoryGuard({ dueModules }: { dueModules: TutorModule[] }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-4"
+      className="bg-card border border-border/60 rounded-3xl p-6 shadow-sm relative overflow-hidden group hover:shadow-md transition-all"
     >
-      <div className="flex items-center justify-between px-2">
-        <h3 className="font-heading font-black text-xl flex items-center gap-2">
+      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+
+      <div className="flex items-center justify-between mb-5 relative z-10">
+        <h3 className="font-heading font-black text-lg flex items-center gap-2">
           <Brain className="w-5 h-5 text-primary" />
           Memory Guard
         </h3>
@@ -26,54 +41,37 @@ export function MemoryGuard({ dueModules }: { dueModules: TutorModule[] }) {
         </span>
       </div>
 
-      <div className="space-y-3">
-        {dueModules.map((module) => (
-          <Link key={module.id} href={`/tutor/${module.id}`}>
-            <Card className="p-5 border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-all group rounded-[24px] relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12 blur-2xl group-hover:bg-primary/10 transition-colors" />
-              
-              <div className="relative z-10 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
-                    Spaced Review
-                  </span>
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground">
-                    <Clock className="w-3 h-3" />
-                    Due Now
+      <div className="space-y-1 relative z-10">
+        {dueModules.map((module) => {
+          const urgency = getUrgency(module.nextReviewAt);
+          return (
+            <Link key={module.id} href={`/tutor/${module.id}`}>
+              <div className="flex items-center gap-3 p-3 rounded-2xl hover:bg-muted/60 transition-colors group/item">
+                <span className={cn("h-2 w-2 rounded-full shrink-0", urgency.dot)} />
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-foreground truncate">{module.title}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide truncate">
+                      {module.subject}
+                    </span>
+                    <span className="text-muted-foreground/40">•</span>
+                    <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", understandingDot[module.understanding || "Beginner"])} />
+                    <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">
+                      {module.understanding || "Beginner"}
+                    </span>
                   </div>
                 </div>
 
-                <h4 className="font-heading font-black text-lg leading-tight group-hover:text-primary transition-colors">
-                  {module.title}
-                </h4>
+                <span className={cn("text-[10px] font-black uppercase tracking-wide px-2 py-1 rounded-full shrink-0", urgency.bg, urgency.text)}>
+                  {urgency.label}
+                </span>
 
-                <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-2">
-                      <div className={cn(
-                        "w-1.5 h-1.5 rounded-full",
-                        module.understanding === "Master" ? "bg-emerald-500" :
-                        module.understanding === "Intermediate" ? "bg-blue-500" :
-                        "bg-orange-500"
-                      )} />
-                      <span className="text-[10px] font-black uppercase tracking-widest opacity-60">
-                        {module.understanding || "Beginner"} Level
-                      </span>
-                   </div>
-                   <div className="h-7 w-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-all">
-                      <ChevronRight className="w-4 h-4" />
-                   </div>
-                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover/item:text-primary group-hover/item:translate-x-0.5 transition-all shrink-0" />
               </div>
-            </Card>
-          </Link>
-        ))}
-
-        <div className="p-4 bg-muted/30 border-dashed border-2 rounded-2xl flex items-start gap-3">
-           <AlertCircle className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-           <p className="text-[11px] font-medium text-muted-foreground leading-relaxed">
-             The forgetting curve shows you&apos;ll lose 70% of this material by tomorrow if you don&apos;t review now.
-           </p>
-        </div>
+            </Link>
+          );
+        })}
       </div>
     </motion.div>
   );
