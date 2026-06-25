@@ -1,0 +1,11 @@
+# Sub-projects that are not part of the deployed Next.js web app.
+desktop-app/
+promo/
+
+# Local-only data and backups (never deployed).
+backups/
+prisma/dev.db
+prisma/*.db
+
+# Editor / tooling local state.
+.claude/

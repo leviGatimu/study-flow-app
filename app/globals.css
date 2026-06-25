@@ -196,6 +196,23 @@
 }
 .flow-notes hr { @apply my-7; border-color: rgba(255, 255, 255, 0.1); }
 
+/* Delayed-appearance skeletons.
+   Skeleton fallbacks stay fully invisible for ~300ms, then fade in only if the
+   page/component is still loading. If the real content arrives first (a fast
+   transition), the skeleton is unmounted before it ever becomes visible — so
+   quick navigations never flash a placeholder, and only genuinely slow loads
+   (e.g. Supabase round-trips) show feedback. */
+@keyframes skeleton-reveal {
+  to { opacity: 1; }
+}
+.skeleton-delayed {
+  opacity: 0;
+  animation: skeleton-reveal 0.2s ease-out 0.3s forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-delayed { animation-duration: 0.01s; }
+}
+
 /* Compact variant for the tutor chat bubbles */
 .flow-chat { @apply text-sm text-white/85; }
 .flow-chat h1, .flow-chat h2, .flow-chat h3, .flow-chat h4 {
