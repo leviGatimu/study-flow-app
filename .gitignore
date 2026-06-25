@@ -78,3 +78,6 @@ desktop-app/node_modules/
 desktop-app/dist/
 desktop-app/out.txt
 desktop-app/err.txt
+
+# personal local Claude Code permission overrides (not shared)
+.claude/settings.local.json
