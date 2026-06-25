@@ -2,6 +2,12 @@
 desktop-app/
 promo/
 
+# Secrets: never bundle the local .env into a deployment. Vercel injects the
+# real values from its encrypted Environment Variables store at build/runtime.
+.env
+.env.*
+!.env.example
+
 # Local-only data and backups (never deployed).
 backups/
 prisma/dev.db
