@@ -81,3 +81,6 @@ desktop-app/err.txt
 
 # personal local Claude Code permission overrides (not shared)
 .claude/settings.local.json
+
+# raw database backups (contain password hashes & personal data — never commit)
+/backups/
