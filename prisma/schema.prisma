@@ -1,0 +1,360 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client-custom-v8"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String             @id @default(cuid())
+  username          String             @unique
+  passwordHash      String
+  isAdmin           Boolean            @default(false)
+  currentTerm       String             @default("Term 1")
+  createdAt         DateTime           @default(now())
+  templates         ScheduleTemplate[]
+  tasks             Task[]
+  resources         Resource[]
+  examEvents        ExamEvent[]
+  weeklySummaries   WeeklySummary[]
+  dailySummaries    DailySummary[]
+  masteryItems      MasteryItem[]
+  markedDays        MarkedDay[]
+  progress          UserProgress?
+  chatSessions      ChatSession[]
+  projects          Project[]
+  stickyNotes       StickyNote[]
+  tutorModules      TutorModule[]
+  studioNotes       StudioNote[]
+  homeworks         Homework[]
+  reportCards       ReportCard[]
+  aiNotes           AiNote[]
+  subjectGoals      SubjectGoal[]
+  subjects          Subject[]
+  songs             Song[]
+  playlists         Playlist[]
+}
+
+model Song {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  artist    String?
+  audioUrl  String   // local file path under /uploads
+  coverUrl  String?  // optional album art under /uploads
+  duration  Float?   // seconds, measured client-side on upload
+  lyrics    String?  // LRC (synced) or plain text; from ID3 tags or LRCLIB
+  createdAt DateTime @default(now())
+  sourceType String  @default("LOCAL") // "LOCAL" (uploaded file) or "AUDIUS" (online)
+  externalId String?                   // provider track id for online songs
+  playlists Playlist[]
+}
+
+model Playlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  songs     Song[]
+}
+
+model ReportCard {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  term           String
+  overallAverage Float?
+  aiSummary      String?
+  fileUrl        String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  grades         SubjectGrade[]
+}
+
+model SubjectGrade {
+  id           String     @id @default(cuid())
+  reportCardId String
+  reportCard   ReportCard @relation(fields: [reportCardId], references: [id], onDelete: Cascade)
+  subject      String
+  grade        String
+  status       String     // e.g., "Excellent", "Needs Work"
+  aiFeedback   String
+  createdAt    DateTime   @default(now())
+}
+
+model Homework {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject         String
+  title           String
+  description     String?
+  dueDate         DateTime
+  plannedDate     DateTime?
+  isCompleted     Boolean  @default(false)
+  completedAt     DateTime?
+  proofUrl        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model StudioNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   String
+  content   String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, subject])
+}
+
+model TutorModule {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject        String
+  title          String   
+  sourcePdfUrl   String?
+  notes          String   // Markdown (Legacy/Optional)
+  videos         String   // JSON array (Legacy/Optional)
+  flashcards     String   // JSON array (Legacy/Optional)
+  exercises      String   // JSON array (Legacy/Optional)
+  questions      String   @default("[]") // JSON array: { id, question, expectedAnswer }
+  score          Int?     
+  understanding  String?  // "Beginner", "Intermediate", "Master"
+  lastReviewedAt DateTime?
+  nextReviewAt   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime? @updatedAt
+  attempts       QuizAttempt[]
+}
+
+model QuizAttempt {
+  id        String      @id @default(cuid())
+  moduleId  String
+  module    TutorModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  score     Int
+  feedback  String      // JSON array: { questionId, studentAnswer, isCorrect, aiFeedback }
+  createdAt DateTime    @default(now())
+}
+
+model Project {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  status      String       @default("ACTIVE") // "ACTIVE" | "COMPLETED" | "ARCHIVED"
+  progress    Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  docs        ProjectDoc[]
+}
+
+model ProjectDoc {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title     String
+  content   String   // Markdown or plain text content
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String        @default("New Chat")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String      // "user" or "model"
+  content   String
+  createdAt DateTime    @default(now())
+}
+
+model ScheduleTemplate {
+  id          String @id @default(cuid())
+  userId      String
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayOfWeek   Int    // 0 for Sunday, 1 for Monday, etc.
+  subject     String
+  startTime   String // format "HH:MM" 24hr
+  endTime     String // format "HH:MM" 24hr
+  deadlineDay String
+  type        String // "HOMEWORK" or "REVISION"
+  tasks       Task[]
+}
+
+model Task {
+  id         String            @id @default(cuid())
+  userId     String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId String?           // Optional for one-off tasks
+  template   ScheduleTemplate? @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  date       DateTime
+  startTime  String           // Added for individual editing
+  endTime    String           // Added for individual editing
+  subject    String
+  isDone     Boolean           @default(false)
+  isMissed   Boolean           @default(false) 
+  isDeleted  Boolean           @default(false) // Added to prevent regeneration
+  type        String            // "HOMEWORK" or "REVISION"
+  workDescription String?           // Added for proof of work
+  proofPdfUrl     String?           // Added for PDF proof of work
+}
+
+
+model MarkedDay {
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime
+  
+  @@unique([userId, date])
+}
+
+model UserProgress {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String    @default("Student")    // For personalized greeting
+  currentStreak  Int       @default(0)
+  longestStreak  Int       @default(0)
+  lastActiveDate DateTime?
+  schoolEndDate  DateTime? // User's marked last day of school; streak pauses after it until resumed
+  geminiApiKey   String?   // Added for AI Study Buddy
+  openaiApiKey   String?   // Added for OpenAI API key
+  primaryAiProvider String @default("gemini") // "gemini", "openai", or "ollama"
+  ollamaEnabled  Boolean  @default(true)   // allow offline fallback to a local Ollama model
+  ollamaBaseUrl  String   @default("http://localhost:11434") // local Ollama server
+  ollamaModel    String?   // chosen text/general model (e.g. "llama3.1")
+  ollamaVisionModel String? // optional vision-capable model for image analysis (e.g. "llama3.2-vision")
+  focusSessions  Int       @default(0)
+  totalFocusMinutes Int    @default(0)
+  xp             Int       @default(0)
+  level          Int       @default(1)
+  dailySummaryTime String  @default("21:00") // "HH:MM" local time-of-day to auto-generate the daily summary
+}
+
+model Resource {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   String
+  title     String
+  type      String   // "LINK" or "FILE"
+  url       String   // URL or local file path
+  createdAt DateTime @default(now())
+}
+
+model ExamEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  date      DateTime
+  priority  String   @default("NORMAL") // "LOW" | "NORMAL" | "HIGH"
+  createdAt DateTime @default(now())
+}
+
+model WeeklySummary {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate        DateTime
+  endDate          DateTime
+  grade            String
+  totalMinutes     Int
+  subjectBreakdown String   // Stored as JSON string
+  createdAt        DateTime @default(now())
+
+  @@unique([userId, startDate, endDate])
+}
+
+model DailySummary {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date             DateTime
+  grade            String
+  totalMinutes     Int
+  completedMinutes Int      @default(0)
+  subjectBreakdown String   // Stored as JSON string
+  createdAt        DateTime @default(now())
+
+  @@unique([userId, date])
+}
+
+model MasteryItem {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject     String   // Normalized subject name
+  title       String
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model StickyNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  content   String
+  color     String   @default("#fef08a") // Default tailwind yellow-200
+  isDone    Boolean  @default(false)
+  x         Float    @default(0)
+  y         Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AiNote {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  content     String   // Markdown notes
+  sourceName  String?  // Filename of upload
+  stylePreset String?  // Preset name (e.g. Detailed, Summary, Q&A)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SubjectGoal {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject     String
+  targetGrade Float    // Target percentage grade, e.g. 85.0
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, subject])
+}
+
+model Subject {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+}

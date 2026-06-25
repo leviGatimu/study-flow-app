@@ -1,0 +1,6 @@
+node_modules/
+out/
+.remotion/
+.env
+# Generated audio — recreate with `npm run audio:vo` and `npm run audio:sfx`
+public/audio/

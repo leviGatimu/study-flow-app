@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FORMA — Handcrafted Ceramic Mugs</title>
+    <meta name="description" content="Artisan ceramic mugs designed for the ritual of mornings. Premium stoneware, timeless design.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0a;
+            --bg-elevated: #141414;
+            --bg-card: #1a1a1a;
+            --text: #f5f0eb;
+            --text-muted: #8a8580;
+            --text-dim: #5a5550;
+            --accent: #c8956c;
+            --accent-light: #dbb08a;
+            --accent-dark: #a07050;
+            --border: rgba(255, 255, 255, 0.06);
+            --border-hover: rgba(255, 255, 255, 0.12);
+            --success: #6bc77a;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── NAV ── */
+        .nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            padding: 1.2rem 4rem;
+            display: flex; justify-content: space-between; align-items: center;
+            backdrop-filter: blur(24px);
+            background: rgba(10, 10, 10, 0.6);
+            border-bottom: 1px solid var(--border);
+            transition: all 0.4s ease;
+        }
+        .nav.scrolled { background: rgba(10, 10, 10, 0.9); }
+        .nav-logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.6rem; font-weight: 600; letter-spacing: 3px;
+            color: var(--accent);
+        }
+        .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+        .nav-links a {
+            color: var(--text-muted); text-decoration: none;
+            font-size: 0.82rem; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;
+            transition: color 0.3s;
+        }
+        .nav-links a:hover { color: var(--text); }
+        .nav-bag {
+            position: relative; background: none; border: none; color: var(--text); cursor: pointer; font-size: 1.1rem;
+        }
+        .nav-bag .bag-count {
+            position: absolute; top: -6px; right: -8px;
+            width: 16px; height: 16px; border-radius: 50%;
+            background: var(--accent); color: #000; font-size: 0.6rem; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            transform: scale(0); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .nav-bag .bag-count.show { transform: scale(1); }
+
+        /* ── HERO PRODUCT SECTION ── */
+        .product-hero {
+            min-height: 100vh; display: grid;
+            grid-template-columns: 1fr 1fr; align-items: center;
+            padding: 8rem 4rem 4rem; gap: 2rem;
+            position: relative;
+        }
+
+        /* Left: Product Info */
+        .product-info { max-width: 520px; z-index: 2; }
+        .product-badge {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.4rem 1rem; border-radius: 100px;
+            background: rgba(200, 149, 108, 0.1); border: 1px solid rgba(200, 149, 108, 0.2);
+            font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; color: var(--accent);
+            margin-bottom: 1.5rem;
+            opacity: 0; transform: translateY(15px);
+            animation: fadeUp 0.7s ease 0.3s forwards;
+        }
+        .product-name {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2.8rem, 5vw, 4.2rem); font-weight: 500;
+            line-height: 1.1; letter-spacing: -1px; margin-bottom: 0.5rem;
+            opacity: 0; transform: translateY(20px);
+            animation: fadeUp 0.8s ease 0.45s forwards;
+        }
+        .product-tagline {
+            font-family: 'Playfair Display', serif; font-style: italic;
+            font-size: 1.15rem; color: var(--text-muted);
+            margin-bottom: 2rem;
+            opacity: 0; transform: translateY(15px);
+            animation: fadeUp 0.8s ease 0.6s forwards;
+        }
+        .product-rating {
+            display: flex; align-items: center; gap: 0.7rem;
+            margin-bottom: 1.5rem;
+            opacity: 0; animation: fadeUp 0.8s ease 0.7s forwards;
+        }
+        .stars { color: var(--accent); font-size: 0.9rem; letter-spacing: 2px; }
+        .rating-text { font-size: 0.82rem; color: var(--text-muted); }
+
+        .product-price {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2rem; font-weight: 600; margin-bottom: 2rem;
+            opacity: 0; animation: fadeUp 0.8s ease 0.75s forwards;
+        }
+        .product-price .original {
+            font-size: 1.1rem; color: var(--text-dim);
+            text-decoration: line-through; margin-left: 0.5rem; font-weight: 400;
+        }
+
+        /* Color Picker */
+        .color-section {
+            margin-bottom: 2rem;
+            opacity: 0; animation: fadeUp 0.8s ease 0.85s forwards;
+        }
+        .color-label {
+            font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase;
+            color: var(--text-muted); margin-bottom: 0.8rem;
+        }
+        .color-label span { color: var(--text); font-weight: 500; }
+        .color-swatches { display: flex; gap: 0.7rem; }
+        .swatch {
+            width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+            border: 2px solid transparent; transition: all 0.3s ease;
+            position: relative; outline: none;
+        }
+        .swatch::after {
+            content: ''; position: absolute; inset: -4px; border-radius: 50%;
+            border: 2px solid var(--accent); opacity: 0; transition: opacity 0.3s;
+        }
+        .swatch.active::after { opacity: 1; }
+        .swatch:hover { transform: scale(1.15); }
+        .swatch[data-color="obsidian"]  { background: #2a2a2a; }
+        .swatch[data-color="cloud"]     { background: #e8e0d8; }
+        .swatch[data-color="indigo"]    { background: #3d4f7c; }
+        .swatch[data-color="sage"]      { background: #6b7c5e; }
+        .swatch[data-color="clay"]      { background: #b8704a; }
+        .swatch[data-color="blush"]     { background: #c48b8b; }
+
+        /* Size Picker */
+        .size-section {
+            margin-bottom: 2.5rem;
+            opacity: 0; animation: fadeUp 0.8s ease 0.95s forwards;
+        }
+        .size-options { display: flex; gap: 0.6rem; }
+        .size-btn {
+            padding: 0.7rem 1.6rem; border-radius: 12px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            color: var(--text-muted); font-size: 0.85rem; font-weight: 500;
+            cursor: pointer; transition: all 0.3s ease;
+        }
+        .size-btn:hover { border-color: var(--border-hover); color: var(--text); }
+        .size-btn.active {
+            border-color: var(--accent); color: var(--text);
+            background: rgba(200, 149, 108, 0.08);
+        }
+
+        /* Buttons */
+        .action-buttons {
+            display: flex; gap: 0.8rem;
+            opacity: 0; animation: fadeUp 0.8s ease 1.05s forwards;
+        }
+        .btn-cart {
+            flex: 1; padding: 1.1rem 2rem; border-radius: 14px;
+            background: var(--accent); border: none;
+            color: #0a0a0a; font-size: 0.9rem; font-weight: 600;
+            letter-spacing: 0.5px; cursor: pointer;
+            transition: all 0.3s ease; position: relative; overflow: hidden;
+        }
+        .btn-cart::before {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transform: translateX(-100%); transition: transform 0.5s;
+        }
+        .btn-cart:hover::before { transform: translateX(100%); }
+        .btn-cart:hover { background: var(--accent-light); transform: translateY(-2px); box-shadow: 0 12px 40px rgba(200, 149, 108, 0.25); }
+        .btn-cart:active { transform: translateY(0) scale(0.98); }
+        .btn-cart.added {
+            background: var(--success); color: #0a0a0a;
+        }
+        .btn-wish {
+            width: 52px; height: 52px; border-radius: 14px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            color: var(--text-muted); font-size: 1.2rem; cursor: pointer;
+            transition: all 0.3s ease; display: flex; align-items: center; justify-content: center;
+        }
+        .btn-wish:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-wish.liked { color: #e74c5f; border-color: #e74c5f; }
+
+        /* Product details below buttons */
+        .product-details-mini {
+            margin-top: 2rem; display: flex; gap: 2rem;
+            opacity: 0; animation: fadeUp 0.8s ease 1.15s forwards;
+        }
+        .detail-item {
+            display: flex; align-items: center; gap: 0.5rem;
+            font-size: 0.8rem; color: var(--text-muted);
+        }
+        .detail-icon {
+            width: 32px; height: 32px; border-radius: 8px;
+            background: var(--bg-card); display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        /* Right: 3D Viewer */
+        .viewer-container {
+            position: relative; width: 100%; height: 80vh;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #mug-canvas {
+            width: 100%; height: 100%; cursor: grab;
+            border-radius: 24px;
+        }
+        #mug-canvas:active { cursor: grabbing; }
+        .viewer-hint {
+            position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
+            font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase;
+            color: var(--text-dim);
+            opacity: 0; animation: fadeUp 0.8s ease 1.5s forwards;
+        }
+        .viewer-hint span { display: inline-block; animation: swingHand 2s ease-in-out infinite; }
+
+        /* ── FEATURES SECTION ── */
+        .features {
+            padding: 8rem 4rem; max-width: 1400px; margin: 0 auto;
+        }
+        .section-tag {
+            font-size: 0.7rem; letter-spacing: 4px; text-transform: uppercase;
+            color: var(--accent); display: block; margin-bottom: 1rem; text-align: center;
+        }
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2rem, 4vw, 3rem); font-weight: 500; text-align: center;
+            letter-spacing: -0.5px; margin-bottom: 4rem;
+        }
+        .features-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem;
+        }
+        .feature-card {
+            padding: 2.5rem 2rem; border-radius: 20px;
+            background: var(--bg-elevated); border: 1px solid var(--border);
+            text-align: center; transition: all 0.4s ease;
+            opacity: 0; transform: translateY(40px);
+        }
+        .feature-card.visible { opacity: 1; transform: translateY(0); }
+        .feature-card:hover { transform: translateY(-6px); border-color: var(--border-hover); }
+        .feature-icon {
+            width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 1.2rem;
+            background: rgba(200, 149, 108, 0.08);
+            display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+        }
+        .feature-card h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.05rem; font-weight: 600; margin-bottom: 0.6rem;
+        }
+        .feature-card p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
+
+        /* ── STORY SECTION ── */
+        .story {
+            padding: 8rem 4rem; max-width: 1000px; margin: 0 auto; text-align: center;
+        }
+        .story-quote {
+            font-family: 'Playfair Display', serif; font-style: italic;
+            font-size: clamp(1.3rem, 2.5vw, 2rem); line-height: 1.6;
+            color: var(--text); margin-bottom: 2rem;
+            opacity: 0; transform: translateY(30px);
+        }
+        .story-quote.visible { opacity: 1; transform: translateY(0); transition: all 0.8s ease; }
+        .story-author {
+            font-size: 0.85rem; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase;
+        }
+
+        /* ── REVIEWS SECTION ── */
+        .reviews { padding: 8rem 4rem; max-width: 1400px; margin: 0 auto; }
+        .reviews-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+        .review-card {
+            padding: 2.5rem; border-radius: 20px;
+            background: var(--bg-elevated); border: 1px solid var(--border);
+            transition: all 0.4s ease;
+            opacity: 0; transform: translateY(30px);
+        }
+        .review-card.visible { opacity: 1; transform: translateY(0); }
+        .review-card:hover { border-color: var(--border-hover); }
+        .review-stars { color: var(--accent); font-size: 0.85rem; margin-bottom: 1rem; letter-spacing: 2px; }
+        .review-text { font-size: 0.92rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 1.5rem; }
+        .review-author { display: flex; align-items: center; gap: 0.8rem; }
+        .review-avatar {
+            width: 40px; height: 40px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.85rem; color: #0a0a0a;
+        }
+        .review-name { font-weight: 500; font-size: 0.9rem; }
+        .review-verified { font-size: 0.75rem; color: var(--success); }
+
+        /* ── COLOR GALLERY ── */
+        .gallery {
+            padding: 8rem 4rem; max-width: 1400px; margin: 0 auto;
+        }
+        .gallery-strip {
+            display: flex; gap: 1rem; overflow-x: auto;
+            padding-bottom: 1rem; scroll-snap-type: x mandatory;
+            -ms-overflow-style: none; scrollbar-width: none;
+        }
+        .gallery-strip::-webkit-scrollbar { display: none; }
+        .gallery-card {
+            flex: 0 0 280px; height: 360px; border-radius: 20px;
+            position: relative; overflow: hidden; scroll-snap-align: start;
+            cursor: pointer; transition: transform 0.4s ease;
+        }
+        .gallery-card:hover { transform: scale(1.02); }
+        .gallery-card-bg {
+            position: absolute; inset: 0; transition: transform 0.5s ease;
+        }
+        .gallery-card:hover .gallery-card-bg { transform: scale(1.08); }
+        .gallery-card-info {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 2rem; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+        }
+        .gallery-card-info h4 {
+            font-family: 'Space Grotesk', sans-serif; font-size: 1rem; margin-bottom: 0.3rem;
+        }
+        .gallery-card-info p { font-size: 0.8rem; color: var(--text-muted); }
+
+        /* ── CTA SECTION ── */
+        .cta-section {
+            padding: 10rem 4rem; text-align: center; position: relative;
+        }
+        .cta-section::before {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(200, 149, 108, 0.08), transparent 70%);
+            border-radius: 50%; pointer-events: none;
+        }
+        .cta-section h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2rem, 4vw, 3.5rem); font-weight: 500;
+            margin-bottom: 1rem;
+        }
+        .cta-section p { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 2.5rem; max-width: 420px; margin-left: auto; margin-right: auto; line-height: 1.7; }
+
+        /* ── FOOTER ── */
+        .footer {
+            padding: 3rem 4rem; border-top: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+            max-width: 1400px; margin: 0 auto;
+        }
+        .footer-left { font-size: 0.8rem; color: var(--text-dim); }
+        .footer-links { display: flex; gap: 2rem; }
+        .footer-links a { color: var(--text-dim); text-decoration: none; font-size: 0.8rem; transition: color 0.3s; }
+        .footer-links a:hover { color: var(--accent); }
+
+        /* ── DIVIDER ── */
+        .divider {
+            max-width: 1400px; margin: 0 auto; border: none;
+            height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent);
+        }
+
+        /* ── NOTIFICATION TOAST ── */
+        .toast {
+            position: fixed; bottom: 2rem; right: 2rem; z-index: 1000;
+            padding: 1rem 1.5rem; border-radius: 14px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            backdrop-filter: blur(20px);
+            display: flex; align-items: center; gap: 0.8rem;
+            font-size: 0.88rem; font-weight: 500;
+            transform: translateY(120%); opacity: 0;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast-icon { font-size: 1.2rem; }
+
+        /* ── GRAIN ── */
+        .grain {
+            position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
+            z-index: 9998; pointer-events: none; opacity: 0.025;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+
+        /* ── ANIMATIONS ── */
+        @keyframes fadeUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes swingHand {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(15deg); }
+            75% { transform: rotate(-15deg); }
+        }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 1024px) {
+            .product-hero { grid-template-columns: 1fr; padding: 7rem 2rem 3rem; }
+            .viewer-container { height: 50vh; }
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+            .reviews-grid { grid-template-columns: 1fr; }
+            .nav { padding: 1rem 2rem; }
+        }
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .features-grid { grid-template-columns: 1fr; }
+            .product-hero { padding: 6rem 1.5rem 2rem; }
+            .product-details-mini { flex-direction: column; gap: 1rem; }
+            .footer { flex-direction: column; gap: 1.5rem; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="grain"></div>
+
+<!-- NAV -->
+<nav class="nav" id="mainNav">
+    <div class="nav-logo">FORMA</div>
+    <ul class="nav-links">
+        <li><a href="#features">Craft</a></li>
+        <li><a href="#collection">Collection</a></li>
+        <li><a href="#reviews">Reviews</a></li>
+        <li><a href="#">Journal</a></li>
+    </ul>
+    <button class="nav-bag" id="bagBtn" aria-label="Shopping bag">
+        🛍
+        <span class="bag-count" id="bagCount">1</span>
+    </button>
+</nav>
+
+<!-- HERO PRODUCT -->
+<section class="product-hero">
+    <!-- Left: Info -->
+    <div class="product-info">
+        <div class="product-badge">✦ New Arrival — Spring '26</div>
+        <h1 class="product-name">The Ritual Mug</h1>
+        <p class="product-tagline">Crafted for mornings that matter</p>
+
+        <div class="product-rating">
+            <span class="stars">★ ★ ★ ★ ★</span>
+            <span class="rating-text">4.9 / 5 — 2,847 reviews</span>
+        </div>
+
+        <div class="product-price">
+            $42 <span class="original">$58</span>
+        </div>
+
+        <!-- Colors -->
+        <div class="color-section">
+            <div class="color-label">Color — <span id="colorName">Obsidian</span></div>
+            <div class="color-swatches">
+                <button class="swatch active" data-color="obsidian" data-hex="#2a2a2a" data-name="Obsidian" aria-label="Obsidian"></button>
+                <button class="swatch" data-color="cloud" data-hex="#e8e0d8" data-name="Cloud" aria-label="Cloud"></button>
+                <button class="swatch" data-color="indigo" data-hex="#3d4f7c" data-name="Indigo" aria-label="Indigo"></button>
+                <button class="swatch" data-color="sage" data-hex="#6b7c5e" data-name="Sage" aria-label="Sage"></button>
+                <button class="swatch" data-color="clay" data-hex="#b8704a" data-name="Clay" aria-label="Clay"></button>
+                <button class="swatch" data-color="blush" data-hex="#c48b8b" data-name="Blush" aria-label="Blush"></button>
+            </div>
+        </div>
+
+        <!-- Size -->
+        <div class="size-section">
+            <div class="color-label">Size</div>
+            <div class="size-options">
+                <button class="size-btn" data-size="10oz">10 oz</button>
+                <button class="size-btn active" data-size="14oz">14 oz</button>
+                <button class="size-btn" data-size="18oz">18 oz</button>
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="action-buttons">
+            <button class="btn-cart" id="addToCart">Add to Bag — $42</button>
+            <button class="btn-wish" id="wishBtn" aria-label="Add to wishlist">♡</button>
+        </div>
+
+        <!-- Details -->
+        <div class="product-details-mini">
+            <div class="detail-item">
+                <div class="detail-icon">🚚</div>
+                <span>Free shipping</span>
+            </div>
+            <div class="detail-item">
+                <div class="detail-icon">↩</div>
+                <span>30-day returns</span>
+            </div>
+            <div class="detail-item">
+                <div class="detail-icon">🛡</div>
+                <span>Lifetime warranty</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: 3D Viewer -->
+    <div class="viewer-container">
+        <canvas id="mug-canvas"></canvas>
+        <div class="viewer-hint"><span>👆</span> Drag to rotate · Scroll to zoom</div>
+    </div>
+</section>
+
+<hr class="divider">
+
+<!-- FEATURES -->
+<section class="features" id="features">
+    <span class="section-tag">The Craft</span>
+    <h2 class="section-title">Made with intention</h2>
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">🔥</div>
+            <h3>Kiln Fired</h3>
+            <p>Each mug is fired at 2,200°F in small batches for maximum durability and that signature glaze.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">✋</div>
+            <h3>Hand Finished</h3>
+            <p>Every piece is hand-sanded and inspected. No two mugs are exactly alike — that's the point.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🌱</div>
+            <h3>Sustainable</h3>
+            <p>Locally sourced stoneware clay, lead-free glazes, and carbon-neutral shipping on every order.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">♨️</div>
+            <h3>Heat Retention</h3>
+            <p>Double-wall stoneware keeps your coffee at the perfect temperature 2x longer than standard mugs.</p>
+        </div>
+    </div>
+</section>
+
+<hr class="divider">
+
+<!-- STORY -->
+<section class="story">
+    <span class="section-tag">Our Philosophy</span>
+    <p class="story-quote">
+        "We don't make mugs. We make the first quiet moment of your day feel 
+        <em style="color: var(--accent);">sacred</em>. Every curve, every weight, every texture 
+        is designed to slow you down — just for a moment."
+    </p>
+    <div class="story-author">— Ada Chen, Founder & Ceramicist</div>
+</section>
+
+<hr class="divider">
+
+<!-- COLOR COLLECTION GALLERY -->
+<section class="gallery" id="collection">
+    <span class="section-tag">The Collection</span>
+    <h2 class="section-title">Find your ritual</h2>
+    <div class="gallery-strip">
+        <div class="gallery-card">
+            <div class="gallery-card-bg" style="background: linear-gradient(135deg, #1a1a1a, #2a2a2a, #1a1a1a);"></div>
+            <div class="gallery-card-info"><h4>Obsidian</h4><p>Deep, grounding, timeless</p></div>
+        </div>
+        <div class="gallery-card">
+            <div class="gallery-card-bg" style="background: linear-gradient(135deg, #c8b8a8, #e8e0d8, #d0c4b8);"></div>
+            <div class="gallery-card-info"><h4 style="color:#1a1a1a">Cloud</h4><p style="color:#555">Soft, warm, serene</p></div>
+        </div>
+        <div class="gallery-card">
+            <div class="gallery-card-bg" style="background: linear-gradient(135deg, #2a3555, #3d4f7c, #2a3555);"></div>
+            <div class="gallery-card-info"><h4>Indigo</h4><p>Deep ocean calm</p></div>
+        </div>
+        <div class="gallery-card">
+            <div class="gallery-card-bg" style="background: linear-gradient(135deg, #4a5a40, #6b7c5e, #4a5a40);"></div>
+            <div class="gallery-card-info"><h4>Sage</h4><p>Forest morning light</p></div>
+        </div>
+        <div class="gallery-card">
+            <div class="gallery-card-bg" style="background: linear-gradient(135deg, #8a5030, #b8704a, #8a5030);"></div>
+            <div class="gallery-card-info"><h4>Clay</h4><p>Earthy, warm, honest</p></div>
+        </div>
+        <div class="gallery-card">
+            <div class="gallery-card-bg" style="background: linear-gradient(135deg, #9a6868, #c48b8b, #9a6868);"></div>
+            <div class="gallery-card-info"><h4>Blush</h4><p>Gentle, rosy dawn</p></div>
+        </div>
+    </div>
+</section>
+
+<hr class="divider">
+
+<!-- REVIEWS -->
+<section class="reviews" id="reviews">
+    <span class="section-tag">Love Letters</span>
+    <h2 class="section-title">What people are saying</h2>
+    <div class="reviews-grid">
+        <div class="review-card">
+            <div class="review-stars">★ ★ ★ ★ ★</div>
+            <p class="review-text">"I've bought four of these now — one for me and three as gifts. The weight, the glaze, the way it feels in your hands at 6am. Nothing compares."</p>
+            <div class="review-author">
+                <div class="review-avatar">JM</div>
+                <div>
+                    <div class="review-name">Jamie M.</div>
+                    <div class="review-verified">✓ Verified Purchase</div>
+                </div>
+            </div>
+        </div>
+        <div class="review-card">
+            <div class="review-stars">★ ★ ★ ★ ★</div>
+            <p class="review-text">"The Sage color is absolutely stunning in person. Photos don't do it justice. My coffee literally tastes better in this mug. Not kidding."</p>
+            <div class="review-author">
+                <div class="review-avatar">SK</div>
+                <div>
+                    <div class="review-name">Sarah K.</div>
+                    <div class="review-verified">✓ Verified Purchase</div>
+                </div>
+            </div>
+        </div>
+        <div class="review-card">
+            <div class="review-stars">★ ★ ★ ★ ★</div>
+            <p class="review-text">"As a ceramicist myself, I can tell you the craftsmanship here is exceptional. The glaze finish and wall thickness are perfect. A true artisan piece."</p>
+            <div class="review-author">
+                <div class="review-avatar">DL</div>
+                <div>
+                    <div class="review-name">David L.</div>
+                    <div class="review-verified">✓ Verified Purchase</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<hr class="divider">
+
+<!-- CTA -->
+<section class="cta-section">
+    <h2>Start your morning<br>with <em style="color: var(--accent); font-family: 'Playfair Display', serif;">intention</em></h2>
+    <p>Join 50,000+ people who've made their morning ritual a little more beautiful.</p>
+    <button class="btn-cart" onclick="document.querySelector('.product-hero').scrollIntoView({behavior:'smooth'})">
+        Shop The Ritual Mug — $42
+    </button>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+    <div class="footer-left">© 2026 FORMA Ceramics. Handmade with ♥</div>
+    <div class="footer-links">
+        <a href="#">Shipping</a>
+        <a href="#">Returns</a>
+        <a href="#">Care Guide</a>
+        <a href="#">Instagram</a>
+    </div>
+</footer>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+    <span class="toast-icon">✓</span>
+    <span id="toastMsg">Added to bag!</span>
+</div>
+
+<script>
+// ============================================
+// THREE.JS — 3D MUG
+// ============================================
+const canvas = document.getElementById('mug-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+camera.position.set(0, 2, 6);
+camera.lookAt(0, 0.8, 0);
+
+function resizeViewer() {
+    const container = canvas.parentElement;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+}
+resizeViewer();
+window.addEventListener('resize', resizeViewer);
+
+// ── Lighting (Studio Setup) ──
+const ambientLight = new THREE.HemisphereLight(0xffeedd, 0x223344, 0.6);
+scene.add(ambientLight);
+
+const keyLight = new THREE.DirectionalLight(0xfff0e0, 1.2);
+keyLight.position.set(3, 5, 4);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(1024, 1024);
+keyLight.shadow.camera.far = 20;
+keyLight.shadow.radius = 4;
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0xc8d8ff, 0.4);
+fillLight.position.set(-3, 2, -2);
+scene.add(fillLight);
+
+const rimLight = new THREE.PointLight(0xffd4a0, 0.6, 15);
+rimLight.position.set(-2, 3, -3);
+scene.add(rimLight);
+
+const bottomFill = new THREE.PointLight(0x6688aa, 0.3, 10);
+bottomFill.position.set(0, -1, 3);
+scene.add(bottomFill);
+
+// ── Mug Geometry (LatheGeometry) ──
+const mugGroup = new THREE.Group();
+scene.add(mugGroup);
+
+// Profile curve for mug body (Vector2: x = radius, y = height)
+const bodyProfile = [
+    new THREE.Vector2(0,     0),
+    new THREE.Vector2(1.05,  0),
+    new THREE.Vector2(1.08,  0.03),
+    new THREE.Vector2(1.12,  0.1),
+    new THREE.Vector2(1.18,  0.4),
+    new THREE.Vector2(1.22,  0.8),
+    new THREE.Vector2(1.24,  1.2),
+    new THREE.Vector2(1.22,  1.6),
+    new THREE.Vector2(1.18,  1.9),
+    new THREE.Vector2(1.20,  1.96),
+    new THREE.Vector2(1.24,  2.0),
+    new THREE.Vector2(1.24,  2.06),
+    new THREE.Vector2(1.20,  2.08),
+    new THREE.Vector2(1.10,  2.08),
+    new THREE.Vector2(1.06,  2.04),
+    new THREE.Vector2(1.04,  1.9),
+    new THREE.Vector2(1.06,  1.5),
+    new THREE.Vector2(1.08,  1.0),
+    new THREE.Vector2(1.06,  0.5),
+    new THREE.Vector2(1.00,  0.2),
+    new THREE.Vector2(0.90,  0.12),
+    new THREE.Vector2(0,     0.12),
+];
+
+const mugBodyGeom = new THREE.LatheGeometry(bodyProfile, 64);
+
+// Material — glazed ceramic look
+let currentColor = new THREE.Color(0x2a2a2a);
+let targetColor = new THREE.Color(0x2a2a2a);
+
+const mugMaterial = new THREE.MeshPhysicalMaterial({
+    color: currentColor,
+    roughness: 0.28,
+    metalness: 0.0,
+    clearcoat: 0.9,
+    clearcoatRoughness: 0.15,
+    reflectivity: 0.5,
+    envMapIntensity: 0.8,
+});
+
+const mugBody = new THREE.Mesh(mugBodyGeom, mugMaterial);
+mugBody.castShadow = true;
+mugBody.receiveShadow = true;
+mugGroup.add(mugBody);
+
+// ── Handle (TubeGeometry with CatmullRomCurve3) ──
+const handleCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(1.20, 1.7, 0),
+    new THREE.Vector3(1.55, 1.65, 0),
+    new THREE.Vector3(1.72, 1.4, 0),
+    new THREE.Vector3(1.75, 1.1, 0),
+    new THREE.Vector3(1.70, 0.8, 0),
+    new THREE.Vector3(1.55, 0.55, 0),
+    new THREE.Vector3(1.18, 0.5, 0),
+]);
+
+const handleGeom = new THREE.TubeGeometry(handleCurve, 32, 0.09, 12, false);
+const mugHandle = new THREE.Mesh(handleGeom, mugMaterial);
+mugHandle.castShadow = true;
+mugGroup.add(mugHandle);
+
+// ── Inner dark surface (coffee/tea inside) ──
+const innerProfile = [
+    new THREE.Vector2(0,    1.85),
+    new THREE.Vector2(0.95, 1.85),
+    new THREE.Vector2(1.02, 1.88),
+    new THREE.Vector2(1.04, 1.92),
+];
+
+const innerGeom = new THREE.LatheGeometry(innerProfile, 64);
+const innerMaterial = new THREE.MeshStandardMaterial({
+    color: 0x1a1008,
+    roughness: 0.9,
+    metalness: 0,
+});
+const innerSurface = new THREE.Mesh(innerGeom, innerMaterial);
+mugGroup.add(innerSurface);
+
+// ── Ground plane ──
+const groundGeom = new THREE.CircleGeometry(4, 64);
+const groundMat = new THREE.MeshStandardMaterial({
+    color: 0x111111,
+    roughness: 0.85,
+    metalness: 0.1,
+});
+const ground = new THREE.Mesh(groundGeom, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.01;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ── Subtle ambient particles ──
+const sparkCount = 200;
+const sparkPositions = new Float32Array(sparkCount * 3);
+for (let i = 0; i < sparkCount; i++) {
+    sparkPositions[i * 3]     = (Math.random() - 0.5) * 10;
+    sparkPositions[i * 3 + 1] = Math.random() * 5;
+    sparkPositions[i * 3 + 2] = (Math.random() - 0.5) * 10;
+}
+const sparkGeom = new THREE.BufferGeometry();
+sparkGeom.setAttribute('position', new THREE.BufferAttribute(sparkPositions, 3));
+const sparkMat = new THREE.PointsMaterial({
+    color: 0xc8956c,
+    size: 0.015,
+    transparent: true,
+    opacity: 0.4,
+});
+const sparks = new THREE.Points(sparkGeom, sparkMat);
+scene.add(sparks);
+
+// ── Orbit Controls (manual) ──
+let isDragging = false;
+let prevMouseX = 0, prevMouseY = 0;
+let rotationY = 0, rotationX = 0.15;
+let autoRotate = true;
+let autoRotateSpeed = 0.003;
+let targetRotY = 0, targetRotX = 0.15;
+let cameraDistance = 6;
+let targetDistance = 6;
+
+canvas.addEventListener('pointerdown', (e) => {
+    isDragging = true;
+    autoRotate = false;
+    prevMouseX = e.clientX;
+    prevMouseY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener('pointermove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - prevMouseX;
+    const dy = e.clientY - prevMouseY;
+    targetRotY += dx * 0.006;
+    targetRotX += dy * 0.004;
+    targetRotX = Math.max(-0.5, Math.min(0.8, targetRotX));
+    prevMouseX = e.clientX;
+    prevMouseY = e.clientY;
+});
+
+canvas.addEventListener('pointerup', () => {
+    isDragging = false;
+    // Resume auto-rotate after 3 seconds
+    setTimeout(() => { if (!isDragging) autoRotate = true; }, 3000);
+});
+
+canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    targetDistance += e.deltaY * 0.005;
+    targetDistance = Math.max(3.5, Math.min(10, targetDistance));
+}, { passive: false });
+
+// ── Animation Loop ──
+const clock = new THREE.Clock();
+
+function animate() {
+    requestAnimationFrame(animate);
+    const elapsed = clock.getElapsedTime();
+
+    // Auto rotation
+    if (autoRotate) {
+        targetRotY += autoRotateSpeed;
+    }
+
+    // Smooth lerp
+    rotationY += (targetRotY - rotationY) * 0.08;
+    rotationX += (targetRotX - rotationX) * 0.08;
+    cameraDistance += (targetDistance - cameraDistance) * 0.08;
+
+    // Update camera position
+    camera.position.x = Math.sin(rotationY) * Math.cos(rotationX) * cameraDistance;
+    camera.position.y = Math.sin(rotationX) * cameraDistance + 1.0;
+    camera.position.z = Math.cos(rotationY) * Math.cos(rotationX) * cameraDistance;
+    camera.lookAt(0, 0.9, 0);
+
+    // Smooth color transition
+    currentColor.lerp(targetColor, 0.06);
+    mugMaterial.color.copy(currentColor);
+
+    // Float particles gently
+    sparks.rotation.y = elapsed * 0.02;
+    const sPos = sparks.geometry.attributes.position.array;
+    for (let i = 0; i < sparkCount; i++) {
+        sPos[i * 3 + 1] += Math.sin(elapsed + i) * 0.0003;
+    }
+    sparks.geometry.attributes.position.needsUpdate = true;
+
+    renderer.render(scene, camera);
+}
+
+animate();
+
+// ============================================
+// COLOR SWATCHES
+// ============================================
+const swatches = document.querySelectorAll('.swatch');
+const colorNameEl = document.getElementById('colorName');
+
+const colorMap = {
+    obsidian: 0x2a2a2a,
+    cloud:    0xe8e0d8,
+    indigo:   0x3d4f7c,
+    sage:     0x6b7c5e,
+    clay:     0xb8704a,
+    blush:    0xc48b8b,
+};
+
+swatches.forEach(swatch => {
+    swatch.addEventListener('click', () => {
+        swatches.forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+        const name = swatch.dataset.name;
+        const color = swatch.dataset.color;
+        colorNameEl.textContent = name;
+        targetColor.set(colorMap[color]);
+    });
+});
+
+// ============================================
+// SIZE BUTTONS
+// ============================================
+const sizeBtns = document.querySelectorAll('.size-btn');
+const sizeScale = { '10oz': 0.85, '14oz': 1.0, '18oz': 1.12 };
+let currentScale = 1.0;
+let targetScale = 1.0;
+
+sizeBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        sizeBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        targetScale = sizeScale[btn.dataset.size];
+    });
+});
+
+// Animate scale in the render loop
+function animateScale() {
+    requestAnimationFrame(animateScale);
+    currentScale += (targetScale - currentScale) * 0.06;
+    mugGroup.scale.set(currentScale, currentScale, currentScale);
+}
+animateScale();
+
+// ============================================
+// ADD TO CART
+// ============================================
+const cartBtn = document.getElementById('addToCart');
+const bagCount = document.getElementById('bagCount');
+const toast = document.getElementById('toast');
+const toastMsg = document.getElementById('toastMsg');
+let cartItems = 0;
+
+cartBtn.addEventListener('click', () => {
+    cartItems++;
+    bagCount.textContent = cartItems;
+    bagCount.classList.add('show');
+
+    // Button animation
+    cartBtn.classList.add('added');
+    cartBtn.textContent = '✓ Added to Bag';
+    setTimeout(() => {
+        cartBtn.classList.remove('added');
+        cartBtn.textContent = 'Add to Bag — $42';
+    }, 2000);
+
+    // Toast
+    const colorName = document.getElementById('colorName').textContent;
+    const size = document.querySelector('.size-btn.active').dataset.size;
+    toastMsg.textContent = `${colorName} Ritual Mug (${size}) added to bag!`;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+});
+
+// ============================================
+// WISHLIST
+// ============================================
+const wishBtn = document.getElementById('wishBtn');
+wishBtn.addEventListener('click', () => {
+    wishBtn.classList.toggle('liked');
+    wishBtn.textContent = wishBtn.classList.contains('liked') ? '♥' : '♡';
+});
+
+// ============================================
+// GALLERY CLICK → SWATCH
+// ============================================
+const galleryCards = document.querySelectorAll('.gallery-card');
+const colorOrder = ['obsidian', 'cloud', 'indigo', 'sage', 'clay', 'blush'];
+galleryCards.forEach((card, i) => {
+    card.addEventListener('click', () => {
+        const colorKey = colorOrder[i];
+        const matchingSwatch = document.querySelector(`.swatch[data-color="${colorKey}"]`);
+        if (matchingSwatch) {
+            matchingSwatch.click();
+            document.querySelector('.product-hero').scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+});
+
+// ============================================
+// SCROLL ANIMATIONS
+// ============================================
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const delay = entry.target.dataset.delay || 0;
+            setTimeout(() => entry.target.classList.add('visible'), delay);
+        }
+    });
+}, { threshold: 0.12 });
+
+document.querySelectorAll('.feature-card').forEach((c, i) => {
+    c.dataset.delay = i * 100;
+    observer.observe(c);
+});
+document.querySelectorAll('.review-card').forEach((c, i) => {
+    c.dataset.delay = i * 120;
+    observer.observe(c);
+});
+document.querySelectorAll('.story-quote').forEach(el => observer.observe(el));
+
+// ============================================
+// NAV SCROLL
+// ============================================
+window.addEventListener('scroll', () => {
+    document.getElementById('mainNav').classList.toggle('scrolled', window.scrollY > 60);
+});
+
+// Smooth scroll for nav links
+document.querySelectorAll('a[href^="#"]').forEach(link => {
+    link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = document.querySelector(link.getAttribute('href'));
+        if (target) target.scrollIntoView({ behavior: 'smooth' });
+    });
+});
+</script>
+</body>
+</html>

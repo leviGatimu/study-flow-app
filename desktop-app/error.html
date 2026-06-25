@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Offline - Study Flow</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #030303;
+            --card-bg: rgba(10, 10, 10, 0.7);
+            --card-border: rgba(255, 68, 68, 0.15);
+            --accent-color: #ff4444;
+            --accent-glow: rgba(255, 68, 68, 0.4);
+            --text-primary: #ffffff;
+            --text-secondary: #8e8e93;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Animated glowing orbs in the background */
+        .glow-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.15;
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        .orb-1 {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, var(--accent-color) 0%, transparent 80%);
+            top: -100px;
+            left: -100px;
+            animation: float 15s infinite alternate ease-in-out;
+        }
+
+        .orb-2 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, #ffaa00 0%, transparent 80%);
+            bottom: -50px;
+            right: -50px;
+            animation: float 20s infinite alternate-reverse ease-in-out;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(50px, 30px) scale(1.1); }
+            100% { transform: translate(-20px, 50px) scale(0.95); }
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 480px;
+            padding: 2.5rem;
+            box-sizing: border-box;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 3rem 2rem;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 
+                        0 0 40px rgba(255, 68, 68, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(40px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Disconnected badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid rgba(255, 68, 68, 0.2);
+            padding: 6px 16px;
+            border-radius: 99px;
+            margin-bottom: 2rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--accent-color);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-color);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-color);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.6; }
+            50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 15px var(--accent-color); }
+            100% { transform: scale(0.9); opacity: 0.6; }
+        }
+
+        .error-code {
+            font-family: 'Outfit', sans-serif;
+            font-size: 5.5rem;
+            font-weight: 900;
+            margin: 0 0 0.5rem 0;
+            line-height: 1;
+            letter-spacing: -0.05em;
+            background: linear-gradient(to bottom, #ffffff 30%, #555555 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 80px rgba(255, 255, 255, 0.1);
+        }
+
+        h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0 0 1rem 0;
+            letter-spacing: -0.02em;
+        }
+
+        p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            line-height: 1.6;
+            margin: 0 0 2.5rem 0;
+            max-width: 340px;
+        }
+
+        .actions {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            border: none;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--text-primary);
+            color: var(--bg-color);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 255, 255, 0.15);
+            background: #f0f0f0;
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .spinner {
+            display: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading .spinner {
+            display: block;
+        }
+        
+        .loading .btn-text {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+
+    <div class="container">
+        <div class="card">
+            <div class="status-badge">
+                <div class="status-dot"></div>
+                Connection Lost
+            </div>
+            
+            <div class="error-code">503</div>
+            <h2>Neural core offline</h2>
+            <p>The background engine database or local server failed to initialize or stopped responding.</p>
+            
+            <div class="actions">
+                <button class="btn btn-primary" id="retryBtn" onclick="retryConnection()">
+                    <span class="spinner"></span>
+                    <span class="btn-text">Re-attempt Protocol</span>
+                </button>
+                <button class="btn btn-secondary" onclick="window.close()">
+                    Terminate System
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function retryConnection() {
+            const btn = document.getElementById('retryBtn');
+            btn.classList.add('loading');
+            btn.disabled = true;
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const port = urlParams.get('port');
+            
+            // Artificial delay to show loading state
+            setTimeout(() => {
+                if (port) {
+                    window.location.href = `http://127.0.0.1:${port}/login`;
+                } else {
+                    window.location.reload();
+                }
+            }, 800);
+        }
+    </script>
+</body>
+</html>

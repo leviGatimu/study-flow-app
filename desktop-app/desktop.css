@@ -1,0 +1,87 @@
+/* desktop.css */
+/* This file is injected into the Electron window to make the web app feel like a native desktop app */
+
+/* 1. Remove scrollbars for a cleaner look while maintaining functionality */
+::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+}
+
+/* 2. Welcome Page Specific Enhancements */
+/* Hide the 'StudyFlow' text since we have the app icon on desktop */
+nav .font-black.text-2xl span {
+    display: none !important;
+}
+
+/* Make the navbar feel like a title bar background */
+nav {
+    padding-top: 1.5rem !important;
+    backdrop-filter: blur(20px) !important;
+}
+
+/* Adjust only the Hero text on the welcome page, not the dashboard greeting */
+/* We target the h1 with the specific huge font size class */
+h1.text-foreground[class*="text-[5rem]"],
+h1.text-foreground[class*="text-[10rem]"],
+h1.text-foreground[class*="text-[12rem]"] {
+    letter-spacing: -0.05em !important;
+    line-height: 0.8 !important;
+}
+
+/* Add the "Desktop Edition" badge using a pseudo-element */
+/* This avoids the "Hydration Mismatch" error because CSS pseudo-elements are not in the DOM tree */
+h1.text-foreground[class*="text-[5rem]"]::before,
+h1.text-foreground[class*="text-[10rem]"]::before,
+h1.text-foreground[class*="text-[12rem]"]::before {
+    content: "Desktop Edition";
+    display: block;
+    width: max-content;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 2rem;
+}
+
+/* 3. Global App Enhancements */
+/* Ensure the body has a solid background to prevent white flashes during transitions */
+body {
+    background-color: var(--background) !important;
+}
+
+/* 5. Login Page Refinements */
+/* Remove the top padding from the login panel on desktop */
+.lg\:w-1\/2.h-screen.p-8 {
+    padding-top: 4rem !important;
+}
+
+/* Ensure the login title is bold and clear */
+h2.text-4xl.font-heading {
+    letter-spacing: -0.05em !important;
+    font-size: 3rem !important;
+}
+
+/* Hide the logo link on the left panel for desktop as it can feel redundant with the app icon */
+.relative.z-10.flex.flex-col.h-full.p-16 a[href="/"] {
+    opacity: 0.8;
+}
+
+/* Make inputs even larger for the login screen */
+input[name="username"], input[name="password"] {
+    font-size: 1.25rem !important;
+}
+
+/* 6. Interaction Refinements */
+/* Make buttons feel more tactile */
+button, .button, a.Button {
+    transition: transform 0.1s ease-out, filter 0.2s ease !important;
+}
+
+button:active, .button:active {
+    transform: scale(0.97) !important;
+}

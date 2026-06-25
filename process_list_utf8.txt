@@ -1,0 +1,478 @@
+﻿--- DIAGNOSING FOLDER LOCK ON: C:\Users\user\AppData\Local\Programs\Study Tracker ---
+Current Time: 2026-05-28 01:51:53
+FAIL: Folder is locked. Error: The process cannot access the file because it is being used by another process.
+
+--- ALL RUNNING PROCESSES ---
+PID: 43252 | Name: Adobe Crash Processor | Company: Adobe Inc. | Path: C:\Program Files\Adobe\Adobe Creative Cloud Experience\js\node_modules\adobe-cr\build\Release\Adobe Crash Processor.exe
+PID: 23924 | Name: AdobeIPCBroker | Company: Adobe Inc. | Path: C:\Program Files (x86)\Common Files\Adobe\Adobe Desktop Common\IPCBox\AdobeIPCBroker.exe
+PID: 10904 | Name: AggregatorHost | Company:  | Path: 
+PID: 47724 | Name: agy | Company:  | Path: C:\Users\user\AppData\Local\agy\bin\agy.exe
+PID: 35904 | Name: AIMonitor | Company: Adobe Inc. | Path: C:\Program Files\Adobe\Adobe Illustrator 2025\Support Files\Contents\Windows\AIMonitor.exe
+PID: 16404 | Name: ApplicationFrameHost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\ApplicationFrameHost.exe
+PID: 44292 | Name: audiodg | Company:  | Path: 
+PID: 13304 | Name: backgroundTaskHost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\backgroundTaskHost.exe
+PID: 29264 | Name: backgroundTaskHost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\backgroundTaskHost.exe
+PID: 49580 | Name: backgroundTaskHost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\backgroundTaskHost.exe
+PID: 13176 | Name: CCLibrary | Company: Adobe Systems Incorporated | Path: C:\Program Files\Common Files\Adobe\Creative Cloud Libraries\CCLibrary.exe
+PID: 42408 | Name: CCXProcess | Company: Adobe Inc. | Path: C:\Program Files\Adobe\Adobe Creative Cloud Experience\CCXProcess.exe
+PID: 2220 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 8220 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 12844 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 14608 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 18380 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 19368 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 21768 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 27944 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 30684 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 33672 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 35924 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 36092 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 39240 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 40616 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 41952 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 44824 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 45128 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 47084 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 50388 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 53804 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 54204 | Name: chrome | Company: Google LLC | Path: C:\Program Files\Google\Chrome\Application\chrome.exe
+PID: 3336 | Name: cmd | Company:  | Path: 
+PID: 22032 | Name: cmd | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\cmd.exe
+PID: 32504 | Name: cmd | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\cmd.exe
+PID: 54736 | Name: cmd | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\cmd.exe
+PID: 22136 | Name: Code | Company: Microsoft Corporation | Path: C:\Users\user\AppData\Local\Programs\Microsoft VS Code\Code.exe
+PID: 23688 | Name: Code | Company: Microsoft Corporation | Path: C:\Users\user\AppData\Local\Programs\Microsoft VS Code\Code.exe
+PID: 29608 | Name: Code | Company: Microsoft Corporation | Path: C:\Users\user\AppData\Local\Programs\Microsoft VS Code\Code.exe
+PID: 30604 | Name: Code | Company: Microsoft Corporation | Path: C:\Users\user\AppData\Local\Programs\Microsoft VS Code\Code.exe
+PID: 31232 | Name: Code | Company: Microsoft Corporation | Path: C:\Users\user\AppData\Local\Programs\Microsoft VS Code\Code.exe
+PID: 33840 | Name: Code | Company: Microsoft Corporation | Path: C:\Users\user\AppData\Local\Programs\Microsoft VS Code\Code.exe
+PID: 40676 | Name: Code | Company: Microsoft Corporation | Path: C:\Users\user\AppData\Local\Programs\Microsoft VS Code\Code.exe
+PID: 43764 | Name: Code | Company: Microsoft Corporation | Path: C:\Users\user\AppData\Local\Programs\Microsoft VS Code\Code.exe
+PID: 44952 | Name: Code | Company: Microsoft Corporation | Path: C:\Users\user\AppData\Local\Programs\Microsoft VS Code\Code.exe
+PID: 52800 | Name: Code | Company: Microsoft Corporation | Path: C:\Users\user\AppData\Local\Programs\Microsoft VS Code\Code.exe
+PID: 55884 | Name: Code | Company: Microsoft Corporation | Path: C:\Users\user\AppData\Local\Programs\Microsoft VS Code\Code.exe
+PID: 18148 | Name: codex | Company:  | Path: C:\Users\user\AppData\Local\OpenAI\Codex\bin\3f4fb8cdd344abc7\codex.exe
+PID: 32820 | Name: codex | Company:  | Path: C:\Program Files\WindowsApps\OpenAI.Codex_26.519.5221.0_x64__2p2nqsd0c76g0\app\resources\codex.exe
+PID: 34060 | Name: Codex | Company: OpenAI | Path: C:\Program Files\WindowsApps\OpenAI.Codex_26.519.5221.0_x64__2p2nqsd0c76g0\app\Codex.exe
+PID: 37140 | Name: Codex | Company: OpenAI | Path: C:\Program Files\WindowsApps\OpenAI.Codex_26.519.5221.0_x64__2p2nqsd0c76g0\app\Codex.exe
+PID: 40124 | Name: Codex | Company: OpenAI | Path: C:\Program Files\WindowsApps\OpenAI.Codex_26.519.5221.0_x64__2p2nqsd0c76g0\app\Codex.exe
+PID: 42028 | Name: Codex | Company: OpenAI | Path: C:\Program Files\WindowsApps\OpenAI.Codex_26.519.5221.0_x64__2p2nqsd0c76g0\app\Codex.exe
+PID: 42104 | Name: Codex | Company: OpenAI | Path: C:\Program Files\WindowsApps\OpenAI.Codex_26.519.5221.0_x64__2p2nqsd0c76g0\app\Codex.exe
+PID: 4676 | Name: collector_service | Company:  | Path: 
+PID: 1924 | Name: conhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\conhost.exe
+PID: 4144 | Name: conhost | Company:  | Path: 
+PID: 7988 | Name: conhost | Company:  | Path: 
+PID: 9396 | Name: conhost | Company:  | Path: 
+PID: 9492 | Name: conhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\conhost.exe
+PID: 12448 | Name: conhost | Company:  | Path: 
+PID: 18736 | Name: conhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\conhost.exe
+PID: 23988 | Name: conhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\conhost.exe
+PID: 24380 | Name: conhost | Company:  | Path: 
+PID: 24768 | Name: conhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\conhost.exe
+PID: 26384 | Name: conhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\conhost.exe
+PID: 27684 | Name: conhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\conhost.exe
+PID: 32484 | Name: conhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\conhost.exe
+PID: 36340 | Name: conhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\conhost.exe
+PID: 36516 | Name: conhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\conhost.exe
+PID: 39248 | Name: conhost | Company:  | Path: 
+PID: 47452 | Name: conhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\conhost.exe
+PID: 47816 | Name: conhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\conhost.exe
+PID: 49548 | Name: conhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\conhost.exe
+PID: 51404 | Name: conhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\conhost.exe
+PID: 54136 | Name: conhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\conhost.exe
+PID: 56832 | Name: conhost | Company:  | Path: 
+PID: 9904 | Name: cowork-svc | Company:  | Path: 
+PID: 2300 | Name: cpptools | Company:  | Path: 
+PID: 56188 | Name: cpptools | Company: Microsoft Corporation | Path: c:\Users\user\.vscode\extensions\ms-vscode.cpptools-1.32.2-win32-x64\bin\cpptools.exe
+PID: 28752 | Name: cpptools-srv | Company: Microsoft Corporation | Path: c:\Users\user\.vscode\extensions\ms-vscode.cpptools-1.32.2-win32-x64\bin\cpptools-srv.exe
+PID: 37748 | Name: cpptools-srv | Company: Microsoft Corporation | Path: c:\Users\user\.vscode\extensions\ms-vscode.cpptools-1.32.2-win32-x64\bin\cpptools-srv.exe
+PID: 55068 | Name: cpptools-srv | Company: Microsoft Corporation | Path: c:\Users\user\.vscode\extensions\ms-vscode.cpptools-1.32.2-win32-x64\bin\cpptools-srv.exe
+PID: 40724 | Name: crashpad_handler | Company:  | Path: 
+PID: 56088 | Name: crashpad_handler | Company:  | Path: C:\Program Files\Google\Play Games\current\emulator\crashpad_handler.exe
+PID: 13116 | Name: CrossDeviceResume | Company: Microsoft Corporation | Path: C:\WINDOWS\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\CrossDeviceResume.exe
+PID: 13760 | Name: CrossDeviceService | Company: Microsoft Corporation | Path: C:\Program Files\WindowsApps\MicrosoftWindows.CrossDevice_1.26032.83.0_x64__cw5n1h2txyewy\CrossDeviceService.exe
+PID: 712 | Name: csrss | Company:  | Path: 
+PID: 1116 | Name: csrss | Company:  | Path: 
+PID: 17772 | Name: ctfmon | Company:  | Path: 
+PID: 4760 | Name: dasHost | Company:  | Path: 
+PID: 7904 | Name: DataCollectionAgentController | Company: Seiko Epson Corporation | Path: C:\Program Files\epson\Epson Data Collection Agent\DataCollectionAgentController.exe
+PID: 24376 | Name: DataExchangeHost | Company: Microsoft Corporation | Path: C:\Windows\System32\DataExchangeHost.exe
+PID: 4852 | Name: DAX3API | Company:  | Path: 
+PID: 13468 | Name: DAX3API | Company:  | Path: 
+PID: 4868 | Name: DCAgent | Company:  | Path: 
+PID: 56148 | Name: devcpp | Company: Embarcadero Technologies, Inc. | Path: C:\Program Files (x86)\Embarcadero\Dev-Cpp\devcpp.exe
+PID: 54232 | Name: DismHost | Company:  | Path: 
+PID: 12680 | Name: dllhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\DllHost.exe
+PID: 17308 | Name: dllhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\DllHost.exe
+PID: 20604 | Name: dllhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\DllHost.exe
+PID: 32360 | Name: dllhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\DllHost.exe
+PID: 32536 | Name: dllhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\DllHost.exe
+PID: 34944 | Name: dllhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\DllHost.exe
+PID: 37324 | Name: dllhost | Company:  | Path: 
+PID: 41280 | Name: dllhost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\DllHost.exe
+PID: 48312 | Name: DS4Windows | Company: Ryochan7 | Path: C:\Users\user\OneDrive\Attachments\Desktop\DS4Windows\DS4Windows.exe
+PID: 4940 | Name: DSAService | Company:  | Path: 
+PID: 21332 | Name: DSATray | Company: Intel | Path: C:\Program Files (x86)\Intel\Driver and Support Assistant\x86\DSATray.exe
+PID: 4896 | Name: DSAUpdateService | Company:  | Path: 
+PID: 23064 | Name: dwm | Company:  | Path: 
+PID: 13584 | Name: E_YATIUNE | Company: Seiko Epson Corporation | Path: C:\Windows\System32\spool\drivers\x64\3\E_YATIUNE.EXE
+PID: 14472 | Name: E_YATIYXE | Company: Seiko Epson Corporation | Path: C:\Windows\System32\spool\drivers\x64\3\E_YATIYXE.EXE
+PID: 17332 | Name: EdgeGameAssist | Company:  | Path: C:\Program Files\WindowsApps\Microsoft.Edge.GameAssist_1.0.3590.0_x64__8wekyb3d8bbwe\EdgeGameAssist.exe
+PID: 23524 | Name: EEventManager | Company: Seiko Epson Corporation | Path: C:\Program Files (x86)\EPSON Software\Event Manager\EEventManager.exe
+PID: 4880 | Name: EPCP | Company:  | Path: 
+PID: 22132 | Name: EPPCCMON | Company: Seiko Epson Corporation | Path: C:\Program Files (x86)\EPSON Software\Epson Printer Connection Checker\EPPCCMON.EXE
+PID: 4888 | Name: EpSecuritySupport | Company:  | Path: 
+PID: 4956 | Name: escsvc64 | Company:  | Path: 
+PID: 21652 | Name: esrv | Company:  | Path: C:\Program Files\Intel\SUR\QUEENCREEK\x64\esrv.exe
+PID: 39952 | Name: esrv | Company:  | Path: C:\Program Files\Intel\SUR\QUEENCREEK\x64\esrv.exe
+PID: 55596 | Name: esrv | Company:  | Path: C:\Program Files\Intel\SUR\QUEENCREEK\x64\esrv.exe
+PID: 54280 | Name: esrv_svc | Company:  | Path: 
+PID: 51720 | Name: explorer | Company: Microsoft Corporation | Path: C:\WINDOWS\Explorer.EXE
+PID: 11768 | Name: FileCoAuth | Company: Microsoft Corporation | Path: C:\Program Files\Microsoft OneDrive\26.084.0504.0007\FileCoAuth.exe
+PID: 51196 | Name: FileSyncHelper | Company:  | Path: 
+PID: 4924 | Name: filezilla-server | Company:  | Path: 
+PID: 1456 | Name: fontdrvhost | Company:  | Path: 
+PID: 1464 | Name: fontdrvhost | Company:  | Path: 
+PID: 4932 | Name: GameInputRedistService | Company:  | Path: 
+PID: 11720 | Name: GameInputRedistService | Company: Windows (R) Win 7 DDK provider | Path: C:\Program Files\Microsoft GameInput\x64\GameInputRedistService.exe
+PID: 20520 | Name: GameInputSvc | Company:  | Path: 
+PID: 21492 | Name: GameInputSvc | Company:  | Path: 
+PID: 9968 | Name: gamingservices | Company:  | Path: 
+PID: 9976 | Name: gamingservicesnet | Company:  | Path: 
+PID: 5000 | Name: GoodixWOTService_0.0.0.4 | Company:  | Path: 
+PID: 50848 | Name: GooglePlayGamesServices | Company:  | Path: 
+PID: 40916 | Name: httpd | Company: Apache Software Foundation | Path: C:\xampp\apache\bin\httpd.exe
+PID: 48760 | Name: httpd | Company: Apache Software Foundation | Path: c:\xampp\apache\bin\httpd.exe
+PID: 17636 | Name: ICPS | Company: Intel | Path: C:\Program Files\WindowsApps\AppUp.IntelConnectivityPerformanceSuite_50.26.220.0_x64__8j3eq9eme6ctt\ICPS.exe
+PID: 4764 | Name: IDBWM | Company: IntelÂ® Corporation | Path: C:\WINDOWS\System32\drivers\Intel\ICPS\IDBWM.exe
+PID: 23176 | Name: IDBWM | Company:  | Path: 
+PID: 13092 | Name: IDBWMService | Company:  | Path: 
+PID: 0 | Name: Idle | Company:  | Path: 
+PID: 8264 | Name: Intel_PIE_Service | Company:  | Path: 
+PID: 19816 | Name: IntelAnalyticsService | Company:  | Path: 
+PID: 3884 | Name: IntelAudioService | Company:  | Path: 
+PID: 23016 | Name: IntelConnect | Company:  | Path: 
+PID: 16776 | Name: IntelConnectivityNetworkService | Company:  | Path: 
+PID: 18072 | Name: IntelConnectService | Company:  | Path: 
+PID: 2652 | Name: IntelCpHDCPSvc | Company:  | Path: 
+PID: 22976 | Name: IntelGraphicsSoftware | Company: Intel Corporation | Path: C:\Program Files\Intel\Intel Graphics Software\IntelGraphicsSoftware.exe
+PID: 3860 | Name: IntelGraphicsSoftware.Service | Company:  | Path: 
+PID: 19444 | Name: IntelProviderDataHelperService | Company:  | Path: 
+PID: 5452 | Name: ipf_uf | Company:  | Path: 
+PID: 4984 | Name: ipfsvc | Company:  | Path: 
+PID: 20568 | Name: iveDeviceCareEngine | Company:  | Path: 
+PID: 5512 | Name: iveService | Company:  | Path: 
+PID: 4572 | Name: jhi_service | Company:  | Path: 
+PID: 41388 | Name: LockApp | Company: Microsoft Corporation | Path: C:\WINDOWS\SystemApps\Microsoft.LockApp_cw5n1h2txyewy\LockApp.exe
+PID: 1300 | Name: lsass | Company:  | Path: 
+PID: 5212 | Name: MaximServiceShell64 | Company:  | Path: 
+PID: 3876 | Name: Memory Compression | Company:  | Path: 
+PID: 20464 | Name: MidiSrv | Company:  | Path: 
+PID: 4860 | Name: MigrationService | Company:  | Path: 
+PID: 5228 | Name: MpDefenderCoreService | Company:  | Path: 
+PID: 7888 | Name: mscopilot | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Copilot\Application\mscopilot.exe
+PID: 17860 | Name: mscopilot | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Copilot\Application\mscopilot.exe
+PID: 18700 | Name: mscopilot | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Copilot\Application\mscopilot.exe
+PID: 21688 | Name: mscopilot | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Copilot\Application\mscopilot.exe
+PID: 22648 | Name: mscopilot | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Copilot\Application\mscopilot.exe
+PID: 22652 | Name: mscopilot | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Copilot\Application\mscopilot.exe
+PID: 22712 | Name: mscopilot | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Copilot\Application\mscopilot.exe
+PID: 24684 | Name: mscopilot | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Copilot\Application\mscopilot.exe
+PID: 28444 | Name: mscopilot | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Copilot\Application\mscopilot.exe
+PID: 30392 | Name: mscopilot | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Copilot\Application\mscopilot.exe
+PID: 34192 | Name: mscopilot_proxy | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Copilot\Application\mscopilot_proxy.exe
+PID: 14788 | Name: msedge | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+PID: 22088 | Name: msedge | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+PID: 23312 | Name: msedge | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+PID: 24776 | Name: msedge | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+PID: 26304 | Name: msedge | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+PID: 26868 | Name: msedge | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+PID: 29140 | Name: msedge | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+PID: 29160 | Name: msedge | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+PID: 29824 | Name: msedge | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+PID: 30380 | Name: msedge | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+PID: 37284 | Name: msedge | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+PID: 43196 | Name: msedge | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+PID: 43480 | Name: msedge | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+PID: 44936 | Name: msedge | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+PID: 1528 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 15476 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 17252 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 20664 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 21076 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 21372 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 23744 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 23808 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 24344 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 25572 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 26748 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 28700 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 28808 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 30668 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 31064 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 31092 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 32456 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 34848 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 37408 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 38184 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 40072 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 44080 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 49184 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 53208 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 54996 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 56548 | Name: msedgewebview2 | Company: Microsoft Corporation | Path: C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.83\msedgewebview2.exe
+PID: 6036 | Name: MsMpEng | Company:  | Path: 
+PID: 5964 | Name: mysqld | Company:  | Path: 
+PID: 32736 | Name: mysqld | Company:  | Path: c:\xampp\mysql\bin\mysqld.exe
+PID: 18328 | Name: NearbyDevices | Company: Samsung Electronics Co., Ltd. | Path: C:\Program Files\WindowsApps\SAMSUNGELECTRONICSCoLtd.SamsungMyDevices_2.5.19.0_x64__wyx1vj98g3asy\NearbyDevices\NearbyDevices.exe
+PID: 11640 | Name: NisSrv | Company:  | Path: 
+PID: 8688 | Name: node | Company: Node.js | Path: C:\Program Files\Common Files\Adobe\Creative Cloud Libraries\libs\node.exe
+PID: 21904 | Name: node | Company: Node.js | Path: C:\Program Files\Adobe\Adobe Creative Cloud Experience\libs\node.exe
+PID: 40300 | Name: node | Company: Node.js | Path: C:\Program Files\nodejs\node.exe
+PID: 41304 | Name: node | Company: Node.js | Path: C:\Program Files\nodejs\node.exe
+PID: 47312 | Name: node | Company: Node.js | Path: C:\Program Files\nodejs\node.exe
+PID: 23036 | Name: node_repl | Company:  | Path: C:\Users\user\AppData\Local\OpenAI\Codex\bin\3c238e29bbc930ff\node_repl.exe
+PID: 29056 | Name: OneDrive | Company: Microsoft Corporation | Path: C:\Program Files\Microsoft OneDrive\OneDrive.exe
+PID: 47624 | Name: OneDrive.Sync.Service | Company: Microsoft Corporation | Path: C:\Program Files\Microsoft OneDrive\26.084.0504.0007\OneDrive.Sync.Service.exe
+PID: 18108 | Name: OpenConsole | Company: Microsoft Corporation | Path: c:\Users\user\AppData\Local\Programs\Microsoft VS Code\6a49527b96\resources\app\node_modules\node-pty\build\Release\conpty\OpenConsole.exe
+PID: 28424 | Name: OpenConsole | Company: Microsoft Corporation | Path: C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.24.11321.0_x64__8wekyb3d8bbwe\OpenConsole.exe
+PID: 34884 | Name: OpenConsole | Company: Microsoft Corporation | Path: C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.24.11321.0_x64__8wekyb3d8bbwe\OpenConsole.exe
+PID: 48612 | Name: OpenConsole | Company: Microsoft Corporation | Path: C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.24.11321.0_x64__8wekyb3d8bbwe\OpenConsole.exe
+PID: 18752 | Name: PhoneExperienceHost | Company: Microsoft Corporation | Path: C:\Program Files\WindowsApps\Microsoft.YourPhone_1.26032.102.0_x64__8wekyb3d8bbwe\PhoneExperienceHost.exe
+PID: 11856 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+PID: 24708 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+PID: 26336 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+PID: 28208 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\SysWOW64\WindowsPowerShell\v1.0\powershell.exe
+PID: 28252 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+PID: 33560 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\SysWOW64\WindowsPowerShell\v1.0\powershell.exe
+PID: 34620 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+PID: 35544 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\SysWOW64\WindowsPowerShell\v1.0\powershell.exe
+PID: 36160 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+PID: 42056 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\SysWOW64\WindowsPowerShell\v1.0\powershell.exe
+PID: 44000 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+PID: 44140 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+PID: 44484 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+PID: 46028 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+PID: 46176 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\SysWOW64\WindowsPowerShell\v1.0\powershell.exe
+PID: 48404 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+PID: 48480 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+PID: 50296 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+PID: 50504 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\SysWOW64\WindowsPowerShell\v1.0\powershell.exe
+PID: 53340 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+PID: 56192 | Name: powershell | Company: Microsoft Corporation | Path: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+PID: 5432 | Name: PresentMonService | Company:  | Path: 
+PID: 7960 | Name: PresentMonService | Company:  | Path: 
+PID: 28944 | Name: QuickSearchIndexer | Company: Samsung Electronics Co., Ltd. | Path: C:\Program Files\Samsung\Quick Search Service\QuickSearchIndexer.exe
+PID: 5472 | Name: QuickSearchService | Company:  | Path: 
+PID: 9984 | Name: QuickShareService | Company:  | Path: 
+PID: 272 | Name: Registry | Company:  | Path: 
+PID: 5520 | Name: RtkAudUService64 | Company:  | Path: 
+PID: 22452 | Name: RtkAudUService64 | Company: Realtek Semiconductor | Path: C:\WINDOWS\System32\DriverStore\FileRepository\realtekservice.inf_amd64_9f05190a2befb920\RtkAudUService64.exe
+PID: 1596 | Name: RuntimeBroker | Company: Microsoft Corporation | Path: C:\Windows\System32\RuntimeBroker.exe
+PID: 10876 | Name: RuntimeBroker | Company: Microsoft Corporation | Path: C:\Windows\System32\RuntimeBroker.exe
+PID: 13652 | Name: RuntimeBroker | Company: Microsoft Corporation | Path: C:\Windows\System32\RuntimeBroker.exe
+PID: 13804 | Name: RuntimeBroker | Company: Microsoft Corporation | Path: C:\Windows\System32\RuntimeBroker.exe
+PID: 14240 | Name: RuntimeBroker | Company: Microsoft Corporation | Path: C:\Windows\System32\RuntimeBroker.exe
+PID: 15400 | Name: RuntimeBroker | Company: Microsoft Corporation | Path: C:\Windows\System32\RuntimeBroker.exe
+PID: 15444 | Name: RuntimeBroker | Company: Microsoft Corporation | Path: C:\Windows\System32\RuntimeBroker.exe
+PID: 17732 | Name: RuntimeBroker | Company: Microsoft Corporation | Path: C:\Windows\System32\RuntimeBroker.exe
+PID: 18484 | Name: RuntimeBroker | Company: Microsoft Corporation | Path: C:\Windows\System32\RuntimeBroker.exe
+PID: 19632 | Name: RuntimeBroker | Company: Microsoft Corporation | Path: C:\Windows\System32\RuntimeBroker.exe
+PID: 25108 | Name: RuntimeBroker | Company: Microsoft Corporation | Path: C:\Windows\System32\RuntimeBroker.exe
+PID: 33524 | Name: RuntimeBroker | Company: Microsoft Corporation | Path: C:\Windows\System32\RuntimeBroker.exe
+PID: 36372 | Name: RuntimeBroker | Company: Microsoft Corporation | Path: C:\Windows\System32\RuntimeBroker.exe
+PID: 39864 | Name: RuntimeBroker | Company: Microsoft Corporation | Path: C:\Windows\System32\RuntimeBroker.exe
+PID: 9936 | Name: SamsungCameraShareService | Company:  | Path: 
+PID: 9952 | Name: SamsungContinuityWindowsService | Company:  | Path: 
+PID: 9944 | Name: SamsungFindWindowsService | Company:  | Path: 
+PID: 12292 | Name: SamsungMagician | Company:  | Path: 
+PID: 20200 | Name: SamsungMagician | Company: Samsung Electronics Co., Ltd. | Path: C:\Program Files (x86)\Samsung\Samsung Magician\SamsungMagician.exe
+PID: 20812 | Name: SamsungMagician | Company:  | Path: 
+PID: 21408 | Name: SamsungMagician | Company:  | Path: 
+PID: 5796 | Name: SamsungMagicianSVC | Company:  | Path: 
+PID: 12452 | Name: SamsungMultiControl | Company:  | Path: 
+PID: 16676 | Name: SamsungMultiControlHelper | Company: Samsung Electronics Co., Ltd. | Path: C:\Program Files\Samsung\SamsungMultiControl\SamsungMultiControlHelper.exe
+PID: 9960 | Name: SamsungMultiControlService | Company:  | Path: 
+PID: 37504 | Name: SamsungPhone | Company:  | Path: C:\Program Files\WindowsApps\SAMSUNGELECTRONICSCO.LTD.SamsungPhone_1.1.8.0_x64__3c1yjt4zspk6g\SamsungPhone.exe
+PID: 7532 | Name: SamsungSecuritySupporter | Company:  | Path: 
+PID: 5812 | Name: SamsungSecuritySupportService | Company:  | Path: 
+PID: 1796 | Name: SamsungSettingsHost | Company: Samsung Electronics Co., Ltd. | Path: C:\Program Files\WindowsApps\SAMSUNGELECTRONICSCO.LTD.SamsungSettings1.5_8.0.8.0_x64__3c1yjt4zspk6g\SamsungSettingsHost.exe
+PID: 18620 | Name: SamsungSettingsHost | Company: Samsung Electronics Co., Ltd. | Path: C:\Program Files\WindowsApps\SAMSUNGELECTRONICSCO.LTD.SamsungSettings1.5_8.0.8.0_x64__3c1yjt4zspk6g\SamsungSettingsHost.exe
+PID: 46112 | Name: SamsungSettingsHost | Company: Samsung Electronics Co., Ltd. | Path: C:\Program Files\WindowsApps\SAMSUNGELECTRONICSCO.LTD.SamsungSettings1.5_8.0.8.0_x64__3c1yjt4zspk6g\SamsungSettingsHost.exe
+PID: 16664 | Name: SamsungStorageShare | Company: Samsung Electronics Co., Ltd. | Path: C:\Program Files\WindowsApps\SAMSUNGELECTRONICSCoLtd.4438638898209_1.2.43.0_x64__wyx1vj98g3asy\StorageShare\SamsungStorageShare.exe
+PID: 9924 | Name: SamsungStorageShareService | Company:  | Path: 
+PID: 51140 | Name: SamsungSystemSupportEngine | Company:  | Path: 
+PID: 5916 | Name: SamsungSystemSupportService | Company:  | Path: 
+PID: 5548 | Name: SamsungWiFi_UHB_Setting_Service | Company:  | Path: 
+PID: 9888 | Name: SAService | Company:  | Path: 
+PID: 10560 | Name: SearchHost | Company: Microsoft Corporation | Path: C:\WINDOWS\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\SearchHost.exe
+PID: 16924 | Name: SearchIndexer | Company:  | Path: 
+PID: 20788 | Name: SecurityHealthService | Company:  | Path: 
+PID: 21152 | Name: SecurityHealthSystray | Company: Microsoft Corporation | Path: C:\Windows\System32\SecurityHealthSystray.exe
+PID: 6704 | Name: Service | Company: Google LLC | Path: C:\Program Files\Google\Play Games\current\service\Service.exe
+PID: 1236 | Name: services | Company:  | Path: 
+PID: 52104 | Name: ShellExperienceHost | Company: Microsoft Corporation | Path: C:\WINDOWS\SystemApps\ShellExperienceHost_cw5n1h2txyewy\ShellExperienceHost.exe
+PID: 40864 | Name: ShellHost | Company: Microsoft Corporation | Path: C:\Windows\System32\ShellHost.exe
+PID: 11928 | Name: sihost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\sihost.exe
+PID: 984 | Name: Slack | Company: Slack Technologies Inc. | Path: C:\Program Files\WindowsApps\com.tinyspeck.slackdesktop_4.50.121.0_x64__8yrtsj140pw4g\app\Slack.exe
+PID: 6068 | Name: Slack | Company: Slack Technologies Inc. | Path: C:\Program Files\WindowsApps\com.tinyspeck.slackdesktop_4.50.121.0_x64__8yrtsj140pw4g\app\Slack.exe
+PID: 9848 | Name: Slack | Company: Slack Technologies Inc. | Path: C:\Program Files\WindowsApps\com.tinyspeck.slackdesktop_4.50.121.0_x64__8yrtsj140pw4g\app\Slack.exe
+PID: 10992 | Name: Slack | Company: Slack Technologies Inc. | Path: C:\Program Files\WindowsApps\com.tinyspeck.slackdesktop_4.50.121.0_x64__8yrtsj140pw4g\app\Slack.exe
+PID: 14620 | Name: Slack | Company: Slack Technologies Inc. | Path: C:\Program Files\WindowsApps\com.tinyspeck.slackdesktop_4.50.121.0_x64__8yrtsj140pw4g\app\Slack.exe
+PID: 23396 | Name: Slack | Company: Slack Technologies Inc. | Path: C:\Program Files\WindowsApps\com.tinyspeck.slackdesktop_4.50.121.0_x64__8yrtsj140pw4g\app\Slack.exe
+PID: 36872 | Name: Slack | Company: Slack Technologies Inc. | Path: C:\Program Files\WindowsApps\com.tinyspeck.slackdesktop_4.50.121.0_x64__8yrtsj140pw4g\app\Slack.exe
+PID: 3608 | Name: smartscreen | Company: Microsoft Corporation | Path: C:\Windows\System32\smartscreen.exe
+PID: 816 | Name: smss | Company:  | Path: 
+PID: 40964 | Name: SnippingTool | Company: Microsoft Corporation | Path: C:\Program Files\WindowsApps\Microsoft.ScreenSketch_11.2602.47.0_x64__8wekyb3d8bbwe\SnippingTool\SnippingTool.exe
+PID: 22076 | Name: splwow64 | Company: Microsoft Corporation | Path: C:\WINDOWS\splwow64.exe
+PID: 4452 | Name: spoolsv | Company:  | Path: 
+PID: 5884 | Name: ssh-agent | Company:  | Path: 
+PID: 1936 | Name: StartMenuExperienceHost | Company: Microsoft Corporation | Path: C:\Windows\SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\StartMenuExperienceHost.exe
+PID: 20444 | Name: steamwebhelper | Company: Valve Corporation | Path: C:\Program Files (x86)\Steam\bin\cef\cef.win64\steamwebhelper.exe
+PID: 32932 | Name: steamwebhelper | Company: Valve Corporation | Path: C:\Program Files (x86)\Steam\bin\cef\cef.win64\steamwebhelper.exe
+PID: 33996 | Name: steamwebhelper | Company: Valve Corporation | Path: C:\Program Files (x86)\Steam\bin\cef\cef.win64\steamwebhelper.exe
+PID: 34324 | Name: steamwebhelper | Company: Valve Corporation | Path: C:\Program Files (x86)\Steam\bin\cef\cef.win64\steamwebhelper.exe
+PID: 38944 | Name: steamwebhelper | Company: Valve Corporation | Path: C:\Program Files (x86)\Steam\bin\cef\cef.win64\steamwebhelper.exe
+PID: 48232 | Name: steamwebhelper | Company: Valve Corporation | Path: C:\Program Files (x86)\Steam\bin\cef\cef.win64\steamwebhelper.exe
+PID: 14348 | Name: StudyTrackerSetup | Company: User | Path: C:\Users\user\Downloads\study-tracker\desktop-app\dist\StudyTrackerSetup.exe
+PID: 5940 | Name: SurSvc | Company:  | Path: 
+PID: 1104 | Name: svchost | Company:  | Path: 
+PID: 1156 | Name: svchost | Company:  | Path: 
+PID: 1188 | Name: svchost | Company:  | Path: 
+PID: 1440 | Name: svchost | Company:  | Path: 
+PID: 1616 | Name: svchost | Company:  | Path: 
+PID: 1660 | Name: svchost | Company:  | Path: 
+PID: 2008 | Name: svchost | Company:  | Path: 
+PID: 2024 | Name: svchost | Company:  | Path: 
+PID: 2032 | Name: svchost | Company:  | Path: 
+PID: 2244 | Name: svchost | Company:  | Path: 
+PID: 2308 | Name: svchost | Company:  | Path: 
+PID: 2316 | Name: svchost | Company:  | Path: 
+PID: 2332 | Name: svchost | Company:  | Path: 
+PID: 2368 | Name: svchost | Company:  | Path: 
+PID: 2416 | Name: svchost | Company:  | Path: 
+PID: 2436 | Name: svchost | Company:  | Path: 
+PID: 2680 | Name: svchost | Company:  | Path: 
+PID: 2704 | Name: svchost | Company:  | Path: 
+PID: 2740 | Name: svchost | Company:  | Path: 
+PID: 2776 | Name: svchost | Company:  | Path: 
+PID: 2784 | Name: svchost | Company:  | Path: 
+PID: 2804 | Name: svchost | Company:  | Path: 
+PID: 2820 | Name: svchost | Company:  | Path: 
+PID: 2876 | Name: svchost | Company:  | Path: 
+PID: 2968 | Name: svchost | Company:  | Path: 
+PID: 3040 | Name: svchost | Company:  | Path: 
+PID: 3232 | Name: svchost | Company:  | Path: 
+PID: 3312 | Name: svchost | Company:  | Path: 
+PID: 3548 | Name: svchost | Company:  | Path: 
+PID: 3568 | Name: svchost | Company:  | Path: 
+PID: 3588 | Name: svchost | Company:  | Path: 
+PID: 3696 | Name: svchost | Company:  | Path: 
+PID: 3700 | Name: svchost | Company:  | Path: 
+PID: 3712 | Name: svchost | Company:  | Path: 
+PID: 3816 | Name: svchost | Company:  | Path: 
+PID: 3924 | Name: svchost | Company:  | Path: 
+PID: 3996 | Name: svchost | Company:  | Path: 
+PID: 4008 | Name: svchost | Company:  | Path: 
+PID: 4116 | Name: svchost | Company:  | Path: 
+PID: 4260 | Name: svchost | Company:  | Path: 
+PID: 4296 | Name: svchost | Company:  | Path: 
+PID: 4340 | Name: svchost | Company:  | Path: 
+PID: 4560 | Name: svchost | Company:  | Path: 
+PID: 4620 | Name: svchost | Company:  | Path: 
+PID: 4628 | Name: svchost | Company:  | Path: 
+PID: 4720 | Name: svchost | Company:  | Path: 
+PID: 4776 | Name: svchost | Company:  | Path: 
+PID: 4908 | Name: svchost | Company:  | Path: 
+PID: 4972 | Name: svchost | Company:  | Path: 
+PID: 5012 | Name: svchost | Company:  | Path: 
+PID: 5040 | Name: svchost | Company:  | Path: 
+PID: 5240 | Name: svchost | Company:  | Path: 
+PID: 5704 | Name: svchost | Company:  | Path: 
+PID: 5876 | Name: svchost | Company:  | Path: 
+PID: 5904 | Name: svchost | Company:  | Path: 
+PID: 6048 | Name: svchost | Company:  | Path: 
+PID: 6104 | Name: svchost | Company:  | Path: 
+PID: 6928 | Name: svchost | Company:  | Path: 
+PID: 7180 | Name: svchost | Company:  | Path: 
+PID: 7492 | Name: svchost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\svchost.exe
+PID: 7508 | Name: svchost | Company:  | Path: 
+PID: 8368 | Name: svchost | Company:  | Path: 
+PID: 8476 | Name: svchost | Company:  | Path: 
+PID: 9656 | Name: svchost | Company:  | Path: 
+PID: 9668 | Name: svchost | Company:  | Path: 
+PID: 11252 | Name: svchost | Company:  | Path: 
+PID: 11308 | Name: svchost | Company:  | Path: 
+PID: 11404 | Name: svchost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\svchost.exe
+PID: 11912 | Name: svchost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\svchost.exe
+PID: 11964 | Name: svchost | Company:  | Path: 
+PID: 12136 | Name: svchost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\svchost.exe
+PID: 12148 | Name: svchost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\svchost.exe
+PID: 12156 | Name: svchost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\svchost.exe
+PID: 12236 | Name: svchost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\svchost.exe
+PID: 12588 | Name: svchost | Company:  | Path: 
+PID: 12880 | Name: svchost | Company:  | Path: 
+PID: 12960 | Name: svchost | Company:  | Path: 
+PID: 12968 | Name: svchost | Company:  | Path: 
+PID: 13616 | Name: svchost | Company:  | Path: 
+PID: 13820 | Name: svchost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\svchost.exe
+PID: 14924 | Name: svchost | Company:  | Path: 
+PID: 16200 | Name: svchost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\svchost.exe
+PID: 16508 | Name: svchost | Company:  | Path: 
+PID: 17500 | Name: svchost | Company:  | Path: 
+PID: 17948 | Name: svchost | Company:  | Path: 
+PID: 19060 | Name: svchost | Company:  | Path: 
+PID: 19268 | Name: svchost | Company:  | Path: 
+PID: 19672 | Name: svchost | Company:  | Path: 
+PID: 19796 | Name: svchost | Company:  | Path: 
+PID: 19876 | Name: svchost | Company:  | Path: 
+PID: 20060 | Name: svchost | Company:  | Path: 
+PID: 21052 | Name: svchost | Company:  | Path: 
+PID: 21212 | Name: svchost | Company:  | Path: 
+PID: 21288 | Name: svchost | Company:  | Path: 
+PID: 23860 | Name: svchost | Company:  | Path: 
+PID: 24568 | Name: svchost | Company:  | Path: 
+PID: 24656 | Name: svchost | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\svchost.exe
+PID: 25144 | Name: svchost | Company:  | Path: 
+PID: 25236 | Name: svchost | Company:  | Path: 
+PID: 27904 | Name: svchost | Company:  | Path: 
+PID: 32220 | Name: svchost | Company:  | Path: 
+PID: 33712 | Name: svchost | Company:  | Path: 
+PID: 33768 | Name: svchost | Company:  | Path: 
+PID: 36460 | Name: svchost | Company:  | Path: 
+PID: 36944 | Name: svchost | Company:  | Path: 
+PID: 46248 | Name: svchost | Company:  | Path: 
+PID: 56328 | Name: svchost | Company:  | Path: 
+PID: 4 | Name: System | Company:  | Path: 
+PID: 5776 | Name: SystemPlatformEngine | Company:  | Path: 
+PID: 25652 | Name: SystemSettings | Company: Microsoft Corporation | Path: C:\Windows\ImmersiveControlPanel\SystemSettings.exe
+PID: 17784 | Name: TabTip | Company:  | Path: 
+PID: 11916 | Name: taskhostw | Company: Microsoft Corporation | Path: C:\WINDOWS\system32\taskhostw.exe
+PID: 38368 | Name: taskhostw | Company:  | Path: 
+PID: 10480 | Name: telemetry_agent | Company:  | Path: 
+PID: 6540 | Name: TextInputHost | Company: Microsoft Corporation | Path: C:\WINDOWS\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\TextInputHost.exe
+PID: 1948 | Name: Time | Company:  | Path: C:\Program Files\WindowsApps\Microsoft.WindowsAlarms_11.2512.0.0_x64__8wekyb3d8bbwe\Time.exe
+PID: 53828 | Name: TiWorker | Company:  | Path: 
+PID: 50952 | Name: TrustedInstaller | Company:  | Path: 
+PID: 9344 | Name: unsecapp | Company:  | Path: 
+PID: 24724 | Name: UserOOBEBroker | Company: Microsoft Corporation | Path: C:\Windows\System32\oobe\UserOOBEBroker.exe
+PID: 11208 | Name: vmcompute | Company:  | Path: 
+PID: 16752 | Name: VSSVC | Company:  | Path: 
+PID: 25008 | Name: WhatsApp.Root | Company: WhatsApp.Root | Path: C:\Program Files\WindowsApps\5319275A.WhatsAppDesktop_2.2616.100.0_x64__cv1g1gvanyjgm\WhatsApp.Root.exe
+PID: 12112 | Name: Widgets | Company: Microsoft Corporation | Path: C:\Program Files\WindowsApps\MicrosoftWindows.Client.WebExperience_526.1202.40.0_x64__cw5n1h2txyewy\Dashboard\Widgets.exe
+PID: 10032 | Name: WidgetService | Company: Microsoft Corporation | Path: C:\Program Files\WindowsApps\Microsoft.WidgetsPlatformRuntime_1.6.18.0_x64__8wekyb3d8bbwe\WidgetService\WidgetService.exe
+PID: 20328 | Name: WindowsMCFCore | Company: Samsung Electronics Co., Ltd. | Path: C:\Program Files\WindowsApps\SAMSUNGELECTRONICSCoLtd.SamsungContinuityService_2.1.6.0_x64__wyx1vj98g3asy\WindowsMCFCore\WindowsMCFCore.exe
+PID: 31972 | Name: WindowsTerminal | Company: Microsoft Corporation | Path: C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.24.11321.0_x64__8wekyb3d8bbwe\WindowsTerminal.exe
+PID: 1108 | Name: wininit | Company:  | Path: 
+PID: 1212 | Name: winlogon | Company:  | Path: 
+PID: 10856 | Name: wlanext | Company:  | Path: 
+PID: 35560 | Name: WmiApSrv | Company:  | Path: 
+PID: 32120 | Name: WmiPrvSE | Company:  | Path: 
+PID: 34948 | Name: WmiPrvSE | Company:  | Path: 
+PID: 6160 | Name: WMIRegistrationService | Company:  | Path: 
+PID: 1576 | Name: WUDFHost | Company:  | Path: 
+PID: 1804 | Name: WUDFHost | Company:  | Path: 
+PID: 1872 | Name: WUDFHost | Company:  | Path: 
+PID: 20080 | Name: WUDFHost | Company:  | Path: 
+PID: 35828 | Name: xampp-control | Company:  | Path: C:\xampp\xampp-control.exe
+PID: 38908 | Name: XboxPcAppFT | Company: Microsoft Corporation | Path: C:\Program Files\WindowsApps\Microsoft.GamingApp_2605.1001.13.0_x64__8wekyb3d8bbwe\XboxPcAppFT.exe

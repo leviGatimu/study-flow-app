@@ -1,0 +1,29 @@
+{
+  "name": "studyflow-promo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Crazy promotional ad for Study Flow, built with Remotion",
+  "scripts": {
+    "dev": "remotion studio",
+    "render": "remotion render StudyFlowAdPC out/studyflow-ad-pc.mp4 --codec=h264",
+    "render:pc": "remotion render StudyFlowAdPC out/studyflow-ad-pc.mp4 --codec=h264",
+    "render:vertical": "remotion render StudyFlowAd out/studyflow-ad.mp4 --codec=h264",
+    "still": "remotion still StudyFlowAdPC out/frame.png",
+    "audio:vo": "node scripts/generate-voiceover-eleven.mjs",
+    "audio:vo:sapi": "powershell -ExecutionPolicy Bypass -File scripts/generate-voiceover.ps1",
+    "audio:sfx": "node scripts/generate-sfx.mjs",
+    "upgrade": "remotion upgrade"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.0",
+    "@remotion/google-fonts": "^4.0.0",
+    "@remotion/transitions": "^4.0.473",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.4.0"
+  }
+}
