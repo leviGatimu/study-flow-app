@@ -84,3 +84,5 @@ desktop-app/err.txt
 
 # raw database backups (contain password hashes & personal data — never commit)
 /backups/
+
+.vercel

@@ -2,35 +2,37 @@
 
 import { useEffect, useState } from 'react';
 import { Globe } from 'lucide-react';
+import { DEFAULT_TIMEZONE, formatTimeZoneLabel } from '@/lib/utils';
 
-export function RwandaClock() {
+export function RwandaClock({ timezone = DEFAULT_TIMEZONE }: { timezone?: string }) {
   const [time, setTime] = useState<string>('');
   const [mounted, setMounted] = useState(false);
+  const label = formatTimeZoneLabel(timezone);
 
   useEffect(() => {
     setTimeout(() => {
       setMounted(m => m === false ? true : m);
       const updateTime = () => {
-        const rwandaTime = new Date().toLocaleTimeString('en-US', {
-          timeZone: 'Africa/Kigali',
+        const zonedTime = new Date().toLocaleTimeString('en-US', {
+          timeZone: timezone,
           hour: '2-digit',
           minute: '2-digit',
           second: '2-digit',
           hour12: true,
         });
-        setTime(rwandaTime);
+        setTime(zonedTime);
       };
-      
+
       updateTime(); // Initial call
       const interval = setInterval(updateTime, 1000);
       return () => clearInterval(interval);
     }, 0);
-  }, []);
+  }, [timezone]);
 
   if (!mounted) {
     return (
       <div className="flex flex-col items-end">
-        <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 mb-1.5"><Globe className="w-3 h-3" /> Kigali, Rwanda</span>
+        <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 mb-1.5"><Globe className="w-3 h-3" /> {label}</span>
         <div className="h-9 w-36 animate-pulse bg-muted rounded-md"></div>
       </div>
     );
@@ -39,7 +41,7 @@ export function RwandaClock() {
   return (
     <div className="flex flex-col items-end animate-in fade-in duration-500">
       <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
-        <Globe className="w-3 h-3 text-primary" /> Kigali, Rwanda
+        <Globe className="w-3 h-3 text-primary" /> {label}
       </span>
       <span className="text-2xl sm:text-3xl font-heading font-black text-primary tracking-tight">
         {time}

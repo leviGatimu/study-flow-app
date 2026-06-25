@@ -46,6 +46,7 @@ import {
   Check,
   MessageSquare,
   ChevronRight,
+  Globe,
   Zap
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -77,8 +78,26 @@ interface SettingsInterfaceProps {
       totalFocusMinutes: number;
       xp: number;
       level: number;
+      timezone?: string;
     } | null;
   };
+}
+
+const DEFAULT_TZ = 'Africa/Kigali';
+
+// Resolve the full IANA timezone list when the runtime supports it, otherwise
+// fall back to a curated set so the picker always works.
+function getTimezoneOptions(): string[] {
+  try {
+    const supported = (Intl as any).supportedValuesOf?.('timeZone') as string[] | undefined;
+    if (supported && supported.length) return supported;
+  } catch {}
+  return [
+    'Africa/Kigali', 'Africa/Nairobi', 'Africa/Lagos', 'Africa/Cairo', 'Africa/Johannesburg',
+    'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Moscow',
+    'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'America/Sao_Paulo',
+    'Asia/Dubai', 'Asia/Kolkata', 'Asia/Shanghai', 'Asia/Tokyo', 'Australia/Sydney', 'UTC',
+  ];
 }
 
 const ACCENTS = [
@@ -168,6 +187,9 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
   // Form states
   const [userName, setUserName] = useState(initialData.progress?.name || '');
   const [currentTerm, setCurrentTerm] = useState(initialData.currentTerm || 'Term 1');
+  const [timezone, setTimezone] = useState(initialData.progress?.timezone || DEFAULT_TZ);
+  const [isUpdatingTz, setIsUpdatingTz] = useState(false);
+  const timezoneOptions = getTimezoneOptions();
   const [geminiKey, setGeminiKey] = useState(initialData.progress?.geminiApiKey || '');
   const [openaiKey, setOpenaiKey] = useState(initialData.progress?.openaiApiKey || '');
   const [primaryAiProvider, setPrimaryAiProviderState] = useState(initialData.progress?.primaryAiProvider || 'gemini');
@@ -245,6 +267,28 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
       toast.error(`Update failed: ${e.message}`);
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleUpdateTimezone = async (tz: string) => {
+    const previous = timezone;
+    setTimezone(tz);
+    setIsUpdatingTz(true);
+    try {
+      const { updateTimezone } = await import('@/lib/actions');
+      const res = await updateTimezone(tz);
+      if (res?.error) {
+        setTimezone(previous);
+        toast.error(res.error);
+      } else {
+        toast.success(`Timezone set to ${tz.split('/').pop()?.replace(/_/g, ' ')}.`);
+        router.refresh();
+      }
+    } catch (e: any) {
+      setTimezone(previous);
+      toast.error(`Failed to update timezone: ${e.message}`);
+    } finally {
+      setIsUpdatingTz(false);
     }
   };
 
@@ -555,6 +599,25 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                     </Button>
                   </div>
                 </div>
+              </SettingsSection>
+
+              {/* Timezone */}
+              <SettingsSection title="Timezone" description="Used for your dashboard clock, greeting, and which calendar day your tasks fall on">
+                <SettingsRow label="Your timezone" description={`Current: ${timezone.replace(/_/g, ' ')}`} icon={Globe}>
+                  <select
+                    value={timezone}
+                    disabled={isUpdatingTz}
+                    onChange={(e) => handleUpdateTimezone(e.target.value)}
+                    className="h-9 w-56 max-w-[60vw] rounded-md border border-border bg-background px-2 text-xs disabled:opacity-60"
+                  >
+                    {!timezoneOptions.includes(timezone) && (
+                      <option value={timezone}>{timezone.replace(/_/g, ' ')}</option>
+                    )}
+                    {timezoneOptions.map((tz) => (
+                      <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>
+                    ))}
+                  </select>
+                </SettingsRow>
               </SettingsSection>
 
               {/* Password */}

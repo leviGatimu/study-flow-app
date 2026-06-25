@@ -1,4 +1,4 @@
-import { getTodayTasks } from '@/lib/actions';
+import { getTodayTasks, getCurrentUserTimezone } from '@/lib/actions';
 import { getUserId } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { TimeClient } from './TimeClient';
@@ -10,11 +10,14 @@ export default async function TimePage() {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
-  const todayTasks = await getTodayTasks();
+  const [todayTasks, timezone] = await Promise.all([
+    getTodayTasks(),
+    getCurrentUserTimezone(),
+  ]);
 
   return (
     <main className="bg-background min-h-screen">
-      <TimeClient todayTasks={todayTasks as TaskWithTemplate[]} />
+      <TimeClient todayTasks={todayTasks as TaskWithTemplate[]} timezone={timezone} />
     </main>
   );
 }

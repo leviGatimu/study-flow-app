@@ -250,6 +250,7 @@ model UserProgress {
   xp             Int       @default(0)
   level          Int       @default(1)
   dailySummaryTime String  @default("21:00") // "HH:MM" local time-of-day to auto-generate the daily summary
+  timezone       String    @default("Africa/Kigali") // IANA timezone used for "today" math, the clock, and greetings
 }
 
 model Resource {

@@ -4,23 +4,26 @@ import { useEffect, useState } from 'react';
 import { Globe, ChevronLeft, Clock, ArrowRight, Zap, Target } from 'lucide-react';
 import Link from 'next/link';
 import { TaskWithTemplate } from '@/lib/types';
-import { getRwandaTime } from '@/lib/utils';
+import { getZonedNow, formatTimeZoneLabel, DEFAULT_TIMEZONE } from '@/lib/utils';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export function TimeClient({ 
-  todayTasks 
-}: { 
-  todayTasks: TaskWithTemplate[] 
+export function TimeClient({
+  todayTasks,
+  timezone = DEFAULT_TIMEZONE
+}: {
+  todayTasks: TaskWithTemplate[];
+  timezone?: string;
 }) {
   const [time, setTime] = useState<string>('');
   const [date, setDate] = useState<string>('');
   const [currentTask, setCurrentTask] = useState<TaskWithTemplate | null>(null);
   const [nextTask, setNextTask] = useState<TaskWithTemplate | null>(null);
+  const tzLabel = formatTimeZoneLabel(timezone);
 
   useEffect(() => {
     const update = () => {
-      const now = getRwandaTime();
+      const now = getZonedNow(timezone);
       
       // Update Clock
       setTime(now.toLocaleTimeString('en-US', {
@@ -56,7 +59,7 @@ export function TimeClient({
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
-  }, [todayTasks]);
+  }, [todayTasks, timezone]);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 md:p-12 animate-in fade-in duration-700">
@@ -78,7 +81,7 @@ export function TimeClient({
       <div className="flex flex-col items-center space-y-8 text-center">
         <div className="flex items-center gap-3 px-6 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary animate-pulse">
           <Globe className="w-4 h-4" />
-          <span className="text-xs font-black uppercase tracking-[0.3em]">Kigali Standard Time</span>
+          <span className="text-xs font-black uppercase tracking-[0.3em]">{tzLabel} Time</span>
         </div>
 
         <div className="space-y-4">

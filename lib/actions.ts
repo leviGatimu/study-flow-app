@@ -7,10 +7,30 @@ import { redirect } from 'next/navigation';
 import { getUserId, login, logout } from '@/lib/auth';
 import { saveUpload, deleteUpload } from '@/lib/upload';
 import bcrypt from 'bcryptjs';
-import { getRwandaTime } from './utils';
-
+import { getZonedNow, getTimeZoneOffsetMinutes, DEFAULT_TIMEZONE } from './utils';
 import { addXp } from './gamification';
 import { computeWeeklyPerformance, computeDailyPerformance, type WeeklyPerformance } from './grading';
+
+/**
+ * Resolve the IANA timezone the given user has chosen, falling back to the
+ * default (Africa/Kigali) so existing users keep their original behavior.
+ */
+async function getUserTimezone(userId: string): Promise<string> {
+  const progress = await prisma.userProgress.findUnique({
+    where: { userId },
+    select: { timezone: true }
+  });
+  return progress?.timezone || DEFAULT_TIMEZONE;
+}
+
+/**
+ * Server action: the current logged-in user's timezone (for display components).
+ */
+export async function getCurrentUserTimezone(): Promise<string> {
+  const userId = await getUserId();
+  if (!userId) return DEFAULT_TIMEZONE;
+  return getUserTimezone(userId);
+}
 
 /**
  * AUTH: Login user
@@ -54,36 +74,10 @@ export async function registerUser(formData: FormData) {
       data: { username, passwordHash }
     });
 
-    // Create initial progress for new user
+    // Create initial progress for new user. New accounts start with a clean
+    // slate — no inherited timetable — so they build their own schedule.
     await prisma.userProgress.create({
       data: { userId: user.id, name: username }
-    });
-
-    // Seed default weekly schedule templates for the new user
-    const defaultTemplates = [
-      { dayOfWeek: 1, subject: 'Networking Fundamentals', startTime: '20:00', endTime: '20:30', deadlineDay: 'Monday', type: 'HOMEWORK' },
-      { dayOfWeek: 1, subject: 'Develop Web Application Using JavaScript', startTime: '20:30', endTime: '21:30', deadlineDay: 'Monday', type: 'HOMEWORK' },
-      { dayOfWeek: 1, subject: 'Design Embedded Systems Hardware', startTime: '20:00', endTime: '20:30', deadlineDay: 'Tuesday', type: 'HOMEWORK' },
-      { dayOfWeek: 2, subject: 'Design Web Application Using PHP', startTime: '20:00', endTime: '21:30', deadlineDay: 'Wednesday', type: 'HOMEWORK' },
-      { dayOfWeek: 2, subject: 'ENTREPRENEURSHIP', startTime: '21:30', endTime: '22:00', deadlineDay: 'Tuesday', type: 'HOMEWORK' },
-      { dayOfWeek: 2, subject: 'ENGLISH', startTime: '22:00', endTime: '23:30', deadlineDay: 'Tuesday', type: 'HOMEWORK' },
-      { dayOfWeek: 3, subject: 'Physics (Design electrical and electronic circuit using optical instruments)', startTime: '19:00', endTime: '21:30', deadlineDay: 'Friday', type: 'HOMEWORK' },
-      { dayOfWeek: 3, subject: 'Develop Basic Database', startTime: '21:30', endTime: '22:30', deadlineDay: 'Thursday', type: 'HOMEWORK' },
-      { dayOfWeek: 3, subject: 'Foundamentals of Programming using C', startTime: '22:30', endTime: '23:30', deadlineDay: 'Thursday', type: 'HOMEWORK' },
-      { dayOfWeek: 4, subject: 'Math (Apply Algebra, Trigonometry, Probability, and Statistics)', startTime: '19:00', endTime: '21:30', deadlineDay: 'Sunday', type: 'HOMEWORK' },
-      { dayOfWeek: 4, subject: 'Design Web User Interface', startTime: '21:30', endTime: '22:30', deadlineDay: 'Thursday', type: 'HOMEWORK' },
-      { dayOfWeek: 4, subject: 'Physics (Design electrical and electronic circuit using optical instruments)', startTime: '22:30', endTime: '00:00', deadlineDay: 'Thursday', type: 'HOMEWORK' },
-      { dayOfWeek: 5, subject: 'Math (Apply Algebra, Trigonometry, Probability, and Statistics)', startTime: '20:00', endTime: '21:30', deadlineDay: 'Friday', type: 'REVISION' },
-      { dayOfWeek: 5, subject: 'Foundamentals of Programming using C', startTime: '21:30', endTime: '22:30', deadlineDay: 'Friday', type: 'REVISION' },
-      { dayOfWeek: 5, subject: 'Physics (Design electrical and electronic circuit using optical instruments)', startTime: '22:30', endTime: '00:00', deadlineDay: 'Friday', type: 'REVISION' },
-      { dayOfWeek: 6, subject: 'Develop Web Application Using JavaScript', startTime: '18:00', endTime: '20:30', deadlineDay: 'Saturday', type: 'REVISION' },
-      { dayOfWeek: 6, subject: 'Physics (Design electrical and electronic circuit using optical instruments)', startTime: '20:30', endTime: '22:00', deadlineDay: 'Saturday', type: 'REVISION' },
-      { dayOfWeek: 0, subject: 'Design Embedded Systems Hardware', startTime: '19:00', endTime: '20:30', deadlineDay: 'Sunday', type: 'REVISION' },
-      { dayOfWeek: 0, subject: 'Design Web Application Using PHP', startTime: '20:30', endTime: '22:00', deadlineDay: 'Sunday', type: 'REVISION' }
-    ];
-
-    await prisma.scheduleTemplate.createMany({
-      data: defaultTemplates.map(t => ({ ...t, userId: user.id }))
     });
 
     await login(user.id);
@@ -164,6 +158,9 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
   const userId = await getUserId();
   if (!userId) return;
 
+  const tz = await getUserTimezone(userId);
+  const tzOffsetMinutes = getTimeZoneOffsetMinutes(tz);
+
   const templates = await prisma.scheduleTemplate.findMany({ where: { userId } });
   const start = startOfDay(startDate);
   const end = endOfDay(endDate);
@@ -181,7 +178,7 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
       .filter(t => t.templateId !== null)
       .map(t => {
         const d = new Date(t.date);
-        d.setUTCHours(d.getUTCHours() + 2);
+        d.setUTCMinutes(d.getUTCMinutes() + tzOffsetMinutes);
         return `${t.templateId}|${d.toISOString().split('T')[0]}`;
       })
   );
@@ -194,7 +191,7 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
     const dayTemplates = templates.filter(t => t.dayOfWeek === dayOfWeek);
     
     const d = new Date(currentDate);
-    d.setUTCHours(d.getUTCHours() + 2);
+    d.setUTCMinutes(d.getUTCMinutes() + tzOffsetMinutes);
     const dateKey = d.toISOString().split('T')[0];
     
     for (const template of dayTemplates) {
@@ -226,7 +223,8 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
  * Utility: Find and mark tasks as missed if their scheduled time is past and they have no proof
  */
 export async function checkAndMarkMissedTasks(userId: string) {
-  const now = getRwandaTime();
+  const tz = await getUserTimezone(userId);
+  const now = getZonedNow(tz);
   
   // Find all active tasks of today or earlier that are not done, not missed, have no proof, and are not deleted
   const activeTasks = await prisma.task.findMany({
@@ -275,7 +273,8 @@ export async function getTodayTasks() {
   const userId = await getUserId();
   if (!userId) return [];
 
-  const today = getRwandaTime();
+  const tz = await getUserTimezone(userId);
+  const today = getZonedNow(tz);
   await ensureTasksGenerated(today, today);
   await checkAndMarkMissedTasks(userId);
 
@@ -322,7 +321,8 @@ export async function getTomorrowTasks() {
   const userId = await getUserId();
   if (!userId) return [];
 
-  const tomorrow = addDays(getRwandaTime(), 1);
+  const tz = await getUserTimezone(userId);
+  const tomorrow = addDays(getZonedNow(tz), 1);
   await ensureTasksGenerated(tomorrow, tomorrow);
 
   const start = startOfDay(tomorrow);
@@ -346,7 +346,8 @@ export async function getYesterdayTasks() {
   const userId = await getUserId();
   if (!userId) return [];
 
-  const yesterday = addDays(getRwandaTime(), -1);
+  const tz = await getUserTimezone(userId);
+  const yesterday = addDays(getZonedNow(tz), -1);
   const start = startOfDay(yesterday);
   const end = endOfDay(yesterday);
 
@@ -369,7 +370,8 @@ export async function getAllTasks() {
   const userId = await getUserId();
   if (!userId) return [];
 
-  const today = getRwandaTime();
+  const tz = await getUserTimezone(userId);
+  const today = getZonedNow(tz);
   const endOfJune = new Date(2026, 5, 30);
   await ensureTasksGenerated(today, endOfJune);
   await checkAndMarkMissedTasks(userId);
@@ -667,7 +669,8 @@ export async function syncStreak() {
   const userId = await getUserId();
   if (!userId) return null;
 
-  const today = startOfDay(getRwandaTime());
+  const tz = await getUserTimezone(userId);
+  const today = startOfDay(getZonedNow(tz));
   let progress = await prisma.userProgress.findUnique({ where: { userId } });
 
   if (!progress) {
@@ -786,7 +789,8 @@ export async function resumeStreak() {
   const userId = await getUserId();
   if (!userId) return;
 
-  const today = startOfDay(getRwandaTime());
+  const tz = await getUserTimezone(userId);
+  const today = startOfDay(getZonedNow(tz));
   await prisma.userProgress.updateMany({
     where: { userId },
     data: { schoolEndDate: null, lastActiveDate: today },
@@ -844,6 +848,37 @@ export async function updateCurrentTerm(term: string) {
     return { success: true };
   } catch (error) {
     return { error: "Failed to update term." };
+  }
+}
+
+/**
+ * Update the user's timezone. Validated against the runtime's known IANA zones
+ * so "today" math, the clock, and greetings all line up with where they study.
+ */
+export async function updateTimezone(timezone: string) {
+  const userId = await getUserId();
+  if (!userId) return { error: "Unauthorized" };
+
+  // Reject anything the platform can't actually resolve.
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: timezone });
+  } catch {
+    return { error: "Invalid timezone." };
+  }
+
+  try {
+    await prisma.userProgress.update({
+      where: { userId },
+      data: { timezone }
+    });
+    // Timezone changes which calendar day tasks belong to, so refresh views.
+    revalidatePath('/settings');
+    revalidatePath('/');
+    revalidatePath('/calendar');
+    revalidatePath('/time');
+    return { success: true };
+  } catch (error) {
+    return { error: "Failed to update timezone." };
   }
 }
 
@@ -1120,7 +1155,7 @@ export async function createQuickTask(data: { subject: string, startTime: string
   } else if (data.date instanceof Date) {
     date = startOfDay(data.date);
   } else {
-    date = startOfDay(getRwandaTime());
+    date = startOfDay(getZonedNow(await getUserTimezone(userId)));
   }
 
   await prisma.task.create({
@@ -1377,7 +1412,8 @@ export async function syncWeeklySummaries() {
   const userId = await getUserId();
   if (!userId) return;
 
-  const now = getRwandaTime();
+  const tz = await getUserTimezone(userId);
+  const now = getZonedNow(tz);
   const currentMonday = startOfDay(addDays(now, -(now.getDay() === 0 ? 6 : now.getDay() - 1)));
 
   // Generate summaries for the last 4 weeks (excluding current week if it hasn't ended)
@@ -1557,11 +1593,11 @@ export async function syncDailySummaries() {
   const userId = await getUserId();
   if (!userId) return;
 
-  const progress = await prisma.userProgress.findUnique({ where: { userId }, select: { dailySummaryTime: true } });
+  const progress = await prisma.userProgress.findUnique({ where: { userId }, select: { dailySummaryTime: true, timezone: true } });
   const summaryTime = progress?.dailySummaryTime || "21:00";
   const [sh, sm] = summaryTime.split(':').map(Number);
 
-  const now = getRwandaTime();
+  const now = getZonedNow(progress?.timezone || DEFAULT_TIMEZONE);
   const today = startOfDay(now);
   const generationMoment = new Date(today);
   generationMoment.setHours(sh || 0, sm || 0, 0, 0);

@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { DEFAULT_TIMEZONE } from '@/lib/utils';
 
-export function DynamicGreeting({ name = 'Student' }: { name?: string }) {
+export function DynamicGreeting({ name = 'Student', timezone = DEFAULT_TIMEZONE }: { name?: string; timezone?: string }) {
   const [greeting, setGreeting] = useState('Good morning');
   const [mounted, setMounted] = useState(false);
 
@@ -11,7 +12,7 @@ export function DynamicGreeting({ name = 'Student' }: { name?: string }) {
       setMounted(m => m === false ? true : m);
       const updateGreeting = () => {
         const formatter = new Intl.DateTimeFormat('en-US', {
-          timeZone: 'Africa/Kigali',
+          timeZone: timezone,
           hour: 'numeric',
           hourCycle: 'h24',
         });
@@ -31,7 +32,7 @@ export function DynamicGreeting({ name = 'Student' }: { name?: string }) {
       const interval = setInterval(updateGreeting, 60000);
       return () => clearInterval(interval);
     }, 0);
-  }, []);
+  }, [timezone]);
 
   if (!mounted) {
     return (

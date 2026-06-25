@@ -69,7 +69,7 @@ export default async function Dashboard() {
           <div className="flex items-center justify-between w-full">
              <div className="flex items-center gap-6 flex-wrap">
                <div className="space-y-1">
-                 <DynamicGreeting name={streakData?.name || 'Student'} />
+                 <DynamicGreeting name={streakData?.name || 'Student'} timezone={(streakData as any)?.timezone} />
                  <div className="flex items-center gap-3 ml-1">
                    <div data-tour="command-palette" className="flex items-center gap-2 text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em]">
                      <span>Press</span>
@@ -140,7 +140,7 @@ export default async function Dashboard() {
           )}
           
           <Link href="/time" className="bg-card border border-border/60 p-5 rounded-[28px] shadow-sm min-w-[220px] hover:shadow-md transition-all hover:scale-[1.02] active:scale-95">
-            <RwandaClock />
+            <RwandaClock timezone={(streakData as any)?.timezone} />
           </Link>
 
           <div className="hidden xl:flex bg-card border border-border/60 p-5 rounded-[28px] shadow-sm items-center justify-center min-w-[80px]">
