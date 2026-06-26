@@ -1,0 +1,249 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+
+interface SandTextProps {
+  lines?: string[];
+  className?: string;
+  colors?: string[];
+  darkColors?: string[];
+}
+
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  tx: number;
+  ty: number;
+  size: number;
+  color: string;
+}
+
+const SAND_COLORS = ["#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#e0ecff", "#2563eb"];
+
+/**
+ * Renders the wordmark as thousands of luminous grains on a canvas. The grains
+ * rest in the shape of the text but scatter away from the pointer like fluid
+ * sand, then flow back into place — an interactive footer centrepiece.
+ */
+export default function SandText({ lines = ["STUDY", "FLOW"], className, colors = SAND_COLORS, darkColors }: SandTextProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pointer = useRef({ x: -9999, y: -9999, active: false, vx: 0, vy: 0, px: 0, py: 0 });
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: true });
+    if (!ctx) return;
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let particles: Particle[] = [];
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
+    let raf = 0;
+    let visible = false;
+    let running = false;
+
+    const build = () => {
+      const parent = canvas.parentElement;
+      if (!parent) return;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = parent.clientWidth;
+      height = parent.clientHeight;
+      if (width === 0 || height === 0) return;
+
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      // Offscreen pass to rasterise the text and sample opaque pixels.
+      const off = document.createElement("canvas");
+      off.width = width;
+      off.height = height;
+      const octx = off.getContext("2d");
+      if (!octx) return;
+
+      const longest = lines.reduce((a, b) => (a.length >= b.length ? a : b));
+      // Fit horizontally and vertically.
+      const byWidth = (width * 0.92) / (longest.length * 0.62);
+      const byHeight = (height * 0.92) / (lines.length * 1.05);
+      const fontSize = Math.max(40, Math.min(byWidth, byHeight));
+      octx.fillStyle = "#fff";
+      octx.textAlign = "center";
+      octx.textBaseline = "middle";
+      octx.font = `800 ${fontSize}px "Hanken Grotesk", "Arial Black", system-ui, sans-serif`;
+
+      const lineHeight = fontSize * 1.02;
+      const totalHeight = lineHeight * lines.length;
+      const startY = height / 2 - totalHeight / 2 + lineHeight / 2;
+      lines.forEach((line, i) => {
+        octx.fillText(line, width / 2, startY + i * lineHeight);
+      });
+
+      const data = octx.getImageData(0, 0, width, height).data;
+      // Sampling density scales with text size so grain count stays sane.
+      const gap = Math.max(4, Math.round(fontSize / 38));
+
+      const targets: { x: number; y: number }[] = [];
+      for (let y = 0; y < height; y += gap) {
+        for (let x = 0; x < width; x += gap) {
+          const alpha = data[(y * width + x) * 4 + 3];
+          if (alpha > 130) targets.push({ x, y });
+        }
+      }
+
+      // Pick the palette that suits the current theme.
+      const palette =
+        darkColors && document.documentElement.classList.contains("dark") ? darkColors : colors;
+
+      // Reuse / pool particles so a resize doesn't snap everything.
+      const next: Particle[] = [];
+      for (let i = 0; i < targets.length; i++) {
+        const t = targets[i];
+        const existing = particles[i];
+        next.push({
+          x: existing ? existing.x : Math.random() * width,
+          y: existing ? existing.y : Math.random() * height,
+          vx: 0,
+          vy: 0,
+          tx: t.x,
+          ty: t.y,
+          size: gap <= 3 ? 1.6 : Math.random() < 0.5 ? 1.7 : 2.4,
+          color: palette[(Math.random() * palette.length) | 0],
+        });
+      }
+      particles = next;
+    };
+
+    const RADIUS = 130;
+
+    const tick = () => {
+      ctx.clearRect(0, 0, width, height);
+      const p = pointer.current;
+
+      for (let i = 0; i < particles.length; i++) {
+        const grain = particles[i];
+
+        // Pointer repulsion — pushes grains outward, faster the closer they are.
+        if (p.active) {
+          const dx = grain.x - p.x;
+          const dy = grain.y - p.y;
+          const dist2 = dx * dx + dy * dy;
+          if (dist2 < RADIUS * RADIUS) {
+            const dist = Math.sqrt(dist2) || 1;
+            const force = (RADIUS - dist) / RADIUS;
+            grain.vx += (dx / dist) * force * 7 + p.vx * 0.06 * force;
+            grain.vy += (dy / dist) * force * 7 + p.vy * 0.06 * force;
+          }
+        }
+
+        // Spring back home + friction = fluid settle.
+        grain.vx += (grain.tx - grain.x) * 0.018;
+        grain.vy += (grain.ty - grain.y) * 0.018;
+        grain.vx *= 0.88;
+        grain.vy *= 0.88;
+        grain.x += grain.vx;
+        grain.y += grain.vy;
+
+        ctx.fillStyle = grain.color;
+        ctx.fillRect(grain.x, grain.y, grain.size, grain.size);
+      }
+
+      // decay pointer velocity
+      p.vx *= 0.85;
+      p.vy *= 0.85;
+      if (visible && !reduce) raf = requestAnimationFrame(tick);
+      else running = false;
+    };
+
+    const beginLoop = () => {
+      if (reduce || running || !visible) return;
+      running = true;
+      raf = requestAnimationFrame(tick);
+    };
+
+    const renderStatic = () => {
+      ctx.clearRect(0, 0, width, height);
+      for (const grain of particles) {
+        ctx.fillStyle = grain.color;
+        ctx.fillRect(grain.tx, grain.ty, grain.size, grain.size);
+      }
+    };
+
+    const start = () => {
+      build();
+      renderStatic();
+      beginLoop();
+    };
+
+    const movePointer = (clientX: number, clientY: number) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const p = pointer.current;
+      p.vx = x - p.px;
+      p.vy = y - p.py;
+      p.px = x;
+      p.py = y;
+      p.x = x;
+      p.y = y;
+      p.active = true;
+    };
+
+    const onMouseMove = (e: MouseEvent) => movePointer(e.clientX, e.clientY);
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches[0]) movePointer(e.touches[0].clientX, e.touches[0].clientY);
+    };
+    const onLeave = () => {
+      pointer.current.active = false;
+      pointer.current.x = -9999;
+      pointer.current.y = -9999;
+    };
+
+    // Fonts must be ready before sampling or grains form the fallback face.
+    const init = () => start();
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(init);
+    } else {
+      init();
+    }
+
+    // Only animate while the wordmark is actually on screen.
+    const io = new IntersectionObserver(
+      (entries) => {
+        visible = entries[0]?.isIntersecting ?? false;
+        if (visible) beginLoop();
+      },
+      { threshold: 0 }
+    );
+    io.observe(canvas);
+
+    // Recolour the grains when the site theme is toggled.
+    const themeObserver = new MutationObserver(() => start());
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+
+    const onResize = () => start();
+    window.addEventListener("resize", onResize);
+    canvas.addEventListener("mousemove", onMouseMove);
+    canvas.addEventListener("touchmove", onTouchMove, { passive: true });
+    canvas.addEventListener("mouseleave", onLeave);
+    canvas.addEventListener("touchend", onLeave);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      themeObserver.disconnect();
+      window.removeEventListener("resize", onResize);
+      canvas.removeEventListener("mousemove", onMouseMove);
+      canvas.removeEventListener("touchmove", onTouchMove);
+      canvas.removeEventListener("mouseleave", onLeave);
+      canvas.removeEventListener("touchend", onLeave);
+    };
+  }, [lines, colors, darkColors]);
+
+  return <canvas ref={canvasRef} className={className} aria-label={lines.join(" ")} role="img" />;
+}

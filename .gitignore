@@ -86,3 +86,6 @@ desktop-app/err.txt
 /backups/
 
 .vercel
+
+# auto-downloaded Claude Code skill packages (local tooling, not project code)
+.claude/
