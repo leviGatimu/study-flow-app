@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { QuickAddForm } from "@/components/QuickAddForm";
 import { HeaderStats } from "@/components/HeaderStats";
+import { ReminderManager } from "@/components/ReminderManager";
 import { openCommandMenu } from "@/components/CommandMenu";
 import { logoutUser } from "@/lib/actions";
 import { UserProgress } from "@/lib/types";
@@ -91,6 +92,7 @@ export function AppHeader({
           <button
             type="button"
             onClick={openCommandMenu}
+            data-tour="command-palette"
             className={cn(
               "hidden h-10 w-full max-w-md items-center gap-2.5 rounded-xl border border-border bg-muted/50 px-3.5 text-sm text-muted-foreground sm:flex",
               "hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
@@ -124,10 +126,12 @@ export function AppHeader({
         {/* Actions */}
         <div className="titlebar-no-drag flex shrink-0 items-center gap-1 md:justify-end">
           <Button variant="ghost" size="icon-lg" asChild aria-label="Focus mode" className="[&_svg]:size-[18px]">
-            <Link href="/focus">
+            <Link href="/focus" data-tour="focus-mode">
               <Zap />
             </Link>
           </Button>
+
+          <ReminderManager timezone={userProgress?.timezone} />
 
           <QuickAddForm
             subjects={subjects}

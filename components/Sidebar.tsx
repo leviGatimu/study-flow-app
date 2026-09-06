@@ -96,6 +96,11 @@ function RailItem({
       <Link
         href={section.href}
         aria-label={section.name}
+        // Anchor for the onboarding tour: [data-tour="nav-subjects"] and so on.
+        // Derived from the section rather than hand-written per item, so a
+        // renamed or reordered section cannot leave the tour pointing at
+        // nothing the way the old hard-coded nav-* anchors did.
+        data-tour={`nav-${section.name.toLowerCase().replace(/\s+/g, "-")}`}
         className={cn(
           "flex size-10 items-center justify-center rounded-xl transition-colors",
           isActive

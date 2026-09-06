@@ -16,8 +16,12 @@ type Step = { selector?: string; title: string; body: string; placement?: Placem
 const STORAGE_KEY = 'study-flow-onboarded';
 const CARD_W = 360;
 
-// The tour lives entirely on the dashboard (`/`); steps anchor to the always-
-// present sidebar nav and a few dashboard elements via [data-tour] attributes.
+// The tour lives entirely on the dashboard (`/`) and anchors to [data-tour]
+// attributes on the app chrome and a few dashboard elements.
+//
+// Keep every selector pointing at something that actually renders. Anchors that
+// only exist above a breakpoint (the rail is md+, the stat strip is md+) are
+// fine: a step whose target is not visible falls back to a centred card.
 const STEPS: Step[] = [
   {
     title: 'Welcome to Study Flow 👋',
@@ -26,19 +30,13 @@ const STEPS: Step[] = [
   {
     selector: '[data-tour="sidebar"]',
     title: 'Everything lives here',
-    body: 'Your sidebar holds every tool — subjects, timetable, exams, focus mode, AI and more, grouped for quick access.',
+    body: 'Six sections hold every tool. Hover any icon — or tab to it — and a panel lists the pages inside it.',
     placement: 'right',
-  },
-  {
-    selector: '[data-tour="streak"]',
-    title: 'Build your streak 🔥',
-    body: 'Complete a task each day to grow your streak and earn XP. Heading on a break? You can pause it from the calendar.',
-    placement: 'bottom',
   },
   {
     selector: '[data-tour="todays-focus"]',
     title: "Today's focus",
-    body: 'Your tasks for today, ordered by time. Check them off, attach proof of work, or jump into a focus session.',
+    body: 'Your blocks for today, ordered by time. Check them off, attach proof of work, or jump into a focus session.',
     placement: 'top',
   },
   {
@@ -48,25 +46,31 @@ const STEPS: Step[] = [
     placement: 'bottom',
   },
   {
-    selector: '[data-tour="command-palette"]',
-    title: 'Jump anywhere instantly',
-    body: 'Press ⌘E (Ctrl+E) to open the command palette and fly to any page or action without touching the mouse.',
+    selector: '[data-tour="streak"]',
+    title: 'Build your streak 🔥',
+    body: 'Finish a block each day to grow your streak and earn XP. Going on a break? Pause the schedule from Plan → Year & Terms and the streak holds.',
     placement: 'bottom',
   },
   {
-    selector: '[data-tour="nav-exams"]',
-    title: 'Exams & timetable',
-    body: 'Upload a photo of your timetable and AI schedules every exam on your calendar — plus a revision plan around your week.',
+    selector: '[data-tour="command-palette"]',
+    title: 'Jump anywhere instantly',
+    body: 'Press Ctrl+K (⌘K) to search your tasks, notes and subjects, or fly to any page without touching the mouse.',
+    placement: 'bottom',
+  },
+  {
+    selector: '[data-tour="nav-subjects"]',
+    title: 'Subjects, exams & homework',
+    body: 'Upload a photo of your exam timetable and AI schedules every paper — then plan revision backwards from each date.',
     placement: 'right',
   },
   {
-    selector: '[data-tour="nav-focus-mode"]',
+    selector: '[data-tour="focus-mode"]',
     title: 'Deep Focus Mode',
     body: 'A full-screen study zone: timer, ambient music with lyrics, wellness nudges, and an AI tutor for your material.',
-    placement: 'right',
+    placement: 'bottom',
   },
   {
-    selector: '[data-tour="nav-ai-buddy"]',
+    selector: '[data-tour="nav-study"]',
     title: 'Your AI study buddy',
     body: 'Ask questions, summarize notes, and get help planning. Add your free API key once in Settings to switch it on.',
     placement: 'right',
@@ -158,19 +162,32 @@ export function OnboardingTour() {
   // Locate + measure the current target (re-measures on scroll/resize).
   useEffect(() => {
     if (!active) return;
-    const measure = () => {
+
+    // An element hidden at this breakpoint (the rail and the stat strip are
+    // both md+) still answers querySelector, but measures 0x0 at 0,0 - which
+    // would spotlight the top-left corner of the screen. Treat it as absent so
+    // the step falls back to a centred card.
+    const locate = () => {
       const sel = STEPS[i]?.selector;
-      if (!sel) {
-        setRect(null);
-        return;
-      }
+      if (!sel) return null;
       const el = document.querySelector(sel) as HTMLElement | null;
-      setRect(el ? el.getBoundingClientRect() : null);
+      if (!el) return null;
+      const box = el.getBoundingClientRect();
+      return box.width > 0 && box.height > 0 ? { el, box } : null;
     };
 
+    const measure = () => setRect(locate()?.box ?? null);
+
+    const found = locate();
+    if (found) found.el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+
+    // Say so in development when a step points at an anchor that no longer
+    // exists. Five of these had rotted silently after the nav was rebuilt,
+    // because a missing target degrades to a centred card and looks fine.
     const sel = STEPS[i]?.selector;
-    const el = sel ? (document.querySelector(sel) as HTMLElement | null) : null;
-    if (el) el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+    if (process.env.NODE_ENV !== 'production' && sel && !document.querySelector(sel)) {
+      console.warn(`[OnboardingTour] step ${i} anchor not found in the DOM: ${sel}`);
+    }
 
     measure();
     const t1 = setTimeout(measure, 250);

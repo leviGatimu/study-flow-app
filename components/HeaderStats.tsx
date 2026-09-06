@@ -30,6 +30,7 @@ export function HeaderStats({ progress }: { progress: UserProgress }) {
         icon={<Flame className="size-4 text-orange-500" />}
         value={progress.currentStreak}
         className="hidden md:flex"
+        tourId="streak"
       />
       <Stat
         href="/streak"
@@ -63,18 +64,22 @@ function Stat({
   icon,
   value,
   className,
+  tourId,
 }: {
   href: string;
   label: string;
   icon: React.ReactNode;
   value: React.ReactNode;
   className?: string;
+  /** Anchor for the onboarding tour, when this stat is one of its steps. */
+  tourId?: string;
 }) {
   return (
     <Link
       href={href}
       title={label}
       aria-label={label}
+      data-tour={tourId}
       className={cn(
         "items-center gap-1.5 rounded-xl px-2.5 py-1.5 transition-colors hover:bg-muted",
         className

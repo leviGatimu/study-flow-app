@@ -68,16 +68,23 @@ async function createSubjectsIfMissing(userId: string, names: string[]) {
 }
 
 /**
- * Fetch all subjects for the user.
- * If the user's Subject table is empty, scan all existing tables containing
- * subject-specific data and automatically populate the Subject table to prevent data loss.
+ * Repair the subject list: remove "(revision)" pseudo-subjects and collapse
+ * entries that are duplicates once normalised.
+ *
+ * This logic used to live inside getSubjects(), which meant every page that
+ * merely LISTED subjects issued two deleteMany calls. A read that deletes is
+ * hazardous on its own, and becomes much worse once devices sync, where a
+ * delete-on-read propagates to every other device. It is now something the
+ * user runs deliberately from /subjects.
  */
-export async function getSubjects() {
+export async function repairSubjects() {
   const userId = await getUserId();
-  if (!userId) return [];
+  if (!userId) throw new Error('Unauthorized');
 
-  // 1. Database Self-Healing: Clean up any duplicate subjects or subjects containing "(revision)"
-  await prisma.subject.deleteMany({
+  // Four spellings rather than one case-insensitive match because `contains`
+  // is case-SENSITIVE on Postgres. Behaviour is unchanged from when this ran
+  // on every read.
+  const removedRevision = await prisma.subject.deleteMany({
     where: {
       userId,
       OR: [
@@ -89,11 +96,10 @@ export async function getSubjects() {
     }
   });
 
-  // 2. Remove duplicate normalized subjects if any exist
   const existingSubjects = await prisma.subject.findMany({ where: { userId } });
   const seenNames = new Set<string>();
   const duplicateIds: string[] = [];
-  
+
   for (const s of existingSubjects) {
     const normalized = normalizeSubject(s.name);
     if (seenNames.has(normalized)) {
@@ -111,7 +117,23 @@ export async function getSubjects() {
     });
   }
 
-  // Check if we already have subjects in the Subject table
+  revalidatePath('/subjects');
+  return {
+    success: true,
+    removedRevision: removedRevision.count,
+    removedDuplicates: duplicateIds.length,
+  };
+}
+
+/**
+ * Populate the Subject table the first time it is found empty, by scanning the
+ * tables that carry a subject name, so an existing user does not land on an
+ * empty subject list.
+ *
+ * Only ever writes when the table is empty, and only ever creates - it is a
+ * bootstrap, not the repair pass above.
+ */
+async function seedSubjectsIfEmpty(userId: string) {
   const count = await prisma.subject.count({ where: { userId } });
   if (count === 0) {
     // 1. Try to seed ONLY from official report card grades first
@@ -183,6 +205,18 @@ export async function getSubjects() {
       }
     }
   }
+}
+
+/**
+ * Fetch all subjects for the user, seeding the table the first time it is
+ * empty. Unlike its previous incarnation this deletes nothing - the clean-up
+ * pass is repairSubjects(), run from /subjects.
+ */
+export async function getSubjects() {
+  const userId = await getUserId();
+  if (!userId) return [];
+
+  await seedSubjectsIfEmpty(userId);
 
   return prisma.subject.findMany({
     where: { userId },

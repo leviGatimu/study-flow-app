@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Plus,
+  Wand2,
   Search,
   Trash2,
   Edit3,
@@ -59,7 +61,8 @@ import { cn, normalizeSubject, isSubjectSimilar } from "@/lib/utils";
 import {
   addSubject,
   renameSubject,
-  deleteSubject
+  deleteSubject,
+  repairSubjects
 } from "@/lib/subject-actions";
 import { saveGoal } from "@/lib/goal-actions";
 import { addResource, deleteResource } from "@/lib/actions";
@@ -172,7 +175,9 @@ export function SubjectsClient({
   initialTutorModules,
   initialNotes,
 }: SubjectsClientProps) {
+  const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
+  const [isRepairing, setIsRepairing] = useState(false);
   const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
   
   // Navigation states: null shows Grid landing view, otherwise shows specific subject workspace
@@ -368,6 +373,29 @@ export function SubjectsClient({
   }, [aiMessages]);
 
   // Handlers
+  const handleRepair = async () => {
+    setIsRepairing(true);
+    try {
+      const res = await repairSubjects();
+      const removed = res.removedRevision + res.removedDuplicates;
+      if (removed === 0) {
+        toast.success("Nothing to tidy - your subject list is already clean.");
+      } else {
+        toast.success(
+          `Tidied up: removed ${res.removedRevision} revision entr${res.removedRevision === 1 ? "y" : "ies"} and ${res.removedDuplicates} duplicate${res.removedDuplicates === 1 ? "" : "s"}.`
+        );
+        // Refetch rather than filter locally: which rows the duplicate pass
+        // collapsed is decided on the server, so the client cannot reproduce
+        // the result without guessing.
+        router.refresh();
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Could not tidy the subject list");
+    } finally {
+      setIsRepairing(false);
+    }
+  };
+
   const handleAddSubject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSubjectName.trim()) {
@@ -605,13 +633,27 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                 Total Courses: <span className="text-primary font-black">{subjects.length}</span>
               </span>
             </div>
-            <Button
-              onClick={() => setIsAddOpen(true)}
-              className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/95 flex items-center gap-1.5 transition-transform shrink-0"
-            >
-              <Plus className="w-4.5 h-4.5" />
-              Add Subject
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Tidying up used to happen invisibly on every page that listed
+                  subjects. It is a deliberate action now, and only here. */}
+              <Button
+                variant="outline"
+                onClick={handleRepair}
+                disabled={isRepairing}
+                title="Remove '(revision)' entries and merge duplicate subjects"
+                className="rounded-xl font-bold flex items-center gap-1.5"
+              >
+                <Wand2 className="w-4.5 h-4.5" />
+                {isRepairing ? "Tidying..." : "Tidy up"}
+              </Button>
+              <Button
+                onClick={() => setIsAddOpen(true)}
+                className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/95 flex items-center gap-1.5 transition-transform"
+              >
+                <Plus className="w-4.5 h-4.5" />
+                Add Subject
+              </Button>
+            </div>
           </div>
 
           {/* Subjects Grid (12 Columns, each subject card takes 3 columns = 4 per row on large screens) */}
