@@ -17,6 +17,13 @@ const appDataPath = app.getPath('userData');
 const dbPath = path.join(appDataPath, 'database.db');
 const logPath = path.join(appDataPath, 'debug.log');
 
+// Uploads live beside the database, in userData, NOT in the installed app.
+// The default (server/public/uploads) sits inside the installation directory,
+// which electron-updater's NSIS installer removes before writing the new
+// version - so every auto-update would have destroyed every PDF, proof of work
+// and audio file the user had uploaded.
+const uploadsPath = path.join(appDataPath, 'uploads');
+
 // Standalone Next.js structure: root/server.js, root/.next, root/public, root/node_modules
 const rootDir = isPackaged ? process.resourcesPath : path.join(__dirname, '..');
 const serverDir = isPackaged ? path.join(rootDir, 'server') : rootDir;
@@ -249,6 +256,7 @@ async function createWindow() {
       PORT: port.toString(),
       HOSTNAME: hostname,
       DATABASE_URL: `file:${dbPath}`,
+      UPLOADS_DIR: uploadsPath,
       ELECTRON_RUN_AS_NODE: '1',
       NEXT_TELEMETRY_DISABLED: '1'
     },

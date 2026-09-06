@@ -1,5 +1,5 @@
-import { basename, join } from 'path';
-import { writeFile, unlink } from 'fs/promises';
+import { basename, join, resolve, sep } from 'path';
+import { writeFile, unlink, mkdir } from 'fs/promises';
 
 /**
  * File uploads, with a pluggable backend.
@@ -19,7 +19,34 @@ import { writeFile, unlink } from 'fs/promises';
  * The disk path is unchanged, so nothing differs until the variables are set.
  */
 
-const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads');
+/**
+ * Where uploads live on disk.
+ *
+ * Defaults to public/uploads, which is right for `next dev` and for the web
+ * build. The desktop launcher overrides it with UPLOADS_DIR pointing inside
+ * userData, NEXT TO THE DATABASE, because the default resolves to a directory
+ * inside the installed application: electron-updater runs the NSIS uninstaller
+ * before installing a new version, so every auto-update would have deleted
+ * every PDF, proof of work and track the user had uploaded.
+ *
+ * Files stored outside public/ are not static assets any more, so they are
+ * served by app/uploads/[...path]/route.ts.
+ */
+export const UPLOAD_DIR =
+  process.env.UPLOADS_DIR || join(process.cwd(), 'public', 'uploads');
+
+/**
+ * Resolve a stored filename to an absolute path inside UPLOAD_DIR, or null if
+ * it tries to escape. basename() already strips directories; this is the
+ * belt-and-braces check for the read path, which serves whatever it is given.
+ */
+export function resolveUploadPath(filename: string): string | null {
+  const safe = basename(filename);
+  if (!safe || safe === '.' || safe === '..') return null;
+  const full = resolve(UPLOAD_DIR, safe);
+  const root = resolve(UPLOAD_DIR);
+  return full === root || full.startsWith(root + sep) ? full : null;
+}
 
 // 25 MB cap per upload to prevent disk-exhaustion abuse.
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
@@ -111,6 +138,9 @@ export async function saveUpload(file: File, prefix = 'upload', maxBytes = MAX_U
     return data.publicUrl;
   }
 
+  // The directory may not exist yet on a fresh desktop profile, where it lives
+  // in userData rather than being shipped with the app.
+  await mkdir(UPLOAD_DIR, { recursive: true });
   await writeFile(join(UPLOAD_DIR, filename), buffer);
   return `/uploads/${filename}`;
 }
