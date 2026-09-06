@@ -507,12 +507,13 @@ Today's date is ${new Date().toDateString()}.`
     }
 
     // Trigger gamification update
+    // null when the grant was already recorded, so nothing was earned.
     if (result.xpInfo) {
-      const { xp, newLevel, xpGained } = result.xpInfo;
+      const { xp, level, granted: xpGained } = result.xpInfo;
       setUserProgress((prev: any) => ({
         ...prev,
         xp: xp,
-        level: newLevel,
+        level: level,
       }));
 
       // Add a floating bubble

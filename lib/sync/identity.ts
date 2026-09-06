@@ -236,13 +236,25 @@ export const SYNC_RULES: Record<string, SyncRule> = {
   userProgress: {
     match: 'NATURAL_KEY',
     key: ['userId'],
-    accumulated: ['xp', 'focusSessions', 'totalFocusMinutes'],
+    accumulated: ['focusSessions', 'totalFocusMinutes'],
     monotonic: ['level'],
     why:
       'Created lazily from a dozen different call sites, so both devices can ' +
       'mint one with different ids before the first sync. Keyed on userId ' +
-      'because it is 1:1 with User. xp/focusSessions/totalFocusMinutes must ' +
-      'merge as deltas, never LWW.',
+      'because it is 1:1 with User. xp and level are no longer merged at all - ' +
+      'they are a cache recomputed from xpEvent after a sync. focusSessions ' +
+      'and totalFocusMinutes are still bare counters and must merge as deltas ' +
+      'until they get the same ledger treatment.',
+  },
+
+  xpEvent: {
+    match: 'NATURAL_KEY',
+    key: ['userId', 'sourceKey'],
+    why:
+      'The reason XP is now safe to sync. Append-only rows with a stable ' +
+      'idempotency key need no conflict resolution: merging is a union and the ' +
+      'total is a SUM over it, so two devices earning offline both keep their ' +
+      'earnings. Replaying the same row is a no-op rather than a double-grant.',
   },
 
   // -------------------------------------------------------------- local only

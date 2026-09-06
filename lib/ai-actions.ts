@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/lib/auth';
 import { createQuickTask, getAllTasks, getEvents, syncStreak } from '@/lib/actions';
 import { revalidatePath } from 'next/cache';
-import { addXp } from './gamification';
+import { grantXp } from './gamification';
+import { randomUUID } from 'node:crypto';
 import { startOfDay, isSameDay } from 'date-fns';
 
 type Provider = 'gemini' | 'openai' | 'anthropic' | 'groq';
@@ -940,7 +941,8 @@ type AskAIResult = {
   error?: string;
   provider?: string;
   model?: string;
-  xpInfo?: Awaited<ReturnType<typeof addXp>>;
+  /** null when the grant was already recorded - see grantXp(). */
+  xpInfo?: Awaited<ReturnType<typeof grantXp>>;
 };
 
 export async function askAIBuddy(prompt: string, history: HistoryMessage[], sessionId?: string, file?: { data: string; mimeType: string }, systemInstructionOverride?: string): Promise<AskAIResult> {
@@ -1022,7 +1024,8 @@ export async function askAIBuddy(prompt: string, history: HistoryMessage[], sess
         data: { updatedAt: new Date() },
       });
     }
-    const xpInfo = await addXp(userId, 20);
+    // Each assistant reply is a distinct event with no row to key on.
+    const xpInfo = await grantXp(userId, 20, 'AI', `ai:${randomUUID()}`);
     return { text, provider: providerLabel, model, xpInfo };
   };
 

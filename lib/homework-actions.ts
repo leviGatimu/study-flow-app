@@ -5,7 +5,7 @@ import { getUserId } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { startOfDay } from 'date-fns';
 import { saveUpload, deleteUpload } from '@/lib/upload';
-import { addXp } from './gamification';
+import { grantXp } from './gamification';
 
 export async function getHomeworks() {
   const userId = await getUserId();
@@ -88,7 +88,9 @@ export async function completeHomework(formData: FormData) {
     }
   });
 
-  await addXp(userId, 200); // Homework completion bonus
+  // Keyed on the homework, so re-completing it cannot pay the bonus
+  // again - this had the same double-grant bug as task completion.
+  await grantXp(userId, 200, 'HOMEWORK', `homework:${homeworkId}`);
 
   revalidatePath('/homeworks');
   revalidatePath('/history');

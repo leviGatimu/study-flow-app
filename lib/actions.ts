@@ -10,7 +10,8 @@ import { getUserId, login, logout } from '@/lib/auth';
 import { saveUpload, deleteUpload } from '@/lib/upload';
 import bcrypt from 'bcryptjs';
 import { getZonedNow, getTimeZoneOffsetMinutes, DEFAULT_TIMEZONE } from './utils';
-import { addXp } from './gamification';
+import { grantXp } from './gamification';
+import { randomUUID } from 'node:crypto';
 import { computeWeeklyPerformance, computeDailyPerformance, type WeeklyPerformance } from './grading';
 import { getScheduleState, ensureDefaultClass } from './term';
 
@@ -416,14 +417,16 @@ export async function toggleTaskDone(taskId: string, isDone: boolean) {
 
   await prisma.task.updateMany({
     where: { id: taskId, userId },
-    data: { 
+    data: {
       isDone,
-      isMissed: isDone ? false : undefined 
+      isMissed: isDone ? false : undefined
     }
   });
 
   if (isDone) {
-    await addXp(userId, 100);
+    // Keyed on the task, so unticking and reticking cannot pay twice. This
+    // used to grant +100 unconditionally on every call.
+    await grantXp(userId, 100, 'TASK', `task:${taskId}`);
   }
 
   revalidatePath('/');
@@ -774,7 +777,15 @@ const syncStreakFor = cache(async function syncStreakFor(userId: string) {
     if (diff === 1) {
       newStreak = cls.currentStreak + 1;
       streakIncreased = true;
-      await addXp(userId, 50 * newStreak); // Streak bonus
+      // Keyed on the class and the day the streak advanced TO, so re-running
+      // the sync - or a second device computing the same real-world
+      // transition - cannot pay the bonus twice.
+      await grantXp(
+        userId,
+        50 * newStreak,
+        'STREAK',
+        `streak:${cls.id}:${format(today, 'yyyy-MM-dd')}`
+      );
 
       const yesterday = addDays(today, -1);
       const yesterdayTasks = await prisma.task.findMany({
@@ -1972,8 +1983,15 @@ export async function logFocusSession(durationMinutes: number, earnedXp: number)
     },
   });
 
-  // Grant the exact XP earned during the session
-  await addXp(userId, earnedXp);
+  // Grant the exact XP earned during the session. Each completed session is
+  // genuinely a separate event, so the key is minted here rather than derived
+  // - there is no existing row to key on.
+  await grantXp(
+    userId,
+    earnedXp,
+    'FOCUS',
+    `focus:${randomUUID()}`
+  );
 
   revalidatePath('/history');
 }

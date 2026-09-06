@@ -101,7 +101,7 @@ describe('identity map', () => {
       [
         'class', 'examEvent', 'homework', 'markedDay', 'masteryItem', 'reportCard',
         'resource', 'scheduleTemplate', 'studioNote', 'subject', 'subjectGoal',
-        'subjectGrade', 'task', 'term', 'user', 'userProgress',
+        'subjectGrade', 'task', 'term', 'user', 'userProgress', 'xpEvent',
       ],
       'the synced set changed - if that was deliberate, update this test and HANDOFF.md'
     );

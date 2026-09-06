@@ -43,6 +43,46 @@ model User {
   updatedAt       DateTime           @default(now()) @updatedAt
   deletedAt       DateTime?
   classes         Class[]
+  xpEvents        XpEvent[]
+}
+
+/// Every XP grant that has ever happened, append-only.
+///
+/// UserProgress.xp and .level used to be the only record: addXp() read them,
+/// added, and wrote them back. That had two consequences.
+///
+/// It made grants non-idempotent - toggleTaskDone paid +100 every time it was
+/// called, so unticking and reticking a task paid twice.
+///
+/// And it made the values impossible to sync. Two devices each earning offline
+/// produce two totals, and last-writer-wins does not add them - it discards
+/// one, unrecoverably, because nothing recorded where the XP came from.
+/// Append-only rows with a stable idempotency key need no conflict resolution
+/// at all: merging is a union, and the total is a SUM over the union.
+///
+/// UserProgress.xp/.level are now a CACHE recomputed from this table, so every
+/// page that reads them is unchanged.
+model XpEvent {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Always positive. Reversals are a compensating negative row, never a delete.
+  amount Int
+  /// TASK | HOMEWORK | STREAK | FOCUS | QUIZ | AI | LEGACY
+  source String
+
+  /// What earned it, e.g. "task:clx123" or "streak:clx456:2026-09-07".
+  /// Unique per user: this is what makes a grant happen at most once, however
+  /// many times the code path runs or the row is re-synced.
+  sourceKey String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
+
+  @@unique([userId, sourceKey])
+  @@index([userId, createdAt])
 }
 
 model Song {

@@ -5,7 +5,8 @@ import { getUserId } from '@/lib/auth';
 import { askAIBuddy } from './ai-actions';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { addXp } from './gamification';
+import { grantXp } from './gamification';
+import { randomUUID } from 'node:crypto';
 import mammoth from 'mammoth';
 
 // Canonical description of every question shape the quiz engine understands.
@@ -186,8 +187,11 @@ export async function updateTutorModuleScore(id: string, score: number, understa
     }
   });
 
-  // Award massive XP for learning: Score * 10
-  await addXp(userId, score * 10);
+  // Award XP for learning: Score * 10. A genuine retake is a new event and
+  // should pay again, so the key is minted per review rather than derived from
+  // the module - re-submitting the SAME graded review is what a stable key
+  // would need, and there is no row here to hang one on.
+  await grantXp(userId, score * 10, 'QUIZ', `quiz-review:${randomUUID()}`);
   
   revalidatePath(`/tutor/${id}`);
   revalidatePath('/tutor');
@@ -481,7 +485,7 @@ export async function updateFlashcardsReview(moduleId: string, flashcardsJson: s
     });
 
     if (xpEarned > 0) {
-      await addXp(userId, xpEarned);
+      await grantXp(userId, xpEarned, 'QUIZ', `flashcards:${randomUUID()}`);
     }
 
     revalidatePath(`/tutor/${moduleId}`);
