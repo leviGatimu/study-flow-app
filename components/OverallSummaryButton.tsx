@@ -43,11 +43,11 @@ function Ring({ value, color, label, sub }: { value: number; color: string; labe
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-sm font-black text-slate-900" style={{ fontFamily: "sans-serif" }}>{Math.round(value)}</span>
+          <span className="text-sm font-bold text-slate-900" style={{ fontFamily: "sans-serif" }}>{Math.round(value)}</span>
         </div>
       </div>
-      <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 leading-none">{label}</span>
-      <span className="text-[9px] font-semibold text-slate-400 leading-none">{sub}</span>
+      <span className="text-xs font-semibold text-slate-500 leading-none">{label}</span>
+      <span className="text-xs text-slate-400 leading-none">{sub}</span>
     </div>
   );
 }
@@ -103,15 +103,15 @@ export function OverallSummaryButton() {
       <Button
         onClick={handleGenerate}
         disabled={isLoading}
-        className="rounded-2xl gap-2 font-black h-[52px] px-6 text-xs uppercase tracking-widest shadow-sm"
+        className="rounded-xl gap-2 h-11 px-6 text-sm font-semibold shadow-sm"
       >
         {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gauge className="w-4 h-4" />}
-        Generate Overall Summary
+        Generate overall summary
       </Button>
 
       {summary && (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogContent className="sm:max-w-[95vw] w-full p-0 overflow-hidden bg-background border-none rounded-3xl shadow-[0_0_80px_rgba(0,0,0,0.15)] z-[110]">
+          <DialogContent className="sm:max-w-[95vw] w-full p-0 overflow-hidden bg-background border-none rounded-2xl shadow-2xl z-[110]">
             <OverallReportBody
               summary={summary}
               reportRef={reportRef}
@@ -173,17 +173,23 @@ function OverallReportBody({
 
   return (
     <div className="flex flex-col h-[92vh]">
-      <div className="px-8 py-5 border-b flex items-center justify-between bg-card/60 backdrop-blur-md shrink-0 select-none">
+      <div className="px-8 py-5 border-b flex items-center justify-between bg-card shrink-0">
         <div className="text-left flex-1 space-y-0.5">
-          <p className="text-[9px] font-black text-primary uppercase tracking-[0.25em]">Lifetime Performance Report</p>
-          <DialogTitle className="text-2xl font-heading font-black tracking-tight">Overall Study Analytics</DialogTitle>
+          <p className="text-xs font-semibold text-primary">Lifetime performance report</p>
+          <DialogTitle className="text-2xl font-heading font-bold tracking-tight">Overall study analytics</DialogTitle>
           <DialogDescription className="sr-only">All-time study performance, analytics and insights.</DialogDescription>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={onDownload} disabled={isGenerating} className="rounded-xl gap-2 font-black shadow-md h-12 px-6 text-xs uppercase tracking-widest">
+          <Button onClick={onDownload} disabled={isGenerating} className="rounded-xl gap-2 shadow-sm h-11 px-5 text-sm font-semibold">
             {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Export PDF
           </Button>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl h-10 w-10 hover:bg-muted border">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label="Close report"
+            className="rounded-xl h-10 w-10 hover:bg-muted border"
+          >
             <X className="w-5 h-5" />
           </Button>
         </div>
@@ -203,67 +209,66 @@ function OverallReportBody({
                   <span className="font-black text-xl tracking-tighter uppercase">StudyFlow</span>
                 </div>
                 <div>
-                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">All-Time Performance Report</p>
-                  <h1 className="text-2xl font-black tracking-tight">
+                  <p className="text-xs font-semibold text-slate-400">All-time performance report</p>
+                  <h1 className="text-2xl font-bold tracking-tight">
                     {format(new Date(summary.firstDate), "MMM do, yyyy")} — {format(new Date(summary.lastDate), "MMM do, yyyy")}
                   </h1>
                 </div>
               </div>
               <div className="text-right space-y-1.5 text-xs">
-                <p className="font-bold text-[9px] uppercase text-slate-400 leading-none">Report Type</p>
-                <p className="font-black tracking-tight">LIFETIME</p>
-                <p className="font-bold text-[9px] uppercase text-slate-400 leading-none pt-1.5">Issued</p>
-                <p className="font-black tracking-tight">{format(new Date(), "MMM dd, yyyy")}</p>
+                <p className="font-semibold text-slate-400 leading-none">Report type</p>
+                <p className="font-semibold tracking-tight">Lifetime</p>
+                <p className="font-semibold text-slate-400 leading-none pt-1.5">Issued</p>
+                <p className="font-semibold tracking-tight">{format(new Date(), "MMM dd, yyyy")}</p>
               </div>
             </div>
 
             <div className="rounded-2xl overflow-hidden relative text-white shadow-lg"
                  style={{ background: `linear-gradient(135deg, ${theme.hex}, ${theme.hex}cc)` }}>
-              <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-white/10 blur-2xl" />
               <div className="relative p-7 flex flex-col md:flex-row items-center gap-7">
                 <div className="shrink-0 w-32 h-32 rounded-2xl bg-white/15 backdrop-blur border border-white/25 flex flex-col items-center justify-center">
                   {summary.grade === "S" && <Trophy className="w-5 h-5 mb-1 text-amber-200" />}
                   <span className="text-6xl font-black tracking-tighter leading-none">{summary.grade}</span>
-                  <span className="text-[9px] font-black uppercase tracking-widest mt-1.5 opacity-80">Avg. Grade</span>
+                  <span className="text-xs font-semibold mt-1.5 opacity-80">Avg. grade</span>
                 </div>
                 <div className="flex-1 text-center md:text-left space-y-2">
                   <div className="flex items-center gap-2 justify-center md:justify-start">
-                    <span className="px-2.5 py-1 rounded-full bg-white/20 text-[10px] font-black uppercase tracking-widest">{perf.level}</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest opacity-80">{theme.ring}</span>
+                    <span className="px-2.5 py-1 rounded-full bg-white/20 text-xs font-semibold">{perf.level}</span>
+                    <span className="text-xs font-semibold opacity-80">{theme.ring}</span>
                   </div>
-                  <p className="text-lg font-black leading-tight">{perf.feedback}</p>
+                  <p className="text-lg font-bold leading-tight">{perf.feedback}</p>
                   <p className="text-sm font-medium opacity-90 leading-snug">Based on your average weekly performance across {summary.totalDaysSpanned} tracked days.</p>
                 </div>
                 <div className="shrink-0 text-center">
                   <div className="text-5xl font-black leading-none">{perf.score}</div>
-                  <div className="text-[10px] font-black uppercase tracking-widest opacity-80 mt-1">out of 100</div>
+                  <div className="text-xs font-semibold opacity-80 mt-1">out of 100</div>
                 </div>
               </div>
             </div>
 
             <div>
-              <p className="font-black text-[10px] uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-1 mb-4 flex items-center gap-1.5"><BarChart3 className="w-3.5 h-3.5" /> Lifetime Analytics</p>
+              <p className="font-semibold text-xs text-slate-400 border-b border-slate-200 pb-1 mb-4 flex items-center gap-1.5"><BarChart3 className="w-3.5 h-3.5" /> Lifetime analytics</p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {[
-                  { icon: Clock, label: "Total Hours", value: fmtHM(summary.totalMinutes), color: theme.hex },
+                  { icon: Clock, label: "Total hours", value: fmtHM(summary.totalMinutes), color: theme.hex },
                   { icon: CheckCircle2, label: "Completed", value: fmtHM(summary.completedMinutes), color: "#10b981" },
-                  { icon: Zap, label: "Sessions Done", value: `${summary.completedSessions} / ${summary.totalSessions}`, color: "#3b82f6" },
-                  { icon: CalendarDays, label: "Days Tracked", value: `${summary.totalDaysSpanned}`, color: "#f59e0b" },
-                  { icon: Flame, label: "Current Streak", value: `${summary.currentStreak} days`, color: "#f97316" },
-                  { icon: Trophy, label: "Longest Streak", value: `${summary.longestStreak} days`, color: "#a855f7" },
+                  { icon: Zap, label: "Sessions done", value: `${summary.completedSessions} / ${summary.totalSessions}`, color: "#3b82f6" },
+                  { icon: CalendarDays, label: "Days tracked", value: `${summary.totalDaysSpanned}`, color: "#f59e0b" },
+                  { icon: Flame, label: "Current streak", value: `${summary.currentStreak} days`, color: "#f97316" },
+                  { icon: Trophy, label: "Longest streak", value: `${summary.longestStreak} days`, color: "#a855f7" },
                 ].map(s => (
                   <div key={s.label} className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                    <div className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-2">
                       <s.icon className="w-3.5 h-3.5" style={{ color: s.color }} /> {s.label}
                     </div>
-                    <p className="text-2xl font-black tracking-tight" style={{ color: "#0f172a" }}>{s.value}</p>
+                    <p className="text-2xl font-bold tracking-tight" style={{ color: "#0f172a" }}>{s.value}</p>
                   </div>
                 ))}
               </div>
             </div>
 
             <div>
-              <p className="font-black text-[10px] uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-1 mb-4">Average Weekly Performance</p>
+              <p className="font-semibold text-xs text-slate-400 border-b border-slate-200 pb-1 mb-4">Average weekly performance</p>
               <div className="flex flex-wrap justify-around gap-4 bg-slate-50 border border-slate-200 rounded-xl py-5 px-2">
                 {components.map(c => (
                   <Ring key={c.label} value={c.value} color={theme.hex} label={c.label} sub={c.sub} />
@@ -272,17 +277,17 @@ function OverallReportBody({
             </div>
 
             <div>
-              <p className="font-black text-[10px] uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-1 mb-4">Lifetime Distribution by Weekday</p>
+              <p className="font-semibold text-xs text-slate-400 border-b border-slate-200 pb-1 mb-4">Lifetime distribution by weekday</p>
               <div className="flex items-end justify-between gap-2 h-40 bg-slate-50 border border-slate-200 rounded-xl p-4">
                 {summary.weekdayMinutes.map((mins, i) => {
                   const h = (mins / maxWeekday) * 100;
                   const isPeak = mins === maxWeekday && mins > 0;
                   return (
                     <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1.5 h-full">
-                      <span className="text-[8px] font-black text-slate-500">{mins > 0 ? fmtHM(mins) : ""}</span>
+                      <span className="text-xs font-medium text-slate-500">{mins > 0 ? fmtHM(mins) : ""}</span>
                       <div className="w-full rounded-t-md transition-all duration-700 min-h-[2px]"
                            style={{ height: `${Math.max(2, h)}%`, backgroundColor: isPeak ? theme.hex : `${theme.hex}66` }} />
-                      <span className="text-[9px] font-black uppercase text-slate-400">{DAY_LABELS[i]}</span>
+                      <span className="text-xs font-medium text-slate-400">{DAY_LABELS[i]}</span>
                     </div>
                   );
                 })}
@@ -291,7 +296,7 @@ function OverallReportBody({
 
             {pieData.length > 0 && (
               <div>
-                <p className="font-black text-[10px] uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-1 mb-4">Subject Allocation</p>
+                <p className="font-semibold text-xs text-slate-400 border-b border-slate-200 pb-1 mb-4">Subject allocation</p>
                 <div className="space-y-3">
                   {pieData.map((item, i) => {
                     const pct = Math.round((item.value / summary.totalMinutes) * 100) || 0;
@@ -300,11 +305,11 @@ function OverallReportBody({
                         <div className="flex items-center justify-between text-xs">
                           <div className="flex items-center gap-2">
                             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: SUBJECT_COLORS[i % SUBJECT_COLORS.length] }} />
-                            <span className="font-black text-sm">{item.name}</span>
+                            <span className="font-semibold text-sm">{item.name}</span>
                           </div>
                           <div className="flex items-center gap-4">
-                            <span className="text-slate-500 text-[10px] font-bold">{fmtHM(item.value)}</span>
-                            <span className="font-black text-sm w-10 text-right" style={{ color: theme.hex }}>{pct}%</span>
+                            <span className="text-slate-500 text-xs font-medium">{fmtHM(item.value)}</span>
+                            <span className="font-semibold text-sm w-10 text-right" style={{ color: theme.hex }}>{pct}%</span>
                           </div>
                         </div>
                         <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -319,7 +324,7 @@ function OverallReportBody({
 
             {insights.length > 0 && (
               <div>
-                <p className="font-black text-[10px] uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-1 mb-4 flex items-center gap-1.5"><Lightbulb className="w-3.5 h-3.5" /> Performance Insights</p>
+                <p className="font-semibold text-xs text-slate-400 border-b border-slate-200 pb-1 mb-4 flex items-center gap-1.5"><Lightbulb className="w-3.5 h-3.5" /> Performance insights</p>
                 <div className="grid md:grid-cols-2 gap-3">
                   {insights.map((ins, i) => (
                     <div key={i} className="flex items-start gap-2.5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
@@ -333,7 +338,7 @@ function OverallReportBody({
 
             <div className="grid md:grid-cols-2 gap-5">
               <div className="p-5 rounded-xl border border-emerald-200 bg-emerald-50">
-                <p className="font-black text-[10px] uppercase tracking-widest text-emerald-700 mb-3 flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5" /> Strengths</p>
+                <p className="font-semibold text-xs text-emerald-700 mb-3 flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5" /> Strengths</p>
                 <ul className="space-y-2">
                   {perf.strengths.map((s, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm font-semibold text-emerald-900">
@@ -343,7 +348,7 @@ function OverallReportBody({
                 </ul>
               </div>
               <div className="p-5 rounded-xl border border-amber-200 bg-amber-50">
-                <p className="font-black text-[10px] uppercase tracking-widest text-amber-700 mb-3 flex items-center gap-1.5"><Target className="w-3.5 h-3.5" /> Keep Improving</p>
+                <p className="font-semibold text-xs text-amber-700 mb-3 flex items-center gap-1.5"><Target className="w-3.5 h-3.5" /> Keep improving</p>
                 <ul className="space-y-2">
                   {perf.improvements.map((s, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm font-semibold text-amber-900">
@@ -355,12 +360,12 @@ function OverallReportBody({
             </div>
 
             <div>
-              <p className="font-black text-[10px] uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-1 mb-4 flex items-center gap-1.5"><Award className="w-3.5 h-3.5" /> Achievements</p>
+              <p className="font-semibold text-xs text-slate-400 border-b border-slate-200 pb-1 mb-4 flex items-center gap-1.5"><Award className="w-3.5 h-3.5" /> Achievements</p>
               <div className="flex flex-wrap gap-2.5">
                 {HOUR_MILESTONES.map(m => {
                   const earned = hours >= m;
                   return (
-                    <div key={`h${m}`} className={cn("flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-black",
+                    <div key={`h${m}`} className={cn("flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold",
                       earned ? "border-transparent text-white" : "border-slate-200 bg-slate-50 text-slate-300")}
                       style={earned ? { backgroundColor: theme.hex } : undefined}>
                       <Clock className="w-3.5 h-3.5" /> {m}h Club
@@ -370,7 +375,7 @@ function OverallReportBody({
                 {STREAK_MILESTONES.map(m => {
                   const earned = summary.longestStreak >= m;
                   return (
-                    <div key={`s${m}`} className={cn("flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-black",
+                    <div key={`s${m}`} className={cn("flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold",
                       earned ? "border-transparent bg-orange-500 text-white" : "border-slate-200 bg-slate-50 text-slate-300")}>
                       <Flame className="w-3.5 h-3.5" /> {m}-Day Streak
                     </div>
@@ -383,14 +388,14 @@ function OverallReportBody({
               <div className="flex items-center gap-3">
                 <ShieldCheck className="w-5 h-5 text-emerald-600" />
                 <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Verified Local Record</p>
-                  <p className="text-[8px] font-medium text-slate-400 max-w-[260px] leading-tight">Generated from your complete StudyFlow study history.</p>
+                  <p className="text-xs font-semibold text-emerald-600">Verified local record</p>
+                  <p className="text-xs font-medium text-slate-400 max-w-[260px] leading-tight">Generated from your complete StudyFlow study history.</p>
                 </div>
               </div>
               <div className="text-right">
                 <span className="font-serif italic font-black text-lg text-slate-400">StudyFlow Engine</span>
                 <div className="h-[1.5px] w-32 bg-slate-300 mt-1 ml-auto" />
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Performance Registrar</p>
+                <p className="text-xs font-semibold text-slate-400 mt-1">Performance registrar</p>
               </div>
             </div>
 

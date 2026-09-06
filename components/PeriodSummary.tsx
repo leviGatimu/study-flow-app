@@ -107,7 +107,7 @@ function Fact({
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-heading text-xl font-black text-foreground">{value}</p>
+      <p className="font-heading text-xl font-bold text-foreground">{value}</p>
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );

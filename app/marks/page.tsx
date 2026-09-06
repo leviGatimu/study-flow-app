@@ -19,28 +19,19 @@ export default async function MarksPage() {
   ]);
 
   return (
-    <div className="flex flex-col">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md px-4 md:px-8 pt-10 pb-6 border-b border-border/40 shrink-0 mb-8">
-        <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-5xl font-heading font-black tracking-tight text-foreground uppercase">Academic Standings</h1>
-            <p className="text-xl text-muted-foreground font-semibold mt-3">
-              Track your subject grades, analyze term progress, and review targeted study strategies.
-            </p>
-          </div>
-        </div>
+    <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto pb-16 px-4 md:px-8 animate-in fade-in duration-500">
+      <div className="pt-10 pb-6 border-b border-border/40">
+        <h1 className="text-2xl font-heading font-bold tracking-tight text-foreground">Academic standings</h1>
+        <p className="text-sm text-muted-foreground mt-2">
+          Track your subject grades, follow term progress, and review targeted study strategies.
+        </p>
       </div>
 
-      <div className="animate-in slide-in-from-bottom-4 duration-500 px-4 md:px-8 pb-16">
-        <div className="max-w-[1600px] mx-auto">
-          <MarksClient 
-            initialReportCards={reportCards as any} 
-            currentTermSetting={settingsData?.currentTerm || "Term 1"} 
-            subjects={subjects}
-          />
-        </div>
-      </div>
+      <MarksClient
+        initialReportCards={reportCards as any}
+        currentTermSetting={settingsData?.currentTerm || "Term 1"}
+        subjects={subjects}
+      />
     </div>
   );
 }

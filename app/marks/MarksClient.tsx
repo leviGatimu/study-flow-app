@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { 
-  FileText, 
-  Upload, 
-  Trash2, 
-  Sparkles, 
-  ChevronRight, 
-  AlertCircle,
+import {
+  FileText,
+  Upload,
+  Trash2,
+  Sparkles,
+  ChevronRight,
   Loader2,
   TrendingUp,
   Award,
@@ -22,14 +21,12 @@ import {
   Trash,
   Trophy,
   History,
-  GraduationCap
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   AreaChart,
   Area
@@ -41,13 +38,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { 
-  uploadReportCard, 
-  deleteReportCard, 
-  createManualReportCard, 
-  addSubjectGrade, 
-  updateSubjectGrade, 
-  deleteSubjectGrade 
+import {
+  uploadReportCard,
+  deleteReportCard,
+  createManualReportCard,
+  addSubjectGrade,
+  updateSubjectGrade,
+  deleteSubjectGrade
 } from "@/lib/marks-actions";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -71,12 +68,12 @@ interface ReportCardType {
   grades: SubjectGradeType[];
 }
 
-export function MarksClient({ 
-  initialReportCards, 
+export function MarksClient({
+  initialReportCards,
   currentTermSetting,
   subjects = []
-}: { 
-  initialReportCards: ReportCardType[], 
+}: {
+  initialReportCards: ReportCardType[],
   currentTermSetting: string,
   subjects?: { id: string; name: string }[]
 }) {
@@ -85,12 +82,12 @@ export function MarksClient({
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadTerm, setUploadTerm] = useState(currentTermSetting);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  
+
   // Manual actions states
   const [isCreateTermOpen, setIsCreateTermOpen] = useState(false);
   const [newTermName, setNewTermName] = useState("");
   const [isCreatingTerm, setIsCreatingTerm] = useState(false);
-  
+
   const [isAddingGrade, setIsAddingGrade] = useState(false);
   const [isSavingGrade, setIsSavingGrade] = useState(false);
   const [newGradeForm, setNewGradeForm] = useState({
@@ -324,7 +321,7 @@ export function MarksClient({
     }));
 
     const highest = [...list].sort((a, b) => b.score - a.score)[0];
-    
+
     const critical = list.find(g => g.status === "Critical");
     const needsWork = list.find(g => g.status === "Needs Work");
     const lowest = [...list].sort((a, b) => a.score - b.score)[0];
@@ -339,15 +336,15 @@ export function MarksClient({
   const exportPDF = () => {
     if (!activeReportCard) return;
     const doc = new jsPDF();
-    
+
     doc.setFontSize(22);
     doc.text("Academic Performance Record", 14, 20);
-    
+
     doc.setFontSize(12);
     doc.setTextColor(100);
     doc.text(`Term: ${selectedTerm}`, 14, 30);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 37);
-    
+
     doc.setFontSize(14);
     doc.setTextColor(0);
     doc.text("Academic Strategy & Overview Summary", 14, 50);
@@ -355,36 +352,36 @@ export function MarksClient({
     doc.setTextColor(80);
     const summaryLines = doc.splitTextToSize(activeReportCard.aiSummary || "No summary available.", 180);
     doc.text(summaryLines, 14, 57);
-    
+
     autoTable(doc, {
       startY: 75,
       head: [["Subject", "Grade (%)", "Standing", "Target Study Strategy Guidelines"]],
       body: activeReportCard.grades.map((g: any) => [
-        g.subject, 
-        g.grade, 
-        g.status, 
+        g.subject,
+        g.grade,
+        g.status,
         g.aiFeedback
       ]),
       headStyles: { fillColor: [79, 70, 229] },
       styles: { fontSize: 9, cellPadding: 5 }
     });
-    
+
     doc.save(`Academic_Report_${selectedTerm.replace(/\s+/g, '_')}.pdf`);
   };
 
   return (
-    <div className="space-y-10 max-w-[1600px] mx-auto pb-20">
-      
+    <div className="space-y-8">
+
       {/* Top Ribbon Controls */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-border/40">
         <div className="flex items-center gap-3.5 flex-wrap">
           <Select value={selectedTerm} onValueChange={setSelectedTerm}>
-            <SelectTrigger className="w-[200px] h-11 rounded-xl bg-card border-border/50 font-bold text-sm shadow-sm hover:border-primary/45 transition-colors">
+            <SelectTrigger className="w-[200px] h-11 rounded-xl bg-card border-border/50 font-semibold text-sm shadow-sm hover:border-primary/45 transition-colors">
               <SelectValue placeholder="Select Term" />
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border bg-card">
               {availableTerms.map(term => (
-                <SelectItem key={term} value={term} className="font-bold cursor-pointer">
+                <SelectItem key={term} value={term} className="font-medium cursor-pointer">
                   {term}
                 </SelectItem>
               ))}
@@ -393,30 +390,31 @@ export function MarksClient({
 
           <Dialog open={isCreateTermOpen} onOpenChange={setIsCreateTermOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="h-11 rounded-xl font-bold gap-2 hover:border-primary/45 transition-colors">
+              <Button variant="outline" className="h-11 rounded-xl font-semibold gap-2 hover:border-primary/45 transition-colors">
                 <PlusCircle className="w-4 h-4 text-primary" /> Create Term
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[400px] rounded-3xl border-border bg-card p-6 shadow-xl">
+            <DialogContent className="sm:max-w-[400px] rounded-2xl border-border bg-card p-6 shadow-xl">
               <DialogHeader>
-                <DialogTitle className="text-xl font-heading font-black tracking-tight uppercase">New Study Term</DialogTitle>
-                <p className="text-muted-foreground text-sm font-semibold">Initialize a new school term manually.</p>
+                <DialogTitle className="text-xl font-heading font-bold tracking-tight">New study term</DialogTitle>
+                <p className="text-muted-foreground text-sm">Initialize a new school term manually.</p>
               </DialogHeader>
               <form onSubmit={handleCreateTerm} className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold text-muted-foreground">Term Name</Label>
-                  <Input 
+                  <Label htmlFor="create-term-name" className="text-xs font-medium text-muted-foreground">Term name</Label>
+                  <Input
+                    id="create-term-name"
                     required
                     value={newTermName}
                     onChange={(e) => setNewTermName(e.target.value)}
                     placeholder="e.g., Term 2 2026"
-                    className="h-11 rounded-xl bg-muted/30 border-border/50 font-bold focus-visible:ring-1 focus-visible:ring-primary/25"
+                    className="h-11 rounded-xl bg-muted/30 border-border/50 font-medium focus-visible:ring-1 focus-visible:ring-primary/25"
                   />
                 </div>
-                <Button 
-                  type="submit" 
-                  disabled={isCreatingTerm || !newTermName.trim()} 
-                  className="w-full h-11 rounded-xl font-bold cursor-pointer"
+                <Button
+                  type="submit"
+                  disabled={isCreatingTerm || !newTermName.trim()}
+                  className="w-full h-11 rounded-xl font-semibold cursor-pointer"
                 >
                   {isCreatingTerm ? <Loader2 className="w-5 h-5 animate-spin" /> : "Initialize Term"}
                 </Button>
@@ -428,18 +426,18 @@ export function MarksClient({
         <div className="flex items-center gap-3 w-full sm:w-auto">
           {activeReportCard && (
             <>
-              <Button 
+              <Button
                 variant="outline"
                 onClick={exportPDF}
-                className="h-11 px-4 rounded-xl font-bold gap-2 border-border/50 hover:bg-muted/50 transition-all shadow-sm cursor-pointer"
+                className="h-11 px-4 rounded-xl font-semibold gap-2 border-border/50 hover:bg-muted/50 transition-colors shadow-sm cursor-pointer"
               >
                 <Download className="w-4 h-4" /> Export Report Card
               </Button>
-              
-              <Button 
+
+              <Button
                 variant="ghost"
                 onClick={() => handleDelete(activeReportCard.id)}
-                className="h-11 px-4 rounded-xl font-bold gap-2 text-destructive hover:bg-destructive/10 transition-all cursor-pointer"
+                className="h-11 px-4 rounded-xl font-semibold gap-2 text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" /> Delete Term
               </Button>
@@ -450,44 +448,45 @@ export function MarksClient({
 
           <Dialog open={isUploadModalOpen} onOpenChange={setIsUploadModalOpen}>
             <DialogTrigger asChild>
-              <Button className="h-11 px-5 rounded-xl font-bold gap-2 shadow-md shadow-primary/10 hover:shadow-primary/25 cursor-pointer bg-gradient-to-r from-primary to-indigo-600 border-none hover:opacity-90">
+              <Button className="h-11 px-5 rounded-xl font-semibold gap-2 shadow-sm cursor-pointer">
                 <Upload className="w-4 h-4" /> Scan Transcript File
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[440px] rounded-2xl border-border bg-card p-8 shadow-2xl">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-heading font-black tracking-tight text-center uppercase">Scan Transcript Document</DialogTitle>
-                <p className="text-center text-muted-foreground text-sm font-semibold">Upload your transcript or report file to automatically extract grades.</p>
+                <DialogTitle className="text-2xl font-heading font-bold tracking-tight text-center">Scan transcript document</DialogTitle>
+                <p className="text-center text-muted-foreground text-sm">Upload your transcript or report file to automatically extract grades.</p>
               </DialogHeader>
               <form onSubmit={handleUpload} className="space-y-6 pt-6">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] ml-1">Target Academic Term</Label>
-                  <Input 
+                  <Label htmlFor="upload-term" className="text-xs font-medium text-muted-foreground">Target academic term</Label>
+                  <Input
+                    id="upload-term"
                     required
                     value={uploadTerm}
                     onChange={(e) => setUploadTerm(e.target.value)}
                     placeholder="e.g., Term 1 2026"
-                    className="h-11 rounded-xl bg-muted/30 border-border/50 font-bold focus:ring-2 focus:ring-primary/20 transition-all"
+                    className="h-11 rounded-xl bg-muted/30 border-border/50 font-medium focus:ring-2 focus:ring-primary/20 transition-all"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] ml-1">Document File</Label>
+                  <Label htmlFor="report-upload" className="text-xs font-medium text-muted-foreground">Document file</Label>
                   <div className="relative group">
-                    <input 
-                      type="file" 
-                      accept=".pdf,image/*,.docx" 
-                      required 
+                    <input
+                      type="file"
+                      accept=".pdf,image/*,.docx"
+                      required
                       onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                      className="hidden" 
+                      className="hidden"
                       id="report-upload"
                     />
-                    <label 
+                    <label
                       htmlFor="report-upload"
                       className={cn(
-                        "flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed border-border/50 rounded-xl cursor-pointer transition-all duration-300",
-                        uploadFile 
-                          ? "bg-primary/5 border-primary shadow-[0_0_20px_rgba(var(--primary),0.05)]" 
+                        "flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed border-border/50 rounded-xl cursor-pointer transition-colors duration-200",
+                        uploadFile
+                          ? "bg-primary/5 border-primary"
                           : "bg-muted/10 border-border hover:bg-muted/20 hover:border-primary/45"
                       )}
                     >
@@ -497,8 +496,8 @@ export function MarksClient({
                             <FileText className="w-6 h-6" />
                           </div>
                           <div>
-                            <p className="text-sm font-black truncate max-w-[280px]">{uploadFile.name}</p>
-                            <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider mt-1">Ready for extract</p>
+                            <p className="text-sm font-semibold truncate max-w-[280px]">{uploadFile.name}</p>
+                            <p className="text-xs text-muted-foreground mt-1">Ready to extract</p>
                           </div>
                         </div>
                       ) : (
@@ -506,17 +505,17 @@ export function MarksClient({
                           <div className="w-12 h-12 bg-muted/50 rounded-full flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                             <Upload className="w-5 h-5" />
                           </div>
-                          <p className="text-sm font-bold">Drop your file here, or click to browse</p>
+                          <p className="text-sm font-medium">Drop your file here, or click to browse</p>
                         </div>
                       )}
                     </label>
                   </div>
                 </div>
 
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={isUploading || !uploadFile}
-                  className="w-full h-12 rounded-xl font-bold text-base shadow-lg shadow-primary/15 cursor-pointer bg-gradient-to-r from-primary to-indigo-600 border-none hover:opacity-90"
+                  className="w-full h-12 rounded-xl font-semibold text-base shadow-sm cursor-pointer"
                 >
                   {isUploading ? (
                     <span className="flex items-center gap-2 justify-center">
@@ -524,7 +523,7 @@ export function MarksClient({
                     </span>
                   ) : (
                     <span className="flex items-center gap-2 justify-center">
-                      <Sparkles className="w-5 h-5 text-yellow-400 fill-yellow-400" /> Start Extraction Scan
+                      <Sparkles className="w-5 h-5" /> Start Extraction Scan
                     </span>
                   )}
                 </Button>
@@ -535,52 +534,45 @@ export function MarksClient({
       </div>
 
       {!activeReportCard ? (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="py-24 flex flex-col items-center justify-center text-center border border-border/40 rounded-2xl bg-card/45 relative overflow-hidden group shadow-md"
-        >
-           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-           <div className="w-16 h-16 bg-muted/50 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 border border-border/50 group- transition-transform duration-500">
+        <div className="py-24 flex flex-col items-center justify-center text-center border border-border/40 rounded-2xl bg-card animate-in fade-in duration-300">
+           <div className="w-16 h-16 bg-muted/50 rounded-2xl flex items-center justify-center mb-6 border border-border/50">
               <Award className="w-8 h-8 text-primary/45" />
            </div>
-           <h3 className="text-2xl font-heading font-black tracking-tight text-foreground uppercase">No Grades Logged</h3>
-           <p className="text-muted-foreground mt-2 max-w-sm font-semibold leading-relaxed text-sm">
+           <h3 className="text-2xl font-heading font-bold tracking-tight text-foreground">No grades logged</h3>
+           <p className="text-muted-foreground mt-2 max-w-sm leading-relaxed text-sm">
              Initialize this term by scanning a report card document or creating manual subjects.
            </p>
            <div className="flex gap-4 mt-8">
-             <Button 
-               variant="outline" 
+             <Button
+               variant="outline"
                onClick={() => setIsUploadModalOpen(true)}
-               className="rounded-xl h-11 px-5 font-bold border-border/50 hover:bg-primary/5 hover:text-primary transition-all cursor-pointer"
+               className="rounded-xl h-11 px-5 font-semibold border-border/50 hover:bg-primary/5 hover:text-primary transition-colors cursor-pointer"
              >
                Scan Document
              </Button>
-             <Button 
+             <Button
                onClick={() => setIsCreateTermOpen(true)}
-               className="rounded-xl h-11 px-5 font-bold transition-all shadow-sm cursor-pointer"
+               className="rounded-xl h-11 px-5 font-semibold transition-colors shadow-sm cursor-pointer"
              >
                Add Term Manually
              </Button>
            </div>
-        </motion.div>
+        </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
+
           {/* LEFT COLUMN: Core stats, term average progress track & history graph (col-span-5) */}
           <div className="lg:col-span-5 space-y-6">
-            
+
             {/* The GPA Dashboard Display */}
-            <Card className="p-8 border-border/40 shadow-xl rounded-2xl bg-card/40 backdrop-blur-xl relative overflow-hidden flex flex-col justify-between min-h-[220px]">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary rounded-full blur-3xl -z-10 opacity-[0.03] translate-x-1/3 -translate-y-1/3" />
-              
+            <Card className="p-6 border-border/60 shadow-sm rounded-2xl bg-card relative overflow-hidden flex flex-col justify-between min-h-[220px]">
               <div className="space-y-4">
-                <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">Term Cumulative Average</p>
+                <p className="text-xs font-medium text-muted-foreground">Term cumulative average</p>
                 <div className="relative flex items-baseline gap-3">
-                  <span className="text-6xl font-heading font-black tracking-tighter text-foreground drop-shadow-[0_0_20px_rgba(var(--primary),0.15)] leading-none">
+                  <span className="text-6xl font-heading font-black tracking-tighter text-foreground leading-none">
                     {activeReportCard.overallAverage?.toFixed(1) || 0}%
                   </span>
-                  <span className="text-xs font-black text-primary bg-primary/10 border border-primary/20 px-3 py-1 rounded-full uppercase tracking-wider leading-none">
+                  <span className="text-xs font-semibold text-primary bg-primary/10 border border-primary/20 px-3 py-1 rounded-full leading-none">
                     {getStandingStatus(activeReportCard.overallAverage || 0)}
                   </span>
                 </div>
@@ -589,12 +581,12 @@ export function MarksClient({
               {/* Progress Range Track Slider (Replaces standard circle icon) */}
               <div className="mt-8 space-y-2">
                 <div className="h-2 w-full bg-muted/40 rounded-full overflow-hidden border border-border/10 relative">
-                  <div 
-                    className="h-full bg-gradient-to-r from-primary to-indigo-500 rounded-full transition-all duration-1000 ease-out"
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-1000 ease-out"
                     style={{ width: `${Math.min(activeReportCard.overallAverage || 0, 100)}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-[8px] font-black text-muted-foreground/50 uppercase tracking-widest px-0.5">
+                <div className="flex justify-between text-xs font-medium text-muted-foreground/60 px-0.5">
                   <span>0% Fail</span>
                   <span>50% Pass</span>
                   <span>75% Credit</span>
@@ -604,47 +596,47 @@ export function MarksClient({
             </Card>
 
             {/* Quick Metrics Widget */}
-            <div className="bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl rounded-2xl p-6 space-y-4">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b border-border/30 pb-3">Academic Milestones</h4>
+            <div className="bg-card border border-border/60 shadow-sm rounded-2xl p-6 space-y-4">
+              <h4 className="text-xs font-semibold text-muted-foreground border-b border-border/30 pb-3">Academic milestones</h4>
               <div className="grid grid-cols-1 gap-3">
                 <div className="bg-muted/20 border border-border/30 rounded-xl p-4.5 space-y-1">
                   <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60 leading-none">Top Performance</p>
+                    <p className="text-xs font-medium text-muted-foreground/70 leading-none">Top performance</p>
                     <Trophy className="w-3.5 h-3.5 text-amber-500" />
                   </div>
                   {activeMetrics.highest ? (
                     <div className="flex items-baseline justify-between mt-1">
-                      <span className="text-base font-black truncate max-w-[150px] uppercase">{activeMetrics.highest.subject}</span>
-                      <span className="text-base font-heading font-black text-amber-500">{activeMetrics.highest.score}%</span>
+                      <span className="text-base font-semibold truncate max-w-[150px]">{activeMetrics.highest.subject}</span>
+                      <span className="text-base font-heading font-bold text-amber-500">{activeMetrics.highest.score}%</span>
                     </div>
                   ) : (
-                    <p className="text-xs font-bold text-muted-foreground mt-1">None registered</p>
+                    <p className="text-xs font-medium text-muted-foreground mt-1">None registered</p>
                   )}
                 </div>
 
                 <div className="bg-muted/20 border border-border/30 rounded-xl p-4.5 space-y-1">
                   <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60 leading-none">Focus Priority</p>
+                    <p className="text-xs font-medium text-muted-foreground/70 leading-none">Focus priority</p>
                     <Zap className="w-3.5 h-3.5 text-orange-500" />
                   </div>
                   {activeMetrics.focusNeeded ? (
                     <div className="flex items-baseline justify-between mt-1">
-                      <span className="text-base font-black truncate max-w-[150px] uppercase">{activeMetrics.focusNeeded.subject}</span>
-                      <span className="text-base font-heading font-black text-orange-500">{activeMetrics.focusNeeded.score}%</span>
+                      <span className="text-base font-semibold truncate max-w-[150px]">{activeMetrics.focusNeeded.subject}</span>
+                      <span className="text-base font-heading font-bold text-orange-500">{activeMetrics.focusNeeded.score}%</span>
                     </div>
                   ) : (
-                    <p className="text-xs font-bold text-muted-foreground mt-1">None registered</p>
+                    <p className="text-xs font-medium text-muted-foreground mt-1">None registered</p>
                   )}
                 </div>
 
                 <div className="bg-muted/20 border border-border/30 rounded-xl p-4.5 space-y-1">
                   <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60 leading-none">Passing Rate</p>
+                    <p className="text-xs font-medium text-muted-foreground/70 leading-none">Passing rate</p>
                     <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
                   </div>
                   <div className="flex items-baseline justify-between mt-1">
-                    <span className="text-base font-black">Subjects (≥50%)</span>
-                    <span className="text-base font-heading font-black text-emerald-500">{activeMetrics.passingRatio}</span>
+                    <span className="text-base font-medium text-muted-foreground">Subjects (≥50%)</span>
+                    <span className="text-base font-heading font-bold text-emerald-500">{activeMetrics.passingRatio}</span>
                   </div>
                 </div>
               </div>
@@ -652,13 +644,13 @@ export function MarksClient({
 
             {/* Historical Progression Graph */}
             {allTermsHistory.length > 1 && (
-              <div className="bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl rounded-2xl p-6.5 space-y-4">
+              <div className="bg-card border border-border/60 shadow-sm rounded-2xl p-6 space-y-4">
                 <div className="flex sm:items-center justify-between gap-4 border-b border-border/30 pb-3">
                   <div className="flex items-center gap-2">
                     <History className="w-4 h-4 text-primary" />
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Historical Progression</h4>
+                    <h4 className="text-xs font-semibold text-muted-foreground">Historical progression</h4>
                   </div>
-                  <span className="text-[9px] font-black text-primary uppercase tracking-widest bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full">
+                  <span className="text-xs font-semibold text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full">
                     Trend: {termProgressTrend}
                   </span>
                 </div>
@@ -673,35 +665,35 @@ export function MarksClient({
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(var(--primary), 0.05)" />
-                      <XAxis 
-                        dataKey="term" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 8, fontWeight: 800, fill: 'currentColor', opacity: 0.5 }}
+                      <XAxis
+                        dataKey="term"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 10, fontWeight: 600, fill: 'currentColor', opacity: 0.5 }}
                       />
-                      <YAxis 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 8, fontWeight: 800, fill: 'currentColor', opacity: 0.5 }}
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 10, fontWeight: 600, fill: 'currentColor', opacity: 0.5 }}
                         domain={[0, 100]}
                       />
-                      <Tooltip 
-                        contentStyle={{ 
-                          borderRadius: '12px', 
-                          border: '1px solid rgba(var(--border), 0.5)', 
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: '12px',
+                          border: '1px solid rgba(var(--border), 0.5)',
                           backgroundColor: 'rgba(var(--card), 0.95)',
                           backdropFilter: 'blur(8px)',
-                          fontWeight: 900,
-                          fontSize: '10px'
+                          fontWeight: 600,
+                          fontSize: '12px'
                         }}
                       />
-                      <Area 
-                        type="monotone" 
-                        dataKey="average" 
-                        stroke="var(--primary)" 
+                      <Area
+                        type="monotone"
+                        dataKey="average"
+                        stroke="var(--primary)"
                         strokeWidth={3}
-                        fillOpacity={1} 
-                        fill="url(#colorAvgCrossMinimal)" 
+                        fillOpacity={1}
+                        fill="url(#colorAvgCrossMinimal)"
                       />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -715,11 +707,11 @@ export function MarksClient({
           <div className="lg:col-span-7 space-y-6">
 
             {/* Strategic Overview Brief */}
-            <div className="bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl rounded-2xl p-8 relative overflow-hidden flex flex-col justify-between">
+            <div className="bg-card border border-border/60 shadow-sm rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between">
               <div className="space-y-4">
-                <div className="flex items-center gap-2 text-primary font-bold">
+                <div className="flex items-center gap-2 text-primary">
                   <BookOpen className="w-5 h-5 text-primary" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.25em]">Strategic Academic Summary</span>
+                  <span className="text-xs font-semibold">Strategic academic summary</span>
                 </div>
                 <div className="relative pl-5 py-1 border-l-2 border-primary/20">
                   <p className="text-sm font-medium text-foreground/80 leading-relaxed italic">
@@ -733,30 +725,30 @@ export function MarksClient({
             <div className="space-y-5">
               <div className="flex items-center justify-between gap-4 border-b border-border/40 pb-4">
                 <div>
-                  <h2 className="text-xl font-heading font-black tracking-tight text-foreground uppercase">Course Ledger Entries</h2>
-                  <p className="text-xs text-muted-foreground font-semibold">Interactive index of registered subjects.</p>
+                  <h2 className="text-2xl font-heading font-bold tracking-tight text-foreground">Course ledger entries</h2>
+                  <p className="text-xs text-muted-foreground">Interactive index of registered subjects.</p>
                 </div>
 
                 <Dialog open={isAddingGrade} onOpenChange={setIsAddingGrade}>
                   <DialogTrigger asChild>
-                    <Button className="h-9 rounded-xl font-bold gap-1.5 cursor-pointer shadow-sm text-xs">
+                    <Button className="h-9 rounded-xl font-semibold gap-1.5 cursor-pointer shadow-sm text-xs">
                       <Plus className="w-3.5 h-3.5" /> Add Subject
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[460px] rounded-3xl border-border bg-card p-6 shadow-xl">
+                  <DialogContent className="sm:max-w-[460px] rounded-2xl border-border bg-card p-6 shadow-xl">
                     <DialogHeader>
-                      <DialogTitle className="text-xl font-heading font-black tracking-tight uppercase">Add Subject Grade</DialogTitle>
-                      <p className="text-muted-foreground text-sm font-semibold">Add a new grade entry to this term's record.</p>
+                      <DialogTitle className="text-xl font-heading font-bold tracking-tight">Add subject grade</DialogTitle>
+                      <p className="text-muted-foreground text-sm">Add a new grade entry to this term's record.</p>
                     </DialogHeader>
                     <form onSubmit={handleAddGrade} className="space-y-4 pt-4">
                       <div className="space-y-2">
-                        <Label className="text-xs font-bold text-muted-foreground">Subject Name</Label>
+                        <Label htmlFor="add-grade-subject" className="text-xs font-medium text-muted-foreground">Subject name</Label>
                         {subjects && subjects.length > 0 ? (
                           <Select
                             value={newGradeForm.subject}
                             onValueChange={(val) => setNewGradeForm(prev => ({ ...prev, subject: val }))}
                           >
-                            <SelectTrigger className="h-11 rounded-xl bg-muted/30 border-border/50 font-bold focus:ring-1 focus:ring-primary/25">
+                            <SelectTrigger id="add-grade-subject" className="h-11 rounded-xl bg-muted/30 border-border/50 font-medium focus:ring-1 focus:ring-primary/25">
                               <SelectValue placeholder="Select Subject" />
                             </SelectTrigger>
                             <SelectContent>
@@ -768,57 +760,60 @@ export function MarksClient({
                             </SelectContent>
                           </Select>
                         ) : (
-                          <Input 
+                          <Input
+                            id="add-grade-subject"
                             required
                             value={newGradeForm.subject}
                             onChange={(e) => setNewGradeForm(prev => ({ ...prev, subject: e.target.value }))}
                             placeholder="e.g. Physics"
-                            className="h-11 rounded-xl bg-muted/30 border-border/50 font-bold focus-visible:ring-1 focus-visible:ring-primary/25"
+                            className="h-11 rounded-xl bg-muted/30 border-border/50 font-medium focus-visible:ring-1 focus-visible:ring-primary/25"
                           />
                         )}
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label className="text-xs font-bold text-muted-foreground">Grade (%)</Label>
-                          <Input 
+                          <Label htmlFor="add-grade-score" className="text-xs font-medium text-muted-foreground">Grade (%)</Label>
+                          <Input
+                            id="add-grade-score"
                             required
                             value={newGradeForm.grade}
                             onChange={(e) => setNewGradeForm(prev => ({ ...prev, grade: e.target.value }))}
                             placeholder="e.g. 92%"
-                            className="h-11 rounded-xl bg-muted/30 border-border/50 font-bold focus-visible:ring-1 focus-visible:ring-primary/25"
+                            className="h-11 rounded-xl bg-muted/30 border-border/50 font-medium focus-visible:ring-1 focus-visible:ring-primary/25"
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-xs font-bold text-muted-foreground">Standing Status</Label>
-                          <Select 
-                            value={newGradeForm.status} 
+                          <Label htmlFor="add-grade-status" className="text-xs font-medium text-muted-foreground">Standing status</Label>
+                          <Select
+                            value={newGradeForm.status}
                             onValueChange={(val) => setNewGradeForm(prev => ({ ...prev, status: val }))}
                           >
-                            <SelectTrigger className="h-11 rounded-xl bg-muted/30 border-border/50 font-bold">
+                            <SelectTrigger id="add-grade-status" className="h-11 rounded-xl bg-muted/30 border-border/50 font-medium">
                               <SelectValue placeholder="Status" />
                             </SelectTrigger>
                             <SelectContent className="rounded-xl bg-card">
-                              <SelectItem value="Excellent" className="font-bold">Excellent</SelectItem>
-                              <SelectItem value="Good" className="font-bold">Good</SelectItem>
-                              <SelectItem value="Needs Work" className="font-bold">Needs Work</SelectItem>
-                              <SelectItem value="Critical" className="font-bold">Critical</SelectItem>
+                              <SelectItem value="Excellent" className="font-medium">Excellent</SelectItem>
+                              <SelectItem value="Good" className="font-medium">Good</SelectItem>
+                              <SelectItem value="Needs Work" className="font-medium">Needs Work</SelectItem>
+                              <SelectItem value="Critical" className="font-medium">Critical</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-xs font-bold text-muted-foreground">Study Action Plan Guidelines</Label>
-                        <Input 
+                        <Label htmlFor="add-grade-feedback" className="text-xs font-medium text-muted-foreground">Study action plan guidelines</Label>
+                        <Input
+                          id="add-grade-feedback"
                           value={newGradeForm.aiFeedback}
                           onChange={(e) => setNewGradeForm(prev => ({ ...prev, aiFeedback: e.target.value }))}
                           placeholder="e.g. Practice problem solving daily."
-                          className="h-11 rounded-xl bg-muted/30 border-border/50 font-bold focus-visible:ring-1 focus-visible:ring-primary/25"
+                          className="h-11 rounded-xl bg-muted/30 border-border/50 font-medium focus-visible:ring-1 focus-visible:ring-primary/25"
                         />
                       </div>
-                      <Button 
-                        type="submit" 
+                      <Button
+                        type="submit"
                         disabled={isSavingGrade || !newGradeForm.subject.trim() || !newGradeForm.grade.trim()}
-                        className="w-full h-11 rounded-xl font-bold mt-2 cursor-pointer"
+                        className="w-full h-11 rounded-xl font-semibold mt-2 cursor-pointer"
                       >
                         {isSavingGrade ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save Subject"}
                       </Button>
@@ -830,7 +825,7 @@ export function MarksClient({
               {/* Subject Ledger Rows */}
               <div className="space-y-3.5">
                 {activeReportCard.grades?.length === 0 ? (
-                  <div className="py-16 text-center text-muted-foreground font-semibold bg-muted/10 border border-dashed border-border/50 rounded-2xl">
+                  <div className="py-16 text-center text-muted-foreground font-medium bg-muted/10 border border-dashed border-border/50 rounded-2xl">
                     No subjects registered. Click "Add Subject" to begin manually.
                   </div>
                 ) : (
@@ -838,7 +833,7 @@ export function MarksClient({
                     const scoreNum = parseGrade(grade.grade);
                     const letterGrade = getLetterGrade(grade.grade);
                     return (
-                      <Dialog 
+                      <Dialog
                         key={grade.id}
                         open={selectedGradeDetail?.id === grade.id}
                         onOpenChange={(open) => {
@@ -851,16 +846,14 @@ export function MarksClient({
                         }}
                       >
                         <DialogTrigger asChild>
-                          <motion.div
-                            whileHover={{ scale: 1.005 }}
-                            whileTap={{ scale: 0.995 }}
-                            className={cn(
-                              "group bg-card/30 hover:bg-card/65 border border-border/30 hover:border-primary/45 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 cursor-pointer transition-all duration-300 relative overflow-hidden"
-                            )}
+                          <button
+                            type="button"
+                            aria-label={`View details for ${grade.subject}`}
+                            className="group w-full text-left bg-card/30 hover:bg-card/65 border border-border/30 hover:border-primary/45 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 cursor-pointer transition-colors duration-200 relative overflow-hidden"
                           >
                             {/* Inner gradient indicator */}
                             <div className={cn(
-                              "absolute inset-y-0 left-0 w-1 group-hover:w-1.5 transition-all duration-300",
+                              "absolute inset-y-0 left-0 w-1 group-hover:w-1.5 transition-all duration-200",
                               grade.status === 'Excellent' ? "bg-emerald-500" :
                               grade.status === 'Needs Work' ? "bg-orange-500" :
                               grade.status === 'Critical' ? "bg-red-500" :
@@ -870,11 +863,11 @@ export function MarksClient({
                             {/* Info Block */}
                             <div className="flex-1 min-w-0 space-y-1 md:pl-2">
                               <div className="flex items-center gap-3">
-                                <h3 className="text-lg font-heading font-black tracking-tight text-foreground uppercase group-hover:text-primary transition-colors">
+                                <h3 className="text-lg font-heading font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
                                   {grade.subject}
                                 </h3>
                                 <span className={cn(
-                                  "text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded border leading-none",
+                                  "text-xs font-medium px-2 py-0.5 rounded border leading-none",
                                   grade.status === 'Excellent' ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5" :
                                   grade.status === 'Needs Work' ? "text-orange-500 border-orange-500/20 bg-orange-500/5" :
                                   grade.status === 'Critical' ? "text-red-500 border-red-500/20 bg-red-500/5" :
@@ -892,11 +885,11 @@ export function MarksClient({
                             <div className="flex items-center gap-6 shrink-0 justify-between md:justify-end">
                               <div className="text-right">
                                 <div className="flex items-baseline gap-1 justify-end">
-                                  <span className="text-2xl font-heading font-black tracking-tighter leading-none">{grade.grade}</span>
-                                  <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">%</span>
+                                  <span className="text-2xl font-heading font-bold tracking-tighter leading-none">{grade.grade}</span>
+                                  <span className="text-xs font-medium text-muted-foreground">%</span>
                                 </div>
                                 <div className="h-1 w-24 bg-muted/40 rounded-full overflow-hidden border border-border/10 mt-1.5">
-                                  <div 
+                                  <div
                                     className={cn(
                                       "h-full rounded-full transition-all duration-500",
                                       grade.status === 'Excellent' ? "bg-emerald-500" :
@@ -910,7 +903,7 @@ export function MarksClient({
                               </div>
 
                               <span className={cn(
-                                "text-sm font-black w-9 h-9 rounded-xl border flex items-center justify-center leading-none font-heading shadow-inner shrink-0",
+                                "text-sm font-bold w-9 h-9 rounded-xl border flex items-center justify-center leading-none font-heading shadow-inner shrink-0",
                                 grade.status === 'Excellent' ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/10" :
                                 grade.status === 'Needs Work' ? "text-orange-500 border-orange-500/30 bg-orange-500/10" :
                                 grade.status === 'Critical' ? "text-red-500 border-red-500/30 bg-red-500/10" :
@@ -919,9 +912,9 @@ export function MarksClient({
                                 {letterGrade}
                               </span>
 
-                              <ChevronRight className="w-5 h-5 text-muted-foreground/30 group-hover:text-foreground group- transition-all hidden md:block" />
+                              <ChevronRight className="w-5 h-5 text-muted-foreground/30 group-hover:text-foreground transition-colors hidden md:block" />
                             </div>
-                          </motion.div>
+                          </button>
                         </DialogTrigger>
 
                         {/* Grade details modal overlay */}
@@ -929,17 +922,17 @@ export function MarksClient({
                           {editingGradeId === grade.id ? (
                             <form onSubmit={handleUpdateGrade} className="space-y-4">
                               <DialogHeader>
-                                <DialogTitle className="text-xl font-heading font-black uppercase">Edit Subject details</DialogTitle>
+                                <DialogTitle className="text-xl font-heading font-bold">Edit subject details</DialogTitle>
                               </DialogHeader>
                               <div className="space-y-3 pt-2">
                                 <div className="space-y-1">
-                                  <Label className="text-xs font-bold text-muted-foreground">Subject Name</Label>
+                                  <Label htmlFor="edit-grade-subject" className="text-xs font-medium text-muted-foreground">Subject name</Label>
                                   {subjects && subjects.length > 0 ? (
                                     <Select
                                       value={editForm.subject}
                                       onValueChange={(val) => setEditForm(prev => ({ ...prev, subject: val }))}
                                     >
-                                      <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border/50 font-bold focus:ring-1 focus:ring-primary/25">
+                                      <SelectTrigger id="edit-grade-subject" className="h-10 rounded-xl bg-muted/30 border-border/50 font-medium focus:ring-1 focus:ring-primary/25">
                                         <SelectValue placeholder="Select Subject" />
                                       </SelectTrigger>
                                       <SelectContent>
@@ -951,66 +944,69 @@ export function MarksClient({
                                       </SelectContent>
                                     </Select>
                                   ) : (
-                                    <Input 
+                                    <Input
+                                      id="edit-grade-subject"
                                       required
                                       value={editForm.subject}
                                       onChange={(e) => setEditForm(prev => ({ ...prev, subject: e.target.value }))}
-                                      className="h-10 rounded-xl bg-muted/30 border-border/50 font-bold focus-visible:ring-1 focus-visible:ring-primary/25"
+                                      className="h-10 rounded-xl bg-muted/30 border-border/50 font-medium focus-visible:ring-1 focus-visible:ring-primary/25"
                                     />
                                   )}
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                   <div className="space-y-1">
-                                    <Label className="text-xs font-bold text-muted-foreground">Grade (%)</Label>
-                                    <Input 
+                                    <Label htmlFor="edit-grade-score" className="text-xs font-medium text-muted-foreground">Grade (%)</Label>
+                                    <Input
+                                      id="edit-grade-score"
                                       required
                                       value={editForm.grade}
                                       onChange={(e) => setEditForm(prev => ({ ...prev, grade: e.target.value }))}
-                                      className="h-10 rounded-xl bg-muted/30 border-border/50 font-bold focus-visible:ring-1 focus-visible:ring-primary/25"
+                                      className="h-10 rounded-xl bg-muted/30 border-border/50 font-medium focus-visible:ring-1 focus-visible:ring-primary/25"
                                     />
                                   </div>
                                   <div className="space-y-1">
-                                    <Label className="text-xs font-bold text-muted-foreground">Standing Status</Label>
-                                    <Select 
-                                      value={editForm.status} 
+                                    <Label htmlFor="edit-grade-status" className="text-xs font-medium text-muted-foreground">Standing status</Label>
+                                    <Select
+                                      value={editForm.status}
                                       onValueChange={(val) => setEditForm(prev => ({ ...prev, status: val }))}
                                     >
-                                      <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border/50 font-bold">
+                                      <SelectTrigger id="edit-grade-status" className="h-10 rounded-xl bg-muted/30 border-border/50 font-medium">
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent className="rounded-xl bg-card">
-                                        <SelectItem value="Excellent" className="font-bold">Excellent</SelectItem>
-                                        <SelectItem value="Good" className="font-bold">Good</SelectItem>
-                                        <SelectItem value="Needs Work" className="font-bold">Needs Work</SelectItem>
-                                        <SelectItem value="Critical" className="font-bold">Critical</SelectItem>
+                                        <SelectItem value="Excellent" className="font-medium">Excellent</SelectItem>
+                                        <SelectItem value="Good" className="font-medium">Good</SelectItem>
+                                        <SelectItem value="Needs Work" className="font-medium">Needs Work</SelectItem>
+                                        <SelectItem value="Critical" className="font-medium">Critical</SelectItem>
                                       </SelectContent>
                                     </Select>
                                   </div>
                                 </div>
                                 <div className="space-y-1">
-                                  <Label className="text-xs font-bold text-muted-foreground">Study Action Plan Guidelines</Label>
-                                  <Input 
+                                  <Label htmlFor="edit-grade-feedback" className="text-xs font-medium text-muted-foreground">Study action plan guidelines</Label>
+                                  <Input
+                                    id="edit-grade-feedback"
                                     value={editForm.aiFeedback}
                                     onChange={(e) => setEditForm(prev => ({ ...prev, aiFeedback: e.target.value }))}
-                                    className="h-10 rounded-xl bg-muted/30 border-border/50 font-bold focus-visible:ring-1 focus-visible:ring-primary/25"
+                                    className="h-10 rounded-xl bg-muted/30 border-border/50 font-medium focus-visible:ring-1 focus-visible:ring-primary/25"
                                   />
                                 </div>
                               </div>
-                              
+
                               <div className="flex gap-3 pt-4">
-                                <Button 
-                                  type="submit" 
+                                <Button
+                                  type="submit"
                                   disabled={isUpdatingGrade}
-                                  className="flex-1 h-11 rounded-xl font-bold gap-2 cursor-pointer"
+                                  className="flex-1 h-11 rounded-xl font-semibold gap-2 cursor-pointer"
                                 >
                                   {isUpdatingGrade ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                   Save Changes
                                 </Button>
-                                <Button 
-                                  type="button" 
+                                <Button
+                                  type="button"
                                   variant="outline"
                                   onClick={() => setEditingGradeId(null)}
-                                  className="h-11 rounded-xl font-bold px-4 border-border/50 cursor-pointer"
+                                  className="h-11 rounded-xl font-semibold px-4 border-border/50 cursor-pointer"
                                 >
                                   Cancel
                                 </Button>
@@ -1021,7 +1017,7 @@ export function MarksClient({
                               <DialogHeader>
                                 <div className="flex items-center justify-between mb-2">
                                   <span className={cn(
-                                    "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border leading-none",
+                                    "text-xs font-medium px-2 py-0.5 rounded border leading-none",
                                     grade.status === 'Excellent' ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5" :
                                     grade.status === 'Needs Work' ? "text-orange-500 border-orange-500/20 bg-orange-500/5" :
                                     grade.status === 'Critical' ? "text-red-500 border-red-500/20 bg-red-500/5" :
@@ -1030,22 +1026,22 @@ export function MarksClient({
                                     {grade.status}
                                   </span>
 
-                                  <span className="text-xs font-black text-muted-foreground/60 uppercase tracking-widest">
+                                  <span className="text-xs font-medium text-muted-foreground/60">
                                     Grade {letterGrade}
                                   </span>
                                 </div>
-                                <DialogTitle className="text-2xl font-heading font-black tracking-tight uppercase">{grade.subject}</DialogTitle>
+                                <DialogTitle className="text-2xl font-heading font-bold tracking-tight">{grade.subject}</DialogTitle>
                               </DialogHeader>
 
                               <div className="flex items-baseline gap-1 py-4 border-b border-border/40">
                                 <span className="text-5xl font-heading font-black tracking-tighter leading-none">{grade.grade}</span>
-                                <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">% Score</span>
+                                <span className="text-xs font-medium text-muted-foreground">% Score</span>
                               </div>
 
                               <div className="space-y-2">
                                 <div className="flex items-center gap-1.5 text-muted-foreground">
                                   <Compass className="w-4 h-4 text-primary" />
-                                  <h4 className="text-[10px] font-black uppercase tracking-widest">Target Study Strategy</h4>
+                                  <h4 className="text-xs font-semibold">Target study strategy</h4>
                                 </div>
                                 <div className="bg-muted/30 border border-border/40 p-4.5 rounded-xl relative overflow-hidden">
                                   <p className="text-sm font-medium leading-relaxed italic text-foreground/80">
@@ -1055,17 +1051,17 @@ export function MarksClient({
                               </div>
 
                               <div className="flex gap-3 pt-5 border-t border-border/40">
-                                <Button 
+                                <Button
                                   onClick={() => handleStartEdit(grade)}
                                   variant="outline"
-                                  className="flex-1 h-11 rounded-xl font-bold gap-2 border-border/50 hover:bg-muted/50 transition-all cursor-pointer"
+                                  className="flex-1 h-11 rounded-xl font-semibold gap-2 border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
                                 >
                                   <Edit2 className="w-4 h-4" /> Edit Subject
                                 </Button>
-                                <Button 
+                                <Button
                                   onClick={() => handleDeleteGrade(grade.id)}
                                   variant="ghost"
-                                  className="h-11 px-4 rounded-xl font-bold gap-2 text-destructive hover:bg-destructive/10 transition-all cursor-pointer"
+                                  className="h-11 px-4 rounded-xl font-semibold gap-2 text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
                                   disabled={editingGradeId === grade.id}
                                 >
                                   <Trash className="w-4 h-4" /> Delete
