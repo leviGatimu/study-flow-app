@@ -12,7 +12,7 @@ export default async function SummariesPage() {
   const summaries = await getWeeklySummaries();
 
   return (
-    <div className="space-y-12 max-w-[1400px] mx-auto animate-in fade-in duration-500 pb-16 px-4 md:px-8">
+    <div className="space-y-12 max-w-[1400px] mx-auto pb-16 px-4 md:px-8">
       <div className="pt-10 pb-6 border-b border-border/40">
         <h1 className="text-5xl font-heading font-black tracking-tight text-foreground">Performance Transcripts</h1>
         <p className="text-xl text-muted-foreground font-semibold mt-3">Access your historical weekly study logs and download certified PDF academic summaries.</p>

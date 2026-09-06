@@ -207,7 +207,7 @@ export function SummaryCard({ summary }: SummaryCardProps) {
       <div className="mt-6 pt-4 border-t border-border/30">
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <button className="w-full h-13 py-3.5 rounded-2xl bg-[#0f172a] dark:bg-white text-white dark:text-black hover:scale-[1.01] active:scale-95 transition-all duration-300 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-sm">
+            <button className="w-full h-13 py-3.5 rounded-2xl bg-[#0f172a] dark:bg-white text-white dark:text-black hover:scale-[1.01] transition-all duration-300 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-sm">
               View Full Report <Sparkles className="w-4 h-4 fill-current" />
             </button>
           </DialogTrigger>

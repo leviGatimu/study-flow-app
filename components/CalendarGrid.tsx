@@ -37,7 +37,7 @@ type ExamType = {
   priority: string;
 };
 
-export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = [], schoolEndDate = null }: { tasks: TaskType[], exams?: ExamType[], markedDays?: Date[], subjects?: { id: string; name: string }[], schoolEndDate?: Date | string | null }) {
+export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = [], termEndDate = null }: { tasks: TaskType[], exams?: ExamType[], markedDays?: Date[], subjects?: { id: string; name: string }[], termEndDate?: Date | string | null }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -75,7 +75,7 @@ export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = []
     ? markedDays.some(md => isSameDay(new Date(md), selectedDate))
     : false;
 
-  const schoolEnd = schoolEndDate ? new Date(schoolEndDate) : null;
+  const schoolEnd = termEndDate ? new Date(termEndDate) : null;
   const isSelectedLastDay = selectedDate && schoolEnd
     ? isSameDay(schoolEnd, selectedDate)
     : false;
@@ -103,7 +103,7 @@ export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = []
   };
 
   return (
-    <div className="flex flex-col bg-card rounded-[32px] border border-border/60 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+    <div className="flex flex-col bg-card rounded-[32px] border border-border/60 shadow-xl overflow-hidden">
       <ConfirmModal 
         isOpen={!!deleteConfirmId}
         onClose={() => setDeleteConfirmId(null)}
@@ -119,14 +119,14 @@ export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = []
           {format(currentDate, 'MMMM yyyy')}
         </h2>
         <div className="flex items-center space-x-4">
-          <Button variant="outline" className="rounded-2xl bg-background border hover:bg-secondary active:scale-95 transition-all shadow-sm font-bold px-6 h-12" onClick={goToday}>
+          <Button variant="outline" className="rounded-2xl bg-background border hover:bg-secondary transition-all shadow-sm font-bold px-6 h-12" onClick={goToday}>
             Today
           </Button>
           <div className="flex items-center space-x-1 bg-background rounded-2xl p-1.5 border shadow-sm">
-            <Button variant="ghost" size="icon" className="rounded-xl h-10 w-10 hover:bg-secondary active:scale-95 transition-all" onClick={prevMonth}>
+            <Button variant="ghost" size="icon" className="rounded-xl h-10 w-10 hover:bg-secondary transition-all" onClick={prevMonth}>
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="rounded-xl h-10 w-10 hover:bg-secondary active:scale-95 transition-all" onClick={nextMonth}>
+            <Button variant="ghost" size="icon" className="rounded-xl h-10 w-10 hover:bg-secondary transition-all" onClick={nextMonth}>
               <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
@@ -223,7 +223,7 @@ export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = []
 
       {/* Day Detail Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className={`sm:max-w-3xl w-[90vw] rounded-[40px] p-0 overflow-hidden border-none shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)] animate-in fade-in zoom-in-95 duration-300`}>
+        <DialogContent className={`sm:max-w-3xl w-[90vw] rounded-[40px] p-0 overflow-hidden border-none shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)]`}>
           <div className="bg-card">
             <DialogHeader className="p-8 border-b bg-muted/20">
               <div className="flex items-center justify-between">
@@ -418,7 +418,7 @@ function EditTaskForm({ task, onClose }: { task: TaskType, onClose: () => void }
   };
 
   return (
-    <div className="bg-muted/30 border border-border/60 p-6 rounded-[32px] animate-in zoom-in-95 duration-200">
+    <div className="bg-muted/30 border border-border/60 p-6 rounded-[32px]">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="flex items-center justify-between border-b border-border/40 pb-4">
           <h4 className="font-heading font-black text-xl tracking-tight text-foreground">{task.subject}</h4>

@@ -1,4 +1,5 @@
-import { getAllTasks, getMarkedDays, getEvents, getSchoolEndDate } from '@/lib/actions';
+import { getAllTasks, getMarkedDays, getEvents } from '@/lib/actions';
+import { getCurrentScheduleState } from '@/lib/term-actions';
 import { getSubjects } from '@/lib/subject-actions';
 import { CalendarGrid } from '@/components/CalendarGrid';
 import { TaskWithTemplate } from '@/lib/types';
@@ -16,10 +17,12 @@ export default async function CalendarPage() {
   const markedDays = await getMarkedDays();
   const exams = await getEvents();
   const subjects = await getSubjects();
-  const schoolEndDate = await getSchoolEndDate();
+  // The end-of-school marker now comes from the active term's end date,
+  // not the legacy UserProgress.schoolEndDate flag.
+  const schedule = await getCurrentScheduleState();
 
   return (
-    <div className="flex flex-col animate-in fade-in duration-500">
+    <div className="flex flex-col">
       {/* Sticky Header */}
       <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md px-4 md:px-8 pt-10 pb-6 border-b border-border/40 shrink-0 mb-8">
         <div className="max-w-[1600px] mx-auto">
@@ -32,7 +35,7 @@ export default async function CalendarPage() {
       
       <div className="animate-in slide-in-from-bottom-4 duration-500 px-4 md:px-8 pb-16">
         <div className="max-w-[1600px] mx-auto">
-          <CalendarGrid tasks={tasks as TaskWithTemplate[]} exams={exams} markedDays={markedDays} subjects={subjects} schoolEndDate={schoolEndDate} />
+          <CalendarGrid tasks={tasks as TaskWithTemplate[]} exams={exams} markedDays={markedDays} subjects={subjects} termEndDate={schedule?.termEndDate ?? null} />
         </div>
       </div>
     </div>

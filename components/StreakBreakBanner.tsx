@@ -35,7 +35,7 @@ export function StreakBreakBanner({ paused, currentStreak = 0 }: { paused?: bool
       <Button
         onClick={() => startTransition(() => resumeStreak())}
         disabled={isPending}
-        className="h-11 px-6 rounded-xl bg-amber-500 text-white hover:bg-amber-600 font-bold text-sm gap-2 shadow-md shadow-amber-500/20 transition-all active:scale-95 cursor-pointer shrink-0"
+        className="h-11 px-6 rounded-xl bg-amber-500 text-white hover:bg-amber-600 font-bold text-sm gap-2 shadow-md shadow-amber-500/20 transition-all cursor-pointer shrink-0"
       >
         <Play className="w-4 h-4 fill-current" /> {isPending ? 'Resuming…' : 'Resume Streak'}
       </Button>
