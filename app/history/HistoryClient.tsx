@@ -19,6 +19,16 @@ import { format, subDays, isAfter, startOfDay, differenceInDays } from 'date-fns
 import { Input } from "@/components/ui/input";
 import { DeleteTaskButton } from "@/components/DeleteTaskButton";
 
+const TOOLTIP_STYLE = {
+  borderRadius: "16px",
+  border: "1px solid var(--border)",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+  fontWeight: "bold" as const,
+  fontSize: "11px",
+  background: "var(--card)",
+  color: "var(--foreground)",
+};
+
 interface HistoryClientProps {
   tasks: TaskWithTemplate[];
   userProgress: UserProgress | null;
@@ -251,7 +261,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
 
   if (!mounted) {
     return (
-      <div className="space-y-12 max-w-[1600px] mx-auto animate-pulse pb-16">
+      <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto animate-pulse pb-16 px-4 md:px-8">
         <div className="h-20 bg-muted/30 rounded-2xl" />
         <div className="grid grid-cols-6 gap-6">
           {[...Array(6)].map((_, i) => <div key={i} className="h-28 bg-muted/30 rounded-2xl" />)}
@@ -265,23 +275,23 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
   };
 
   return (
-    <div className="space-y-12 max-w-[1600px] mx-auto pb-16">
-      
+    <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto px-4 md:px-8 pb-16 animate-in fade-in duration-500">
+
       {/* Page Header */}
       <div className="pt-6 pb-2 border-b border-border/40 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-          <h1 className="text-5xl font-heading font-black tracking-tight text-foreground">Activity Analytics</h1>
-          <p className="text-xl text-muted-foreground font-semibold">
+          <h1 className="text-2xl font-heading font-bold tracking-tight text-foreground">Activity Analytics</h1>
+          <p className="text-sm text-muted-foreground">
             Evaluate your study trends, filters, and logs of completed work.
           </p>
         </div>
 
         {/* Floating Time Period Range Selector */}
-        <div className="flex items-center gap-2 bg-muted/40 border p-1 rounded-2xl w-fit self-start md:self-auto">
+        <div className="flex items-center gap-2 bg-muted/40 border p-1 rounded-xl w-fit self-start md:self-auto">
           <button
             onClick={() => setTimeRange("ALL")}
             className={cn(
-              "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+              "px-4 py-2 rounded-xl text-xs font-medium transition-colors",
               timeRange === "ALL" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -290,7 +300,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
           <button
             onClick={() => setTimeRange("7_DAYS")}
             className={cn(
-              "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+              "px-4 py-2 rounded-xl text-xs font-medium transition-colors",
               timeRange === "7_DAYS" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -299,7 +309,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
           <button
             onClick={() => setTimeRange("30_DAYS")}
             className={cn(
-              "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+              "px-4 py-2 rounded-xl text-xs font-medium transition-colors",
               timeRange === "30_DAYS" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -310,83 +320,74 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
 
       {/* Stats Cards Overview Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-        <StatCard 
-          label="Assignments Secured" 
-          value={stats.homeworks} 
-          icon={<BookOpen className="w-5 h-5 text-blue-500" />} 
+        <StatCard
+          label="Assignments Secured"
+          value={stats.homeworks}
+          icon={<BookOpen className="w-5 h-5 text-blue-500" />}
           description="Homework sessions done"
-          borderClass="border-blue-500/10 hover:border-blue-500/20"
+          borderClass="border-blue-500/10"
         />
-        <StatCard 
-          label="Active Recall Blocks" 
-          value={stats.revisions} 
-          icon={<Repeat className="w-5 h-5 text-orange-500" />} 
+        <StatCard
+          label="Active Recall Blocks"
+          value={stats.revisions}
+          icon={<Repeat className="w-5 h-5 text-orange-500" />}
           description="Revision sessions done"
-          borderClass="border-orange-500/10 hover:border-orange-500/20"
+          borderClass="border-orange-500/10"
         />
-        <StatCard 
-          label="Total Hours Focused" 
-          value={stats.timeText} 
-          icon={<Clock className="w-5 h-5 text-teal-500" />} 
+        <StatCard
+          label="Total Hours Focused"
+          value={stats.timeText}
+          icon={<Clock className="w-5 h-5 text-teal-500" />}
           description="Formatted focus duration"
-          borderClass="border-teal-500/10 hover:border-teal-500/20"
+          borderClass="border-teal-500/10"
         />
-        <StatCard 
-          label="Session Efficiency" 
-          value={`${stats.successRate}%`} 
-          icon={<Zap className="w-5 h-5 text-purple-500" />} 
+        <StatCard
+          label="Session Efficiency"
+          value={`${stats.successRate}%`}
+          icon={<Zap className="w-5 h-5 text-purple-500" />}
           description="Done vs missed ratio"
-          borderClass="border-purple-500/10 hover:border-purple-500/20"
+          borderClass="border-purple-500/10"
         />
-        <StatCard 
-          label="Longest Day Streak" 
-          value={`${userProgress?.longestStreak || 0} Days`} 
-          icon={<Trophy className="w-5 h-5 text-yellow-500" />} 
+        <StatCard
+          label="Longest Day Streak"
+          value={`${userProgress?.longestStreak || 0} Days`}
+          icon={<Trophy className="w-5 h-5 text-yellow-500" />}
           description="Your all-time record"
-          borderClass="border-yellow-500/10 hover:border-yellow-500/20"
+          borderClass="border-yellow-500/10"
         />
       </div>
 
       {/* AI Study Insights Panel */}
-      <div className="bg-gradient-to-r from-blue-500/5 via-indigo-500/5 to-purple-500/5 border border-primary/20 rounded-2xl p-6 relative overflow-hidden shadow-sm">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-primary rounded-full blur-3xl -z-0 opacity-10 translate-x-1/2 -translate-y-1/2" />
-        
-        <div className="flex items-center gap-3.5 mb-5 relative z-10">
-          <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20 animate-pulse">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-xl font-heading font-black tracking-tight text-foreground flex items-center gap-2">
-              AI Study Insights
-              <span className="text-[10px] font-black uppercase tracking-widest bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">Active</span>
-            </h3>
-            <p className="text-xs font-semibold text-muted-foreground">Automated analytics derived from your study logs.</p>
-          </div>
-        </div>
+      <div className="bg-card border border-border/60 shadow-sm rounded-2xl p-6">
+        <h3 className="font-heading font-bold text-lg mb-1 flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-primary" />
+          AI study insights
+        </h3>
+        <p className="text-sm text-muted-foreground mb-5">Automated analytics derived from your study logs.</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Peak Focus Time */}
-          <div className="bg-card/45 backdrop-blur border border-border/40 p-5 rounded-2xl flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Peak Focus Hour</span>
-            <span className="text-lg font-heading font-black text-foreground mt-2 flex items-center gap-2">
+          <div className="bg-muted/40 border border-border/40 p-5 rounded-xl flex flex-col justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Peak focus hour</span>
+            <span className="text-lg font-heading font-bold text-foreground mt-2 flex items-center gap-2">
               <Clock className="w-4.5 h-4.5 text-primary" />
               {aiInsights.peakTime}
             </span>
           </div>
 
           {/* Core Focus Area */}
-          <div className="bg-card/45 backdrop-blur border border-border/40 p-5 rounded-2xl flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Most Revised Subject</span>
-            <span className="text-lg font-heading font-black text-foreground mt-2 flex items-center gap-2">
+          <div className="bg-muted/40 border border-border/40 p-5 rounded-xl flex flex-col justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Most revised subject</span>
+            <span className="text-lg font-heading font-bold text-foreground mt-2 flex items-center gap-2">
               <Repeat className="w-4.5 h-4.5 text-orange-500" />
               {aiInsights.mostRevisedSubject}
             </span>
           </div>
 
           {/* Primary Study Type */}
-          <div className="bg-card/45 backdrop-blur border border-border/40 p-5 rounded-2xl flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Primary Activity</span>
-            <span className="text-lg font-heading font-black text-foreground mt-2 flex items-center gap-2">
+          <div className="bg-muted/40 border border-border/40 p-5 rounded-xl flex flex-col justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Primary activity</span>
+            <span className="text-lg font-heading font-bold text-foreground mt-2 flex items-center gap-2">
               <BookOpen className="w-4.5 h-4.5 text-teal-500" />
               {aiInsights.primaryActivityType}
             </span>
@@ -394,17 +395,17 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
         </div>
 
         {/* AI Briefing Message */}
-        <div className="mt-5 p-4.5 bg-card/60 backdrop-blur rounded-2xl border border-border/30 text-sm text-foreground/85 leading-relaxed font-semibold relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="mt-5 p-4.5 bg-muted/30 rounded-xl border border-border/40 text-sm text-muted-foreground leading-relaxed flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <p className="flex-1">
             {aiInsights.summary}
           </p>
-          
+
           <Link
             href={`/ai?prompt=${encodeURIComponent(`Let's discuss my study history. According to my analytics, my peak focus hour is during the ${aiInsights.peakTime}, my most revised subject is ${aiInsights.mostRevisedSubject}, and I focus mostly on ${aiInsights.primaryActivityType}. What advice do you have to help me optimize my routine?`)}`}
-            className="inline-flex items-center gap-2 bg-primary text-white hover:bg-primary/90 text-xs font-black uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all shadow-md shrink-0 self-start sm:self-auto"
+            className="inline-flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium px-4 py-2.5 rounded-xl transition-colors shrink-0 self-start sm:self-auto"
           >
             <Sparkles className="w-4 h-4" />
-            <span>Consult Buddy</span>
+            <span>Consult buddy</span>
           </Link>
         </div>
       </div>
@@ -413,10 +414,10 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* Chart 1: Donut Time Distribution (8 columns on large screens) */}
-        <div className="lg:col-span-5 bg-card border border-border/60 p-8 rounded-4xl shadow-sm flex flex-col justify-between">
-          <div className="space-y-1 mb-6">
-            <h3 className="text-xl font-heading font-black tracking-tight">Time Distribution</h3>
-            <p className="text-xs font-semibold text-muted-foreground">Focus duration breakdown across subjects.</p>
+        <div className="lg:col-span-5 bg-card border border-border/60 p-8 rounded-2xl shadow-sm flex flex-col justify-between">
+          <div className="mb-6">
+            <h3 className="font-heading font-bold text-lg mb-1">Time Distribution</h3>
+            <p className="text-sm text-muted-foreground">Focus duration breakdown across subjects.</p>
           </div>
 
           <div className="h-[280px] w-full flex items-center justify-center relative">
@@ -438,15 +439,8 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
                         <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip 
-                      contentStyle={{ 
-                        borderRadius: '16px', 
-                        border: 'none', 
-                        boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-                        fontWeight: 'bold',
-                        fontSize: '11px',
-                        background: 'rgba(255,255,255,0.95)'
-                      }} 
+                    <Tooltip
+                      contentStyle={TOOLTIP_STYLE}
                       formatter={(value: any) => [`${value} mins`, 'Duration']}
                     />
                   </PieChart>
@@ -454,7 +448,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
 
                 {/* Center text displaying aggregate total focus time */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 leading-none">Total Focused</span>
+                  <span className="text-xs font-medium text-muted-foreground leading-none">Total focused</span>
                   <span className="text-2xl font-heading font-black text-foreground mt-1.5">{stats.timeText}</span>
                 </div>
               </>
@@ -463,7 +457,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
                 <div className="p-4 bg-muted/60 rounded-full inline-block">
                   <Clock className="w-8 h-8 text-muted-foreground/30" />
                 </div>
-                <p className="text-xs font-bold text-muted-foreground">No data available for this range.</p>
+                <p className="text-sm text-muted-foreground">No data available for this range.</p>
               </div>
             )}
           </div>
@@ -474,8 +468,8 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
               {pieChartData.slice(0, 6).map((item, i) => (
                 <div key={item.name} className="flex items-center gap-2 min-w-0">
                   <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
-                  <span className="text-xs font-bold text-muted-foreground truncate" title={item.name}>{item.name}</span>
-                  <span className="text-[10px] font-bold text-muted-foreground/40 ml-auto shrink-0">
+                  <span className="text-xs text-muted-foreground truncate" title={item.name}>{item.name}</span>
+                  <span className="text-xs font-medium text-muted-foreground/40 ml-auto shrink-0">
                     {Math.round((item.value / stats.totalMinutes) * 100)}%
                   </span>
                 </div>
@@ -485,10 +479,10 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
         </div>
 
         {/* Chart 2: Focus Consistency Curve (7 columns) */}
-        <div className="lg:col-span-7 bg-card border border-border/60 p-8 rounded-4xl shadow-sm flex flex-col justify-between">
-          <div className="space-y-1 mb-6">
-            <h3 className="text-xl font-heading font-black tracking-tight">Focus Consistency Curve</h3>
-            <p className="text-xs font-semibold text-muted-foreground">Trend of daily study minutes over the range.</p>
+        <div className="lg:col-span-7 bg-card border border-border/60 p-8 rounded-2xl shadow-sm flex flex-col justify-between">
+          <div className="mb-6">
+            <h3 className="font-heading font-bold text-lg mb-1">Focus Consistency Curve</h3>
+            <p className="text-sm text-muted-foreground">Trend of daily study minutes over the range.</p>
           </div>
 
           <div className="h-[280px] w-full">
@@ -500,28 +494,21 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
                     <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.12)" />
-                <XAxis 
-                  dataKey="dateLabel" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 10, fontWeight: 'bold', fill: 'rgb(156, 163, 175)' }} 
-                />
-                <YAxis 
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis
+                  dataKey="dateLabel"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 10, fontWeight: 'bold', fill: 'rgb(156, 163, 175)' }} 
+                  tick={{ fontSize: 10, fontWeight: 'bold', fill: 'var(--muted-foreground)' }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fontWeight: 'bold', fill: 'var(--muted-foreground)' }}
                   unit="m"
                 />
                 <Tooltip
-                  contentStyle={{ 
-                    borderRadius: '16px', 
-                    border: 'none', 
-                    boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-                    fontWeight: 'bold',
-                    fontSize: '11px',
-                    background: 'rgba(255,255,255,0.95)'
-                  }} 
+                  contentStyle={TOOLTIP_STYLE}
                   formatter={(value: any) => [`${value} mins`, 'Time Focused']}
                 />
                 <Area 
@@ -536,10 +523,10 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
             </ResponsiveContainer>
           </div>
 
-          <div className="mt-6 p-4.5 bg-muted/30 rounded-2xl border border-border/40 text-xs font-bold text-muted-foreground flex items-center gap-2">
+          <div className="mt-6 p-4.5 bg-muted/30 rounded-xl border border-border/40 text-sm text-muted-foreground flex items-center gap-2">
             <Zap className="w-4 h-4 text-primary shrink-0" />
             <span>
-              You finalized <span className="text-primary">{stats.sessionsCount} sessions</span> within this window. Keep the curve rising!
+              You finalized <span className="text-primary font-medium">{stats.sessionsCount} sessions</span> within this window. Keep the curve rising!
             </span>
           </div>
         </div>
@@ -549,34 +536,38 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
       {/* Ledger and Search / Filter Header */}
       <div className="space-y-6">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-          <h2 className="text-3xl font-heading font-black tracking-tight">Performance Log</h2>
-          
+          <h2 className="text-2xl font-heading font-bold tracking-tight text-foreground">Performance Log</h2>
+
           {/* Controls Bar */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 flex-1 max-w-4xl justify-end">
-            
+
             {/* Search Bar */}
             <div className="relative flex-1 min-w-[200px]">
+              <label htmlFor="history-search" className="sr-only">Search subject or logs</label>
               <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
               <Input
+                id="history-search"
                 placeholder="Search subject or logs..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-10 pl-9 pr-4 rounded-xl border border-border/60 bg-card font-bold text-xs"
+                className="h-10 pl-9 pr-4 rounded-xl border border-border/60 bg-card text-sm"
               />
             </div>
 
             {/* Sort Dropdown Selector */}
             <div className="flex items-center gap-2 bg-card border border-border/60 rounded-xl px-3 h-10 shrink-0">
               <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
+              <label htmlFor="history-sort" className="sr-only">Sort by</label>
               <select
+                id="history-sort"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortType)}
-                className="bg-transparent border-none text-xs font-black uppercase tracking-widest text-muted-foreground focus:outline-none cursor-pointer pr-4"
+                className="bg-transparent border-none text-xs font-medium text-muted-foreground focus:outline-none cursor-pointer pr-4"
               >
-                <option value="DATE_DESC">Newest First</option>
-                <option value="DATE_ASC">Oldest First</option>
+                <option value="DATE_DESC">Newest first</option>
+                <option value="DATE_ASC">Oldest first</option>
                 <option value="SUBJECT">Subject A-Z</option>
-                <option value="DURATION">Longest Study</option>
+                <option value="DURATION">Longest study</option>
               </select>
             </div>
           </div>
@@ -589,19 +580,19 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all",
+                "px-5 py-2 rounded-xl text-xs font-medium border transition-colors",
                 activeTab === tab
-                  ? "bg-primary text-white border-primary shadow-sm"
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
                   : "bg-card text-muted-foreground border-border/60 hover:text-foreground"
               )}
             >
-              {tab === "ALL" && "All Entries"}
-              {tab === "HOMEWORK" && "Completed Homework"}
-              {tab === "REVISION" && "Completed Revisions"}
-              {tab === "MISSED" && "Missed Block Logs"}
+              {tab === "ALL" && "All entries"}
+              {tab === "HOMEWORK" && "Completed homework"}
+              {tab === "REVISION" && "Completed revisions"}
+              {tab === "MISSED" && "Missed block logs"}
             </button>
           ))}
-          <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest ml-auto mr-2">
+          <span className="text-xs font-medium text-muted-foreground ml-auto mr-2">
             Showing {filteredTasks.length} results
           </span>
         </div>
@@ -609,8 +600,8 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
         {/* Expanding Log Grid Rows */}
         <div className="space-y-4">
           {filteredTasks.length === 0 ? (
-            <div className="text-center py-20 bg-card border border-dashed rounded-2xl text-muted-foreground font-bold italic">
-              No matching records found. Try adjusting your searches or filters!
+            <div className="text-sm font-medium text-muted-foreground text-center py-6 bg-muted/50 rounded-2xl border border-border/50">
+              No matching records found. Try adjusting your search or filters.
             </div>
           ) : (
             filteredTasks.map((task) => {
@@ -618,27 +609,36 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
               const durationMins = getTaskMinutes(task);
 
               return (
-                <div 
+                <div
                   key={task.id}
                   className={cn(
-                    "bg-card border-2 rounded-2xl overflow-hidden transition-all duration-300 shadow-sm",
-                    isExpanded 
-                      ? "border-primary/40 shadow-md scale-[1.005]" 
+                    "bg-card border rounded-2xl overflow-hidden transition-all duration-200 shadow-sm",
+                    isExpanded
+                      ? "border-primary/40 shadow-md"
                       : "border-border/60 hover:border-border"
                   )}
                 >
                   {/* Row Header Trigger */}
-                  <div 
+                  <div
                     onClick={() => toggleExpandTask(task.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleExpandTask(task.id);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isExpanded}
                     className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer select-none"
                   >
                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                      
+
                       {/* Check/X Status Circle Indicator */}
                       <div className={cn(
                         "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border",
-                        task.isDone 
-                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" 
+                        task.isDone
+                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
                           : "bg-red-500/10 text-red-500 border-red-500/20"
                       )}>
                         {task.isDone ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
@@ -646,18 +646,18 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-3 flex-wrap">
-                          <h4 className="font-heading font-black text-lg text-foreground truncate">{task.subject}</h4>
+                          <h4 className="font-heading font-bold text-lg text-foreground truncate">{task.subject}</h4>
                           <span className={cn(
-                            "inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border",
-                            task.type === "HOMEWORK" 
-                              ? "bg-blue-500/5 text-blue-500 border-blue-500/20" 
+                            "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border",
+                            task.type === "HOMEWORK"
+                              ? "bg-blue-500/5 text-blue-500 border-blue-500/20"
                               : "bg-orange-500/5 text-orange-500 border-orange-500/20"
                           )}>
                             {task.type}
                           </span>
                         </div>
-                        
-                        <p className="text-xs text-muted-foreground font-semibold mt-1">
+
+                        <p className="text-xs text-muted-foreground mt-1">
                           {format(new Date(task.date), 'EEEE, MMMM do, yyyy')}
                         </p>
                       </div>
@@ -667,14 +667,17 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
                     <div className="flex items-center gap-4 shrink-0 ml-14 sm:ml-0">
                       <DeleteTaskButton taskId={task.id} className="h-9 w-9" />
                       <div className="text-right hidden md:block">
-                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">{task.startTime} - {task.endTime}</p>
-                        <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest mt-1">Duration: {durationMins}m</p>
+                        <p className="text-xs font-medium text-muted-foreground">{task.startTime} - {task.endTime}</p>
+                        <p className="text-xs font-medium text-muted-foreground/60 mt-1">Duration: {durationMins}m</p>
                       </div>
 
-                      <div className={cn(
-                        "p-2 rounded-xl border border-border/50 hover:bg-muted text-muted-foreground transition-all",
-                        isExpanded && "bg-muted text-primary border-primary/20"
-                      )}>
+                      <div
+                        className={cn(
+                          "p-2 rounded-xl border border-border/50 text-muted-foreground",
+                          isExpanded && "bg-muted text-primary border-primary/20"
+                        )}
+                        aria-hidden="true"
+                      >
                         {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </div>
                     </div>
@@ -691,24 +694,24 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
                         className="border-t border-border/40 bg-muted/10"
                       >
                         <div className="p-6 space-y-6">
-                          
+
                           {/* Duration Badge stats for mobile */}
                           <div className="grid grid-cols-2 gap-4 md:hidden border-b pb-4 border-border/40">
                             <div>
-                              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 leading-none">Time Slot</p>
-                              <p className="text-xs font-bold text-foreground mt-1.5">{task.startTime} - {task.endTime}</p>
+                              <p className="text-xs font-medium text-muted-foreground leading-none">Time slot</p>
+                              <p className="text-xs font-semibold text-foreground mt-1.5">{task.startTime} - {task.endTime}</p>
                             </div>
                             <div>
-                              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 leading-none">Total Minutes</p>
-                              <p className="text-xs font-bold text-foreground mt-1.5">{durationMins} minutes</p>
+                              <p className="text-xs font-medium text-muted-foreground leading-none">Total minutes</p>
+                              <p className="text-xs font-semibold text-foreground mt-1.5">{durationMins} minutes</p>
                             </div>
                           </div>
 
                           {/* Work proof details */}
                           <div className="space-y-3">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 select-none">
+                            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                               <FileEdit className="w-3.5 h-3.5" />
-                              <span>Proof of Work Ledger</span>
+                              <span>Proof of work ledger</span>
                             </p>
 
                             {task.workDescription ? (
@@ -719,7 +722,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
                                 </p>
                               </div>
                             ) : (
-                              <div className="text-xs font-bold text-muted-foreground/50 italic py-2">
+                              <div className="text-xs text-muted-foreground/60 italic py-2">
                                 No written reflection or text log was attached to this session.
                               </div>
                             )}
@@ -727,14 +730,14 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
                             {/* View supplementary PDF upload */}
                             {task.proofPdfUrl && (
                               <div className="pt-3 flex items-center gap-3">
-                                <a 
-                                  href={task.proofPdfUrl} 
-                                  target="_blank" 
+                                <a
+                                  href={task.proofPdfUrl}
+                                  target="_blank"
                                   rel="noreferrer"
-                                  className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 p-3 px-5 rounded-xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm group/btn"
+                                  className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 p-3 px-5 rounded-xl text-primary hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
                                 >
-                                  <FileText className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
-                                  <span className="text-[10px] font-black uppercase tracking-widest">Open Supplementary PDF Document</span>
+                                  <FileText className="w-4 h-4" />
+                                  <span className="text-xs font-medium">Open supplementary PDF document</span>
                                 </a>
                               </div>
                             )}
@@ -765,7 +768,7 @@ interface StatCardProps {
 function StatCard({ label, value, icon, description, borderClass }: StatCardProps) {
   return (
     <div className={cn(
-      "bg-card border p-6 rounded-2xl shadow-sm transition-all duration-300",
+      "bg-card border p-6 rounded-2xl shadow-sm",
       borderClass
     )}>
       <div className="flex items-center justify-between mb-4">
@@ -775,8 +778,8 @@ function StatCard({ label, value, icon, description, borderClass }: StatCardProp
         <span className="text-2xl font-heading font-black tracking-tight text-foreground select-all">{value}</span>
       </div>
       <div>
-        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/50 mb-1 select-none">{label}</p>
-        <p className="text-xs font-bold text-muted-foreground/80">{description}</p>
+        <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
+        <p className="text-xs text-muted-foreground/80">{description}</p>
       </div>
     </div>
   );

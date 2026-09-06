@@ -23,12 +23,10 @@ export function StreakCalendar({ activeTimestamps }: { activeTimestamps: number[
   const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
   return (
-    <div className="bg-card border border-border/60 rounded-4xl p-6 md:p-10 shadow-sm overflow-hidden relative">
-      <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
-
-      <div className="flex items-center justify-between mb-10 relative z-10">
-        <h3 className="text-2xl font-heading font-black flex items-center gap-3">
-          <Calendar className="w-6 h-6 text-primary" />
+    <div className="bg-card border border-border/60 rounded-2xl p-6 md:p-10 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between mb-10">
+        <h3 className="font-heading font-bold text-lg flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-primary" />
           {format(currentMonth, 'MMMM yyyy')}
         </h3>
         <div className="flex items-center gap-2">
@@ -36,7 +34,7 @@ export function StreakCalendar({ activeTimestamps }: { activeTimestamps: number[
             onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
             aria-label="Previous month"
             title="Previous month"
-            className="p-2 rounded-xl bg-muted hover:bg-primary/10 hover:text-primary transition-all"
+            className="p-2 rounded-xl bg-muted hover:bg-primary/10 hover:text-primary transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -44,20 +42,20 @@ export function StreakCalendar({ activeTimestamps }: { activeTimestamps: number[
             onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
             aria-label="Next month"
             title="Next month"
-            className="p-2 rounded-xl bg-muted hover:bg-primary/10 hover:text-primary transition-all"
+            className="p-2 rounded-xl bg-muted hover:bg-primary/10 hover:text-primary transition-colors"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-4 relative z-10">
+      <div className="flex items-center justify-end gap-2 text-xs font-medium text-muted-foreground mb-4">
         <div className="w-2 h-2 rounded-full bg-orange-500" /> Active
       </div>
 
-      <div className="grid grid-cols-7 gap-1.5 sm:gap-2 md:gap-3 relative z-10">
+      <div className="grid grid-cols-7 gap-1.5 sm:gap-2 md:gap-3">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-          <div key={day} className="text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 pb-2">
+          <div key={day} className="text-center text-xs font-medium text-muted-foreground/60 pb-2">
             {day}
           </div>
         ))}
