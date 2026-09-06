@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { SignJWT, jwtVerify } from 'jose';
 import { prisma } from './prisma';
@@ -31,7 +32,18 @@ export async function logout() {
   cookieStore.delete('session');
 }
 
-export async function getUserId(): Promise<string | null> {
+/**
+ * Memoised for the duration of one request.
+ *
+ * This verifies the session AND checks the user still exists in the database,
+ * and it is called by the layout, by the page, and by every server action a
+ * page fans out to - so a single dashboard render was paying for the same
+ * lookup a dozen times over. At ~165ms per round trip that is seconds.
+ *
+ * React's cache() is per-request, so a revoked user is still rejected on the
+ * very next navigation.
+ */
+export const getUserId = cache(async function getUserId(): Promise<string | null> {
   const cookieStore = await cookies();
   const session = cookieStore.get('session')?.value;
   if (!session) return null;
@@ -51,4 +63,4 @@ export async function getUserId(): Promise<string | null> {
   } catch {
     return null;
   }
-}
+});

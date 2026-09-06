@@ -1,5 +1,7 @@
 'use server';
 
+import { cache } from 'react';
+
 import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay, addDays, isSameDay, differenceInDays, format } from 'date-fns';
 import { revalidatePath } from 'next/cache';
@@ -10,18 +12,19 @@ import bcrypt from 'bcryptjs';
 import { getZonedNow, getTimeZoneOffsetMinutes, DEFAULT_TIMEZONE } from './utils';
 import { addXp } from './gamification';
 import { computeWeeklyPerformance, computeDailyPerformance, type WeeklyPerformance } from './grading';
+import { getScheduleState, ensureDefaultClass } from './term';
 
 /**
  * Resolve the IANA timezone the given user has chosen, falling back to the
  * default (Africa/Kigali) so existing users keep their original behavior.
  */
-async function getUserTimezone(userId: string): Promise<string> {
+const getUserTimezone = cache(async function getUserTimezone(userId: string): Promise<string> {
   const progress = await prisma.userProgress.findUnique({
     where: { userId },
     select: { timezone: true }
   });
   return progress?.timezone || DEFAULT_TIMEZONE;
-}
+});
 
 /**
  * Server action: the current logged-in user's timezone (for display components).
@@ -79,6 +82,10 @@ export async function registerUser(formData: FormData) {
     await prisma.userProgress.create({
       data: { userId: user.id, name: username }
     });
+
+    // Without a class and an active term the schedule gate below would leave a
+    // brand-new account with a silently dead timetable.
+    await ensureDefaultClass(user.id);
 
     await login(user.id);
     return { success: true };
@@ -154,14 +161,25 @@ function normalizeSubject(subject: string) {
 /**
  * Utility: Generate tasks for a specific date range based on templates
  */
+/** Memoised: the same timetable is read by each generation pass in a render. */
+const getTemplatesForUser = cache(async function getTemplatesForUser(userId: string) {
+  return prisma.scheduleTemplate.findMany({ where: { userId } });
+});
+
 export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
   const userId = await getUserId();
   if (!userId) return;
 
+  // Tasks are generated ONLY while a term is actually running. Before this
+  // gate existed the app manufactured work straight through school holidays and
+  // then marked every one of those tasks missed.
+  const schedule = await getScheduleState(userId);
+  if (!schedule.isRunning) return;
+
   const tz = await getUserTimezone(userId);
   const tzOffsetMinutes = getTimeZoneOffsetMinutes(tz);
 
-  const templates = await prisma.scheduleTemplate.findMany({ where: { userId } });
+  const templates = await getTemplatesForUser(userId);
   const start = startOfDay(startDate);
   const end = endOfDay(endDate);
 
@@ -200,6 +218,7 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
         tasksToCreate.push({
           userId,
           templateId: template.id,
+          termId: schedule.termId,
           date: currentDate,
           startTime: template.startTime,
           endTime: template.endTime,
@@ -223,6 +242,11 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
  * Utility: Find and mark tasks as missed if their scheduled time is past and they have no proof
  */
 export async function checkAndMarkMissedTasks(userId: string) {
+  // Same gate as generation: a paused or finished term must not accumulate
+  // "missed" work while the user is legitimately not studying.
+  const schedule = await getScheduleState(userId);
+  if (!schedule.isRunning) return;
+
   const tz = await getUserTimezone(userId);
   const now = getZonedNow(tz);
   
@@ -668,52 +692,99 @@ export async function toggleMarkedDay(date: Date, isMarked: boolean) {
 export async function syncStreak() {
   const userId = await getUserId();
   if (!userId) return null;
+  return syncStreakFor(userId);
+}
+
+/**
+ * Memoised per request.
+ *
+ * The app layout calls syncStreak on every navigation and the dashboard calls
+ * it again for its own render, so this ran twice per page - about twelve
+ * sequential round trips, which at ~165ms each is two seconds of pure
+ * duplication. It also WRITES (streak advance, XP), so running it once per
+ * request is more correct, not just faster.
+ */
+const syncStreakFor = cache(async function syncStreakFor(userId: string) {
 
   const tz = await getUserTimezone(userId);
   const today = startOfDay(getZonedNow(tz));
+
   let progress = await prisma.userProgress.findUnique({ where: { userId } });
-
   if (!progress) {
-    progress = await prisma.userProgress.create({
-      data: { userId, currentStreak: 1, longestStreak: 1, lastActiveDate: today }
-    });
-    return { ...progress, streakIncreased: false, streakPaused: false };
+    progress = await prisma.userProgress.create({ data: { userId } });
   }
 
-  // School break: once the marked last day of school has passed, freeze the
-  // streak (no reset, no increment) until the user resumes.
-  if (progress.schoolEndDate && today > startOfDay(progress.schoolEndDate)) {
-    return { ...progress, streakIncreased: false, streakPaused: true };
+  // The streak now lives on the Class: it resets each academic year, while XP
+  // and level stay lifetime on UserProgress. Legacy accounts and brand-new ones
+  // both need a container before any of this can work.
+  await ensureDefaultClass(userId);
+  const schedule = await getScheduleState(userId);
+
+  // "All-time best" spans every year the user has studied; the current streak
+  // belongs to this one. The UserProgress value is included so the pre-Class
+  // history is not lost.
+  const best = await prisma.class.aggregate({
+    where: { userId, deletedAt: null },
+    _max: { longestStreak: true },
+  });
+  const allTimeBest = Math.max(best._max.longestStreak ?? 0, progress.longestStreak ?? 0);
+
+  const activeClass = schedule.classId
+    ? await prisma.class.findUnique({ where: { id: schedule.classId } })
+    : null;
+
+  // Frozen while paused, between terms, or once the year is finished. Frozen
+  // means exactly that: no increment and no reset, so time off costs nothing.
+  if (!activeClass || !schedule.isRunning) {
+    return {
+      ...progress,
+      currentStreak: activeClass?.currentStreak ?? 0,
+      longestStreak: allTimeBest,
+      streakIncreased: false,
+      yesterdayStats: null,
+      streakPaused: true,
+      scheduleReason: schedule.reason,
+    };
   }
 
-  const lastDate = progress.lastActiveDate ? startOfDay(progress.lastActiveDate) : null;
+  let cls = activeClass;
   let streakIncreased = false;
-  let yesterdayStats = null;
+  let yesterdayStats: {
+    tasksCompleted: number;
+    totalTasks: number;
+    focusMinutes: number;
+    xpEarned: number;
+  } | null = null;
+
+  const lastDate = cls.lastActiveDate ? startOfDay(cls.lastActiveDate) : null;
 
   if (!lastDate) {
-    progress = await prisma.userProgress.update({
-      where: { userId },
-      data: { currentStreak: 1, lastActiveDate: today }
+    cls = await prisma.class.update({
+      where: { id: cls.id },
+      data: {
+        currentStreak: 1,
+        longestStreak: Math.max(1, cls.longestStreak),
+        lastActiveDate: today,
+      },
     });
   } else if (!isSameDay(lastDate, today)) {
     const diff = differenceInDays(today, lastDate);
     let newStreak = 1;
-    
+
     if (diff === 1) {
-      newStreak = progress.currentStreak + 1;
+      newStreak = cls.currentStreak + 1;
       streakIncreased = true;
       await addXp(userId, 50 * newStreak); // Streak bonus
-      
-      // Fetch yesterday's stats for celebration
+
       const yesterday = addDays(today, -1);
       const yesterdayTasks = await prisma.task.findMany({
-        where: { 
-          userId, 
+        where: {
+          userId,
           date: { gte: startOfDay(yesterday), lte: endOfDay(yesterday) },
-          isDeleted: false 
+          isDeleted: false
         }
       });
-      
+
       const completed = yesterdayTasks.filter(t => t.isDone).length;
       const totalTime = yesterdayTasks
         .filter(t => t.isDone)
@@ -733,20 +804,31 @@ export async function syncStreak() {
       };
     }
 
-    const newLongest = Math.max(newStreak, progress.longestStreak);
-    progress = await prisma.userProgress.update({
-      where: { userId },
-      data: { currentStreak: newStreak, longestStreak: newLongest, lastActiveDate: today }
+    cls = await prisma.class.update({
+      where: { id: cls.id },
+      data: {
+        currentStreak: newStreak,
+        longestStreak: Math.max(newStreak, cls.longestStreak),
+        lastActiveDate: today,
+      },
     });
+  }
+
+  // addXp above changed xp/level, so the row read earlier is stale.
+  if (streakIncreased) {
+    progress = (await prisma.userProgress.findUnique({ where: { userId } })) ?? progress;
   }
 
   return {
     ...progress,
+    currentStreak: cls.currentStreak,
+    longestStreak: Math.max(allTimeBest, cls.longestStreak),
     streakIncreased,
     yesterdayStats,
-    streakPaused: false
+    streakPaused: false,
+    scheduleReason: schedule.reason,
   };
-}
+});
 
 /**
  * Set (or clear) the user's marked "last day of school". Passing null clears it.
@@ -791,6 +873,13 @@ export async function resumeStreak() {
 
   const tz = await getUserTimezone(userId);
   const today = startOfDay(getZonedNow(tz));
+
+  // Clears both the new Class-level pause and the legacy schoolEndDate flag,
+  // so a user paused either way is properly resumed.
+  await prisma.class.updateMany({
+    where: { userId, status: 'ACTIVE', deletedAt: null },
+    data: { pausedAt: null, lastActiveDate: today },
+  });
   await prisma.userProgress.updateMany({
     where: { userId },
     data: { schoolEndDate: null, lastActiveDate: today },
@@ -1073,9 +1162,10 @@ export async function getEvents() {
   const userId = await getUserId();
   if (!userId) return [];
 
-  return prisma.examEvent.findMany({ 
+  return prisma.examEvent.findMany({
     where: { userId },
-    orderBy: { date: 'asc' } 
+    include: { subject: { select: { id: true, name: true } } },
+    orderBy: { date: 'asc' }
   });
 }
 
@@ -1086,7 +1176,10 @@ export async function getEventById(id: string) {
   const userId = await getUserId();
   if (!userId) return null;
 
-  return prisma.examEvent.findFirst({ where: { id, userId } });
+  return prisma.examEvent.findFirst({
+    where: { id, userId },
+    include: { subject: { select: { id: true, name: true } } },
+  });
 }
 
 /**

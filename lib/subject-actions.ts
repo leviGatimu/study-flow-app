@@ -6,6 +6,68 @@ import { revalidatePath } from 'next/cache';
 import { normalizeSubject } from '@/lib/utils';
 
 /**
+ * Read-only list of the user's subjects: id and name, one indexed query, no
+ * writes.
+ *
+ * Use this anywhere that just needs to render subject names - notably the app
+ * layout, which feeds the quick-add form on every page.
+ *
+ * getSubjects() below is NOT a safe substitute there. Despite the name it
+ * mutates: it runs two deleteMany calls and can re-seed the table, so calling
+ * it from the layout meant every page view in the app issued deletes and four
+ * or more round trips. Reserve it for pages that actually want the repair pass.
+ */
+export async function listSubjects(): Promise<{ id: string; name: string }[]> {
+  const userId = await getUserId();
+  if (!userId) return [];
+
+  return prisma.subject.findMany({
+    where: { userId },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+}
+
+/**
+ * Create subjects that do not exist yet, portably.
+ *
+ * `createMany({ skipDuplicates })` is NOT supported by SQLite, and the desktop
+ * build runs on SQLite - so this filters against what is already there, then
+ * falls back to per-row upserts if a concurrent seed wins the race and trips
+ * the (userId, name) unique constraint.
+ *
+ * Only runs on the seeding path (an empty Subject table), so the extra read is
+ * not on any hot path.
+ */
+async function createSubjectsIfMissing(userId: string, names: string[]) {
+  const wanted = Array.from(new Set(names.map((n) => n.trim()).filter(Boolean)));
+  if (wanted.length === 0) return;
+
+  const existing = await prisma.subject.findMany({
+    where: { userId, name: { in: wanted } },
+    select: { name: true },
+  });
+  const have = new Set(existing.map((s) => s.name));
+  const missing = wanted.filter((n) => !have.has(n));
+  if (missing.length === 0) return;
+
+  try {
+    await prisma.subject.createMany({
+      data: missing.map((name) => ({ userId, name })),
+    });
+  } catch {
+    // Someone else seeded between the read and the write. Settle it row by row.
+    for (const name of missing) {
+      await prisma.subject.upsert({
+        where: { userId_name: { userId, name } },
+        update: {},
+        create: { userId, name },
+      });
+    }
+  }
+}
+
+/**
  * Fetch all subjects for the user.
  * If the user's Subject table is empty, scan all existing tables containing
  * subject-specific data and automatically populate the Subject table to prevent data loss.
@@ -67,17 +129,9 @@ export async function getSubjects() {
     }
 
     if (officialSubjects.size > 0) {
-      // Seed ONLY the official 15 subjects.
-      // skipDuplicates guards against the race where two concurrent dashboard
-      // loads both see count === 0 and try to seed the same names (Postgres
-      // would otherwise throw P2002 on the (userId, name) unique constraint).
-      await prisma.subject.createMany({
-        data: Array.from(officialSubjects).map(name => ({
-          userId,
-          name
-        })),
-        skipDuplicates: true
-      });
+      // Seed ONLY the official 15 subjects. The helper handles the race where
+      // two concurrent dashboard loads both see count === 0.
+      await createSubjectsIfMissing(userId, Array.from(officialSubjects));
     } else {
       // 2. Fallback to scanning all tables if no report cards exist yet
       const [
@@ -125,14 +179,7 @@ export async function getSubjects() {
       }
 
       if (subjectNames.size > 0) {
-        // Batch create subjects (skipDuplicates: safe under concurrent seeds)
-        await prisma.subject.createMany({
-          data: Array.from(subjectNames).map(name => ({
-            userId,
-            name,
-          })),
-          skipDuplicates: true
-        });
+        await createSubjectsIfMissing(userId, Array.from(subjectNames));
       }
     }
   }
