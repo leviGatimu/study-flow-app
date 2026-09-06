@@ -17,17 +17,16 @@ export default async function HomeworksPage() {
   ]);
 
   return (
-    <div className="space-y-10 max-w-[1600px] mx-auto p-4 md:p-8 pb-16">
+    <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto animate-in fade-in duration-500 pb-16">
       {/* Header */}
-      <div className="pt-10 pb-6 border-b border-border/40 mb-4">
-        <h1 className="text-5xl md:text-6xl font-heading font-black tracking-tight text-foreground uppercase flex items-center gap-4">
-          <BookOpen className="w-12 h-12 text-primary animate-pulse" /> Homeworks
+      <header className="px-4 md:px-8 pt-10 pb-6 border-b border-border/40">
+        <h1 className="text-2xl font-heading font-bold tracking-tight text-foreground flex items-center gap-2">
+          <BookOpen className="w-6 h-6 text-primary" /> Homeworks
         </h1>
-        <p className="text-base md:text-lg text-muted-foreground font-semibold mt-2">Track, plan, and manage your academic assignments with high fidelity.</p>
-      </div>
+        <p className="text-sm text-muted-foreground mt-2">Track, plan, and manage your academic assignments.</p>
+      </header>
 
-      {/* Full Width Layout */}
-      <div className="w-full">
+      <div className="px-4 md:px-8">
         <HomeworkList homeworks={homeworks} subjects={subjects} />
       </div>
     </div>

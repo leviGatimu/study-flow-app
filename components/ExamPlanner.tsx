@@ -190,8 +190,9 @@ export function ExamPlanner({
 
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Sessions</Label>
+              <Label htmlFor="revision-sessions" className="text-xs text-muted-foreground">Sessions</Label>
               <Input
+                id="revision-sessions"
                 type="number"
                 min={1}
                 max={20}
@@ -201,8 +202,9 @@ export function ExamPlanner({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Days before</Label>
+              <Label htmlFor="revision-days-before" className="text-xs text-muted-foreground">Days before</Label>
               <Input
+                id="revision-days-before"
                 type="number"
                 min={1}
                 max={60}
@@ -212,8 +214,9 @@ export function ExamPlanner({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Start at</Label>
+              <Label htmlFor="revision-start-time" className="text-xs text-muted-foreground">Start at</Label>
               <Input
+                id="revision-start-time"
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
@@ -255,8 +258,9 @@ export function ExamPlanner({
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Score</Label>
+            <Label htmlFor="exam-score" className="text-xs text-muted-foreground">Score</Label>
             <Input
+              id="exam-score"
               type="number"
               value={scoreInput}
               onChange={(e) => setScoreInput(e.target.value)}
@@ -266,8 +270,9 @@ export function ExamPlanner({
           </div>
           <span className="pb-2 text-muted-foreground">/</span>
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Out of</Label>
+            <Label htmlFor="exam-max-score" className="text-xs text-muted-foreground">Out of</Label>
             <Input
+              id="exam-max-score"
               type="number"
               value={maxInput}
               onChange={(e) => setMaxInput(e.target.value)}

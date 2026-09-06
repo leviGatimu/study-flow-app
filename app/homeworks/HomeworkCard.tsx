@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -40,12 +39,12 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
 
   const isOverdue = !homework.isCompleted && isPast(new Date(homework.dueDate)) && !isToday(new Date(homework.dueDate));
 
-  // Single source of truth for the card's accent so bar, glow and chips stay in sync.
+  // Single source of truth for the card's accent so bar and chips stay in sync.
   const accent = homework.isCompleted
-    ? { bar: 'bg-emerald-500', glow: 'bg-emerald-500', chip: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20', text: 'text-emerald-500' }
+    ? { bar: 'bg-success', chip: 'bg-success/10 text-success border-success/20' }
     : isOverdue
-    ? { bar: 'bg-destructive', glow: 'bg-destructive', chip: 'bg-destructive/10 text-destructive border-destructive/20', text: 'text-destructive' }
-    : { bar: 'bg-primary', glow: 'bg-primary', chip: 'bg-primary/10 text-primary border-primary/20', text: 'text-primary' };
+    ? { bar: 'bg-destructive', chip: 'bg-destructive/10 text-destructive border-destructive/20' }
+    : { bar: 'bg-primary', chip: 'bg-primary/10 text-primary border-primary/20' };
 
   async function handlePlan(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -101,30 +100,29 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
       exit={{ opacity: 0, scale: 0.9 }}
       className="h-full"
     >
-      <Card className={cn(
-        "relative overflow-hidden border transition-all duration-300 group h-full flex flex-col rounded-2xl shadow-sm",
+      <div className={cn(
+        "group relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow duration-200 h-full flex flex-col rounded-2xl",
         homework.isCompleted
-          ? "bg-card border-emerald-500/20"
-          : "bg-card hover:shadow-lg hover:border-primary/30"
+          ? "bg-card border-success/20"
+          : "bg-card border-border/60"
       )}>
-        {/* Accent glow + status bar */}
-        <div className={cn("absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl opacity-[0.07] -z-0 translate-x-1/3 -translate-y-1/3", accent.glow)} />
+        {/* Status bar */}
         <div className={cn("absolute top-0 left-0 w-1.5 h-full", accent.bar, homework.isCompleted && "opacity-60")} />
 
         <div className="p-6 flex-1 flex flex-col relative z-10">
           {/* Header */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <span className={cn("px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-widest border", accent.chip)}>
+              <span className={cn("px-3 py-1 rounded-lg text-xs font-medium border", accent.chip)}>
                 {homework.subject}
               </span>
               {isOverdue && (
-                <span className="flex items-center gap-1.5 text-[11px] font-black text-destructive uppercase tracking-wider">
+                <span className="flex items-center gap-1.5 text-xs font-medium text-destructive">
                   <AlertCircle className="w-3.5 h-3.5" /> Overdue
                 </span>
               )}
               {homework.isCompleted && (
-                <span className="flex items-center gap-1.5 text-[11px] font-black text-emerald-500 uppercase tracking-wider">
+                <span className="flex items-center gap-1.5 text-xs font-medium text-success">
                   <CheckCircle2 className="w-3.5 h-3.5" /> Done
                 </span>
               )}
@@ -133,6 +131,7 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
             <Button
               variant="ghost"
               size="icon"
+              aria-label="Delete homework"
               onClick={handleDelete}
               disabled={isDeleting}
               className="opacity-0 group-hover:opacity-100 transition-opacity h-9 w-9 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 -mr-1 -mt-1"
@@ -143,26 +142,26 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
 
           {/* Title + description */}
           <h3 className={cn(
-            "text-xl font-black font-heading tracking-tight text-foreground mt-4 leading-snug",
+            "text-lg font-bold font-heading tracking-tight text-foreground mt-4 leading-snug",
             homework.isCompleted && "text-muted-foreground line-through opacity-60"
           )}>
             {homework.title}
           </h3>
           {homework.description && (
-            <p className="text-sm text-muted-foreground/80 font-medium line-clamp-2 mt-2">
+            <p className="text-sm text-muted-foreground line-clamp-2 mt-2">
               {homework.description}
             </p>
           )}
 
-          {/* Meta row — light icon chips instead of heavy grey boxes */}
+          {/* Meta row */}
           <div className="flex items-center gap-5 mt-6">
             <div className="flex items-center gap-2.5">
               <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                 <Calendar className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Due</span>
-                <span className={cn("text-sm font-black mt-0.5", isOverdue ? "text-destructive" : "text-foreground")}>
+                <span className="text-xs font-medium text-muted-foreground">Due</span>
+                <span className={cn("text-sm font-semibold mt-0.5", isOverdue ? "text-destructive" : "text-foreground")}>
                   {format(new Date(homework.dueDate), 'MMM dd')}
                 </span>
               </div>
@@ -175,8 +174,8 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
                 <Clock className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Planned</span>
-                <span className="text-sm font-black text-foreground mt-0.5">
+                <span className="text-xs font-medium text-muted-foreground">Planned</span>
+                <span className="text-sm font-semibold text-foreground mt-0.5">
                   {homework.plannedDate ? format(new Date(homework.plannedDate), 'MMM dd') : '—'}
                 </span>
               </div>
@@ -189,27 +188,28 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
               <div className="flex items-center gap-3 pt-1">
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="flex-1 h-12 rounded-2xl font-black text-xs gap-2 border-primary/20 hover:bg-primary/5 hover:text-primary transition-all duration-200">
-                      <Clock className="w-4 h-4" /> PLAN
+                    <Button variant="outline" className="flex-1 h-11 rounded-xl font-bold text-xs gap-2 border-primary/20 hover:bg-primary/5 hover:text-primary transition-colors duration-200">
+                      <Clock className="w-4 h-4" /> Plan
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-md rounded-3xl p-8 border shadow-2xl bg-card">
+                  <DialogContent className="sm:max-w-md rounded-2xl p-8 border shadow-2xl bg-card">
                     <DialogHeader>
-                      <DialogTitle className="text-2xl font-heading font-black text-foreground uppercase tracking-tight">Plan Session</DialogTitle>
+                      <DialogTitle className="text-xl font-heading font-bold text-foreground">Plan session</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handlePlan} className="space-y-6 pt-4">
                       <div className="space-y-2.5">
-                        <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Select Date</Label>
+                        <Label htmlFor={`plannedDate-${homework.id}`} className="text-xs font-medium text-muted-foreground ml-1">Select date</Label>
                         <Input
+                          id={`plannedDate-${homework.id}`}
                           type="date"
                           name="plannedDate"
                           defaultValue={homework.plannedDate ? format(new Date(homework.plannedDate), 'yyyy-MM-dd') : ''}
                           required
-                          className="h-14 rounded-2xl bg-muted/50 text-base font-bold focus:ring-4 focus:ring-primary/5"
+                          className="h-12 rounded-xl bg-muted/50 text-base font-medium focus:ring-4 focus:ring-primary/5"
                         />
                       </div>
-                      <Button type="submit" disabled={isPlanning} className="w-full h-14 rounded-2xl font-black text-base shadow-lg shadow-primary/10">
-                        {isPlanning ? <Loader2 className="w-5 h-5 animate-spin" /> : 'SAVE PLAN'}
+                      <Button type="submit" disabled={isPlanning} className="w-full h-12 rounded-xl font-bold text-sm shadow-sm">
+                        {isPlanning ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save plan'}
                       </Button>
                     </form>
                   </DialogContent>
@@ -217,32 +217,33 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
 
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button className="flex-1 h-12 rounded-2xl font-black text-xs gap-2 shadow-md shadow-primary/5 transition-all">
-                      <CheckCircle2 className="w-4 h-4" /> COMPLETE
+                    <Button className="flex-1 h-11 rounded-xl font-bold text-xs gap-2 shadow-sm transition-all">
+                      <CheckCircle2 className="w-4 h-4" /> Complete
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-md rounded-3xl p-8 border shadow-2xl bg-card">
+                  <DialogContent className="sm:max-w-md rounded-2xl p-8 border shadow-2xl bg-card">
                     <DialogHeader>
-                      <DialogTitle className="text-2xl font-heading font-black text-foreground uppercase tracking-tight">Finish Homework</DialogTitle>
+                      <DialogTitle className="text-xl font-heading font-bold text-foreground">Finish homework</DialogTitle>
                     </DialogHeader>
                     <form action={handleComplete} className="space-y-6 pt-4">
                       <input type="hidden" name="homeworkId" value={homework.id} />
                       <div className="space-y-4 text-center">
-                        <div className="p-10 border-2 border-dashed border-border/40 rounded-3xl bg-muted/5">
+                        <div className="p-10 border-2 border-dashed border-border/40 rounded-2xl bg-muted/5">
                            <FileUp className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                           <p className="text-sm font-black text-muted-foreground uppercase tracking-wider">Upload Proof (PDF/Image)</p>
+                           <p className="text-sm font-semibold text-muted-foreground">Upload proof (PDF or image)</p>
                            <p className="text-xs text-muted-foreground/60 mt-1">Select a screenshot or document of completed work</p>
                         </div>
                         <Input
                           type="file"
                           name="file"
+                          aria-label="Upload proof of completed homework"
                           accept="image/*,application/pdf"
                           required
-                          className="cursor-pointer h-14 rounded-2xl text-base font-bold bg-muted/50"
+                          className="cursor-pointer h-12 rounded-xl text-sm font-medium bg-muted/50"
                         />
                       </div>
-                      <Button type="submit" disabled={isCompleting} className="w-full h-14 rounded-2xl font-black text-base shadow-lg shadow-primary/10">
-                        {isCompleting ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : 'SUBMIT & FINISH'}
+                      <Button type="submit" disabled={isCompleting} className="w-full h-12 rounded-xl font-bold text-sm shadow-sm">
+                        {isCompleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : 'Submit & finish'}
                       </Button>
                     </form>
                   </DialogContent>
@@ -251,15 +252,15 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
             ) : (
               <div className="flex items-center justify-between pt-1">
                 <div className="flex flex-col">
-                  <span className="text-[11px] font-black uppercase text-emerald-500 tracking-widest">Completed</span>
-                  <span className="text-xs font-semibold text-muted-foreground/70 mt-0.5">
+                  <span className="text-xs font-medium text-success">Completed</span>
+                  <span className="text-xs text-muted-foreground/70 mt-0.5">
                     {homework.completedAt ? format(new Date(homework.completedAt), 'MMM dd, yyyy') : ''}
                   </span>
                 </div>
                 {homework.proofUrl && (
-                  <Button variant="outline" size="sm" asChild className="rounded-xl font-black text-xs gap-2 h-11 px-4 hover:bg-primary/5 hover:text-primary transition-all">
+                  <Button variant="outline" size="sm" asChild className="rounded-xl font-bold text-xs gap-2 h-11 px-4 hover:bg-primary/5 hover:text-primary transition-all">
                     <a href={homework.proofUrl} target="_blank" rel="noopener noreferrer">
-                      VIEW PROOF <ExternalLink className="w-3.5 h-3.5" />
+                      View proof <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                   </Button>
                 )}
@@ -267,7 +268,7 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
             )}
           </div>
         </div>
-      </Card>
+      </div>
     </motion.div>
   );
 }

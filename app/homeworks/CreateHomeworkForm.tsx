@@ -38,20 +38,20 @@ export function CreateHomeworkForm({ onSuccess, subjects }: CreateHomeworkFormPr
     }
   }
 
-  const fieldClass = "h-12 rounded-2xl bg-muted/40 border-border/50 focus:border-primary focus:ring-4 focus:ring-primary/5 text-base font-bold transition-all px-4";
+  const fieldClass = "h-12 rounded-xl bg-muted/40 border-border/50 focus:border-primary focus:ring-4 focus:ring-primary/5 text-base font-medium transition-all px-4";
 
   return (
     <form ref={formRef} action={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="space-y-2">
-          <Label htmlFor="subject" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Subject</Label>
+          <Label htmlFor="subject" className="text-xs font-medium text-muted-foreground ml-1">Subject</Label>
           <Select name="subject" required>
-            <SelectTrigger className={cn(fieldClass, "text-left")}>
+            <SelectTrigger id="subject" className={cn(fieldClass, "text-left")}>
               <SelectValue placeholder="Select subject..." />
             </SelectTrigger>
-            <SelectContent className="rounded-2xl border p-2">
+            <SelectContent className="rounded-xl border p-2">
               {subjects.map((sub) => (
-                <SelectItem key={sub.id} value={sub.name} className="font-bold py-2.5 rounded-xl focus:bg-primary/10 cursor-pointer">
+                <SelectItem key={sub.id} value={sub.name} className="font-medium py-2.5 rounded-lg focus:bg-primary/10 cursor-pointer">
                   {sub.name}
                 </SelectItem>
               ))}
@@ -60,7 +60,7 @@ export function CreateHomeworkForm({ onSuccess, subjects }: CreateHomeworkFormPr
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="dueDate" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Due Date</Label>
+          <Label htmlFor="dueDate" className="text-xs font-medium text-muted-foreground ml-1">Due date</Label>
           <Input
             id="dueDate"
             name="dueDate"
@@ -72,7 +72,7 @@ export function CreateHomeworkForm({ onSuccess, subjects }: CreateHomeworkFormPr
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="title" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Title</Label>
+        <Label htmlFor="title" className="text-xs font-medium text-muted-foreground ml-1">Title</Label>
         <Input
           id="title"
           name="title"
@@ -83,20 +83,20 @@ export function CreateHomeworkForm({ onSuccess, subjects }: CreateHomeworkFormPr
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Description <span className="text-muted-foreground/40 normal-case font-bold">(optional)</span></Label>
+        <Label htmlFor="description" className="text-xs font-medium text-muted-foreground ml-1">Description <span className="text-muted-foreground/60 font-normal">(optional)</span></Label>
         <Textarea
           id="description"
           name="description"
           placeholder="Add any extra details, page numbers, or instructions..."
-          className="min-h-[110px] rounded-2xl bg-muted/40 border-border/50 focus:border-primary focus:ring-4 focus:ring-primary/5 text-base font-medium p-4 transition-all resize-none"
+          className="min-h-[110px] rounded-xl bg-muted/40 border-border/50 focus:border-primary focus:ring-4 focus:ring-primary/5 text-base font-medium p-4 transition-all resize-none"
         />
       </div>
 
-      <Button type="submit" disabled={isPending} className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/95 text-primary-foreground font-black text-base shadow-lg shadow-primary/10 transition-all cursor-pointer gap-2">
+      <Button type="submit" disabled={isPending} className="w-full h-12 rounded-xl bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-sm shadow-sm transition-all cursor-pointer gap-2">
         {isPending ? (
-          <><Loader2 className="w-5 h-5 animate-spin" /> ADDING...</>
+          <><Loader2 className="w-4 h-4 animate-spin" /> Adding…</>
         ) : (
-          'ADD HOMEWORK'
+          'Add homework'
         )}
       </Button>
     </form>

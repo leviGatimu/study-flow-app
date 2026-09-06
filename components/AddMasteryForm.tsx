@@ -22,11 +22,12 @@ export function AddMasteryForm({ subject }: { subject: string }) {
 
   return (
     <form onSubmit={handleSubmit} className="flex gap-2">
-      <Input 
+      <Input
+        aria-label="Topic title"
         value={title}
         onChange={e => setTitle(e.target.value)}
         placeholder="e.g. Chapter 1: Introduction"
-        className="h-10 rounded-xl bg-muted/30 border-border/60 font-bold px-4"
+        className="h-10 rounded-xl bg-muted/30 border-border/60 font-medium px-4"
         disabled={isPending}
       />
       <Button 

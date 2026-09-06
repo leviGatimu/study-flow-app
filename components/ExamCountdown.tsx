@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { format, differenceInDays } from 'date-fns';
-import { Trophy, Calendar as CalendarIcon, Plus, Trash2, Clock, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Trophy, Calendar as CalendarIcon, Plus, Trash2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -54,10 +54,10 @@ export function ExamCountdown({ events }: { events: ExamEvent[] }) {
   return (
     <div className="bg-card border border-border/60 rounded-2xl p-6 shadow-sm group hover:shadow-md transition-shadow duration-200">
       
-      <div className="flex items-center justify-between mb-6 relative z-10">
+      <div className="flex items-center justify-between mb-4 relative z-10">
         <Link href="/exams" className="hover:text-primary transition-colors">
-          <h3 className="font-heading font-black text-lg flex items-center gap-2">
-            Upcoming Exams <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-" />
+          <h3 className="font-heading font-bold text-lg flex items-center gap-2">
+            Upcoming Exams <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2" />
           </h3>
         </Link>
         <Dialog open={open} onOpenChange={setOpen}>
@@ -68,23 +68,23 @@ export function ExamCountdown({ events }: { events: ExamEvent[] }) {
           </DialogTrigger>
           <DialogContent className="rounded-2xl">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-heading font-black">Add Major Event</DialogTitle>
+              <DialogTitle className="text-2xl font-heading font-bold">Add major event</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-6 pt-4">
               <div className="space-y-2">
-                <Label className="font-bold">Event Title</Label>
-                <Input required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="e.g. Finals: Physics Paper 1" className="rounded-xl h-12" />
+                <Label htmlFor="event-title" className="text-xs font-medium text-muted-foreground">Event title</Label>
+                <Input id="event-title" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="e.g. Finals: Physics Paper 1" className="rounded-xl h-12" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="font-bold">Date</Label>
-                  <Input type="date" required value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="rounded-xl h-12" />
+                  <Label htmlFor="event-date" className="text-xs font-medium text-muted-foreground">Date</Label>
+                  <Input id="event-date" type="date" required value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="rounded-xl h-12" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="font-bold">Priority</Label>
+                  <Label htmlFor="event-priority" className="text-xs font-medium text-muted-foreground">Priority</Label>
                   <Select value={formData.priority} onValueChange={v => setFormData({...formData, priority: v})}>
-                    <SelectTrigger className="rounded-xl h-12 font-bold"><SelectValue /></SelectTrigger>
-                    <SelectContent className="rounded-xl font-bold">
+                    <SelectTrigger id="event-priority" className="rounded-xl h-12 font-medium"><SelectValue /></SelectTrigger>
+                    <SelectContent className="rounded-xl">
                       <SelectItem value="LOW">Low</SelectItem>
                       <SelectItem value="NORMAL">Normal</SelectItem>
                       <SelectItem value="HIGH">High</SelectItem>
@@ -92,7 +92,7 @@ export function ExamCountdown({ events }: { events: ExamEvent[] }) {
                   </Select>
                 </div>
               </div>
-              <Button disabled={isPending} type="submit" className="w-full h-12 rounded-xl font-black text-lg shadow-lg">Save Event</Button>
+              <Button disabled={isPending} type="submit" className="w-full h-12 rounded-xl font-bold text-sm shadow-sm">Save event</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -102,37 +102,34 @@ export function ExamCountdown({ events }: { events: ExamEvent[] }) {
         {nearestEvent ? (
           <Link href="/exams">
             <div className="flex flex-col items-center text-center p-4 bg-primary/5 rounded-2xl border border-primary/10 hover:bg-primary/10 transition-colors">
-              <div className="relative mb-3">
-                <Trophy className="w-10 h-10 text-primary" />
-                <div className="absolute inset-0 bg-primary blur-xl opacity-20" />
-              </div>
-              <p className="text-xs font-black text-primary uppercase tracking-[0.2em] mb-1">{nearestEvent.title}</p>
+              <Trophy className="w-10 h-10 text-primary mb-3" />
+              <p className="text-xs font-medium text-primary mb-1">{nearestEvent.title}</p>
               <div className="flex items-baseline gap-1">
                 <span className="text-5xl font-heading font-black text-foreground">{daysLeft}</span>
                 <span className="text-xl font-bold text-muted-foreground">Days</span>
               </div>
-              <p className="text-xs font-bold text-muted-foreground mt-2 flex items-center gap-1.5">
+              <p className="text-xs font-medium text-muted-foreground mt-2 flex items-center gap-1.5">
                 <CalendarIcon className="w-3 h-3" /> {format(new Date(nearestEvent.date), 'MMMM do, yyyy')}
               </p>
             </div>
           </Link>
         ) : (
-          <div className="text-center py-8 text-muted-foreground italic text-sm">
+          <div className="text-center py-8 text-muted-foreground text-sm">
             No upcoming exams set.
           </div>
         )}
 
         {upcomingEvents.length > 1 && (
           <div className="space-y-2 pt-2">
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-1">Other Milestones</p>
+            <p className="text-xs font-medium text-muted-foreground px-1">Other milestones</p>
             {upcomingEvents.slice(1, 4).map(event => (
               <Link key={event.id} href="/exams">
                 <div className="flex items-center justify-between p-3 bg-muted/40 rounded-xl hover:bg-muted/60 transition-colors group/item mb-2">
                   <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${event.priority === 'HIGH' ? 'bg-red-500 animate-pulse' : 'bg-blue-400'}`} />
+                    <div className={`w-2 h-2 rounded-full ${event.priority === 'HIGH' ? 'bg-destructive' : 'bg-primary'}`} />
                     <div>
                       <p className="text-sm font-bold text-foreground line-clamp-1">{event.title}</p>
-                      <p className="text-[10px] font-medium text-muted-foreground">{format(new Date(event.date), 'MMM d')}</p>
+                      <p className="text-xs font-medium text-muted-foreground">{format(new Date(event.date), 'MMM d')}</p>
                     </div>
                   </div>
                   <Button

@@ -138,20 +138,19 @@ export function UploadTimetableDialog() {
           variant="outline"
           className="h-11 px-6 rounded-xl border-border bg-card hover:bg-muted font-bold text-sm gap-2 shadow-sm transition-all cursor-pointer"
         >
-          <Upload className="w-4 h-4" /> Upload Timetable
+          <Upload className="w-4 h-4" /> Upload timetable
         </Button>
       </DialogTrigger>
       <DialogContent className="rounded-2xl border border-border bg-card p-0 overflow-hidden w-[95vw] max-w-5xl shadow-2xl max-h-[90vh] flex flex-col">
         <div className="p-8 pb-4 relative shrink-0">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -z-10" />
           <DialogHeader className="relative z-10">
             <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20 mb-4">
               <Sparkles className="w-6 h-6 text-primary" />
             </div>
-            <DialogTitle className="text-2xl font-heading font-black text-foreground uppercase tracking-tight">
-              Upload Timetable
+            <DialogTitle className="text-2xl font-heading font-bold text-foreground">
+              Upload timetable
             </DialogTitle>
-            <p className="text-muted-foreground font-semibold text-xs mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Upload a photo, PDF, or Word file. AI will schedule your exams and plan revision around your week.
             </p>
           </DialogHeader>
@@ -162,10 +161,10 @@ export function UploadTimetableDialog() {
           {error && (
             <div className="mb-5 flex items-start gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive">
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-              <div className="text-sm font-semibold">
+              <div className="text-sm font-medium">
                 {error}
                 {noKey && (
-                  <Link href="/settings" className="block mt-1 underline font-black">
+                  <Link href="/settings" className="block mt-1 underline font-semibold">
                     Add an AI key in Settings →
                   </Link>
                 )}
@@ -176,6 +175,9 @@ export function UploadTimetableDialog() {
           {/* Idle: file picker */}
           {(step === 'idle' || step === 'analyzing') && (
             <div
+              role="button"
+              tabIndex={0}
+              aria-label="Upload a timetable file"
               onDragOver={(e) => {
                 e.preventDefault();
                 setIsDragging(true);
@@ -186,8 +188,14 @@ export function UploadTimetableDialog() {
               }}
               onDrop={onDrop}
               onClick={() => step === 'idle' && inputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (step === 'idle' && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  inputRef.current?.click();
+                }
+              }}
               className={cn(
-                'flex flex-col items-center justify-center gap-4 p-10 rounded-2xl border-2 border-dashed cursor-pointer transition-all text-center',
+                'flex flex-col items-center justify-center gap-4 p-10 rounded-2xl border-2 border-dashed cursor-pointer transition-colors text-center',
                 isDragging ? 'border-primary bg-primary/5' : 'border-border/60 bg-muted/20 hover:border-primary/40 hover:bg-muted/40',
                 step === 'analyzing' && 'pointer-events-none opacity-90'
               )}
@@ -203,8 +211,8 @@ export function UploadTimetableDialog() {
                 <>
                   <Loader2 className="w-10 h-10 text-primary animate-spin" />
                   <div>
-                    <p className="font-black text-foreground uppercase tracking-wide text-sm">Reading your timetable…</p>
-                    <p className="text-xs font-semibold text-muted-foreground mt-1 truncate max-w-xs">{fileName}</p>
+                    <p className="font-semibold text-foreground text-sm">Reading your timetable…</p>
+                    <p className="text-xs text-muted-foreground mt-1 truncate max-w-xs">{fileName}</p>
                   </div>
                 </>
               ) : (
@@ -213,8 +221,8 @@ export function UploadTimetableDialog() {
                     <Upload className="w-7 h-7 text-primary" />
                   </div>
                   <div>
-                    <p className="font-black text-foreground uppercase tracking-wide text-sm">Drop a file or click to browse</p>
-                    <p className="text-xs font-semibold text-muted-foreground mt-1">Image · PDF · Word · max 25 MB</p>
+                    <p className="font-semibold text-foreground text-sm">Drop a file or click to browse</p>
+                    <p className="text-xs text-muted-foreground mt-1">Image · PDF · Word · max 25 MB</p>
                   </div>
                 </>
               )}
@@ -226,12 +234,10 @@ export function UploadTimetableDialog() {
             <div className="space-y-7">
               {/* Exams */}
               <section className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4 text-primary" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                    Exams Found ({plan.exams.length})
-                  </h3>
-                </div>
+                <h3 className="font-heading font-bold text-lg flex items-center gap-2">
+                  <GraduationCap className="w-5 h-5 text-primary" />
+                  Exams found ({plan.exams.length})
+                </h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
                   {plan.exams.map((exam, i) => (
                     <div
@@ -239,27 +245,28 @@ export function UploadTimetableDialog() {
                       className="group flex items-center justify-between gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20"
                     >
                       <div className="min-w-0">
-                        <p className="font-black text-foreground truncate uppercase tracking-tight text-sm">
-                          🚀 {exam.subject}
+                        <p className="font-semibold text-foreground truncate text-sm">
+                          {exam.subject}
                         </p>
-                        <p className="text-[11px] font-bold text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                        <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mt-0.5">
                           <CalendarDays className="w-3 h-3" /> {fmtDate(exam.date)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span
                           className={cn(
-                            'px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border',
+                            'px-2.5 py-1 rounded-full text-xs font-medium border',
                             exam.priority === 'HIGH'
-                              ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                              ? 'bg-destructive/10 text-destructive border-destructive/20'
                               : 'bg-primary/10 text-primary border-primary/20'
                           )}
                         >
-                          {exam.priority}
+                          {exam.priority === 'HIGH' ? 'High' : exam.priority === 'LOW' ? 'Low' : 'Normal'}
                         </span>
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label={`Remove ${exam.subject} exam`}
                           onClick={() => removeExam(i)}
                           disabled={step === 'committing'}
                           className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
@@ -274,21 +281,19 @@ export function UploadTimetableDialog() {
 
               {/* Revision */}
               <section className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <BrainCircuit className="w-4 h-4 text-orange-500" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                    Revision Plan ({plan.revision.length} sessions)
-                  </h3>
-                </div>
+                <h3 className="font-heading font-bold text-lg flex items-center gap-2">
+                  <BrainCircuit className="w-5 h-5 text-orange-500" />
+                  Revision plan ({plan.revision.length} sessions)
+                </h3>
                 {plan.revision.length === 0 ? (
-                  <p className="text-xs font-semibold text-muted-foreground italic p-4 bg-muted/20 rounded-xl border border-dashed border-border/50">
+                  <p className="text-sm font-medium text-muted-foreground text-center py-6 bg-muted/50 rounded-2xl border border-border/50">
                     No revision sessions proposed.
                   </p>
                 ) : (
                   <div className="space-y-4">
                     {Object.entries(revisionBySubject).map(([subject, indexes]) => (
                       <div key={subject} className="space-y-2">
-                        <p className="text-[11px] font-black uppercase tracking-wider text-foreground/80 px-1">
+                        <p className="text-xs font-medium text-muted-foreground px-1">
                           {subject}
                         </p>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-1.5">
@@ -300,16 +305,17 @@ export function UploadTimetableDialog() {
                                 className="group flex items-center justify-between gap-3 p-3 rounded-xl bg-orange-500/5 border border-orange-500/15"
                               >
                                 <div className="min-w-0">
-                                  <p className="text-xs font-bold text-foreground">
+                                  <p className="text-xs font-semibold text-foreground">
                                     {fmtDate(r.date)} · {r.startTime}–{r.endTime}
                                   </p>
                                   {r.focus && (
-                                    <p className="text-[11px] font-medium text-muted-foreground truncate mt-0.5">{r.focus}</p>
+                                    <p className="text-xs font-medium text-muted-foreground truncate mt-0.5">{r.focus}</p>
                                   )}
                                 </div>
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  aria-label="Remove revision session"
                                   onClick={() => removeRevision(i)}
                                   disabled={step === 'committing'}
                                   className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer shrink-0"
@@ -334,12 +340,12 @@ export function UploadTimetableDialog() {
                   disabled={step === 'committing'}
                   className="h-11 px-5 rounded-xl font-bold text-sm cursor-pointer"
                 >
-                  Start Over
+                  Start over
                 </Button>
                 <Button
                   onClick={handleCommit}
                   disabled={step === 'committing' || plan.exams.length === 0}
-                  className="flex-1 h-11 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-md hover:opacity-90 transition-all cursor-pointer gap-2"
+                  className="flex-1 h-11 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-sm hover:opacity-90 transition-all cursor-pointer gap-2"
                 >
                   {step === 'committing' ? (
                     <>
@@ -347,7 +353,7 @@ export function UploadTimetableDialog() {
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 className="w-4 h-4" /> Add to Calendar
+                      <CheckCircle2 className="w-4 h-4" /> Add to calendar
                     </>
                   )}
                 </Button>
