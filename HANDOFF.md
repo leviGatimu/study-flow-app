@@ -1153,6 +1153,56 @@ getSubjects() still seeds an empty table but deletes nothing. This was the
 open item flagged for Levi last session, and it mattered before sync: a
 delete-on-read propagates to every device.
 
+## UX AUDIT (2026-09-06) - what an agent found, worst first
+
+Fixed the same day:
+- [x] Deleting a timetable block had NO confirmation and cascade-deleted every
+      task it ever generated, completed work and proof-of-work included. One
+      click. It was the most destructive control in the app and the least
+      protected. Now confirms with real counts, and deleteTemplate detaches
+      finished tasks first so history survives either way.
+
+Still open, in severity order:
+- [ ] NO ERROR BOUNDARY ANYWHERE. 35 routes have loading.tsx, none has
+      error.tsx. Any unhandled server error drops the user on Next's crash
+      page with no way back - and this app has genuinely had pool exhaustion
+      and Frankfurt round-trip failures. Add app/error.tsx first.
+- [ ] The subject delete checkbox under-discloses: it names homeworks,
+      resources, goals, templates and grades, but lib/subject-actions.ts also
+      deletes every Task for that subject (completed included), TutorModule
+      and StudioNote. Show live counts.
+- [ ] A new user finishes onboarding with nothing to do. registerUser creates
+      an empty class but no templates, the 10-step tour never mentions
+      Plan > Weekly Timetable, and TaskList says "No scheduled tasks for
+      today. Rest up or get ahead!" - identical wording to a caught-up day, so
+      "you have set nothing up" is indistinguishable from "you are done".
+- [ ] Raw exception text reaches unauthenticated users on login and register
+      (lib/actions.ts:59, :95), and in Settings export/import.
+- [ ] TWO different deleteSubject implementations with different blast radius,
+      wired to different buttons (lib/actions.ts:1105 vs
+      lib/subject-actions.ts:342). Consolidate.
+- [ ] The month calendar is unusable below ~500px: fixed grid-cols-7,
+      min-h-[140px] cells, and a parent overflow-hidden that clips instead of
+      scrolling. Needs an agenda view on mobile.
+- [ ] The mobile nav drawer does not close when you tap a destination.
+- [ ] ~87 form inputs have visible labels with no htmlFor/id pairing, so a
+      screen reader announces no name for them.
+- [ ] The dashboard's main task rows are div+onClick with no keyboard access
+      (TaskList.tsx:113). Same on calendar day cells and subject cards.
+- [ ] 15+ icon-only destructive buttons have no aria-label.
+- [ ] "School Portal" is a permanent nav item that dead-ends for every
+      non-admin account. Hide it unless isAdmin.
+- [ ] Nav confusion: "This Week" (/timetable, a read view) sits next to
+      "Weekly Timetable" (/manage, the editor) - the one named "timetable"
+      opens the editor.
+- [ ] Progress has 8 children; Insights, Summaries and Daily Summary all
+      answer "how am I doing" at uncommunicated granularity.
+
+Already good, do not re-flag: term/class lifecycle never hard-deletes; the
+main forms all use isPending correctly so there is no double-submit problem;
+empty states on /manage, /resources, /exams, /summaries, /goals, /homeworks,
+/marks and /insights are genuinely good; all images have alt text.
+
 ## THE THREE NEW FEATURES (asked for 2026-09-06, designed, not built)
 
 ### Offline desktop login

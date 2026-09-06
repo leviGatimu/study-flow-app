@@ -576,12 +576,60 @@ export async function getTemplates() {
 /**
  * Delete a template
  */
+/**
+ * What deleting a timetable block would actually destroy.
+ *
+ * Task.template is ON DELETE CASCADE, so removing a block takes every task
+ * ever generated from it - including finished ones carrying a written
+ * description and an uploaded proof of work. The UI has to be able to say so
+ * before the user commits.
+ */
+export async function getTemplateDeletionImpact(id: string) {
+  const userId = await getUserId();
+  if (!userId) return { completed: 0, pending: 0, subject: '' };
+
+  const [template, completed, pending] = await Promise.all([
+    prisma.scheduleTemplate.findFirst({ where: { id, userId }, select: { subject: true } }),
+    prisma.task.count({ where: { templateId: id, userId, isDeleted: false, isDone: true } }),
+    prisma.task.count({ where: { templateId: id, userId, isDeleted: false, isDone: false } }),
+  ]);
+
+  return { completed, pending, subject: template?.subject ?? '' };
+}
+
+/**
+ * Delete a recurring timetable block WITHOUT taking finished work with it.
+ *
+ * This used to be a bare deleteMany fired straight from an unconfirmed icon
+ * button, and the cascade did the rest: one click removed the block and every
+ * task it had ever produced, completed history included.
+ *
+ * Completed tasks are detached first - templateId set to null, which is the
+ * same shape a one-off task has - so they survive as history. Only the undone
+ * instances go, which is what removing a block from your timetable should mean.
+ */
 export async function deleteTemplate(id: string) {
   const userId = await getUserId();
   if (!userId) return;
 
+  await prisma.task.updateMany({
+    where: {
+      templateId: id,
+      userId,
+      OR: [
+        { isDone: true },
+        { proofPdfUrl: { not: null } },
+        { workDescription: { not: null } },
+      ],
+    },
+    data: { templateId: null },
+  });
+
   await prisma.scheduleTemplate.deleteMany({ where: { id, userId } });
+
   revalidatePath('/manage');
+  revalidatePath('/history');
+  revalidatePath('/');
 }
 
 /**
