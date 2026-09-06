@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { Zap, Play, ArrowRight, Clock, Coffee, Target, Flame, Pause, School } from 'lucide-react';
+import { Zap, ArrowRight, Clock, Coffee, School } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -11,7 +11,6 @@ import { cn, getRwandaTime } from '@/lib/utils';
 import { useFocus } from '@/lib/FocusContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SCHOOL_DATA, Lesson } from './SchoolTimetable';
-import { SelfGuidedStarter } from './SelfGuidedStarter';
 import { format } from 'date-fns';
 
 export function LiveFocusCard({ 
@@ -227,28 +226,33 @@ export function LiveFocusCard({
    * status the card was already showing in much larger type. One card, one
    * status, and the controls that belong to it.
    */
-  const cardControls = (
-    <div className="relative z-10 mt-8 pt-5 border-t border-white/15 flex flex-wrap items-center justify-between gap-4">
-      {hudState === 'break' ? (
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-white/70 shrink-0">Session</span>
-          <SelfGuidedStarter onDark />
-        </div>
-      ) : (
-        <span className="text-xs font-bold text-white/60">
-          {isTimetableSynced ? 'Following your school timetable' : 'School timetable off'}
-        </span>
-      )}
+  /**
+   * The timetable-sync toggle, sized to sit inline in a card header.
+   *
+   * It used to live in a footer strip below a divider, next to a session-length
+   * slider and a Start button. Those are gone from this card - starting a
+   * session belongs on the task itself, not buried under a status readout -
+   * which leaves sync as the one control here, so it sits with the status
+   * rather than in a bar of its own.
+   */
+  const syncToggle = (
+    <label className="flex shrink-0 cursor-pointer items-center gap-2.5">
+      <span className="text-xs font-medium text-white/70">Timetable sync</span>
+      <Switch
+        checked={isTimetableSynced}
+        onCheckedChange={handleToggleSync}
+        aria-label="Follow your school timetable"
+        className="data-[state=checked]:bg-white data-[state=unchecked]:bg-white/25 [&_[data-slot=switch-thumb]]:bg-emerald-700"
+      />
+    </label>
+  );
 
-      <label className="flex items-center gap-3 cursor-pointer shrink-0">
-        <span className="text-xs font-bold text-white/70">Timetable sync</span>
-        <Switch
-          checked={isTimetableSynced}
-          onCheckedChange={handleToggleSync}
-          aria-label="Toggle timetable sync"
-          className="data-[state=checked]:bg-white data-[state=unchecked]:bg-white/30 [&_[data-slot=switch-thumb]]:bg-slate-900"
-        />
-      </label>
+  const cardControls = (
+    <div className="relative z-10 mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-white/15 pt-5">
+      <span className="text-xs font-medium text-white/60">
+        {isTimetableSynced ? 'Following your school timetable' : 'School timetable off'}
+      </span>
+      {syncToggle}
     </div>
   );
 
@@ -491,50 +495,54 @@ export function LiveFocusCard({
         ? `${breakTimeLeft.m} min`
         : `${breakTimeLeft.s}s`;
 
+    const doneToday = todayTasks.filter((t) => t.isDone).length;
+
     return (
       <motion.div key="fallback-break" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full">
-        <Card className="relative overflow-hidden border-none bg-emerald-500 rounded-2xl p-6 md:p-8 shadow-sm">
-          <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-             <div className="flex-1 space-y-3 text-white">
-                <div className="flex items-center gap-2 text-sm font-semibold text-white/90">
-                   <Coffee className="w-4 h-4" />
-                   <span>On a break</span>
-                </div>
+        <Card className="relative overflow-hidden rounded-2xl border-none bg-gradient-to-br from-emerald-500 to-emerald-600 p-6 text-white shadow-sm md:p-8">
+          {/* Header: what state you are in, and the one control that belongs here. */}
+          <div className="flex items-center justify-between gap-4">
+             <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium text-white">
+                <Coffee className="size-3.5" />
+                On a break
+             </span>
+             {syncToggle}
+          </div>
 
-                {hasCountdown ? (
-                  <>
-                    <h2 className="font-heading text-3xl font-bold tracking-tight md:text-4xl">
+          <div className="mt-6 border-t border-white/15 pt-6">
+            {hasCountdown ? (
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+                 <div className="min-w-0 space-y-1.5">
+                    <h2 className="truncate font-heading text-3xl font-semibold tracking-tight md:text-4xl">
                        {nextTask!.subject}
                     </h2>
-                    <p className="text-base text-white/80">
-                       {nextTask!.type === 'REVISION' ? 'Revision' : 'Homework'} starts at{' '}
-                       <span className="font-semibold text-white">{nextTask!.startTime}</span>
-                       {' - '}in {untilNext}.
+                    <p className="text-sm text-white/75">
+                       {nextTask!.type === 'REVISION' ? 'Revision' : 'Homework'}
+                       <span className="px-1.5 text-white/40">/</span>
+                       {nextTask!.startTime} - {nextTask!.endTime}
                     </p>
-                  </>
-                ) : (
-                  <>
-                    <h2 className="font-heading text-3xl font-bold tracking-tight md:text-4xl">
-                       Nothing scheduled next
-                    </h2>
-                    <p className="max-w-xl text-base text-white/80">
-                       That is the day&apos;s blocks done. Rest, or start a session of your own
-                       below if you want to keep going.
-                    </p>
-                  </>
-                )}
-             </div>
+                 </div>
 
-             {hasCountdown && (
-               <div className="shrink-0 lg:text-right">
-                  <p className="text-sm text-white/70">Starts in</p>
-                  <p className="font-heading text-5xl font-bold tabular-nums tracking-tight text-white md:text-6xl">
-                     {untilNext}
-                  </p>
-               </div>
-             )}
+                 <div className="shrink-0 sm:text-right">
+                    <p className="font-heading text-4xl font-semibold tabular-nums tracking-tight md:text-5xl">
+                       {untilNext}
+                    </p>
+                    <p className="text-sm text-white/70">until it starts</p>
+                 </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                 <h2 className="font-heading text-3xl font-semibold tracking-tight md:text-4xl">
+                    Nothing left today
+                 </h2>
+                 <p className="text-sm text-white/75">
+                    {doneToday > 0
+                      ? `All ${doneToday} of today's ${doneToday === 1 ? 'block' : 'blocks'} are done. Rest up.`
+                      : 'No blocks are scheduled for today.'}
+                 </p>
+              </div>
+            )}
           </div>
-          {cardControls}
         </Card>
       </motion.div>
     );
