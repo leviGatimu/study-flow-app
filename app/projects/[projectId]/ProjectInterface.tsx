@@ -175,7 +175,7 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
           onClick={() => setIsAiOpen(true)}
           className="m-4 p-6 rounded-3xl bg-primary/10 border border-primary/20 text-primary flex items-center gap-4 hover:bg-primary/20 transition-all group shadow-sm"
         >
-           <div className="p-2 bg-primary rounded-xl text-white shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
+           <div className="p-2 bg-primary rounded-xl text-white shadow-lg shadow-primary/20 transition-transform">
              <BrainCircuit className="w-5 h-5" />
            </div>
            <div className="text-left">
@@ -238,9 +238,9 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
 
       {/* AI Sidepanel Overlay */}
       {isAiOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/20 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsAiOpen(false)}>
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/20 backdrop-blur-sm" onClick={() => setIsAiOpen(false)}>
            <div 
-             className="w-[500px] h-full bg-background border-l shadow-2xl flex flex-col animate-in slide-in-from-right duration-500"
+             className="w-[500px] h-full bg-background border-l shadow-2xl flex flex-col"
              onClick={(e) => e.stopPropagation()}
            >
               <div className="p-8 border-b flex items-center justify-between">
@@ -260,7 +260,7 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
 
               <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                  {aiResponse ? (
-                   <div className="prose prose-sm dark:prose-invert max-w-none animate-in fade-in slide-in-from-bottom-4 duration-500">
+                   <div className="prose prose-sm dark:prose-invert max-w-none">
                       <div className="bg-muted/30 p-6 rounded-3xl border border-border/40 whitespace-pre-wrap font-medium leading-relaxed text-base">
                         <Typewriter text={aiResponse} />
                       </div>
@@ -305,7 +305,7 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
                     />
                     <Button 
                       size="icon" 
-                      className="absolute right-4 bottom-4 h-12 w-12 rounded-2xl shadow-lg shadow-primary/20 active:scale-90 transition-all"
+                      className="absolute right-4 bottom-4 h-12 w-12 rounded-2xl shadow-lg shadow-primary/20 transition-all"
                       onClick={handleAskAi}
                       disabled={isAiLoading || !aiInput.trim()}
                     >

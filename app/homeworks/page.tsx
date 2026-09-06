@@ -17,7 +17,7 @@ export default async function HomeworksPage() {
   ]);
 
   return (
-    <div className="space-y-10 max-w-[1600px] mx-auto animate-in fade-in duration-500 p-4 md:p-8 pb-16">
+    <div className="space-y-10 max-w-[1600px] mx-auto p-4 md:p-8 pb-16">
       {/* Header */}
       <div className="pt-10 pb-6 border-b border-border/40 mb-4">
         <h1 className="text-5xl md:text-6xl font-heading font-black tracking-tight text-foreground uppercase flex items-center gap-4">

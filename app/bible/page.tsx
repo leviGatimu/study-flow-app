@@ -142,7 +142,7 @@ export default function BiblePage() {
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ type: "spring", stiffness: 300, damping: 28 }}
                       key={verse.ref}
-                      className="bg-card border border-border/60 border-l-4 border-l-primary p-6 sm:p-8 rounded-[28px] shadow-sm relative overflow-hidden flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 transition-all group"
+                      className="bg-card border border-border/60 border-l-4 border-l-primary p-6 sm:p-8 rounded-[28px] shadow-sm relative overflow-hidden flex flex-col justify-between hover:shadow-md transition-all group"
                     >
                       <div className="absolute right-4 top-4">
                         <Button

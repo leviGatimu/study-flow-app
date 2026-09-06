@@ -58,7 +58,7 @@ export function ValidationModal({
           <div className="w-full pt-4">
             <Button
               onClick={onClose}
-              className="w-full h-16 rounded-3xl font-black text-xl shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3"
+              className="w-full h-16 rounded-3xl font-black text-xl shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] flex items-center justify-center gap-3"
             >
               GOT IT! <Sparkles className="w-5 h-5" />
             </Button>

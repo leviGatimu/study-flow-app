@@ -136,7 +136,7 @@ export function DailyQuote() {
 
   return (
     <Link href="/bible" className="block mt-6">
-      <div className="bg-card border border-border/60 border-l-4 border-l-primary p-6 sm:p-8 rounded-3xl shadow-sm relative overflow-hidden animate-in fade-in duration-500 hover:-translate-y-0.5 hover:shadow-md transition-all group">
+      <div className="bg-card border border-border/60 border-l-4 border-l-primary p-6 sm:p-8 rounded-2xl shadow-sm relative overflow-hidden hover:shadow-md transition-shadow duration-200 group">
         <div className="absolute left-0 bottom-0 w-full h-1/2 bg-gradient-to-t from-primary/5 to-transparent pointer-events-none" />
         
         {/* Bookmark Button */}

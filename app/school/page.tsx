@@ -29,7 +29,7 @@ export default async function SchoolPage() {
   }
 
   return (
-    <div className="space-y-12 max-w-[1600px] mx-auto animate-in fade-in duration-500 pb-16">
+    <div className="space-y-12 max-w-[1600px] mx-auto pb-16">
       <div className="pt-6 pb-2 border-b border-border/40 flex items-center justify-between">
         <div>
           <h1 className="text-5xl font-heading font-black tracking-tight text-foreground">School Portal</h1>

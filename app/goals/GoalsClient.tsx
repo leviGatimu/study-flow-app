@@ -242,7 +242,7 @@ export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects }
   }, [subjectList, initialGoals, editingGoalId]);
 
   return (
-    <div className="space-y-8 max-w-[1600px] mx-auto animate-in fade-in duration-500 pb-16">
+    <div className="space-y-8 max-w-[1600px] mx-auto pb-16">
       
       {/* Dynamic Header */}
       <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md px-4 md:px-8 pt-10 pb-6 border-b border-border/40 shrink-0 mb-4">
@@ -389,7 +389,7 @@ export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects }
 
                 {/* Custom Subject Text Input */}
                 {selectedSubject === 'custom' && !editingGoalId && (
-                  <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
+                  <div className="space-y-2">
                     <Label className="text-xs font-black text-muted-foreground uppercase tracking-wider">Custom Subject Name</Label>
                     <Input
                       required
@@ -404,7 +404,7 @@ export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects }
 
                 {/* Reference standing indicator */}
                 {selectedSubjectData && (
-                  <div className="bg-primary/5 border border-primary/15 rounded-xl p-4 space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="bg-primary/5 border border-primary/15 rounded-xl p-4 space-y-2">
                     <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-muted-foreground">
                       <span>Academic Record Reference</span>
                       <Info className="w-3.5 h-3.5 text-primary" />
@@ -478,7 +478,7 @@ export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects }
                   <Button
                     disabled={isPending}
                     type="submit"
-                    className="flex-[2] h-12 rounded-xl font-heading font-black text-sm shadow-md shadow-primary/10 hover:shadow-primary/20 transition-all active:scale-95"
+                    className="flex-[2] h-12 rounded-xl font-heading font-black text-sm shadow-md shadow-primary/10 hover:shadow-primary/20 transition-all"
                   >
                     {isPending 
                       ? "Saving..." 

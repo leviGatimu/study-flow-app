@@ -196,7 +196,7 @@ export function TutorSetupForm({ subjects }: { subjects: string[] }) {
           "w-full h-16 rounded-[24px] font-black text-xl shadow-xl transition-all",
           loading 
             ? "bg-muted cursor-wait" 
-            : "bg-primary shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-95"
+            : "bg-primary shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02]"
         )}
       >
         {loading ? (

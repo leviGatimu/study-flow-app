@@ -411,7 +411,7 @@ export function TutorHub({ module }: { module: any }) {
 
         {/* FLASHCARDS OVERVIEW MODE */}
         {mode === 'history' && subTab === 'flashcards' && (
-          <div className="max-w-4xl mx-auto p-6 md:p-10 space-y-8 animate-in fade-in duration-300">
+          <div className="max-w-4xl mx-auto p-6 md:p-10 space-y-8">
             {/* Embedded styles for 3D flip card */}
             <style>{`
               .flip-card {
@@ -667,7 +667,7 @@ export function TutorHub({ module }: { module: any }) {
                           {q.question}
                         </h2>
                         {hints[q.id] && (
-                          <div className="p-4 bg-primary/10 border border-primary/20 rounded-2xl text-primary text-sm font-semibold flex gap-3 items-start animate-in fade-in slide-in-from-top-2">
+                          <div className="p-4 bg-primary/10 border border-primary/20 rounded-2xl text-primary text-sm font-semibold flex gap-3 items-start">
                             <Sparkles className="w-5 h-5 shrink-0 mt-0.5" />
                             <p>{hints[q.id]}</p>
                           </div>
@@ -1078,7 +1078,7 @@ export function TutorHub({ module }: { module: any }) {
                 </div>
               ) : (
                 /* Session Complete Screen */
-                <div className="w-full max-w-md text-center space-y-6 animate-in zoom-in duration-300">
+                <div className="w-full max-w-md text-center space-y-6">
                   <div className="w-20 h-20 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 mx-auto">
                     <Award className="w-10 h-10" />
                   </div>

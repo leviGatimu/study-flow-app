@@ -63,7 +63,7 @@ export function AddResourceForm({ subject: initialSubject, allSubjects = [] }: {
           <Plus className="w-3.5 h-3.5 mr-2" /> Add Material
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md rounded-[32px] p-8 border shadow-2xl animate-in zoom-in-95 duration-300">
+      <DialogContent className="sm:max-w-md rounded-[32px] p-8 border shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-3xl font-heading font-black tracking-tighter">Add Resource</DialogTitle>
         </DialogHeader>
@@ -105,7 +105,7 @@ export function AddResourceForm({ subject: initialSubject, allSubjects = [] }: {
           </div>
 
           {type === 'LINK' ? (
-            <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+            <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">URL</Label>
               <div className="relative">
                 <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -113,7 +113,7 @@ export function AddResourceForm({ subject: initialSubject, allSubjects = [] }: {
               </div>
             </div>
           ) : (
-            <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+            <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Upload File</Label>
               <div className="relative group">
                 <Input name="file" type="file" required className="h-24 rounded-2xl bg-muted/30 border-2 border-dashed border-border/40 font-bold p-8 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors file:hidden" />

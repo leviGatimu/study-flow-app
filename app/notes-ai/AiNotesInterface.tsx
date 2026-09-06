@@ -370,7 +370,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                 onClick={() => { setSelectedNote(null); setIsCreateMode(true); }}
                 variant="ghost" 
                 size="icon" 
-                className="h-9 w-9 rounded-xl hover:bg-primary/10 hover:text-primary transition-all active:scale-95"
+                className="h-9 w-9 rounded-xl hover:bg-primary/10 hover:text-primary transition-all"
                 title="Generate New Note"
               >
                 <Plus className="h-5 w-5" />
@@ -955,7 +955,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                         key={col.hex}
                         onClick={() => setStickyColor(col.hex)}
                         className={cn(
-                          "h-7 w-7 rounded-full transition-transform active:scale-90 border",
+                          "h-7 w-7 rounded-full transition-transform border",
                           stickyColor === col.hex ? "scale-110 border-primary ring-2 ring-primary/20" : "border-border/30"
                         )}
                         style={{ backgroundColor: col.hex }}

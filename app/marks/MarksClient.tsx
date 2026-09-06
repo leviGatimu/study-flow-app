@@ -373,7 +373,7 @@ export function MarksClient({
   };
 
   return (
-    <div className="space-y-10 max-w-[1600px] mx-auto animate-in fade-in duration-500 pb-20">
+    <div className="space-y-10 max-w-[1600px] mx-auto pb-20">
       
       {/* Top Ribbon Controls */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-border/40">
@@ -492,7 +492,7 @@ export function MarksClient({
                       )}
                     >
                       {uploadFile ? (
-                        <div className="flex flex-col items-center gap-3 p-4 text-center animate-in fade-in zoom-in duration-300">
+                        <div className="flex flex-col items-center gap-3 p-4 text-center">
                           <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
                             <FileText className="w-6 h-6" />
                           </div>
@@ -652,7 +652,7 @@ export function MarksClient({
 
             {/* Historical Progression Graph */}
             {allTermsHistory.length > 1 && (
-              <div className="bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl rounded-[28px] p-6.5 space-y-4 animate-in fade-in duration-700">
+              <div className="bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl rounded-[28px] p-6.5 space-y-4">
                 <div className="flex sm:items-center justify-between gap-4 border-b border-border/30 pb-3">
                   <div className="flex items-center gap-2">
                     <History className="w-4 h-4 text-primary" />

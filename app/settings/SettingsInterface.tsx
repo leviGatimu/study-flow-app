@@ -503,7 +503,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
   ];
 
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-8 pt-8 pb-24 animate-in fade-in duration-500">
+    <div className="max-w-5xl mx-auto px-4 md:px-8 pt-8 pb-24">
       
       {/* Header */}
       <div className="mb-8">
@@ -533,7 +533,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
           
           {/* ===== ACCOUNT ===== */}
           {activeTab === 'account' && (
-            <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="space-y-8">
               
               {/* Stats row */}
               <div className="grid grid-cols-3 gap-3">
@@ -714,7 +714,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
 
           {/* ===== APPEARANCE ===== */}
           {activeTab === 'appearance' && (
-            <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="space-y-8">
               
               <SettingsSection title="Theme" description="Choose your preferred color scheme">
                 <SettingsRow label="Mode" icon={Sun}>
@@ -841,7 +841,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
 
           {/* ===== FOCUS & TIMERS ===== */}
           {activeTab === 'focus' && (
-            <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="space-y-8">
               
               <SettingsSection title="Pomodoro Presets" description="Customize the quick-start timer durations on your dashboard">
                 <div className="px-4 py-4 space-y-4">
@@ -917,7 +917,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
 
           {/* ===== AI ASSISTANT ===== */}
           {activeTab === 'ai' && (
-            <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="space-y-8">
               
               <SettingsSection title="AI Persona" description="Choose how the AI study assistant communicates">
                 <div className="px-4 py-4">
@@ -1187,7 +1187,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
 
           {/* ===== DATA & BACKUP ===== */}
           {activeTab === 'data' && (
-            <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="space-y-8">
               
               <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
                 <div className="flex items-start gap-3">
@@ -1248,7 +1248,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                   </div>
 
                   {dbStatus && (
-                    <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border text-xs space-y-1.5 animate-in fade-in duration-300">
+                    <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border text-xs space-y-1.5">
                       <p className="text-emerald-600 font-medium flex items-center gap-1.5">
                         <Check className="w-3.5 h-3.5" /> All checks passed
                       </p>
@@ -1288,7 +1288,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
 
           {/* ===== ABOUT ===== */}
           {activeTab === 'about' && (
-            <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="space-y-8">
               <div className="rounded-xl border border-border bg-card p-8 text-center">
                 <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <Zap className="w-8 h-8 text-primary" />

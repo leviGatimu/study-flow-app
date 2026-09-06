@@ -69,7 +69,7 @@ export default function TutorClient() {
 
           <div className="flex items-center gap-4">
             <Link href="/tutor/new">
-              <Button className="h-14 px-8 rounded-full bg-foreground text-background hover:bg-primary hover:text-primary-foreground font-bold text-base gap-2 shadow-lg hover:-translate-y-0.5 transition-all">
+              <Button className="h-14 px-8 rounded-full bg-foreground text-background hover:bg-primary hover:text-primary-foreground font-bold text-base gap-2 shadow-lg transition-all">
                 <Plus className="w-5 h-5" /> Generate New Quiz
               </Button>
             </Link>

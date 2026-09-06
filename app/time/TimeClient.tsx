@@ -62,7 +62,7 @@ export function TimeClient({
   }, [todayTasks, timezone]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 md:p-12 animate-in fade-in duration-700">
+    <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 md:p-12">
       
       {/* Back Button */}
       <div className="absolute top-10 left-10">

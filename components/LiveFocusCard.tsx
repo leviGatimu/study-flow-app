@@ -11,6 +11,7 @@ import { cn, getRwandaTime } from '@/lib/utils';
 import { useFocus } from '@/lib/FocusContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SCHOOL_DATA, Lesson } from './SchoolTimetable';
+import { SelfGuidedStarter } from './SelfGuidedStarter';
 import { format } from 'date-fns';
 
 export function LiveFocusCard({ 
@@ -218,14 +219,38 @@ export function LiveFocusCard({
     : nextSchoolLesson ? 'schoolBreak'
     : 'break';
 
-  const hudLabel = {
-    studying: isActuallyRunning ? `Studying: ${activeTask.subject}` : '',
-    paused: isActuallyRunning ? `Paused: ${activeTask.subject}` : '',
-    school: activeSchoolLesson ? `School Session: ${activeSchoolLesson.subject}` : '',
-    scheduled: currentScheduledTask ? `Scheduled: ${currentScheduledTask.subject}` : '',
-    schoolBreak: nextSchoolLesson ? `Next School Lesson: ${nextSchoolLesson.subject}` : '',
-    break: 'Self-Guided Mode',
-  }[hudState];
+  /**
+   * The status card owns its controls now: timetable sync on every state, plus
+   * the self-guided session starter when nothing is scheduled.
+   *
+   * These used to live on a separate strip above the card, which repeated the
+   * status the card was already showing in much larger type. One card, one
+   * status, and the controls that belong to it.
+   */
+  const cardControls = (
+    <div className="relative z-10 mt-8 pt-5 border-t border-white/15 flex flex-wrap items-center justify-between gap-4">
+      {hudState === 'break' ? (
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold text-white/70 shrink-0">Session</span>
+          <SelfGuidedStarter onDark />
+        </div>
+      ) : (
+        <span className="text-xs font-bold text-white/60">
+          {isTimetableSynced ? 'Following your school timetable' : 'School timetable off'}
+        </span>
+      )}
+
+      <label className="flex items-center gap-3 cursor-pointer shrink-0">
+        <span className="text-xs font-bold text-white/70">Timetable sync</span>
+        <Switch
+          checked={isTimetableSynced}
+          onCheckedChange={handleToggleSync}
+          aria-label="Toggle timetable sync"
+          className="data-[state=checked]:bg-white data-[state=unchecked]:bg-white/30 [&_[data-slot=switch-thumb]]:bg-slate-900"
+        />
+      </label>
+    </div>
+  );
 
   const renderCardContent = () => {
     // 1. HIGHEST PRIORITY: MANUALLY STARTED FOCUS SESSION
@@ -285,6 +310,7 @@ export function LiveFocusCard({
                   </div>
                </div>
             </div>
+            {cardControls}
           </Card>
         </motion.div>
       );
@@ -338,6 +364,7 @@ export function LiveFocusCard({
                   </Link>
                </div>
             </div>
+            {cardControls}
           </Card>
         </motion.div>
       );
@@ -389,6 +416,7 @@ export function LiveFocusCard({
                   </div>
                </div>
             </div>
+            {cardControls}
           </Card>
         </motion.div>
       );
@@ -442,6 +470,7 @@ export function LiveFocusCard({
                   </Link>
                </div>
             </div>
+            {cardControls}
           </Card>
         </motion.div>
       );
@@ -496,73 +525,14 @@ export function LiveFocusCard({
                 </div>
              </div>
           </div>
+          {cardControls}
         </Card>
       </motion.div>
     );
   };
 
   return (
-    <div className="w-full space-y-4">
-      {/* Sync Control Header / HUD */}
-      <div className="bg-card/60 backdrop-blur-xl border border-border/40 px-5 py-3 rounded-[20px] flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className={cn(
-            "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors",
-            hudState === 'studying' ? "bg-primary/10 text-primary" :
-            hudState === 'paused' ? "bg-amber-500/10 text-amber-600" :
-            hudState === 'school' ? "bg-blue-600/10 text-blue-600" :
-            hudState === 'scheduled' ? "bg-orange-500/10 text-orange-600" :
-            hudState === 'schoolBreak' ? "bg-indigo-500/10 text-indigo-600" :
-            "bg-emerald-500/10 text-emerald-600"
-          )}>
-            <School className="w-4 h-4" />
-          </div>
-          <div className="min-w-0">
-            <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground leading-none mb-1.5">
-              <span className="relative flex h-1.5 w-1.5 shrink-0">
-                <span className={cn(
-                  "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
-                  hudState === 'studying' ? "bg-primary" :
-                  hudState === 'paused' ? "bg-amber-500" :
-                  hudState === 'school' ? "bg-blue-600" :
-                  hudState === 'scheduled' ? "bg-orange-500" :
-                  hudState === 'schoolBreak' ? "bg-indigo-500" :
-                  "bg-emerald-500"
-                )} />
-                <span className={cn(
-                  "relative inline-flex rounded-full h-1.5 w-1.5",
-                  hudState === 'studying' ? "bg-primary" :
-                  hudState === 'paused' ? "bg-amber-500" :
-                  hudState === 'school' ? "bg-blue-600" :
-                  hudState === 'scheduled' ? "bg-orange-500" :
-                  hudState === 'schoolBreak' ? "bg-indigo-500" :
-                  "bg-emerald-500"
-                )} />
-              </span>
-              Dashboard HUD
-            </span>
-            <span className="block text-xs font-bold text-foreground truncate">
-              {hudLabel}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 shrink-0">
-          <div className="h-8 w-px bg-border/60" />
-          <div className="flex flex-col text-right select-none">
-            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1">Timetable Sync</span>
-            <span className="text-[11px] font-bold text-foreground leading-none">
-              {isTimetableSynced ? 'Synced (Active)' : 'Unsynced (Off-School)'}
-            </span>
-          </div>
-          <Switch
-            checked={isTimetableSynced}
-            onCheckedChange={handleToggleSync}
-            aria-label="Toggle Timetable Sync"
-          />
-        </div>
-      </div>
-
+    <div className="w-full">
       {/* Card Content */}
       <AnimatePresence mode="wait">
         {renderCardContent()}

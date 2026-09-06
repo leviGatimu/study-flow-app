@@ -30,7 +30,7 @@ export function ConfirmModal({
 }: ConfirmModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[400px] rounded-[32px] p-8 border-none shadow-2xl animate-in zoom-in-95 duration-200">
+      <DialogContent className="sm:max-w-[400px] rounded-[32px] p-8 border-none shadow-2xl">
         <div className="flex flex-col items-center text-center space-y-6">
           <div className="p-4 bg-destructive/10 rounded-full text-destructive">
             <AlertTriangle className="w-10 h-10" />
@@ -58,7 +58,7 @@ export function ConfirmModal({
               variant="destructive"
               onClick={onConfirm}
               disabled={isPending}
-              className="flex-1 h-12 rounded-2xl font-heading font-black shadow-lg shadow-destructive/20 active:scale-95 transition-all"
+              className="flex-1 h-12 rounded-2xl font-heading font-black shadow-lg shadow-destructive/20 transition-all"
             >
               {isPending ? "Removing..." : "Yes, Remove"}
             </Button>

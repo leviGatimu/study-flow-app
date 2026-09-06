@@ -36,14 +36,14 @@ export function DynamicGreeting({ name = 'Student', timezone = DEFAULT_TIMEZONE 
 
   if (!mounted) {
     return (
-      <h1 className="text-5xl font-heading font-black tracking-tight text-foreground opacity-0">
+      <h1 className="text-4xl font-heading font-black tracking-tight text-foreground opacity-0">
         Good morning, {name}.
       </h1>
     );
   }
 
   return (
-    <h1 className="text-5xl font-heading font-black tracking-tight text-foreground animate-in fade-in duration-500">
+    <h1 className="text-4xl font-heading font-black tracking-tight text-foreground">
       {greeting}, {name}.
     </h1>
   );

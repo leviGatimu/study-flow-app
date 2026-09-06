@@ -46,7 +46,7 @@ export function TaskCheckbox({ taskId, isDone, isMissed, hasProof }: { taskId: s
         }}
         disabled={isPending}
         className={cn(
-          "w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all active:scale-90",
+          "w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all",
           isDone 
             ? "bg-success border-success text-white shadow-lg shadow-success/30" 
             : "border-border hover:border-success/50 text-transparent hover:text-success/30"
@@ -63,7 +63,7 @@ export function TaskCheckbox({ taskId, isDone, isMissed, hasProof }: { taskId: s
         }}
         disabled={isPending}
         className={cn(
-          "w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all active:scale-90",
+          "w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all",
           isMissed 
             ? "bg-destructive border-destructive text-white shadow-lg shadow-destructive/30" 
             : "border-border hover:border-destructive/50 text-transparent hover:text-destructive/30"

@@ -73,7 +73,7 @@ export function ReminderManager() {
     <>
       {/* Mini Status Indicator in Sidebar or Layout if needed, but for now just the prompt */}
       <Dialog open={showPrompt} onOpenChange={setShowPrompt}>
-        <DialogContent className="sm:max-w-[400px] rounded-[32px] p-8 border-none shadow-2xl animate-in zoom-in-95 duration-200">
+        <DialogContent className="sm:max-w-[400px] rounded-[32px] p-8 border-none shadow-2xl">
           <div className="flex flex-col items-center text-center space-y-6">
             <div className="p-4 bg-primary/10 rounded-full text-primary">
               <Bell className="w-10 h-10" />
@@ -98,7 +98,7 @@ export function ReminderManager() {
               </Button>
               <Button
                 onClick={requestPermission}
-                className="flex-1 h-12 rounded-2xl font-heading font-black shadow-lg shadow-primary/20 active:scale-95 transition-all"
+                className="flex-1 h-12 rounded-2xl font-heading font-black shadow-lg shadow-primary/20 transition-all"
               >
                 Enable
               </Button>

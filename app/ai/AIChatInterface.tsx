@@ -928,7 +928,7 @@ Today's date is ${new Date().toDateString()}.`
                           type="submit" 
                           size="icon" 
                           className={cn(
-                            "rounded-2xl shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 duration-200",
+                            "rounded-2xl shadow-lg transition-all disabled:opacity-50 disabled:hover:scale-100 duration-200",
                             hasMessages ? "h-10 w-10 bg-foreground text-background" : "h-12 w-12 bg-primary text-primary-foreground shadow-primary/20",
                             activePersonaObj.id !== 'default' && activePersonaObj.avatarBg
                           )}

@@ -13,7 +13,7 @@ export function DeleteResourceButton({ id, subject }: { id: string, subject: str
       variant="ghost" 
       size="icon"
       disabled={isPending}
-      className="h-10 w-10 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all active:scale-90"
+      className="h-10 w-10 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
       onClick={() => {
         if (confirm('Are you sure you want to delete this resource?')) {
           startTransition(() => {

@@ -6,14 +6,14 @@ export function ProgressWidget({ percentage, completed, total }: { percentage: n
   const isComplete = percentage === 100 && total > 0;
   
   return (
-    <Link href="/history" className={`block bg-card border shadow-sm rounded-3xl p-6 flex flex-col items-center justify-center min-h-[220px] hover:shadow-md hover:-translate-y-1 hover:border-primary/30 transition-all duration-500 group cursor-pointer ${isComplete ? 'border-success ring-1 ring-success/20' : ''}`}>
+    <Link href="/history" className={`block bg-card border shadow-sm rounded-2xl p-6 flex flex-col items-center justify-center min-h-[220px] hover:shadow-md hover:border-primary/30 transition-all duration-200 group cursor-pointer ${isComplete ? 'border-success ring-1 ring-success/20' : ''}`}>
       <div className="flex items-center justify-between w-full mb-6">
         <h3 className="font-heading font-bold text-lg">Daily Progress</h3>
         <span className="text-primary opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold uppercase tracking-widest flex items-center gap-1">View <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
       </div>
       
       {/* Circular Progress Ring */}
-      <div className="relative w-32 h-32 flex items-center justify-center group-hover:scale-105 transition-transform duration-500">
+      <div className="relative w-32 h-32 flex items-center justify-center">
         <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
           <circle
             className="text-muted stroke-current"

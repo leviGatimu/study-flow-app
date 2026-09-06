@@ -105,7 +105,7 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
         "relative overflow-hidden border transition-all duration-300 group h-full flex flex-col rounded-[28px] shadow-sm",
         homework.isCompleted
           ? "bg-card border-emerald-500/20"
-          : "bg-card hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/30"
+          : "bg-card hover:shadow-lg hover:border-primary/30"
       )}>
         {/* Accent glow + status bar */}
         <div className={cn("absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl opacity-[0.07] -z-0 translate-x-1/3 -translate-y-1/3", accent.glow)} />

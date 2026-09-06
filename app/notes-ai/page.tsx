@@ -16,7 +16,7 @@ export default async function AiNotesPage() {
   ]);
 
   return (
-    <div className="flex h-screen flex-col bg-background relative animate-in fade-in duration-500">
+    <div className="flex h-screen flex-col bg-background relative">
       {available ? (
         <AiNotesClient initialNotes={notes} />
       ) : (

@@ -265,7 +265,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
   };
 
   return (
-    <div className="space-y-12 max-w-[1600px] mx-auto animate-in fade-in duration-500 pb-16">
+    <div className="space-y-12 max-w-[1600px] mx-auto pb-16">
       
       {/* Page Header */}
       <div className="pt-6 pb-2 border-b border-border/40 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -358,7 +358,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
           <div>
             <h3 className="text-xl font-heading font-black tracking-tight text-foreground flex items-center gap-2">
               AI Study Insights
-              <span className="text-[10px] font-black uppercase tracking-widest bg-primary/10 text-primary px-2.5 py-0.5 rounded-full animate-in zoom-in duration-500">Active</span>
+              <span className="text-[10px] font-black uppercase tracking-widest bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">Active</span>
             </h3>
             <p className="text-xs font-semibold text-muted-foreground">Automated analytics derived from your study logs.</p>
           </div>
@@ -401,7 +401,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
           
           <Link
             href={`/ai?prompt=${encodeURIComponent(`Let's discuss my study history. According to my analytics, my peak focus hour is during the ${aiInsights.peakTime}, my most revised subject is ${aiInsights.mostRevisedSubject}, and I focus mostly on ${aiInsights.primaryActivityType}. What advice do you have to help me optimize my routine?`)}`}
-            className="inline-flex items-center gap-2 bg-primary text-white hover:bg-primary/90 text-xs font-black uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95 shrink-0 self-start sm:self-auto"
+            className="inline-flex items-center gap-2 bg-primary text-white hover:bg-primary/90 text-xs font-black uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all shadow-md shrink-0 self-start sm:self-auto"
           >
             <Sparkles className="w-4 h-4" />
             <span>Consult Buddy</span>
@@ -589,7 +589,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all active:scale-95",
+                "px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all",
                 activeTab === tab
                   ? "bg-primary text-white border-primary shadow-sm"
                   : "bg-card text-muted-foreground border-border/60 hover:text-foreground"
@@ -765,7 +765,7 @@ interface StatCardProps {
 function StatCard({ label, value, icon, description, borderClass }: StatCardProps) {
   return (
     <div className={cn(
-      "bg-card border p-6 rounded-[32px] shadow-sm transition-all duration-300 hover:-translate-y-0.5",
+      "bg-card border p-6 rounded-[32px] shadow-sm transition-all duration-300",
       borderClass
     )}>
       <div className="flex items-center justify-between mb-4">

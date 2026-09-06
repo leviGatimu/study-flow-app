@@ -50,7 +50,7 @@ export function FocusTimer({ endTime }: { endTime: string }) {
         <div className="relative w-[340px] h-[340px] sm:w-[450px] sm:h-[450px] rounded-full bg-card border-8 border-primary/20 flex flex-col items-center justify-center shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-primary/5 via-transparent to-transparent" />
           
-          <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] text-primary mb-2 animate-in fade-in duration-1000">Session Remaining</span>
+          <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] text-primary mb-2">Session Remaining</span>
           
           <div className="flex items-baseline font-heading font-black tabular-nums tracking-tighter">
             <span className="text-7xl sm:text-9xl text-foreground">

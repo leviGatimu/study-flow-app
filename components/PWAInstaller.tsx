@@ -39,7 +39,7 @@ export function PWAInstaller() {
   return (
     <Button 
       onClick={handleInstallClick}
-      className="w-full h-12 rounded-xl font-black gap-2 bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/40 active:scale-95 transition-all"
+      className="w-full h-12 rounded-xl font-black gap-2 bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all"
     >
       <Monitor className="w-4 h-4" /> INSTALL AS APP
     </Button>

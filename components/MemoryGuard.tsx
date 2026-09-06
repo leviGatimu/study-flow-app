@@ -27,9 +27,8 @@ export function MemoryGuard({ dueModules }: { dueModules: TutorModule[] }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-card border border-border/60 rounded-3xl p-6 shadow-sm relative overflow-hidden group hover:shadow-md transition-all"
+      className="bg-card border border-border/60 rounded-2xl p-6 shadow-sm group hover:shadow-md transition-shadow duration-200"
     >
-      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
 
       <div className="flex items-center justify-between mb-5 relative z-10">
         <h3 className="font-heading font-black text-lg flex items-center gap-2">

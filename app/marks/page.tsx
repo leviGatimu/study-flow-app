@@ -19,7 +19,7 @@ export default async function MarksPage() {
   ]);
 
   return (
-    <div className="flex flex-col animate-in fade-in duration-500">
+    <div className="flex flex-col">
       {/* Sticky Header */}
       <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md px-4 md:px-8 pt-10 pb-6 border-b border-border/40 shrink-0 mb-8">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">

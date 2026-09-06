@@ -41,7 +41,7 @@ export function CreateHomeworkForm({ onSuccess, subjects }: CreateHomeworkFormPr
   const fieldClass = "h-12 rounded-2xl bg-muted/40 border-border/50 focus:border-primary focus:ring-4 focus:ring-primary/5 text-base font-bold transition-all px-4";
 
   return (
-    <form ref={formRef} action={handleSubmit} className="space-y-6 animate-in fade-in duration-500">
+    <form ref={formRef} action={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="space-y-2">
           <Label htmlFor="subject" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Subject</Label>

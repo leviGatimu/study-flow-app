@@ -27,7 +27,7 @@ export default async function AIPage({
   const initialPrompt = awaitedSearchParams.prompt || "";
 
   return (
-    <div className="flex h-screen flex-col bg-background relative animate-in fade-in duration-500">
+    <div className="flex h-screen flex-col bg-background relative">
       {available ? (
         <AIChatInterface 
           userName={userProgress?.name || 'Student'} 

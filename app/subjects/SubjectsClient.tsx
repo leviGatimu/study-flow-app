@@ -588,7 +588,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
       
       {/* LANDING GRID VIEW (When selectedSubjectId is null) */}
       {!selectedSubjectId ? (
-        <div className="space-y-8 animate-in fade-in duration-300">
+        <div className="space-y-8">
           {/* Dashboard Control Bar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border border-border/60 p-6 rounded-[32px] shadow-sm">
             <div className="flex items-center gap-4 flex-1">
@@ -607,7 +607,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
             </div>
             <Button
               onClick={() => setIsAddOpen(true)}
-              className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/95 flex items-center gap-1.5 active:scale-95 transition-transform shrink-0"
+              className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/95 flex items-center gap-1.5 transition-transform shrink-0"
             >
               <Plus className="w-4.5 h-4.5" />
               Add Subject
@@ -729,14 +729,14 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
         </div>
       ) : (
         /* DEDICATED WORKSPACE VIEW (When a subject is selected) */
-        <div className="space-y-8 animate-in fade-in duration-300">
+        <div className="space-y-8">
           
           {/* Breadcrumb Nav Control */}
           <div className="flex items-center">
             <Button
               onClick={() => setSelectedSubjectId(null)}
               variant="ghost"
-              className="rounded-xl font-bold text-xs hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center gap-1.5 active:scale-95 transition-transform"
+              className="rounded-xl font-bold text-xs hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-transform"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Course Grid
@@ -758,7 +758,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                   setRenameSubjectName(selectedSubject?.name || "");
                   setIsRenameOpen(true);
                 }}
-                className="rounded-xl font-bold hover:bg-muted/80 text-foreground flex items-center gap-1.5 active:scale-95 transition-transform"
+                className="rounded-xl font-bold hover:bg-muted/80 text-foreground flex items-center gap-1.5 transition-transform"
               >
                 <Edit3 className="w-4 h-4" />
                 Rename
@@ -766,7 +766,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
               <Button
                 variant="destructive"
                 onClick={() => setIsDeleteOpen(true)}
-                className="rounded-xl font-bold flex items-center gap-1.5 active:scale-95 transition-transform"
+                className="rounded-xl font-bold flex items-center gap-1.5 transition-transform"
               >
                 <Trash2 className="w-4 h-4" />
                 Delete
@@ -928,7 +928,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                     setIsGoalOpen(true);
                   }}
                   variant={subjectGoal ? "outline" : "default"}
-                  className="w-full rounded-xl font-bold text-xs h-10 active:scale-95 transition-transform"
+                  className="w-full rounded-xl font-bold text-xs h-10 transition-transform"
                 >
                   {subjectGoal ? "Modify Grade Goal" : "Set Target Goal"}
                 </Button>
@@ -1156,7 +1156,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
 
                         <Button 
                           type="submit" 
-                          className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/95 text-xs h-9 px-4 active:scale-95 transition-transform"
+                          className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/95 text-xs h-9 px-4 transition-transform"
                         >
                           Add Asset
                         </Button>
@@ -1229,21 +1229,21 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                       <button
                         onClick={() => handleSendAiQuery("Summarize my current course notes.")}
                         disabled={isAiLoading}
-                        className="px-2.5 py-1 text-[10px] font-bold bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 rounded-lg hover:bg-purple-500/20 active:scale-95 transition-all"
+                        className="px-2.5 py-1 text-[10px] font-bold bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 rounded-lg hover:bg-purple-500/20 transition-all"
                       >
                         📝 Summarize Notes
                       </button>
                       <button
                         onClick={() => handleSendAiQuery("Quiz me on 5 key active recall questions based on my notes.")}
                         disabled={isAiLoading}
-                        className="px-2.5 py-1 text-[10px] font-bold bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-500/20 active:scale-95 transition-all"
+                        className="px-2.5 py-1 text-[10px] font-bold bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-500/20 transition-all"
                       >
                         ❓ Quiz Me
                       </button>
                       <button
                         onClick={() => handleSendAiQuery("Explain the most critical core concept in these notes.")}
                         disabled={isAiLoading}
-                        className="px-2.5 py-1 text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-500/20 active:scale-95 transition-all"
+                        className="px-2.5 py-1 text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition-all"
                       >
                         💡 Explain Core Concept
                       </button>
@@ -1305,7 +1305,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                       <Button
                         onClick={() => handleSendAiQuery()}
                         disabled={isAiLoading || !aiQuery.trim()}
-                        className="rounded-xl font-bold bg-primary text-primary-foreground h-10 w-10 p-0 flex items-center justify-center shrink-0 active:scale-95 transition-transform"
+                        className="rounded-xl font-bold bg-primary text-primary-foreground h-10 w-10 p-0 flex items-center justify-center shrink-0 transition-transform"
                       >
                         <Send className="w-4 h-4" />
                       </Button>

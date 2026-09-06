@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CommandDialog,
@@ -12,123 +12,184 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import {
-  Home,
-  Calendar,
-  CheckCircle,
-  Settings,
-  FolderOpen,
-  FileText,
-  LayoutGrid,
-  BrainCircuit,
-  Zap,
-  StickyNote,
   Brain,
-  Search,
-  Loader2,
   BookOpen,
-  Activity
+  FolderOpen,
+  Loader2,
+  StickyNote,
+  Zap,
 } from "lucide-react";
 import { universalSearch } from "@/lib/actions";
+import { NAV_LEAVES } from "@/lib/nav";
+
+const OPEN_EVENT = "studyflow:open-command-menu";
+
+/**
+ * Open the command palette from anywhere (the header search field, a button,
+ * a keyboard shortcut) without threading a context through the tree. The
+ * palette is a singleton mounted once in the app shell.
+ */
+export function openCommandMenu() {
+  window.dispatchEvent(new CustomEvent(OPEN_EVENT));
+}
+
+type Results = {
+  tasks: any[];
+  stickyNotes: any[];
+  tutorModules: any[];
+  projects: any[];
+  homeworks: any[];
+};
+
+const EMPTY: Results = {
+  tasks: [],
+  stickyNotes: [],
+  tutorModules: [],
+  projects: [],
+  homeworks: [],
+};
 
 export function CommandMenu() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<{
-    tasks: any[];
-    stickyNotes: any[];
-    tutorModules: any[];
-    projects: any[];
-    homeworks: any[];
-  }>({ tasks: [], stickyNotes: [], tutorModules: [], projects: [], homeworks: [] });
-
+  const [results, setResults] = useState<Results>(EMPTY);
   const router = useRouter();
 
+  // Ctrl/Cmd+K is the near-universal binding for this. Ctrl/Cmd+E is kept as an
+  // alias because that is what the app used to advertise.
   useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === "e" && (e.metaKey || e.ctrlKey)) {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      if ((key === "k" || key === "e") && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen((open) => !open);
+        setOpen((prev) => !prev);
       }
     };
+    const onOpen = () => setOpen(true);
 
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener(OPEN_EVENT, onOpen);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener(OPEN_EVENT, onOpen);
+    };
   }, []);
 
-  const handleSearch = useCallback(
-    debounce(async (q: string) => {
-      if (q.length < 2) {
-        setResults({ tasks: [], stickyNotes: [], tutorModules: [], projects: [], homeworks: [] });
-        setLoading(false);
-        return;
-      }
-      const res = await universalSearch(q);
-      setResults(res as any);
-      setLoading(false);
-    }, 300),
-    []
-  );
+  // Debounced search. The timer lives in a ref so re-renders cannot strand a
+  // pending callback (the previous implementation memoised a debounced
+  // function with an empty dep list, which captured stale state).
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestQuery = useRef("");
 
   useEffect(() => {
-    if (query) {
-      setLoading(true);
-      handleSearch(query);
-    } else {
-      setResults({ tasks: [], stickyNotes: [], tutorModules: [], projects: [], homeworks: [] });
-      setLoading(false);
-    }
-  }, [query, handleSearch]);
+    const trimmed = query.trim();
+    latestQuery.current = trimmed;
 
-  const runCommand = (command: () => void) => {
+    if (timer.current) clearTimeout(timer.current);
+
+    if (trimmed.length < 2) {
+      setResults(EMPTY);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    timer.current = setTimeout(async () => {
+      try {
+        const res = await universalSearch(trimmed);
+        // Ignore responses that arrived after the query moved on.
+        if (latestQuery.current === trimmed) setResults(res as Results);
+      } finally {
+        if (latestQuery.current === trimmed) setLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, [query]);
+
+  const go = (href: string) => {
     setOpen(false);
     setQuery("");
-    command();
+    router.push(href);
   };
 
-  const hasResults = results.tasks.length > 0 || results.stickyNotes.length > 0 || results.tutorModules.length > 0 || results.projects.length > 0 || results.homeworks.length > 0;
+  const hasResults = useMemo(
+    () =>
+      results.tasks.length > 0 ||
+      results.stickyNotes.length > 0 ||
+      results.tutorModules.length > 0 ||
+      results.projects.length > 0 ||
+      results.homeworks.length > 0,
+    [results]
+  );
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <div className="relative">
-        <CommandInput 
-          placeholder="Search everything (tasks, notes, tutor modules...)" 
+        <CommandInput
+          placeholder="Search tasks, notes, subjects..."
           value={query}
           onValueChange={setQuery}
         />
         {loading && (
-          <div className="absolute right-4 top-1/2 -translate-y-1/2">
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <div className="absolute top-1/2 right-4 -translate-y-1/2">
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
           </div>
         )}
       </div>
+
       <CommandList className="max-h-[400px]">
         <CommandEmpty>{loading ? "Searching..." : "No results found."}</CommandEmpty>
-        
-        {/* UNIVERSAL RESULTS */}
+
         {results.homeworks.length > 0 && (
-          <CommandGroup heading="Homework Vault">
+          <CommandGroup heading="Homework">
             {results.homeworks.map((hw) => (
-              <CommandItem key={hw.id} onSelect={() => runCommand(() => router.push(`/homeworks`))}>
-                <BookOpen className="mr-2 h-4 w-4 text-primary" />
-                <div className="flex flex-col">
-                  <span className="font-bold">{hw.title}</span>
-                  <span className="text-[10px] uppercase text-muted-foreground">{hw.subject}</span>
-                </div>
+              <CommandItem
+                key={hw.id}
+                value={`homework-${hw.id}-${hw.title}`}
+                onSelect={() => go("/homeworks")}
+              >
+                <BookOpen className="mr-2 size-4 text-muted-foreground" />
+                <span className="truncate">{hw.title}</span>
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                  {hw.subject}
+                </span>
               </CommandItem>
             ))}
           </CommandGroup>
         )}
 
         {results.tutorModules.length > 0 && (
-          <CommandGroup heading="AI Tutor Modules">
+          <CommandGroup heading="Tutor Modules">
             {results.tutorModules.map((m) => (
-              <CommandItem key={m.id} onSelect={() => runCommand(() => router.push(`/tutor/${m.id}`))}>
-                <Brain className="mr-2 h-4 w-4 text-primary" />
-                <div className="flex flex-col">
-                  <span className="font-bold">{m.title}</span>
-                  <span className="text-[10px] uppercase text-muted-foreground">{m.subject}</span>
-                </div>
+              <CommandItem
+                key={m.id}
+                value={`module-${m.id}-${m.title}`}
+                onSelect={() => go(`/tutor/${m.id}`)}
+              >
+                <Brain className="mr-2 size-4 text-muted-foreground" />
+                <span className="truncate">{m.title}</span>
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                  {m.subject}
+                </span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {results.tasks.length > 0 && (
+          <CommandGroup heading="Tasks">
+            {results.tasks.map((t) => (
+              <CommandItem
+                key={t.id}
+                value={`task-${t.id}-${t.subject}`}
+                onSelect={() => go("/")}
+              >
+                <Zap className="mr-2 size-4 text-muted-foreground" />
+                <span className="truncate">{t.subject}</span>
               </CommandItem>
             ))}
           </CommandGroup>
@@ -137,20 +198,13 @@ export function CommandMenu() {
         {results.stickyNotes.length > 0 && (
           <CommandGroup heading="Sticky Notes">
             {results.stickyNotes.map((n) => (
-              <CommandItem key={n.id} onSelect={() => runCommand(() => router.push(`/notes`))}>
-                <StickyNote className="mr-2 h-4 w-4 text-amber-500" />
-                <span>{n.title}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
-
-        {results.tasks.length > 0 && (
-          <CommandGroup heading="Scheduled Tasks">
-            {results.tasks.map((t) => (
-              <CommandItem key={t.id} onSelect={() => runCommand(() => router.push(`/`))}>
-                <Zap className="mr-2 h-4 w-4 text-blue-500" />
-                <span>{t.subject}</span>
+              <CommandItem
+                key={n.id}
+                value={`note-${n.id}-${n.title}`}
+                onSelect={() => go("/notes")}
+              >
+                <StickyNote className="mr-2 size-4 text-muted-foreground" />
+                <span className="truncate">{n.title}</span>
               </CommandItem>
             ))}
           </CommandGroup>
@@ -159,61 +213,42 @@ export function CommandMenu() {
         {results.projects.length > 0 && (
           <CommandGroup heading="Projects">
             {results.projects.map((p) => (
-              <CommandItem key={p.id} onSelect={() => runCommand(() => router.push(`/projects/${p.id}`))}>
-                <FolderOpen className="mr-2 h-4 w-4 text-purple-500" />
-                <span>{p.title}</span>
+              <CommandItem
+                key={p.id}
+                value={`project-${p.id}-${p.title}`}
+                onSelect={() => go(`/projects/${p.id}`)}
+              >
+                <FolderOpen className="mr-2 size-4 text-muted-foreground" />
+                <span className="truncate">{p.title}</span>
               </CommandItem>
             ))}
           </CommandGroup>
         )}
 
-        {!query && (
-          <>
-            <CommandGroup heading="Quick Navigation">
-              <CommandItem onSelect={() => runCommand(() => router.push("/"))}>
-                <Home className="mr-2 h-4 w-4" />
-                <span>Dashboard</span>
+        {hasResults && <CommandSeparator />}
+
+        {/* Every destination in the app, from the same source the sidebar uses.
+            This is what makes a six-item sidebar safe: nothing is unreachable. */}
+        <CommandGroup heading="Go to">
+          {NAV_LEAVES.map((leaf) => {
+            const Icon = leaf.icon;
+            return (
+              <CommandItem
+                key={leaf.href}
+                value={`${leaf.name} ${leaf.keywords ?? ""}`}
+                onSelect={() => go(leaf.href)}
+              >
+                <Icon className="mr-2 size-4 text-muted-foreground" />
+                <span>{leaf.name}</span>
               </CommandItem>
-              <CommandItem onSelect={() => runCommand(() => router.push("/homeworks"))}>
-                <BookOpen className="mr-2 h-4 w-4" />
-                <span>Homework Vault</span>
-              </CommandItem>
-              <CommandItem onSelect={() => runCommand(() => router.push("/tutor"))}>
-                <Brain className="mr-2 h-4 w-4" />
-                <span>AI Tutor Hub</span>
-              </CommandItem>
-              <CommandItem onSelect={() => runCommand(() => router.push("/focus"))}>
-                <Zap className="mr-2 h-4 w-4" />
-                <span>Focus Mode</span>
-              </CommandItem>
-            </CommandGroup>
-            <CommandSeparator />
-            <CommandGroup heading="Tools">
-              <CommandItem onSelect={() => runCommand(() => router.push("/insights"))}>
-                <Activity className="mr-2 h-4 w-4" />
-                <span>Insights</span>
-              </CommandItem>
-              <CommandItem onSelect={() => runCommand(() => router.push("/summaries"))}>
-                <FileText className="mr-2 h-4 w-4" />
-                <span>Weekly Summaries</span>
-              </CommandItem>
-              <CommandItem onSelect={() => runCommand(() => router.push("/settings"))}>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </CommandItem>
-            </CommandGroup>
-          </>
-        )}
+            );
+          })}
+          <CommandItem value="Focus mode concentrate timer" onSelect={() => go("/focus")}>
+            <Zap className="mr-2 size-4 text-muted-foreground" />
+            <span>Focus Mode</span>
+          </CommandItem>
+        </CommandGroup>
       </CommandList>
     </CommandDialog>
   );
-}
-
-// Simple debounce if lodash isn't there
-function debounce(fn: Function, ms: number) {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  return function(this: any, ...args: any[]) {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn.apply(this, args), ms);
-  };
 }

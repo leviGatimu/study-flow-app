@@ -55,7 +55,7 @@ export function InsightsClient({ data }: { data: InsightsData }) {
   const hasAnyData = subjects.length > 0;
 
   return (
-    <div className="space-y-12 max-w-[1600px] mx-auto animate-in fade-in duration-500 pb-16 px-4 md:px-8">
+    <div className="space-y-12 max-w-[1600px] mx-auto pb-16 px-4 md:px-8">
       {/* Header */}
       <div className="pt-6 pb-2 border-b border-border/40 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
@@ -75,7 +75,7 @@ export function InsightsClient({ data }: { data: InsightsData }) {
                   .join(", ")}. Build me a focused study plan for the next two weeks.`
               : "Review my study insights and suggest how I can keep improving."
           )}`}
-          className="inline-flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-black uppercase tracking-widest px-5 py-3 rounded-2xl transition-all shadow-md active:scale-95 shrink-0 self-start md:self-auto"
+          className="inline-flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-black uppercase tracking-widest px-5 py-3 rounded-2xl transition-all shadow-md shrink-0 self-start md:self-auto"
         >
           <Sparkles className="w-4 h-4" />
           Get AI Study Plan
@@ -131,7 +131,7 @@ export function InsightsClient({ data }: { data: InsightsData }) {
                     <Link
                       key={s.subject}
                       href={`/ai?prompt=${encodeURIComponent(`Help me improve in ${s.subject}. My current situation: ${s.reason.toLowerCase()}, completion ${s.completionRate}%${s.masteryPct != null ? `, mastery ${s.masteryPct}%` : ""}${s.quizAvg != null ? `, quiz average ${s.quizAvg}%` : ""}. What should I focus on?`)}`}
-                      className="bg-card/70 backdrop-blur border border-border/50 rounded-3xl p-5 hover:-translate-y-0.5 hover:shadow-md transition-all group"
+                      className="bg-card/70 backdrop-blur border border-border/50 rounded-3xl p-5 hover:shadow-md transition-all group"
                     >
                       <div className="flex items-center justify-between mb-3">
                         <span className="font-heading font-black text-lg text-foreground truncate group-hover:text-primary transition-colors">{s.subject}</span>
@@ -257,7 +257,7 @@ export function InsightsClient({ data }: { data: InsightsData }) {
 function SubjectCard({ s }: { s: SubjectInsight }) {
   const c = attentionColor(s.attentionScore);
   return (
-    <div className="bg-card border border-border/60 rounded-[28px] p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all">
+    <div className="bg-card border border-border/60 rounded-[28px] p-6 shadow-sm hover:shadow-md transition-all">
       <div className="flex items-center justify-between mb-5">
         <h4 className="font-heading font-black text-lg text-foreground truncate">{s.subject}</h4>
         {s.gradeLabel ? (
@@ -300,7 +300,7 @@ function Meter({ label, value, color, suffix = "" }: { label: string; value: num
 
 function StatCard({ label, value, icon, border }: { label: string; value: string | number; icon: React.ReactNode; border?: string }) {
   return (
-    <div className={cn("bg-card border p-6 rounded-[32px] shadow-sm transition-all duration-300 hover:-translate-y-0.5", border)}>
+    <div className={cn("bg-card border p-6 rounded-[32px] shadow-sm transition-all duration-300", border)}>
       <div className="flex items-center justify-between mb-4">
         <div className="p-3 bg-muted/60 rounded-2xl">{icon}</div>
         <span className="text-2xl font-heading font-black tracking-tight text-foreground">{value}</span>

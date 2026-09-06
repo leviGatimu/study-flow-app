@@ -24,7 +24,7 @@ export default async function SubjectResourcesPage({ params }: { params: Promise
   const stats = await getSubjectStats(decodedSubject);
 
   return (
-    <div className="flex flex-col space-y-12 max-w-[1600px] mx-auto animate-in fade-in duration-500 pb-16 px-4 md:px-8">
+    <div className="flex flex-col space-y-12 max-w-[1600px] mx-auto pb-16 px-4 md:px-8">
       {/* Subject Header */}
       <div className="pt-10 pb-6 border-b border-border/40 space-y-4">
         <Link href="/resources" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">
@@ -43,7 +43,7 @@ export default async function SubjectResourcesPage({ params }: { params: Promise
 
           <div className="flex items-center gap-4">
             <Link href={`/studio/${encodeURIComponent(decodedSubject)}`}>
-               <Button className="h-16 px-8 rounded-[24px] font-black text-lg gap-3 bg-[#0a0a0a] text-white hover:bg-black shadow-2xl hover:scale-[1.02] active:scale-95 transition-all border border-white/10 group">
+               <Button className="h-16 px-8 rounded-[24px] font-black text-lg gap-3 bg-[#0a0a0a] text-white hover:bg-black shadow-2xl hover:scale-[1.02] transition-all border border-white/10 group">
                   <Sparkles className="w-6 h-6 text-primary group-hover:rotate-12 transition-transform" />
                   DEEP WORK STUDIO
                </Button>
@@ -142,7 +142,7 @@ export default async function SubjectResourcesPage({ params }: { params: Promise
                    >
                      <div className="flex items-center gap-5">
                        <div className={cn(
-                         "p-3 rounded-2xl transition-transform group-hover:scale-110 shadow-sm",
+                         "p-3 rounded-2xl transition-transform shadow-sm",
                          res.type === 'FILE' ? "bg-orange-500/10 text-orange-600" : "bg-blue-500/10 text-blue-600"
                        )}>
                          {res.type === 'FILE' ? <FileText className="w-5 h-5" /> : <LinkIcon className="w-5 h-5" />}
@@ -158,7 +158,7 @@ export default async function SubjectResourcesPage({ params }: { params: Promise
                         href={res.url} 
                         target="_blank" 
                         rel="noreferrer"
-                        className="p-3 rounded-xl bg-background border border-border/40 text-muted-foreground hover:text-primary hover:border-primary/40 transition-all active:scale-90"
+                        className="p-3 rounded-xl bg-background border border-border/40 text-muted-foreground hover:text-primary hover:border-primary/40 transition-all"
                        >
                          <ChevronLeft className="w-4 h-4 rotate-180" />
                        </a>
@@ -178,7 +178,7 @@ export default async function SubjectResourcesPage({ params }: { params: Promise
 function StatMiniCard({ label, value, icon }: { label: string, value: string | number, icon: React.ReactNode }) {
   return (
     <Card className="p-6 border border-border/60 rounded-[32px] shadow-sm flex items-center gap-5 hover:border-primary/30 transition-colors group">
-      <div className="p-3 bg-muted/50 rounded-2xl group-hover:scale-110 transition-transform">
+      <div className="p-3 bg-muted/50 rounded-2xl transition-transform">
         {icon}
       </div>
       <div>

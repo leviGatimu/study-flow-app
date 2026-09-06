@@ -39,7 +39,7 @@ export function RwandaClock({ timezone = DEFAULT_TIMEZONE }: { timezone?: string
   }
 
   return (
-    <div className="flex flex-col items-end animate-in fade-in duration-500">
+    <div className="flex flex-col items-end">
       <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
         <Globe className="w-3 h-3 text-primary" /> {label}
       </span>

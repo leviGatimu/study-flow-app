@@ -42,7 +42,7 @@ function CalculatorKey({
       onClick={onClick}
       variant="ghost"
       className={cn(
-        "h-full w-full rounded-lg border border-transparent shadow-sm transition-all duration-100 active:scale-95",
+        "h-full w-full rounded-lg border border-transparent shadow-sm transition-all duration-100",
         largeButtons ? "min-h-18 text-2xl" : "min-h-14 text-xl",
         variant === "num" && "bg-card/40 font-bold text-foreground hover:bg-secondary/80 border-border/10",
         variant === "op" && "bg-secondary/20 text-2xl font-light text-primary hover:bg-primary/20",
@@ -343,7 +343,7 @@ export default function CalculatorPage() {
   }, [appendToExpression, clearAll, deleteLast, handleEvaluate, handlePercent]);
 
   return (
-    <div className="flex h-[calc(100vh-2rem)] w-full overflow-hidden bg-background animate-in fade-in duration-700">
+    <div className="flex h-[calc(100vh-2rem)] w-full overflow-hidden bg-background">
       <div className="w-16 border-r border-border/60 bg-muted/5 flex flex-col items-center gap-8 py-8">
         <div className="rounded-xl bg-primary/10 p-3 text-primary">
           <CalcIcon className="h-6 w-6" />

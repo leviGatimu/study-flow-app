@@ -19,7 +19,7 @@ export default async function DailySummaryPage() {
   const dailySummaryTime = settings?.progress?.dailySummaryTime ?? "21:00";
 
   return (
-    <div className="space-y-12 max-w-[1400px] mx-auto animate-in fade-in duration-500 pb-16 px-4 md:px-8">
+    <div className="space-y-12 max-w-[1400px] mx-auto pb-16 px-4 md:px-8">
       <div className="pt-10 pb-6 border-b border-border/40 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
         <div>
           <h1 className="text-5xl font-heading font-black tracking-tight text-foreground">Daily Summary</h1>

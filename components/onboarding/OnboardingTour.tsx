@@ -275,7 +275,7 @@ export function OnboardingTour() {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         onClick={finish}
-        className="fixed top-6 right-6 z-[202] flex items-center gap-2 pl-4 pr-3 py-2.5 rounded-full bg-card/90 backdrop-blur-xl border border-border/60 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-border shadow-lg transition-all active:scale-95"
+        className="fixed top-6 right-6 z-[202] flex items-center gap-2 pl-4 pr-3 py-2.5 rounded-full bg-card/90 backdrop-blur-xl border border-border/60 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-border shadow-lg transition-all"
       >
         Skip tour <X className="w-3.5 h-3.5" />
       </motion.button>
@@ -331,7 +331,7 @@ export function OnboardingTour() {
             )}
             <Button
               onClick={next}
-              className="h-11 px-6 rounded-2xl font-black text-sm gap-2 shadow-lg shadow-primary/25 hover:scale-[1.03] active:scale-95 transition-transform"
+              className="h-11 px-6 rounded-2xl font-black text-sm gap-2 shadow-lg shadow-primary/25 hover:scale-[1.03] transition-transform"
             >
               {isLast ? 'Finish 🎉' : isFirst ? 'Start tour' : 'Next'}
               {!isLast && <ArrowRight className="w-4 h-4" />}

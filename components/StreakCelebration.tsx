@@ -132,7 +132,7 @@ export function StreakCelebration({ currentStreak, stats, onClose }: StreakCeleb
                 </div>
 
                 <div className="bg-primary/5 border border-primary/20 rounded-[32px] p-6 space-y-1 col-span-2 relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 transition-transform">
                     <Zap className="w-12 h-12 text-primary fill-current" />
                   </div>
                   <div className="flex items-center gap-2 text-primary/60 mb-1">
@@ -148,7 +148,7 @@ export function StreakCelebration({ currentStreak, stats, onClose }: StreakCeleb
               <div className="pt-2">
                 <Button 
                   onClick={onClose}
-                  className="w-full h-20 rounded-[28px] font-black text-xl bg-white text-black hover:bg-zinc-200 shadow-2xl group transition-all active:scale-95"
+                  className="w-full h-20 rounded-[28px] font-black text-xl bg-white text-black hover:bg-zinc-200 shadow-2xl group transition-all"
                 >
                   KEEP CRUSHING IT <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-2 transition-transform duration-300" />
                 </Button>

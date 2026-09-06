@@ -114,7 +114,7 @@ export function ManageClient({ initialTemplates, subjects }: ManageClientProps) 
   }, [initialTemplates]);
 
   return (
-    <div className="space-y-10 max-w-[1500px] mx-auto animate-in fade-in duration-500 pb-20 px-1">
+    <div className="space-y-10 max-w-[1500px] mx-auto pb-20 px-1">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-6">
         <div>
@@ -425,7 +425,7 @@ function FilterPill({
     <button
       onClick={onClick}
       className={cn(
-        'flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all active:scale-95',
+        'flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all',
         active
           ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
           : 'bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground',

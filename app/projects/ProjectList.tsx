@@ -27,12 +27,12 @@ export function ProjectList({ initialProjects }: { initialProjects: ProjectWithD
       {projects.map((project, idx) => (
         <div 
           key={project.id}
-          className="group relative bg-card border border-border/60 rounded-[40px] p-8 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 animate-in fade-in slide-in-from-bottom-6"
+          className="group relative bg-card border border-border/60 rounded-[40px] p-8 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500"
           style={{ animationDelay: `${idx * 100}ms` }}
         >
           {/* Header */}
           <div className="flex justify-between items-start mb-8">
-             <div className="p-4 bg-primary/10 rounded-2xl text-primary group-hover:scale-110 transition-transform duration-500">
+             <div className="p-4 bg-primary/10 rounded-2xl text-primary transition-transform duration-500">
                <Rocket className="w-8 h-8" />
              </div>
              <Button 

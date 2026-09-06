@@ -57,7 +57,7 @@ export default function CalculatorSettingsPage() {
   const historyCount = loadCalculatorHistory().length;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-background animate-in fade-in duration-700">
+    <div className="flex flex-col h-screen overflow-hidden bg-background">
       <header className="h-24 border-b border-border/60 bg-card/40 backdrop-blur-xl flex items-center justify-between px-12">
         <div className="flex items-center gap-8">
           <Link href="/calculator">

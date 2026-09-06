@@ -12,7 +12,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   if (!project) notFound();
 
   return (
-    <div className="flex flex-col animate-in fade-in duration-500">
+    <div className="flex flex-col">
       <ProjectInterface project={project as ProjectWithDocs} />
     </div>
   );

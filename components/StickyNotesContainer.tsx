@@ -82,6 +82,7 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
       y: startY,
       createdAt: new Date(),
       updatedAt: new Date(),
+      deletedAt: null,
       userId: "", // Placeholder
     };
 
@@ -252,7 +253,7 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
             onClick={handleMagicOrganize}
             variant="secondary"
             disabled={isOrganizing}
-            className="rounded-2xl gap-2 font-bold hover:scale-105 transition-transform h-12 w-full sm:w-auto text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400"
+            className="rounded-2xl gap-2 font-bold transition-transform h-12 w-full sm:w-auto text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400"
           >
             {isOrganizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
             Magic Organize
@@ -260,7 +261,7 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
 
           <Button 
             onClick={() => setIsAdding(true)}
-            className="rounded-2xl gap-2 font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform h-12 w-full sm:w-auto"
+            className="rounded-2xl gap-2 font-bold shadow-lg shadow-primary/20 transition-transform h-12 w-full sm:w-auto"
           >
             <Plus className="w-5 h-5" />
             Add Note
@@ -480,7 +481,7 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
                             "w-10 h-10 rounded-xl transition-all border-2",
                             selectedColor === color.value 
                               ? "border-primary scale-110 shadow-lg" 
-                              : "border-transparent hover:scale-105"
+                              : "border-transparent"
                           )}
                           style={{ backgroundColor: color.value }}
                         />

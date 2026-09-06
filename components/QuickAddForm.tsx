@@ -47,7 +47,7 @@ export function QuickAddForm({ initialDate, trigger, subjects = [] }: { initialD
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button variant="outline" className="rounded-full gap-2 font-bold hover:bg-primary/5 hover:text-primary transition-all active:scale-95 shadow-sm border-border/60">
+          <Button variant="outline" className="rounded-full gap-2 font-bold hover:bg-primary/5 hover:text-primary transition-all shadow-sm border-border/60">
             <Plus className="w-4 h-4" /> Quick Add Assignment
           </Button>
         )}

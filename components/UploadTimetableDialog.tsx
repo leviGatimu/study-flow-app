@@ -136,7 +136,7 @@ export function UploadTimetableDialog() {
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="h-11 px-6 rounded-xl border-border bg-card hover:bg-muted font-bold text-sm gap-2 shadow-sm hover:scale-[1.01] active:scale-95 transition-all cursor-pointer"
+          className="h-11 px-6 rounded-xl border-border bg-card hover:bg-muted font-bold text-sm gap-2 shadow-sm hover:scale-[1.01] transition-all cursor-pointer"
         >
           <Upload className="w-4 h-4" /> Upload Timetable
         </Button>

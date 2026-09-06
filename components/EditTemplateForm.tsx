@@ -46,11 +46,11 @@ export function EditTemplateForm({ template, subjects = [] }: { template: Templa
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground active:scale-95 transition-all">
+        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
           <Pencil className="w-4 h-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl rounded-[32px] p-0 overflow-hidden border shadow-2xl animate-in zoom-in-95 duration-200">
+      <DialogContent className="sm:max-w-xl rounded-[32px] p-0 overflow-hidden border shadow-2xl">
         <div className="bg-card">
           <DialogHeader className="p-8 border-b bg-muted/20 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -164,7 +164,7 @@ export function EditTemplateForm({ template, subjects = [] }: { template: Templa
               <Button 
                 disabled={isPending} 
                 type="submit" 
-                className="flex-[2] h-14 rounded-2xl font-heading font-black text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-95"
+                className="flex-[2] h-14 rounded-2xl font-heading font-black text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all"
               >
                 {isPending ? 'Updating...' : 'Update Study Block'}
               </Button>

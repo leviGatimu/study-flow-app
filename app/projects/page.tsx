@@ -15,7 +15,7 @@ export default async function ProjectsPage() {
   const projects = await getProjects();
 
   return (
-    <div className="space-y-12 max-w-[1400px] mx-auto animate-in fade-in duration-500 pb-16">
+    <div className="space-y-12 max-w-[1400px] mx-auto pb-16">
       <div className="pt-6 pb-2 border-b border-border/40 flex items-center justify-between">
         <div>
           <h1 className="text-5xl font-heading font-black tracking-tight text-foreground">Project Hub</h1>

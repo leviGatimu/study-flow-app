@@ -16,7 +16,7 @@ export function PDFViewer({ url, title }: { url: string, title: string }) {
         href={url} 
         target="_blank" 
         rel="noopener noreferrer"
-        className="h-10 w-10 flex items-center justify-center rounded-full bg-muted/50 text-muted-foreground hover:bg-primary hover:text-white transition-all shadow-sm active:scale-90"
+        className="h-10 w-10 flex items-center justify-center rounded-full bg-muted/50 text-muted-foreground hover:bg-primary hover:text-white transition-all shadow-sm"
         title="Open File"
       >
         <ExternalLink className="w-4 h-4" />
@@ -30,7 +30,7 @@ export function PDFViewer({ url, title }: { url: string, title: string }) {
         <Button 
           variant="ghost" 
           size="icon" 
-          className="h-10 w-10 rounded-full bg-muted/50 text-muted-foreground hover:bg-primary hover:text-white transition-all shadow-sm active:scale-90"
+          className="h-10 w-10 rounded-full bg-muted/50 text-muted-foreground hover:bg-primary hover:text-white transition-all shadow-sm"
           title="View PDF"
         >
           <FileText className="w-4 h-4" />

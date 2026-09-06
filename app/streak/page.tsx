@@ -33,7 +33,7 @@ export default async function StreakPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20 px-4 md:px-8 max-w-6xl mx-auto animate-in fade-in duration-700">
+    <div className="min-h-screen bg-background text-foreground pb-20 px-4 md:px-8 max-w-6xl mx-auto">
       {/* Header */}
       <header className="py-10 flex items-center justify-between">
         <Link 
@@ -117,7 +117,7 @@ export default async function StreakPage() {
           <StreakCalendar activeTimestamps={activeTimestamps} />
 
           <div className="bg-primary/5 border border-primary/10 rounded-[40px] p-10 space-y-6 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform duration-700">
+            <div className="absolute top-0 right-0 p-8 opacity-5 transition-transform duration-700">
                <Target className="w-32 h-32" />
             </div>
             <h3 className="text-2xl font-heading font-black relative z-10">Keep the streak alive!</h3>
@@ -126,7 +126,7 @@ export default async function StreakPage() {
             </p>
             <div className="pt-4 relative z-10">
               <Link href="/">
-                <button className="bg-foreground text-background font-black uppercase tracking-widest text-xs px-8 py-4 rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl">
+                <button className="bg-foreground text-background font-black uppercase tracking-widest text-xs px-8 py-4 rounded-2xl transition-all shadow-xl">
                   Go Execute Tasks
                 </button>
               </Link>

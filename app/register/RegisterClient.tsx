@@ -184,7 +184,7 @@ export function RegisterClient() {
             <div className="pt-4">
               <Button 
                 disabled={isPending}
-                className="w-full h-16 rounded-[24px] bg-foreground text-background hover:opacity-90 text-lg font-heading font-black shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 group relative overflow-hidden"
+                className="w-full h-16 rounded-[24px] bg-foreground text-background hover:opacity-90 text-lg font-heading font-black shadow-xl transition-all flex items-center justify-center gap-3 group relative overflow-hidden"
               >
                 <span className="relative z-10 flex items-center gap-2">
                   {isPending ? "Creating Workspace" : "Deploy Station"}

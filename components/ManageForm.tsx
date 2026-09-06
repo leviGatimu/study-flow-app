@@ -45,11 +45,11 @@ export function ManageForm({ subjects = [] }: { subjects?: { id: string; name: s
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="rounded-2xl h-12 px-6 font-heading font-black shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95 text-base gap-2">
+        <Button className="rounded-2xl h-12 px-6 font-heading font-black shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all text-base gap-2">
           <Plus className="w-5 h-5" /> Add New Study Block
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl rounded-[32px] p-0 overflow-hidden border shadow-2xl animate-in zoom-in-95 duration-200">
+      <DialogContent className="sm:max-w-xl rounded-[32px] p-0 overflow-hidden border shadow-2xl">
         <div className="bg-card">
           <DialogHeader className="p-8 border-b bg-muted/20 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -163,7 +163,7 @@ export function ManageForm({ subjects = [] }: { subjects?: { id: string; name: s
               <Button 
                 disabled={isPending} 
                 type="submit" 
-                className="flex-[2] h-14 rounded-2xl font-heading font-black text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-95"
+                className="flex-[2] h-14 rounded-2xl font-heading font-black text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all"
               >
                 {isPending ? 'Saving...' : 'Save Study Block'}
               </Button>

@@ -43,6 +43,12 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Motion budget: two durations, one easing. Anything that needs a third is
+     doing something the rest of the app isn't, and should justify itself. */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
 }
 
 :root {
@@ -82,7 +88,7 @@
   --input: oklch(0.9 0 0);
   --ring: oklch(0.5 0.15 260);
   
-  --radius: 0.75rem;
+  --radius: 1rem;
   
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.15 0 0);
@@ -149,6 +155,32 @@
     @apply font-heading tracking-tight;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Motion budget                                                     */
+/*  Motion is allowed where it reports state (a checkbox settling, a   */
+/*  progress bar filling, a modal arriving). It is not decoration.     */
+/*  Honour the OS setting globally so we never have to remember to.    */
+/* ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* The app chrome (header + sidebar) is a fixed frame; only the main
+   content region scrolls. Keeps the scrollbar off the header. */
+.app-scroll {
+  scrollbar-gutter: stable;
+}
+
+/* Electron: the header doubles as the window title bar. These are inert in a
+   browser, so the same markup serves both targets. */
+.titlebar-drag { -webkit-app-region: drag; }
+.titlebar-no-drag { -webkit-app-region: no-drag; }
 /* Repurposed utilities for other pages */
 .glass, .glass-panel { @apply bg-card border shadow-sm; }
 

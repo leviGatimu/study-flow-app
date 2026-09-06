@@ -5,9 +5,9 @@ import { AppShell } from "@/components/AppShell";
 import { GlobalShortcuts } from "@/components/GlobalShortcuts";
 
 import { getUserId } from "@/lib/auth";
-import { syncStreak, getTodayTasks } from "@/lib/actions";
+import { syncStreak } from "@/lib/actions";
+import { listSubjects } from "@/lib/subject-actions";
 import { FocusProvider } from "@/lib/FocusContext";
-import { SidebarProvider } from "@/lib/SidebarContext";
 import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
@@ -21,7 +21,9 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const userId = await getUserId();
-  const userProgress = userId ? await syncStreak() : null;
+  const [userProgress, subjects] = userId
+    ? await Promise.all([syncStreak(), listSubjects()])
+    : [null, []];
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -52,12 +54,12 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <Toaster position="top-right" richColors />
-          <SidebarProvider>
-            <FocusProvider>
-              <GlobalShortcuts />
-              <AppShell userProgress={userProgress}>{children}</AppShell>
-            </FocusProvider>
-          </SidebarProvider>
+          <FocusProvider>
+            <GlobalShortcuts />
+            <AppShell userProgress={userProgress} subjects={subjects}>
+              {children}
+            </AppShell>
+          </FocusProvider>
         </ThemeProvider>
       </body>
     </html>
