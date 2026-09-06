@@ -43,7 +43,7 @@ export default async function SubjectResourcesPage({ params }: { params: Promise
 
           <div className="flex items-center gap-4">
             <Link href={`/studio/${encodeURIComponent(decodedSubject)}`}>
-               <Button className="h-16 px-8 rounded-[24px] font-black text-lg gap-3 bg-[#0a0a0a] text-white hover:bg-black shadow-2xl hover:scale-[1.02] transition-all border border-white/10 group">
+               <Button className="h-16 px-8 rounded-xl font-black text-lg gap-3 bg-[#0a0a0a] text-white hover:bg-black shadow-2xl hover:scale-[1.02] transition-all border border-white/10 group">
                   <Sparkles className="w-6 h-6 text-primary group-hover:rotate-12 transition-transform" />
                   DEEP WORK STUDIO
                </Button>
@@ -51,7 +51,7 @@ export default async function SubjectResourcesPage({ params }: { params: Promise
 
             {/* Subject Quick Stats */}
             {stats && (
-              <div className="flex items-center gap-4 bg-card border border-border/60 p-2 rounded-[28px] shadow-sm">
+              <div className="flex items-center gap-4 bg-card border border-border/60 p-2 rounded-2xl shadow-sm">
                 <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-muted/30 border border-border/40">
                     <Clock className="w-5 h-5 text-primary" />
                     <div>
@@ -95,7 +95,7 @@ export default async function SubjectResourcesPage({ params }: { params: Promise
               />
            </div>
 
-           <div className="bg-card border border-border/60 rounded-[40px] p-10 shadow-sm relative overflow-hidden">
+           <div className="bg-card border border-border/60 rounded-4xl p-10 shadow-sm relative overflow-hidden">
              {/* Decorative */}
              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-0 translate-x-1/2 -translate-y-1/2" />
              
@@ -118,7 +118,7 @@ export default async function SubjectResourcesPage({ params }: { params: Promise
 
         {/* Right Column: Resources */}
         <div className="xl:col-span-5 space-y-8">
-           <div className="bg-card border border-border/60 rounded-[40px] p-10 shadow-sm">
+           <div className="bg-card border border-border/60 rounded-4xl p-10 shadow-sm">
              <div className="flex items-center justify-between mb-10">
                <div className="flex items-center gap-4">
                   <div className="p-3 bg-blue-500 rounded-2xl text-white shadow-lg shadow-blue-500/20">
@@ -131,14 +131,14 @@ export default async function SubjectResourcesPage({ params }: { params: Promise
 
              <div className="space-y-4">
                {resources.length === 0 ? (
-                 <div className="py-20 text-center border-2 border-dashed border-border/40 rounded-[32px] bg-muted/30">
+                 <div className="py-20 text-center border-2 border-dashed border-border/40 rounded-2xl bg-muted/30">
                    <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs opacity-50">No resources yet</p>
                  </div>
                ) : (
                  resources.map((res: Resource) => (
                    <div 
                     key={res.id} 
-                    className="group flex items-center justify-between p-6 rounded-[28px] border border-border/40 bg-muted/20 hover:bg-white dark:hover:bg-black transition-all hover:shadow-xl hover:-translate-y-1"
+                    className="group flex items-center justify-between p-6 rounded-2xl border border-border/40 bg-muted/20 hover:bg-white dark:hover:bg-black transition-all hover:shadow-xl hover:-translate-y-1"
                    >
                      <div className="flex items-center gap-5">
                        <div className={cn(
@@ -177,7 +177,7 @@ export default async function SubjectResourcesPage({ params }: { params: Promise
 
 function StatMiniCard({ label, value, icon }: { label: string, value: string | number, icon: React.ReactNode }) {
   return (
-    <Card className="p-6 border border-border/60 rounded-[32px] shadow-sm flex items-center gap-5 hover:border-primary/30 transition-colors group">
+    <Card className="p-6 border border-border/60 rounded-2xl shadow-sm flex items-center gap-5 hover:border-primary/30 transition-colors group">
       <div className="p-3 bg-muted/50 rounded-2xl transition-transform">
         {icon}
       </div>

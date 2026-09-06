@@ -134,7 +134,7 @@ export function SummaryCard({ summary }: SummaryCardProps) {
   ];
 
   return (
-    <div className="group bg-card/65 backdrop-blur-md border border-border/50 rounded-[36px] p-7 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/20 transition-all duration-400 overflow-hidden relative flex flex-col justify-between min-h-[380px]">
+    <div className="group bg-card/65 backdrop-blur-md border border-border/50 rounded-3xl p-7 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/20 transition-all duration-400 overflow-hidden relative flex flex-col justify-between min-h-[380px]">
 
       {/* Glow */}
       <div className={cn("absolute -top-16 -right-16 w-44 h-44 rounded-full blur-[80px] opacity-15 pointer-events-none transition-all duration-700 group-hover:scale-125 group-hover:opacity-25", theme.glow)} />
@@ -211,7 +211,7 @@ export function SummaryCard({ summary }: SummaryCardProps) {
               View Full Report <Sparkles className="w-4 h-4 fill-current" />
             </button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[95vw] w-full p-0 overflow-hidden bg-background border-none rounded-[36px] shadow-[0_0_80px_rgba(0,0,0,0.15)] z-[110]">
+          <DialogContent className="sm:max-w-[95vw] w-full p-0 overflow-hidden bg-background border-none rounded-3xl shadow-[0_0_80px_rgba(0,0,0,0.15)] z-[110]">
             <div className="flex flex-col h-[92vh]">
               <div className="px-8 py-5 border-b flex items-center justify-between bg-card/60 backdrop-blur-md shrink-0 select-none">
                 <div className="text-left flex-1 space-y-0.5">

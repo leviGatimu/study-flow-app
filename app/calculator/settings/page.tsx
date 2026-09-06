@@ -98,7 +98,7 @@ export default function CalculatorSettingsPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="rounded-[32px] border-2 border-border/40 bg-card/40 backdrop-blur-sm p-8 space-y-8">
+                <Card className="rounded-2xl border-2 border-border/40 bg-card/40 backdrop-blur-sm p-8 space-y-8">
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <Label className="text-base font-bold">Decimal Precision</Label>
@@ -109,7 +109,7 @@ export default function CalculatorSettingsPage() {
                   <Slider value={[settings.precision]} onValueChange={(value) => updateSetting("precision", value[0])} max={12} step={1} className="py-2" />
                 </Card>
 
-                <Card className="rounded-[32px] border-2 border-border/40 bg-card/40 backdrop-blur-sm p-8 space-y-6">
+                <Card className="rounded-2xl border-2 border-border/40 bg-card/40 backdrop-blur-sm p-8 space-y-6">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
                       <Label className="text-base font-bold">Angular Unit</Label>
@@ -140,7 +140,7 @@ export default function CalculatorSettingsPage() {
                 <h2 className="text-sm font-black uppercase tracking-[0.3em] text-muted-foreground">User Interface</h2>
               </div>
 
-              <Card className="rounded-[40px] border-2 border-border/40 bg-card/20 p-10 overflow-hidden relative">
+              <Card className="rounded-4xl border-2 border-border/40 bg-card/20 p-10 overflow-hidden relative">
                 <div className="absolute top-0 right-0 p-8">
                   <div className={cn("w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary", settings.largeButtons ? "scale-125" : "scale-100")}>
                     <Zap className="w-6 h-6" />
@@ -189,7 +189,7 @@ export default function CalculatorSettingsPage() {
                 <h2 className="text-sm font-black uppercase tracking-[0.3em] text-muted-foreground">Log Management</h2>
               </div>
 
-              <Card className="rounded-[40px] border-2 border-primary/20 bg-foreground text-background p-10 space-y-8 overflow-hidden relative group">
+              <Card className="rounded-4xl border-2 border-primary/20 bg-foreground text-background p-10 space-y-8 overflow-hidden relative group">
                 <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-10 transition-opacity" />
                 <div className="relative space-y-6">
                   <div className="space-y-2">
@@ -215,7 +215,7 @@ export default function CalculatorSettingsPage() {
               </Card>
             </section>
 
-            <Card className="rounded-[32px] border-2 border-border/60 bg-muted/20 p-8 space-y-4">
+            <Card className="rounded-2xl border-2 border-border/60 bg-muted/20 p-8 space-y-4">
               <div className="flex items-center gap-3 text-primary">
                 <Info className="w-4 h-4" />
                 <span className="text-[10px] font-black uppercase tracking-widest">Metadata</span>

@@ -111,7 +111,7 @@ export function OverallSummaryButton() {
 
       {summary && (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogContent className="sm:max-w-[95vw] w-full p-0 overflow-hidden bg-background border-none rounded-[36px] shadow-[0_0_80px_rgba(0,0,0,0.15)] z-[110]">
+          <DialogContent className="sm:max-w-[95vw] w-full p-0 overflow-hidden bg-background border-none rounded-3xl shadow-[0_0_80px_rgba(0,0,0,0.15)] z-[110]">
             <OverallReportBody
               summary={summary}
               reportRef={reportRef}

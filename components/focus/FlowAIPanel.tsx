@@ -288,7 +288,7 @@ export function FlowAIPanel({
         {Header}
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-6 md:px-12 pb-8 relative">
           {isDragging && (
-            <div className="absolute inset-3 z-20 rounded-[28px] border-2 border-dashed border-primary/60 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center gap-3 pointer-events-none">
+            <div className="absolute inset-3 z-20 rounded-2xl border-2 border-dashed border-primary/60 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center gap-3 pointer-events-none">
               <Upload className="w-12 h-12 text-primary" />
               <p className="text-lg font-heading font-black">Drop material to study</p>
             </div>
@@ -304,7 +304,7 @@ export function FlowAIPanel({
 
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full rounded-[28px] border-2 border-dashed border-white/15 hover:border-primary/50 bg-white/[0.03] hover:bg-white/[0.06] transition-all p-10 flex flex-col items-center gap-4 group backdrop-blur-md"
+              className="w-full rounded-2xl border-2 border-dashed border-white/15 hover:border-primary/50 bg-white/[0.03] hover:bg-white/[0.06] transition-all p-10 flex flex-col items-center gap-4 group backdrop-blur-md"
             >
               <div className="w-16 h-16 rounded-3xl bg-primary/15 border border-primary/25 flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
                 {isProcessing ? <Loader2 className="w-7 h-7 animate-spin" /> : <Upload className="w-7 h-7" />}
@@ -363,7 +363,7 @@ export function FlowAIPanel({
             <Button
               onClick={handleGenerateNotes}
               disabled={!hasMaterial || isGenerating}
-              className="w-full h-16 rounded-[24px] bg-primary hover:bg-primary/90 text-primary-foreground font-heading font-black text-lg gap-3 shadow-2xl shadow-primary/20 disabled:opacity-40"
+              className="w-full h-16 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-heading font-black text-lg gap-3 shadow-2xl shadow-primary/20 disabled:opacity-40"
             >
               {isGenerating ? <><Loader2 className="w-6 h-6 animate-spin" /> Flow is writing your notes…</>
                 : <><Sparkles className="w-6 h-6" /> Generate Notes</>}
@@ -411,7 +411,7 @@ export function FlowAIPanel({
                 animate={{ opacity: 1, scale: 1 }}
                 className="text-center py-10 space-y-7"
               >
-                <div className="w-24 h-24 mx-auto rounded-[32px] bg-primary/15 border border-primary/25 flex items-center justify-center text-primary">
+                <div className="w-24 h-24 mx-auto rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center text-primary">
                   <Trophy className="w-12 h-12" />
                 </div>
                 <div className="space-y-1">
@@ -534,7 +534,7 @@ export function FlowAIPanel({
       {Header}
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-5 px-6 md:px-12 pb-6 overflow-hidden">
         {/* Notes — open, readable, floating in the scene */}
-        <div className="min-h-0 flex flex-col rounded-[28px] bg-black/25 backdrop-blur-md overflow-hidden">
+        <div className="min-h-0 flex flex-col rounded-2xl bg-black/25 backdrop-blur-md overflow-hidden">
           <div className="shrink-0 flex items-center justify-between gap-2 px-6 md:px-8 pt-6 pb-3">
             <h3 className="text-[11px] font-black uppercase tracking-widest text-white/40 flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-primary" /> Your Notes
@@ -572,7 +572,7 @@ export function FlowAIPanel({
         </div>
 
         {/* Tutor */}
-        <div className="min-h-0 flex flex-col rounded-[28px] bg-white/[0.05] backdrop-blur-xl overflow-hidden">
+        <div className="min-h-0 flex flex-col rounded-2xl bg-white/[0.05] backdrop-blur-xl overflow-hidden">
           <div className="shrink-0 px-6 pt-6 pb-3">
             <h3 className="text-[11px] font-black uppercase tracking-widest text-white/40 flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-primary" /> Ask Flow about these notes

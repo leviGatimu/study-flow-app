@@ -222,7 +222,7 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-             <div className="p-8 bg-muted/50 rounded-[40px] mb-8">
+             <div className="p-8 bg-muted/50 rounded-4xl mb-8">
                <FileText className="w-20 h-20 text-muted-foreground/20" />
              </div>
              <h3 className="text-3xl font-heading font-black mb-4 tracking-tight">Project Documentation</h3>
@@ -295,7 +295,7 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
                       value={aiInput}
                       onChange={(e) => setAiInput(e.target.value)}
                       placeholder="Ask the Architect anything..."
-                      className="w-full min-h-[120px] p-6 rounded-[32px] bg-background border border-border/60 font-medium focus:ring-2 focus:ring-primary/20 resize-none pr-16"
+                      className="w-full min-h-[120px] p-6 rounded-2xl bg-background border border-border/60 font-medium focus:ring-2 focus:ring-primary/20 resize-none pr-16"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();

@@ -157,7 +157,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
         {/* Left: readiness + sessions */}
         <div className="xl:col-span-7 space-y-8">
           {/* Readiness */}
-          <Card className="bg-card border border-border/60 rounded-[32px] p-8 shadow-sm relative overflow-hidden">
+          <Card className="bg-card border border-border/60 rounded-2xl p-8 shadow-sm relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-0 translate-x-1/2 -translate-y-1/2" />
             <div className="relative z-10 space-y-6">
               <div className="flex items-center justify-between">
@@ -182,7 +182,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
           </Card>
 
           {/* Session log */}
-          <Card className="bg-card border border-border/60 rounded-[32px] p-8 shadow-sm">
+          <Card className="bg-card border border-border/60 rounded-2xl p-8 shadow-sm">
             <h2 className="text-xl font-heading font-black uppercase tracking-tight flex items-center gap-2 mb-6">
               <CalendarIcon className="w-5 h-5 text-primary" /> Session Log
               <span className="text-[10px] font-black bg-muted text-muted-foreground px-2.5 py-1 rounded-full border ml-1">
@@ -240,7 +240,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 
         {/* Right: topics to cover */}
         <div className="xl:col-span-5 space-y-8">
-          <Card className="bg-card border border-border/60 rounded-[32px] p-8 shadow-sm relative overflow-hidden">
+          <Card className="bg-card border border-border/60 rounded-2xl p-8 shadow-sm relative overflow-hidden">
             <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/5 rounded-full blur-3xl -z-0 translate-x-1/2 -translate-y-1/2" />
             <div className="relative z-10 space-y-6">
               <div className="flex items-center justify-between gap-4 flex-wrap">

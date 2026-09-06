@@ -454,13 +454,13 @@ export function TutorHub({ module }: { module: any }) {
             </div>
 
             {isGeneratingFlashcards ? (
-              <div className="text-center py-20 bg-card border border-dashed rounded-[32px] space-y-4">
+              <div className="text-center py-20 bg-card border border-dashed rounded-2xl space-y-4">
                 <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto" />
                 <h3 className="text-xl font-bold">Generating Flashcard Deck...</h3>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto">AI is extracting core concepts and definitions from this module's quiz content.</p>
               </div>
             ) : localFlashcards.length === 0 ? (
-              <div className="text-center py-20 bg-card border border-dashed rounded-[32px] p-8 space-y-6">
+              <div className="text-center py-20 bg-card border border-dashed rounded-2xl p-8 space-y-6">
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto text-primary border border-primary/20">
                   <Layers className="w-8 h-8" />
                 </div>
@@ -478,19 +478,19 @@ export function TutorHub({ module }: { module: any }) {
               <div className="space-y-8">
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  <Card className="p-6 rounded-[24px] border-border/60 flex flex-col justify-between shadow-sm">
+                  <Card className="p-6 rounded-xl border-border/60 flex flex-col justify-between shadow-sm">
                     <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Total Cards</span>
                     <span className="text-4xl font-heading font-black mt-2 text-foreground">{localFlashcards.length}</span>
                   </Card>
                   
-                  <Card className="p-6 rounded-[24px] border-border/60 flex flex-col justify-between bg-primary/5 border-primary/20 shadow-sm">
+                  <Card className="p-6 rounded-xl border-border/60 flex flex-col justify-between bg-primary/5 border-primary/20 shadow-sm">
                     <span className="text-[10px] font-black uppercase tracking-wider text-primary">Due for Review</span>
                     <span className="text-4xl font-heading font-black mt-2 text-primary">
                       {localFlashcards.filter((fc: any) => !fc.nextReviewDate || new Date(fc.nextReviewDate) <= new Date()).length}
                     </span>
                   </Card>
 
-                  <Card className="p-6 rounded-[24px] border-border/60 flex flex-col justify-between shadow-sm">
+                  <Card className="p-6 rounded-xl border-border/60 flex flex-col justify-between shadow-sm">
                     <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Next Scheduled Review</span>
                     <span className="text-sm font-semibold mt-2 text-foreground truncate">
                       {(() => {

@@ -20,7 +20,7 @@ export function ActiveFocusCard() {
       className="w-full"
     >
       <Card className={cn(
-        "relative overflow-hidden border-2 transition-all duration-500 rounded-[40px] p-8 md:p-10",
+        "relative overflow-hidden border-2 transition-all duration-500 rounded-4xl p-8 md:p-10",
         isPaused 
           ? "border-amber-500/20 bg-amber-500/[0.02]" 
           : "border-primary/30 bg-primary/[0.02] shadow-2xl shadow-primary/10"

@@ -23,7 +23,7 @@ export function StreakCalendar({ activeTimestamps }: { activeTimestamps: number[
   const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
   return (
-    <div className="bg-card border border-border/60 rounded-[40px] p-6 md:p-10 shadow-sm overflow-hidden relative">
+    <div className="bg-card border border-border/60 rounded-4xl p-6 md:p-10 shadow-sm overflow-hidden relative">
       <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
 
       <div className="flex items-center justify-between mb-10 relative z-10">

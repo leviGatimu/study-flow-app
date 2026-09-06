@@ -29,7 +29,7 @@ export function LiveFocusBanner() {
         className="fixed bottom-6 left-6 right-6 md:left-auto md:right-8 md:w-96 z-[100]"
       >
         <div className={cn(
-          "bg-card border-2 shadow-2xl rounded-[32px] overflow-hidden transition-all duration-500",
+          "bg-card border-2 shadow-2xl rounded-2xl overflow-hidden transition-all duration-500",
           isPaused ? "border-amber-500/40" : "border-primary/40 shadow-primary/20"
         )}>
           {/* Background Glow */}

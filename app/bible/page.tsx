@@ -117,7 +117,7 @@ export default function BiblePage() {
         {activeTab === 'saved' ? (
           <div className="space-y-6">
             {savedVerses.length === 0 ? (
-              <div className="text-center py-20 bg-card border border-border/40 rounded-[32px] p-8 space-y-4 max-w-xl mx-auto shadow-sm">
+              <div className="text-center py-20 bg-card border border-border/40 rounded-2xl p-8 space-y-4 max-w-xl mx-auto shadow-sm">
                 <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto border border-primary/20 text-primary mb-4">
                   <Bookmark className="w-8 h-8" />
                 </div>
@@ -142,7 +142,7 @@ export default function BiblePage() {
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ type: "spring", stiffness: 300, damping: 28 }}
                       key={verse.ref}
-                      className="bg-card border border-border/60 border-l-4 border-l-primary p-6 sm:p-8 rounded-[28px] shadow-sm relative overflow-hidden flex flex-col justify-between hover:shadow-md transition-all group"
+                      className="bg-card border border-border/60 border-l-4 border-l-primary p-6 sm:p-8 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between hover:shadow-md transition-all group"
                     >
                       <div className="absolute right-4 top-4">
                         <Button
@@ -193,7 +193,7 @@ export default function BiblePage() {
             </div>
 
             {historyVerses.length === 0 ? (
-              <div className="text-center py-20 bg-card border border-border/40 rounded-[32px] p-8 space-y-4 max-w-xl mx-auto shadow-sm">
+              <div className="text-center py-20 bg-card border border-border/40 rounded-2xl p-8 space-y-4 max-w-xl mx-auto shadow-sm">
                 <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto border border-border/60 text-muted-foreground/60 mb-4">
                   <History className="w-8 h-8" />
                 </div>

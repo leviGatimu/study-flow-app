@@ -618,7 +618,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
       {!selectedSubjectId ? (
         <div className="space-y-8">
           {/* Dashboard Control Bar */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border border-border/60 p-6 rounded-[32px] shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border border-border/60 p-6 rounded-2xl shadow-sm">
             <div className="flex items-center gap-4 flex-1">
               <div className="relative flex-1 max-w-md">
                 <Search className="w-4.5 h-4.5 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -658,7 +658,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
 
           {/* Subjects Grid (12 Columns, each subject card takes 3 columns = 4 per row on large screens) */}
           {filteredSubjects.length === 0 ? (
-            <Card className="p-16 text-center border-dashed border-2 border-border/50 rounded-[32px] bg-card/40 backdrop-blur-md">
+            <Card className="p-16 text-center border-dashed border-2 border-border/50 rounded-2xl bg-card/40 backdrop-blur-md">
               <div className="max-w-md mx-auto space-y-4">
                 <div className="p-4 bg-muted/50 rounded-full inline-block">
                   <BookOpenText className="w-12 h-12 text-muted-foreground/30" />
@@ -701,7 +701,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                       setSelectedSubjectId(s.id);
                       setRenameSubjectName(s.name);
                     }}
-                    className="group bg-card border border-border/60 rounded-[28px] p-6 shadow-sm hover:shadow-md hover:border-primary/20 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[220px]"
+                    className="group bg-card border border-border/60 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-primary/20 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[220px]"
                   >
                     <div className="space-y-4">
                       {/* Card Header */}
@@ -786,7 +786,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
           </div>
 
           {/* Subject Control Header */}
-          <div className="bg-card border border-border/60 p-8 rounded-[32px] shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6">
+          <div className="bg-card border border-border/60 p-8 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6">
             <div className="min-w-0 flex-1">
               <p className="text-xs font-black uppercase tracking-wider text-primary/60">Active Subject Workspace</p>
               <h2 className="text-2xl md:text-3xl font-heading font-black tracking-tight text-foreground mt-2 leading-tight select-all break-words">
@@ -823,7 +823,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
             <div className="lg:col-span-5 space-y-6">
               
               {/* 1. Academic Growth Curve (Recharts) */}
-              <Card className="bg-card border border-border/60 p-6 rounded-[28px] shadow-sm flex flex-col justify-between min-h-[340px]">
+              <Card className="bg-card border border-border/60 p-6 rounded-2xl shadow-sm flex flex-col justify-between min-h-[340px]">
                 <div className="mb-4">
                   <h3 className="text-base font-heading font-black text-foreground flex items-center gap-2">
                     <TrendingUp className="w-4.5 h-4.5 text-primary" />
@@ -898,7 +898,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
               </Card>
 
               {/* 2. Target Goal & Gap Indicator Card */}
-              <Card className="bg-card border border-border/60 p-6 rounded-[28px] shadow-sm flex flex-col justify-between">
+              <Card className="bg-card border border-border/60 p-6 rounded-2xl shadow-sm flex flex-col justify-between">
                 <div>
                   <h3 className="text-base font-heading font-black text-foreground flex items-center gap-2">
                     <Target className="w-4.5 h-4.5 text-orange-500" />
@@ -977,7 +977,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
               </Card>
 
               {/* 3. Homework Assignments Tracker List */}
-              <Card className="bg-card border border-border/60 p-6 rounded-[28px] shadow-sm space-y-4">
+              <Card className="bg-card border border-border/60 p-6 rounded-2xl shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-heading font-black text-foreground flex items-center gap-2">
                     <BookOpen className="w-4.5 h-4.5 text-blue-500" />
@@ -1041,7 +1041,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
             </div>
 
             {/* RIGHT COLUMN: Unified Study Vault Workspace (lg:col-span-7) */}
-            <Card className="lg:col-span-7 bg-card border border-border/60 rounded-[28px] overflow-hidden flex flex-col h-[750px] shadow-sm">
+            <Card className="lg:col-span-7 bg-card border border-border/60 rounded-2xl overflow-hidden flex flex-col h-[750px] shadow-sm">
               
               {/* Tab Header Selector */}
               <div className="bg-muted/40 border-b border-border/50 p-4 shrink-0 flex items-center justify-between">

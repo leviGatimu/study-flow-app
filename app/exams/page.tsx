@@ -114,7 +114,7 @@ export default async function ExamsPage() {
             
             {/* Main Hero Card displaying closest exam */}
             <div className="xl:col-span-8">
-              <Card className="h-full bg-card/40 backdrop-blur-xl border-border/40 rounded-[32px] p-8 md:p-12 relative overflow-hidden shadow-xl group transition-all duration-500 hover:border-primary/30">
+              <Card className="h-full bg-card/40 backdrop-blur-xl border-border/40 rounded-2xl p-8 md:p-12 relative overflow-hidden shadow-xl group transition-all duration-500 hover:border-primary/30">
                 
                 {/* Subtle Ambient Glow */}
                 <div className="absolute top-0 right-0 w-80 h-80 bg-primary/10 rounded-full blur-[100px] -z-10 translate-x-1/4 -translate-y-1/4" />
@@ -207,7 +207,7 @@ export default async function ExamsPage() {
             {/* Preparation Bento stats cards */}
             <div className="xl:col-span-4 flex flex-col gap-6">
               {/* Readiness Card */}
-              <Card className="flex-1 bg-card/40 backdrop-blur-xl border-border/40 rounded-[24px] p-6 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:border-primary/20 transition-all duration-300">
+              <Card className="flex-1 bg-card/40 backdrop-blur-xl border-border/40 rounded-xl p-6 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:border-primary/20 transition-all duration-300">
                 <div className="absolute bottom-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl -z-10" />
                 <div className="relative z-10 space-y-5">
                   <div className="flex items-center justify-between">
@@ -237,7 +237,7 @@ export default async function ExamsPage() {
               </Card>
 
               {/* Mastered Topics Checklist Card */}
-              <Card className="flex-1 bg-card/40 backdrop-blur-xl border-border/40 rounded-[24px] p-6 shadow-sm relative overflow-hidden group hover:border-primary/20 transition-all duration-300">
+              <Card className="flex-1 bg-card/40 backdrop-blur-xl border-border/40 rounded-xl p-6 shadow-sm relative overflow-hidden group hover:border-primary/20 transition-all duration-300">
                 <div className="relative z-10 space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
@@ -278,7 +278,7 @@ export default async function ExamsPage() {
           </div>
         </section>
       ) : (
-        <Card className="h-[320px] flex flex-col items-center justify-center bg-card/40 backdrop-blur-xl border border-dashed border-border rounded-[32px] p-8 space-y-6 text-center shadow-md relative overflow-hidden">
+        <Card className="h-[320px] flex flex-col items-center justify-center bg-card/40 backdrop-blur-xl border border-dashed border-border rounded-2xl p-8 space-y-6 text-center shadow-md relative overflow-hidden">
            <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-primary/5" />
            <div className="w-16 h-16 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center shadow-inner relative z-10">
               <CalendarIcon className="w-8 h-8 text-primary" />

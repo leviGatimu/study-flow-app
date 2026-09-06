@@ -102,7 +102,7 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
       className="h-full"
     >
       <Card className={cn(
-        "relative overflow-hidden border transition-all duration-300 group h-full flex flex-col rounded-[28px] shadow-sm",
+        "relative overflow-hidden border transition-all duration-300 group h-full flex flex-col rounded-2xl shadow-sm",
         homework.isCompleted
           ? "bg-card border-emerald-500/20"
           : "bg-card hover:shadow-lg hover:border-primary/30"

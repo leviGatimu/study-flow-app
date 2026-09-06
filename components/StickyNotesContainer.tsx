@@ -199,7 +199,7 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
   return (
     <div className="space-y-6 flex flex-col h-[calc(100vh-80px)]">
       {/* Header & Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 bg-card/80 p-6 rounded-[32px] border shadow-sm backdrop-blur-md relative z-20">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 bg-card/80 p-6 rounded-2xl border shadow-sm backdrop-blur-md relative z-20">
         <div>
           <h1 className="text-3xl font-heading font-black text-foreground flex items-center gap-3">
             <Pin className="w-7 h-7 text-primary rotate-12" />
@@ -272,7 +272,7 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
       {/* Wall Canvas */}
       <div 
         ref={boardRef}
-        className="flex-1 relative overflow-hidden rounded-[40px] border-4 border-muted-foreground/10 bg-[url('/textures/cork-board.png')] bg-[#e8dcc7] dark:bg-[#3b3228] shadow-inner"
+        className="flex-1 relative overflow-hidden rounded-4xl border-4 border-muted-foreground/10 bg-[url('/textures/cork-board.png')] bg-[#e8dcc7] dark:bg-[#3b3228] shadow-inner"
       >
         <AnimatePresence>
           {filteredNotes.map((note) => {
@@ -437,7 +437,7 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-card border border-border shadow-2xl rounded-[32px] w-full max-w-lg overflow-hidden"
+              className="bg-card border border-border shadow-2xl rounded-2xl w-full max-w-lg overflow-hidden"
             >
               <div className="p-8 space-y-6">
                 <div className="flex items-center justify-between">
@@ -521,7 +521,7 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-card border border-border shadow-2xl rounded-[32px] w-full max-w-lg overflow-hidden"
+              className="bg-card border border-border shadow-2xl rounded-2xl w-full max-w-lg overflow-hidden"
             >
               <div className="p-8 space-y-6">
                 <div className="flex items-center justify-between">
@@ -602,7 +602,7 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-card border border-border shadow-2xl rounded-[32px] w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden"
+              className="bg-card border border-border shadow-2xl rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden"
             >
               <div className="p-8 pb-4 shrink-0 flex items-center justify-between border-b border-border/40">
                 <h2 className="text-2xl font-heading font-black flex items-center gap-2 text-blue-600">

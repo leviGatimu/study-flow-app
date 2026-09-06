@@ -38,7 +38,7 @@ export function ValidationModal({
             animate={{ scale: 1, opacity: 1 }}
             className="relative"
           >
-            <div className="p-6 bg-primary/10 rounded-[32px] text-primary shadow-inner border border-primary/20">
+            <div className="p-6 bg-primary/10 rounded-2xl text-primary shadow-inner border border-primary/20">
               <FileEdit className="w-12 h-12" />
             </div>
             <div className="absolute -top-2 -right-2 p-2 bg-background rounded-full border shadow-sm">

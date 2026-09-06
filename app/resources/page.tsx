@@ -59,14 +59,14 @@ export default async function ResourcesPage() {
               href={`/resources/${encodeURIComponent(subject.name)}`}
               className="block h-full"
             >
-              <div className="bg-card border border-border/60 p-8 rounded-[40px] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-500 relative overflow-hidden h-full flex flex-col">
+              <div className="bg-card border border-border/60 p-8 rounded-4xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-500 relative overflow-hidden h-full flex flex-col">
                 {/* Decorative Icon */}
                 <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
                   <BookOpen size={120} />
                 </div>
 
                 <div className="flex items-center justify-between mb-8 relative z-10">
-                  <div className="p-4 bg-primary/10 rounded-[24px] text-primary group-hover:bg-primary group-hover:text-white transition-all duration-500">
+                  <div className="p-4 bg-primary/10 rounded-xl text-primary group-hover:bg-primary group-hover:text-white transition-all duration-500">
                     <BookOpen className="w-6 h-6" />
                   </div>
                   <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
@@ -106,7 +106,7 @@ export default async function ResourcesPage() {
       </div>
 
       {subjects.length === 0 && (
-        <div className="text-center py-32 bg-muted/5 border-2 border-dashed border-border/40 rounded-[40px]">
+        <div className="text-center py-32 bg-muted/5 border-2 border-dashed border-border/40 rounded-4xl">
           <h2 className="text-2xl font-heading font-bold text-muted-foreground">No subjects found.</h2>
           <p className="text-muted-foreground mt-2">Go to Manage Schedule to add your first study block!</p>
         </div>

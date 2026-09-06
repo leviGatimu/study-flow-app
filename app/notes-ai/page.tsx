@@ -21,7 +21,7 @@ export default async function AiNotesPage() {
         <AiNotesClient initialNotes={notes} />
       ) : (
         <div className="flex-1 flex items-center justify-center p-6">
-          <div className="w-full max-w-2xl bg-card/40 backdrop-blur-xl border border-border/40 rounded-[32px] p-10 shadow-2xl">
+          <div className="w-full max-w-2xl bg-card/40 backdrop-blur-xl border border-border/40 rounded-2xl p-10 shadow-2xl">
             <AIKeyPrompt />
           </div>
         </div>

@@ -615,7 +615,7 @@ export default function CalculatorPage() {
             {sideTab === "history" ? (
               history.length === 0 ? (
                 <div className="py-32 text-center flex flex-col items-center justify-center space-y-6">
-                  <div className="w-20 h-20 rounded-[32px] bg-muted/20 border-2 border-dashed border-border/40 flex items-center justify-center">
+                  <div className="w-20 h-20 rounded-2xl bg-muted/20 border-2 border-dashed border-border/40 flex items-center justify-center">
                     <History className="w-8 h-8 text-muted-foreground/20" />
                   </div>
                   <div>
@@ -629,7 +629,7 @@ export default function CalculatorPage() {
                     <div
                       key={`${item.timestamp}-${index}`}
                       className={cn(
-                        "group relative cursor-pointer rounded-[28px] p-6 border border-transparent hover:border-border/40 hover:bg-muted/30 transition-all flex flex-col items-end gap-3",
+                        "group relative cursor-pointer rounded-2xl p-6 border border-transparent hover:border-border/40 hover:bg-muted/30 transition-all flex flex-col items-end gap-3",
                         settings.animationsEnabled && "animate-in slide-in-from-bottom-4 duration-500"
                       )}
                       onClick={() => {
@@ -654,7 +654,7 @@ export default function CalculatorPage() {
               )
             ) : (
               <div className="space-y-8">
-                <div className="rounded-[28px] border border-border/60 bg-background p-8">
+                <div className="rounded-2xl border border-border/60 bg-background p-8">
                   <div className="mb-3 text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">Stored Register</div>
                   <div className="text-5xl font-heading font-black tracking-tighter text-primary">
                     {memory !== null ? formatNumber(memory, settings.precision, useExponential) : "--"}
@@ -667,7 +667,7 @@ export default function CalculatorPage() {
                     </Button>
                   ))}
                 </div>
-                <div className="rounded-[28px] border border-border/60 bg-muted/20 p-6 text-sm font-medium text-muted-foreground">
+                <div className="rounded-2xl border border-border/60 bg-muted/20 p-6 text-sm font-medium text-muted-foreground">
                   Memory is persistent across calculator visits. `MS` stores the current evaluated result, `MR` restores it, and `M+` / `M-` adjust it.
                 </div>
               </div>

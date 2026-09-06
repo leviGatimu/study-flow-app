@@ -25,7 +25,7 @@ export default async function ProjectsPage() {
       </div>
 
       {projects.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-32 bg-muted/5 border-2 border-dashed border-border/40 rounded-[40px] text-center">
+        <div className="flex flex-col items-center justify-center py-32 bg-muted/5 border-2 border-dashed border-border/40 rounded-4xl text-center">
           <Rocket className="w-16 h-16 text-muted-foreground/20 mb-6" />
           <h2 className="text-2xl font-heading font-bold text-muted-foreground">No projects yet.</h2>
           <p className="text-muted-foreground mt-2 max-w-md mx-auto">Start your first venture today. Your AI Buddy is ready to help you plan.</p>

@@ -47,7 +47,7 @@ export function CreateProjectForm() {
       <Button 
         type="submit" 
         disabled={isPending}
-        className="w-full h-16 rounded-[20px] font-heading font-black text-lg shadow-xl shadow-primary/20"
+        className="w-full h-16 rounded-xl font-heading font-black text-lg shadow-xl shadow-primary/20"
       >
         {isPending ? 'CREATING...' : 'CREATE PROJECT'}
       </Button>

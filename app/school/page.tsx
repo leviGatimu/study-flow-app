@@ -18,7 +18,7 @@ export default async function SchoolPage() {
   // Access Control: only administrators can see this page.
   if (user?.isAdmin !== true) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 bg-destructive/5 border-2 border-dashed border-destructive/20 rounded-[40px] text-center max-w-2xl mx-auto mt-20">
+      <div className="flex flex-col items-center justify-center py-32 bg-destructive/5 border-2 border-dashed border-destructive/20 rounded-4xl text-center max-w-2xl mx-auto mt-20">
         <ShieldAlert className="w-16 h-16 text-destructive/40 mb-6" />
         <h2 className="text-2xl font-heading font-bold text-destructive/80">Access Restricted</h2>
         <p className="text-muted-foreground mt-2 px-8">

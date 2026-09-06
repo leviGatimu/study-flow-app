@@ -254,7 +254,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
       <div className="space-y-12 max-w-[1600px] mx-auto animate-pulse pb-16">
         <div className="h-20 bg-muted/30 rounded-2xl" />
         <div className="grid grid-cols-6 gap-6">
-          {[...Array(6)].map((_, i) => <div key={i} className="h-28 bg-muted/30 rounded-[32px]" />)}
+          {[...Array(6)].map((_, i) => <div key={i} className="h-28 bg-muted/30 rounded-2xl" />)}
         </div>
       </div>
     );
@@ -348,7 +348,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
       </div>
 
       {/* AI Study Insights Panel */}
-      <div className="bg-gradient-to-r from-blue-500/5 via-indigo-500/5 to-purple-500/5 border border-primary/20 rounded-[32px] p-6 relative overflow-hidden shadow-sm">
+      <div className="bg-gradient-to-r from-blue-500/5 via-indigo-500/5 to-purple-500/5 border border-primary/20 rounded-2xl p-6 relative overflow-hidden shadow-sm">
         <div className="absolute top-0 right-0 w-48 h-48 bg-primary rounded-full blur-3xl -z-0 opacity-10 translate-x-1/2 -translate-y-1/2" />
         
         <div className="flex items-center gap-3.5 mb-5 relative z-10">
@@ -413,7 +413,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* Chart 1: Donut Time Distribution (8 columns on large screens) */}
-        <div className="lg:col-span-5 bg-card border border-border/60 p-8 rounded-[40px] shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-card border border-border/60 p-8 rounded-4xl shadow-sm flex flex-col justify-between">
           <div className="space-y-1 mb-6">
             <h3 className="text-xl font-heading font-black tracking-tight">Time Distribution</h3>
             <p className="text-xs font-semibold text-muted-foreground">Focus duration breakdown across subjects.</p>
@@ -485,7 +485,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
         </div>
 
         {/* Chart 2: Focus Consistency Curve (7 columns) */}
-        <div className="lg:col-span-7 bg-card border border-border/60 p-8 rounded-[40px] shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-7 bg-card border border-border/60 p-8 rounded-4xl shadow-sm flex flex-col justify-between">
           <div className="space-y-1 mb-6">
             <h3 className="text-xl font-heading font-black tracking-tight">Focus Consistency Curve</h3>
             <p className="text-xs font-semibold text-muted-foreground">Trend of daily study minutes over the range.</p>
@@ -609,7 +609,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
         {/* Expanding Log Grid Rows */}
         <div className="space-y-4">
           {filteredTasks.length === 0 ? (
-            <div className="text-center py-20 bg-card border border-dashed rounded-[32px] text-muted-foreground font-bold italic">
+            <div className="text-center py-20 bg-card border border-dashed rounded-2xl text-muted-foreground font-bold italic">
               No matching records found. Try adjusting your searches or filters!
             </div>
           ) : (
@@ -621,7 +621,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
                 <div 
                   key={task.id}
                   className={cn(
-                    "bg-card border-2 rounded-[28px] overflow-hidden transition-all duration-300 shadow-sm",
+                    "bg-card border-2 rounded-2xl overflow-hidden transition-all duration-300 shadow-sm",
                     isExpanded 
                       ? "border-primary/40 shadow-md scale-[1.005]" 
                       : "border-border/60 hover:border-border"
@@ -765,7 +765,7 @@ interface StatCardProps {
 function StatCard({ label, value, icon, description, borderClass }: StatCardProps) {
   return (
     <div className={cn(
-      "bg-card border p-6 rounded-[32px] shadow-sm transition-all duration-300",
+      "bg-card border p-6 rounded-2xl shadow-sm transition-all duration-300",
       borderClass
     )}>
       <div className="flex items-center justify-between mb-4">

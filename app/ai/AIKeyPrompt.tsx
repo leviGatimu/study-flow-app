@@ -47,16 +47,16 @@ export function AIKeyPrompt() {
 
       <div className="relative z-10 grid w-full max-w-6xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         {/* Intentional marketing/launch panel: stays dark in both light and dark themes for contrast against the activation card. */}
-        <section className="rounded-[40px] border border-border/60 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-8 text-white shadow-2xl shadow-slate-900/10 md:p-10">
+        <section className="rounded-4xl border border-border/60 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-8 text-white shadow-2xl shadow-slate-900/10 md:p-10">
           <div className="inline-flex rounded-full border border-sky-300/15 bg-white/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] text-sky-200/80">
             AI Workstation
           </div>
 
           <div className="mt-8 flex items-center gap-4">
-            <div className="rounded-[26px] bg-white/10 p-4 text-sky-200">
+            <div className="rounded-2xl bg-white/10 p-4 text-sky-200">
               <BrainCircuit className="h-10 w-10" />
             </div>
-            <div className="rounded-[26px] bg-white/10 p-4 text-sky-200">
+            <div className="rounded-2xl bg-white/10 p-4 text-sky-200">
               <Orbit className="h-10 w-10" />
             </div>
           </div>
@@ -80,14 +80,14 @@ export function AIKeyPrompt() {
           </div>
 
           <div className="mt-10 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
               <ShieldCheck className="h-6 w-6 text-sky-200" />
               <p className="mt-4 text-sm font-black uppercase tracking-[0.22em] text-sky-200/80">Verified Routing</p>
               <p className="mt-2 text-sm font-medium leading-relaxed text-slate-300">
                 The backend tests the pasted key and only uses the provider that actually accepts it.
               </p>
             </div>
-            <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
               <Sparkles className="h-6 w-6 text-sky-200" />
               <p className="mt-4 text-sm font-black uppercase tracking-[0.22em] text-sky-200/80">Adaptive Model Pick</p>
               <p className="mt-2 text-sm font-medium leading-relaxed text-slate-300">
@@ -97,19 +97,19 @@ export function AIKeyPrompt() {
           </div>
         </section>
 
-        <section className="rounded-[40px] border border-border/60 bg-card/88 p-8 shadow-xl backdrop-blur-xl md:p-10">
+        <section className="rounded-4xl border border-border/60 bg-card/88 p-8 shadow-xl backdrop-blur-xl md:p-10">
           <div className="mb-8 flex items-center justify-between gap-4">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Activation</p>
               <h3 className="mt-2 text-3xl font-heading font-black tracking-tight">Bring AI Buddy online</h3>
             </div>
-            <div className="rounded-[24px] bg-primary/10 p-4 text-primary">
+            <div className="rounded-xl bg-primary/10 p-4 text-primary">
               <KeyRound className="h-6 w-6" />
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="rounded-[28px] border border-border/60 bg-muted/25 p-5">
+            <div className="rounded-2xl border border-border/60 bg-muted/25 p-5">
               <Label className="ml-1 text-xs font-black uppercase tracking-[0.24em] text-muted-foreground">API Key</Label>
               <div className="relative mt-3">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { Zap, Play, ArrowRight, Clock, Target, Flame, Pause, School } from 'lucide-react';
+import { Zap, Play, ArrowRight, Clock, Coffee, Target, Flame, Pause, School } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -477,53 +477,62 @@ export function LiveFocusCard({
     }
 
     // 5. FINAL FALLBACK: BREAK CARD
+    //
+    // Rebuilt because it said the same thing three times ("CURRENT STATUS:
+    // BREAK", "Recharging...", "Time for a Break!") and then showed a 00:00
+    // countdown to nothing whenever there was no next block - which is most
+    // evenings, once the day's blocks are done. It now states the one useful
+    // fact: what is next and how long you have, or that the day is finished.
+    const hasCountdown =
+      nextTask !== null && (breakTimeLeft.h > 0 || breakTimeLeft.m > 0 || breakTimeLeft.s > 0);
+    const untilNext = breakTimeLeft.h > 0
+      ? `${breakTimeLeft.h}h ${breakTimeLeft.m}m`
+      : breakTimeLeft.m > 0
+        ? `${breakTimeLeft.m} min`
+        : `${breakTimeLeft.s}s`;
+
     return (
       <motion.div key="fallback-break" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full">
-        <Card className="relative overflow-hidden border-none bg-emerald-500 rounded-[40px] p-8 md:p-10 shadow-2xl shadow-emerald-500/20">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[100px] -z-0 translate-x-1/3 -translate-y-1/3" />
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-             <div className="space-y-6 flex-1 text-white">
-                <div className="flex items-center gap-3">
-                   <div className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] bg-white/20 border border-white/20 backdrop-blur-md text-white">
-                      CURRENT STATUS: BREAK
-                   </div>
-                   <div className="h-1.5 w-1.5 rounded-full bg-white/40" />
-                   <div className="flex items-center gap-2 text-xs font-bold text-white/80">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>Recharging...</span>
-                   </div>
+        <Card className="relative overflow-hidden border-none bg-emerald-500 rounded-2xl p-6 md:p-8 shadow-sm">
+          <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+             <div className="flex-1 space-y-3 text-white">
+                <div className="flex items-center gap-2 text-sm font-semibold text-white/90">
+                   <Coffee className="w-4 h-4" />
+                   <span>On a break</span>
                 </div>
-                <div className="space-y-3">
-                   <h2 className="text-5xl md:text-6xl font-heading font-black tracking-tighter leading-[0.9]">
-                      Time for a Break!
-                   </h2>
-                   <p className="text-white/80 text-lg font-medium max-w-xl">
-                      Take a moment to relax. You've been working hard! Stretch, hydrate, and get ready for your next session.
-                   </p>
-                </div>
-                {nextTask && (
-                  <div className="flex items-center gap-3 bg-white/10 border border-white/10 px-5 py-3 rounded-2xl w-fit backdrop-blur-md">
-                     <Target className="w-5 h-5 text-white animate-pulse" />
-                     <span className="font-black text-sm uppercase tracking-widest">
-                       Next Up: {nextTask.subject} ({nextTask.type})
-                     </span>
-                  </div>
+
+                {hasCountdown ? (
+                  <>
+                    <h2 className="font-heading text-3xl font-bold tracking-tight md:text-4xl">
+                       {nextTask!.subject}
+                    </h2>
+                    <p className="text-base text-white/80">
+                       {nextTask!.type === 'REVISION' ? 'Revision' : 'Homework'} starts at{' '}
+                       <span className="font-semibold text-white">{nextTask!.startTime}</span>
+                       {' - '}in {untilNext}.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="font-heading text-3xl font-bold tracking-tight md:text-4xl">
+                       Nothing scheduled next
+                    </h2>
+                    <p className="max-w-xl text-base text-white/80">
+                       That is the day&apos;s blocks done. Rest, or start a session of your own
+                       below if you want to keep going.
+                    </p>
+                  </>
                 )}
              </div>
-             <div className="flex flex-col items-center gap-4 min-w-[300px]">
-                <div className="text-white/80 text-xs font-black uppercase tracking-widest mb-1">Next Session In</div>
-                <div className="flex items-baseline font-heading font-black tracking-tighter tabular-nums text-white">
-                   <span className="text-7xl md:text-8xl">
-                      {breakTimeLeft.h > 0 && `${breakTimeLeft.h.toString().padStart(2, '0')}:`}
-                      {breakTimeLeft.m.toString().padStart(2, '0')}
-                   </span>
-                   <span className="text-4xl md:text-5xl opacity-40 mx-1">:</span>
-                   <span className="text-4xl md:text-5xl opacity-60">{breakTimeLeft.s.toString().padStart(2, '0')}</span>
-                </div>
-                <div className="mt-4 flex items-center gap-2 text-white/60 font-bold text-sm bg-black/10 px-4 py-2 rounded-full border border-white/5">
-                   <Flame className="w-4 h-4 text-orange-400" /> Keep that momentum going!
-                </div>
-             </div>
+
+             {hasCountdown && (
+               <div className="shrink-0 lg:text-right">
+                  <p className="text-sm text-white/70">Starts in</p>
+                  <p className="font-heading text-5xl font-bold tabular-nums tracking-tight text-white md:text-6xl">
+                     {untilNext}
+                  </p>
+               </div>
+             )}
           </div>
           {cardControls}
         </Card>

@@ -545,7 +545,7 @@ Today's date is ${new Date().toDateString()}.`
     >
       {/* Drag Overlay */}
       {isDragging && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm border-4 border-dashed border-primary/50 m-4 rounded-[40px]">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm border-4 border-dashed border-primary/50 m-4 rounded-4xl">
           <div className="text-center pointer-events-none">
             <div className="p-6 bg-primary/10 rounded-full inline-block mb-4 shadow-lg shadow-primary/20">
               <ImageIcon className="h-12 w-12 text-primary" />
@@ -654,7 +654,7 @@ Today's date is ${new Date().toDateString()}.`
                   {isSidebarExpanded && "AI API Key"}
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md rounded-[32px] border-border bg-card p-8 shadow-2xl">
+              <DialogContent className="sm:max-w-md rounded-2xl border-border bg-card p-8 shadow-2xl">
                 <DialogHeader className="mb-6">
                   <DialogTitle className="text-2xl font-heading font-black">API Key Settings</DialogTitle>
                 </DialogHeader>
@@ -884,7 +884,7 @@ Today's date is ${new Date().toDateString()}.`
                     layoutId="input-container"
                     className={cn(
                       "w-full bg-background/80 backdrop-blur-2xl border border-border/60 shadow-2xl relative transition-all duration-300",
-                      hasMessages ? "rounded-[24px] p-1.5" : "rounded-[32px] p-3 md:p-4"
+                      hasMessages ? "rounded-xl p-1.5" : "rounded-2xl p-3 md:p-4"
                     )}
                   >
                     <form
@@ -956,7 +956,7 @@ Today's date is ${new Date().toDateString()}.`
                         <button
                           key={prompt.label}
                           onClick={() => handleSend(prompt.text)}
-                          className="group relative overflow-hidden rounded-[20px] border border-border/40 bg-card/60 p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-primary/30"
+                          className="group relative overflow-hidden rounded-xl border border-border/40 bg-card/60 p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-primary/30"
                         >
                           <div className="flex items-start gap-3.5">
                             <div className="p-2 bg-muted rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-colors text-muted-foreground">

@@ -273,12 +273,12 @@ export function OnboardingTour() {
           transition={{ type: 'spring', stiffness: 280, damping: 32 }}
         >
           {/* dim everything except this box */}
-          <div className="absolute inset-0 rounded-[20px]" style={{ boxShadow: '0 0 0 9999px rgba(0,0,0,0.74)' }} />
+          <div className="absolute inset-0 rounded-xl" style={{ boxShadow: '0 0 0 9999px rgba(0,0,0,0.74)' }} />
           {/* crisp accent ring */}
-          <div className="absolute inset-0 rounded-[20px] ring-2 ring-primary" />
+          <div className="absolute inset-0 rounded-xl ring-2 ring-primary" />
           {/* breathing halo */}
           <motion.div
-            className="absolute -inset-1.5 rounded-[26px] border-2 border-primary/50"
+            className="absolute -inset-1.5 rounded-2xl border-2 border-primary/50"
             animate={{ opacity: [0.65, 0, 0.65], scale: [1, 1.05, 1] }}
             transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
           />
@@ -305,7 +305,7 @@ export function OnboardingTour() {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 340, damping: 28 }}
         style={{ width: CARD_W, ...cardStyle }}
-        className="absolute z-[201] rounded-[28px] border border-border/60 bg-card/95 backdrop-blur-2xl shadow-[0_30px_80px_-20px_rgba(0,0,0,0.65)] overflow-hidden text-foreground"
+        className="absolute z-[201] rounded-2xl border border-border/60 bg-card/95 backdrop-blur-2xl shadow-[0_30px_80px_-20px_rgba(0,0,0,0.65)] overflow-hidden text-foreground"
       >
         {/* ambient glow + top accent */}
         <div className="absolute -top-20 -right-16 w-44 h-44 bg-primary/20 rounded-full blur-3xl pointer-events-none" />

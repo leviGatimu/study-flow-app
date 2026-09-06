@@ -45,9 +45,9 @@ export function InsightsClient({ data }: { data: InsightsData }) {
       <div className="space-y-12 max-w-[1600px] mx-auto animate-pulse pb-16 px-4 md:px-8 pt-6">
         <div className="h-20 bg-muted/30 rounded-2xl" />
         <div className="grid grid-cols-2 md:grid-cols-6 gap-6">
-          {[...Array(6)].map((_, i) => <div key={i} className="h-28 bg-muted/30 rounded-[32px]" />)}
+          {[...Array(6)].map((_, i) => <div key={i} className="h-28 bg-muted/30 rounded-2xl" />)}
         </div>
-        <div className="h-80 bg-muted/30 rounded-[40px]" />
+        <div className="h-80 bg-muted/30 rounded-4xl" />
       </div>
     );
   }
@@ -83,7 +83,7 @@ export function InsightsClient({ data }: { data: InsightsData }) {
       </div>
 
       {!hasAnyData ? (
-        <div className="text-center py-24 bg-card border border-dashed rounded-[40px] text-muted-foreground font-bold italic">
+        <div className="text-center py-24 bg-card border border-dashed rounded-4xl text-muted-foreground font-bold italic">
           No data yet. Complete tasks, take tutor quizzes, track topic mastery, set goals and upload report cards —
           your insights will build up here.
         </div>
@@ -106,7 +106,7 @@ export function InsightsClient({ data }: { data: InsightsData }) {
           </div>
 
           {/* Subjects needing attention */}
-          <div className="bg-gradient-to-r from-orange-500/5 via-red-500/5 to-rose-500/5 border border-orange-500/20 rounded-[40px] p-8 relative overflow-hidden shadow-sm">
+          <div className="bg-gradient-to-r from-orange-500/5 via-red-500/5 to-rose-500/5 border border-orange-500/20 rounded-4xl p-8 relative overflow-hidden shadow-sm">
             <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500 rounded-full blur-3xl -z-0 opacity-10 translate-x-1/2 -translate-y-1/2" />
             <div className="flex items-center gap-3.5 mb-6 relative z-10">
               <div className="h-11 w-11 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 border border-orange-500/20">
@@ -160,7 +160,7 @@ export function InsightsClient({ data }: { data: InsightsData }) {
           {/* Charts row */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Grade trajectory */}
-            <div className="lg:col-span-6 bg-card border border-border/60 p-8 rounded-[40px] shadow-sm">
+            <div className="lg:col-span-6 bg-card border border-border/60 p-8 rounded-4xl shadow-sm">
               <div className="space-y-1 mb-6">
                 <h3 className="text-xl font-heading font-black tracking-tight flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-primary" /> Grade Trajectory
@@ -185,7 +185,7 @@ export function InsightsClient({ data }: { data: InsightsData }) {
             </div>
 
             {/* Quiz performance */}
-            <div className="lg:col-span-6 bg-card border border-border/60 p-8 rounded-[40px] shadow-sm">
+            <div className="lg:col-span-6 bg-card border border-border/60 p-8 rounded-4xl shadow-sm">
               <div className="space-y-1 mb-6">
                 <h3 className="text-xl font-heading font-black tracking-tight flex items-center gap-2">
                   <Target className="w-5 h-5 text-orange-500" /> Quiz Performance
@@ -218,7 +218,7 @@ export function InsightsClient({ data }: { data: InsightsData }) {
 
           {/* Goal vs actual */}
           {goalRows.length > 0 && (
-            <div className="bg-card border border-border/60 p-8 rounded-[40px] shadow-sm">
+            <div className="bg-card border border-border/60 p-8 rounded-4xl shadow-sm">
               <div className="space-y-1 mb-6">
                 <h3 className="text-xl font-heading font-black tracking-tight flex items-center gap-2">
                   <Trophy className="w-5 h-5 text-yellow-500" /> Goals vs Actual
@@ -257,7 +257,7 @@ export function InsightsClient({ data }: { data: InsightsData }) {
 function SubjectCard({ s }: { s: SubjectInsight }) {
   const c = attentionColor(s.attentionScore);
   return (
-    <div className="bg-card border border-border/60 rounded-[28px] p-6 shadow-sm hover:shadow-md transition-all">
+    <div className="bg-card border border-border/60 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all">
       <div className="flex items-center justify-between mb-5">
         <h4 className="font-heading font-black text-lg text-foreground truncate">{s.subject}</h4>
         {s.gradeLabel ? (
@@ -300,7 +300,7 @@ function Meter({ label, value, color, suffix = "" }: { label: string; value: num
 
 function StatCard({ label, value, icon, border }: { label: string; value: string | number; icon: React.ReactNode; border?: string }) {
   return (
-    <div className={cn("bg-card border p-6 rounded-[32px] shadow-sm transition-all duration-300", border)}>
+    <div className={cn("bg-card border p-6 rounded-2xl shadow-sm transition-all duration-300", border)}>
       <div className="flex items-center justify-between mb-4">
         <div className="p-3 bg-muted/60 rounded-2xl">{icon}</div>
         <span className="text-2xl font-heading font-black tracking-tight text-foreground">{value}</span>

@@ -105,7 +105,7 @@ export function TimeClient({
         
         {/* Current Task */}
         <div className={cn(
-          "relative overflow-hidden rounded-[40px] p-8 transition-all duration-500 border-2",
+          "relative overflow-hidden rounded-4xl p-8 transition-all duration-500 border-2",
           currentTask ? "bg-primary/5 border-primary/20" : "bg-muted/20 border-border/40"
         )}>
           <div className="absolute top-0 right-0 p-6 opacity-10">
@@ -128,7 +128,7 @@ export function TimeClient({
 
         {/* Next Task */}
         <div className={cn(
-          "relative overflow-hidden rounded-[40px] p-8 transition-all duration-500 border-2",
+          "relative overflow-hidden rounded-4xl p-8 transition-all duration-500 border-2",
           nextTask ? "bg-secondary/5 border-secondary/20" : "bg-muted/20 border-border/40"
         )}>
           <div className="absolute top-0 right-0 p-6 opacity-10">

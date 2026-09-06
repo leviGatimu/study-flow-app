@@ -43,7 +43,7 @@ export function HomeworkList({ homeworks, subjects }: HomeworkListProps) {
 
         {/* Pop-up form for adding homework */}
         <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-          <DialogContent className="sm:max-w-3xl rounded-[32px] p-8 md:p-10 border shadow-2xl bg-card">
+          <DialogContent className="sm:max-w-3xl rounded-2xl p-8 md:p-10 border shadow-2xl bg-card">
             <DialogHeader className="space-y-2">
               <DialogTitle className="text-3xl font-heading font-black text-foreground uppercase tracking-tight">New Homework</DialogTitle>
               <DialogDescription className="text-sm font-semibold text-muted-foreground">Add an assignment to track, plan, and complete.</DialogDescription>
@@ -56,7 +56,7 @@ export function HomeworkList({ homeworks, subjects }: HomeworkListProps) {
 
         <TabsContent value="active" className="mt-0 focus-visible:outline-none">
           {activeHomeworks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 bg-muted/5 border-2 border-dashed border-border/20 rounded-[32px] text-center space-y-4">
+            <div className="flex flex-col items-center justify-center py-24 bg-muted/5 border-2 border-dashed border-border/20 rounded-2xl text-center space-y-4">
               <CheckCircle2 className="w-12 h-12 text-muted-foreground/30" />
               <h3 className="text-xl font-heading font-black">All caught up!</h3>
               <p className="text-sm font-semibold text-muted-foreground/60 max-w-xs mt-1">No pending homework. Time for some revision?</p>
@@ -74,7 +74,7 @@ export function HomeworkList({ homeworks, subjects }: HomeworkListProps) {
 
         <TabsContent value="completed" className="mt-0 focus-visible:outline-none">
           {completedHomeworks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 bg-muted/5 border-2 border-dashed border-border/20 rounded-[32px] text-center space-y-4">
+            <div className="flex flex-col items-center justify-center py-24 bg-muted/5 border-2 border-dashed border-border/20 rounded-2xl text-center space-y-4">
               <History className="w-12 h-12 text-muted-foreground/30" />
               <h3 className="text-xl font-heading font-black">No history yet.</h3>
               <p className="text-sm font-semibold text-muted-foreground/60 max-w-xs mt-1">Completed homework will appear here once submitted.</p>

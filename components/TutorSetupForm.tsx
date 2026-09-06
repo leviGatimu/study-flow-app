@@ -132,7 +132,7 @@ export function TutorSetupForm({ subjects }: { subjects: string[] }) {
           <label 
             htmlFor="pdf-upload-notion"
             className={cn(
-              "flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed rounded-[32px] cursor-pointer transition-all duration-300",
+              "flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300",
               selectedFile 
                 ? "bg-primary/5 border-primary shadow-sm" 
                 : "bg-muted/10 border-border hover:bg-muted/30 hover:border-primary/30"
@@ -193,7 +193,7 @@ export function TutorSetupForm({ subjects }: { subjects: string[] }) {
         type="submit" 
         disabled={loading || !selectedFile}
         className={cn(
-          "w-full h-16 rounded-[24px] font-black text-xl shadow-xl transition-all",
+          "w-full h-16 rounded-xl font-black text-xl shadow-xl transition-all",
           loading 
             ? "bg-muted cursor-wait" 
             : "bg-primary shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02]"

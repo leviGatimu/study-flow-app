@@ -27,7 +27,7 @@ export function ProjectList({ initialProjects }: { initialProjects: ProjectWithD
       {projects.map((project, idx) => (
         <div 
           key={project.id}
-          className="group relative bg-card border border-border/60 rounded-[40px] p-8 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500"
+          className="group relative bg-card border border-border/60 rounded-4xl p-8 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500"
           style={{ animationDelay: `${idx * 100}ms` }}
         >
           {/* Header */}
@@ -73,7 +73,7 @@ export function ProjectList({ initialProjects }: { initialProjects: ProjectWithD
 
           {/* Footer Action */}
           <Link href={`/projects/${project.id}`}>
-            <Button className="w-full h-14 rounded-[20px] bg-foreground text-background font-bold gap-3 hover:bg-primary hover:text-white transition-all shadow-lg hover:shadow-primary/20 group/btn">
+            <Button className="w-full h-14 rounded-xl bg-foreground text-background font-bold gap-3 hover:bg-primary hover:text-white transition-all shadow-lg hover:shadow-primary/20 group/btn">
               OPEN PROJECT <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
             </Button>
           </Link>

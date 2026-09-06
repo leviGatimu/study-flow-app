@@ -101,13 +101,13 @@ export function StreakCelebration({ currentStreak, stats, onClose }: StreakCeleb
               stiffness: 300,
               damping: 25
             }}
-            className="max-w-md w-full mx-4 bg-zinc-900 border-2 border-white/10 rounded-[48px] p-10 shadow-[0_32px_80px_rgba(0,0,0,0.5)] relative overflow-hidden"
+            className="max-w-md w-full mx-4 bg-zinc-900 border-2 border-white/10 rounded-4xl p-10 shadow-[0_32px_80px_rgba(0,0,0,0.5)] relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 w-80 h-80 bg-primary/20 rounded-full blur-[100px] -z-0 translate-x-1/3 -translate-y-1/3" />
             
             <div className="relative z-10 space-y-10">
               <div className="text-center space-y-3">
-                <div className="w-24 h-24 bg-orange-500/10 rounded-[32px] flex items-center justify-center mx-auto mb-6 border border-orange-500/20 shadow-inner">
+                <div className="w-24 h-24 bg-orange-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-orange-500/20 shadow-inner">
                    <Trophy className="w-12 h-12 text-orange-500" />
                 </div>
                 <h2 className="text-5xl font-heading font-black text-white tracking-tighter leading-none">Victory Lap</h2>
@@ -115,7 +115,7 @@ export function StreakCelebration({ currentStreak, stats, onClose }: StreakCeleb
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/[0.03] border border-white/5 rounded-[32px] p-6 space-y-1">
+                <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-6 space-y-1">
                   <div className="flex items-center gap-2 text-white/30 mb-1">
                     <CheckCircle2 className="w-4 h-4" />
                     <span className="text-[10px] font-black uppercase tracking-widest">Tasks</span>
@@ -123,7 +123,7 @@ export function StreakCelebration({ currentStreak, stats, onClose }: StreakCeleb
                   <p className="text-3xl font-black text-white">{stats?.tasksCompleted ?? '–'}<span className="text-lg text-white/20 ml-1">/{stats?.totalTasks ?? '–'}</span></p>
                 </div>
 
-                <div className="bg-white/[0.03] border border-white/5 rounded-[32px] p-6 space-y-1">
+                <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-6 space-y-1">
                   <div className="flex items-center gap-2 text-white/30 mb-1">
                     <Clock className="w-4 h-4" />
                     <span className="text-[10px] font-black uppercase tracking-widest">Focus</span>
@@ -131,7 +131,7 @@ export function StreakCelebration({ currentStreak, stats, onClose }: StreakCeleb
                   <p className="text-3xl font-black text-white">{stats?.focusMinutes ?? 0}<span className="text-lg text-white/20 ml-1">m</span></p>
                 </div>
 
-                <div className="bg-primary/5 border border-primary/20 rounded-[32px] p-6 space-y-1 col-span-2 relative overflow-hidden group">
+                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6 space-y-1 col-span-2 relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-4 opacity-10 transition-transform">
                     <Zap className="w-12 h-12 text-primary fill-current" />
                   </div>
@@ -148,7 +148,7 @@ export function StreakCelebration({ currentStreak, stats, onClose }: StreakCeleb
               <div className="pt-2">
                 <Button 
                   onClick={onClose}
-                  className="w-full h-20 rounded-[28px] font-black text-xl bg-white text-black hover:bg-zinc-200 shadow-2xl group transition-all"
+                  className="w-full h-20 rounded-2xl font-black text-xl bg-white text-black hover:bg-zinc-200 shadow-2xl group transition-all"
                 >
                   KEEP CRUSHING IT <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-2 transition-transform duration-300" />
                 </Button>

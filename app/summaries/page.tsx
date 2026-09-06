@@ -20,7 +20,7 @@ export default async function SummariesPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {summaries.length === 0 ? (
-          <div className="col-span-full py-32 text-center bg-muted/30 rounded-[40px] border-2 border-dashed border-border/40">
+          <div className="col-span-full py-32 text-center bg-muted/30 rounded-4xl border-2 border-dashed border-border/40">
             <p className="text-muted-foreground font-bold uppercase tracking-widest text-sm">No summaries generated yet.</p>
           </div>
         ) : (

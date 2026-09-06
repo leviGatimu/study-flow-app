@@ -24,7 +24,7 @@ export default async function FocusHubPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Quick Start Card */}
-        <Card className="rounded-[32px] border-border/60 shadow-sm overflow-hidden bg-primary/5 border-primary/20">
+        <Card className="rounded-2xl border-border/60 shadow-sm overflow-hidden bg-primary/5 border-primary/20">
           <CardHeader className="p-8 pb-4">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-primary/10 rounded-2xl text-primary">
@@ -49,7 +49,7 @@ export default async function FocusHubPage() {
         </Card>
 
         {/* Info Card */}
-        <Card className="rounded-[32px] border-border/60 shadow-sm overflow-hidden">
+        <Card className="rounded-2xl border-border/60 shadow-sm overflow-hidden">
           <CardHeader className="p-8 pb-4">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-orange-500/10 rounded-2xl text-orange-600">
@@ -82,12 +82,12 @@ export default async function FocusHubPage() {
         <h3 className="text-2xl font-heading font-black px-2">Scheduled for Today</h3>
         <div className="grid grid-cols-1 gap-4">
           {todayTasks.length === 0 ? (
-            <div className="p-12 text-center border-2 border-dashed border-border/40 rounded-[32px]">
+            <div className="p-12 text-center border-2 border-dashed border-border/40 rounded-2xl">
               <p className="text-muted-foreground font-bold italic">No tasks scheduled for today. Start a free session above!</p>
             </div>
           ) : (
             todayTasks.map((task: TaskWithTemplate) => (
-              <div key={task.id} className="group p-6 rounded-[32px] bg-card border border-border/60 shadow-sm hover:border-primary/40 hover:shadow-md transition-all flex items-center justify-between">
+              <div key={task.id} className="group p-6 rounded-2xl bg-card border border-border/60 shadow-sm hover:border-primary/40 hover:shadow-md transition-all flex items-center justify-between">
                 <div className="flex items-center gap-6">
                   <div className="p-4 bg-muted rounded-2xl font-black text-primary text-xl tracking-tighter">
                     {task.startTime}

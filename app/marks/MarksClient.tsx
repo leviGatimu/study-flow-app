@@ -454,7 +454,7 @@ export function MarksClient({
                 <Upload className="w-4 h-4" /> Scan Transcript File
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[440px] rounded-[32px] border-border bg-card p-8 shadow-2xl">
+            <DialogContent className="sm:max-w-[440px] rounded-2xl border-border bg-card p-8 shadow-2xl">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-heading font-black tracking-tight text-center uppercase">Scan Transcript Document</DialogTitle>
                 <p className="text-center text-muted-foreground text-sm font-semibold">Upload your transcript or report file to automatically extract grades.</p>
@@ -485,7 +485,7 @@ export function MarksClient({
                     <label 
                       htmlFor="report-upload"
                       className={cn(
-                        "flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed border-border/50 rounded-[20px] cursor-pointer transition-all duration-300",
+                        "flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed border-border/50 rounded-xl cursor-pointer transition-all duration-300",
                         uploadFile 
                           ? "bg-primary/5 border-primary shadow-[0_0_20px_rgba(var(--primary),0.05)]" 
                           : "bg-muted/10 border-border hover:bg-muted/20 hover:border-primary/45"
@@ -538,7 +538,7 @@ export function MarksClient({
         <motion.div 
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="py-24 flex flex-col items-center justify-center text-center border border-border/40 rounded-[32px] bg-card/45 relative overflow-hidden group shadow-md"
+          className="py-24 flex flex-col items-center justify-center text-center border border-border/40 rounded-2xl bg-card/45 relative overflow-hidden group shadow-md"
         >
            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
            <div className="w-16 h-16 bg-muted/50 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 border border-border/50 group-hover:scale-105 transition-transform duration-500">
@@ -571,7 +571,7 @@ export function MarksClient({
           <div className="lg:col-span-5 space-y-6">
             
             {/* The GPA Dashboard Display */}
-            <Card className="p-8 border-border/40 shadow-xl rounded-[32px] bg-card/40 backdrop-blur-xl relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+            <Card className="p-8 border-border/40 shadow-xl rounded-2xl bg-card/40 backdrop-blur-xl relative overflow-hidden flex flex-col justify-between min-h-[220px]">
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary rounded-full blur-3xl -z-10 opacity-[0.03] translate-x-1/3 -translate-y-1/3" />
               
               <div className="space-y-4">
@@ -604,7 +604,7 @@ export function MarksClient({
             </Card>
 
             {/* Quick Metrics Widget */}
-            <div className="bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl rounded-[32px] p-6 space-y-4">
+            <div className="bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl rounded-2xl p-6 space-y-4">
               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b border-border/30 pb-3">Academic Milestones</h4>
               <div className="grid grid-cols-1 gap-3">
                 <div className="bg-muted/20 border border-border/30 rounded-xl p-4.5 space-y-1">
@@ -652,7 +652,7 @@ export function MarksClient({
 
             {/* Historical Progression Graph */}
             {allTermsHistory.length > 1 && (
-              <div className="bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl rounded-[28px] p-6.5 space-y-4">
+              <div className="bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl rounded-2xl p-6.5 space-y-4">
                 <div className="flex sm:items-center justify-between gap-4 border-b border-border/30 pb-3">
                   <div className="flex items-center gap-2">
                     <History className="w-4 h-4 text-primary" />
@@ -715,7 +715,7 @@ export function MarksClient({
           <div className="lg:col-span-7 space-y-6">
 
             {/* Strategic Overview Brief */}
-            <div className="bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl rounded-[32px] p-8 relative overflow-hidden flex flex-col justify-between">
+            <div className="bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl rounded-2xl p-8 relative overflow-hidden flex flex-col justify-between">
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-primary font-bold">
                   <BookOpen className="w-5 h-5 text-primary" />
@@ -925,7 +925,7 @@ export function MarksClient({
                         </DialogTrigger>
 
                         {/* Grade details modal overlay */}
-                        <DialogContent className="sm:max-w-[480px] rounded-[28px] border-border bg-card p-6 shadow-2xl">
+                        <DialogContent className="sm:max-w-[480px] rounded-2xl border-border bg-card p-6 shadow-2xl">
                           {editingGradeId === grade.id ? (
                             <form onSubmit={handleUpdateGrade} className="space-y-4">
                               <DialogHeader>

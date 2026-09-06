@@ -99,7 +99,7 @@ export default function FocusWidgetPage() {
   if (!mounted) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-transparent">
-        <div className="w-full h-full bg-black/80 rounded-[26px] animate-pulse" />
+        <div className="w-full h-full bg-black/80 rounded-2xl animate-pulse" />
       </div>
     );
   }
@@ -143,7 +143,7 @@ export default function FocusWidgetPage() {
 
       <div
         style={DRAG}
-        className="group w-full h-full rounded-[26px] relative overflow-hidden shadow-2xl ring-1 ring-white/15 cursor-grab active:cursor-grabbing"
+        className="group w-full h-full rounded-2xl relative overflow-hidden shadow-2xl ring-1 ring-white/15 cursor-grab active:cursor-grabbing"
       >
         {/* Fluid tinted backdrop — same DNA as the full focus screen */}
         <div className="absolute inset-0" style={{ backgroundColor: palette[3] || '#0a0a14' }} />

@@ -509,7 +509,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
 
               {/* Upload Zone & Form Card */}
               {isGenerating ? (
-                <div className="bg-card/40 backdrop-blur-xl border border-border/40 rounded-[32px] p-16 flex flex-col items-center justify-center text-center space-y-6 min-h-[400px] shadow-2xl relative overflow-hidden">
+                <div className="bg-card/40 backdrop-blur-xl border border-border/40 rounded-2xl p-16 flex flex-col items-center justify-center text-center space-y-6 min-h-[400px] shadow-2xl relative overflow-hidden">
                   <div className="absolute top-0 left-0 h-1.5 bg-primary animate-pulse w-full" />
                   
                   {/* Glowing spinner */}
@@ -531,7 +531,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                 <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
                   {/* Left Column: Form & Files */}
                   <div className="xl:col-span-3 space-y-6">
-                    <div className="bg-card/40 backdrop-blur-xl border border-border/40 rounded-[28px] p-6 shadow-md space-y-5">
+                    <div className="bg-card/40 backdrop-blur-xl border border-border/40 rounded-2xl p-6 shadow-md space-y-5">
                       <div className="space-y-2">
                         <Label htmlFor="title" className="font-heading font-black text-sm uppercase tracking-wider text-muted-foreground/75">
                           Note Title
@@ -837,7 +837,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                     <Textarea
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
-                      className="flex-1 rounded-[20px] bg-background/50 border-border/40 focus-visible:ring-1 focus-visible:ring-primary/25 resize-none p-6 font-mono text-sm leading-relaxed overflow-y-auto"
+                      className="flex-1 rounded-xl bg-background/50 border-border/40 focus-visible:ring-1 focus-visible:ring-primary/25 resize-none p-6 font-mono text-sm leading-relaxed overflow-y-auto"
                       placeholder="Write notes content directly in markdown..."
                     />
                   </div>
@@ -908,7 +908,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-card border border-border/50 rounded-[28px] p-6 w-full max-w-md shadow-2xl space-y-6"
+              className="bg-card border border-border/50 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-6"
             >
               <div className="space-y-1">
                 <h3 className="font-heading font-black text-xl text-foreground">
@@ -994,7 +994,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-card border border-border/50 rounded-[28px] p-6 w-full max-w-md shadow-2xl space-y-6"
+              className="bg-card border border-border/50 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-6"
             >
               <div className="space-y-1">
                 <h3 className="font-heading font-black text-xl text-foreground">

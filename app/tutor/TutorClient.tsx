@@ -100,10 +100,10 @@ export default function TutorClient() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
            {!isLoaded ? (
               [1,2,3,4,5,6].map(i => (
-                 <div key={i} className="h-48 rounded-[24px] bg-muted/30 animate-pulse border border-border/40" />
+                 <div key={i} className="h-48 rounded-xl bg-muted/30 animate-pulse border border-border/40" />
               ))
            ) : filteredModules.length === 0 ? (
-             <div className="col-span-full py-24 flex flex-col items-center justify-center text-center border-2 border-dashed border-border/60 rounded-[32px] bg-muted/5">
+             <div className="col-span-full py-24 flex flex-col items-center justify-center text-center border-2 border-dashed border-border/60 rounded-2xl bg-muted/5">
                 <div className="w-20 h-20 bg-muted/50 rounded-2xl flex items-center justify-center mb-6">
                    <Target className="w-10 h-10 text-muted-foreground/40" />
                 </div>
@@ -128,7 +128,7 @@ export default function TutorClient() {
                const s = module.score || 0;
                return (
                  <Link key={module.id} href={`/tutor/${module.id}`} className="block group">
-                   <Card className="relative h-full overflow-hidden rounded-[28px] border-border/60 bg-card p-6 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_24px_60px_-20px_rgba(0,0,0,0.45)] hover:border-primary/40 flex flex-col">
+                   <Card className="relative h-full overflow-hidden rounded-2xl border-border/60 bg-card p-6 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_24px_60px_-20px_rgba(0,0,0,0.45)] hover:border-primary/40 flex flex-col">
 
                      {/* Score-tinted ambient glow */}
                      <div className={cn(

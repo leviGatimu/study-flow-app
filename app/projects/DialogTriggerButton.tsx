@@ -14,7 +14,7 @@ export function DialogTriggerButton({ className }: { className?: string }) {
           <Plus className="w-5 h-5" /> START NEW PROJECT
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl rounded-[32px] p-8 border shadow-2xl">
+      <DialogContent className="sm:max-w-xl rounded-2xl p-8 border shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-3xl font-heading font-black">New Project</DialogTitle>
         </DialogHeader>

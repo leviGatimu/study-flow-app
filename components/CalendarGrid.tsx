@@ -103,7 +103,7 @@ export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = []
   };
 
   return (
-    <div className="flex flex-col bg-card rounded-[32px] border border-border/60 shadow-xl overflow-hidden">
+    <div className="flex flex-col bg-card rounded-2xl border border-border/60 shadow-xl overflow-hidden">
       <ConfirmModal 
         isOpen={!!deleteConfirmId}
         onClose={() => setDeleteConfirmId(null)}
@@ -223,7 +223,7 @@ export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = []
 
       {/* Day Detail Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className={`sm:max-w-3xl w-[90vw] rounded-[40px] p-0 overflow-hidden border-none shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)]`}>
+        <DialogContent className={`sm:max-w-3xl w-[90vw] rounded-4xl p-0 overflow-hidden border-none shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)]`}>
           <div className="bg-card">
             <DialogHeader className="p-8 border-b bg-muted/20">
               <div className="flex items-center justify-between">
@@ -282,7 +282,7 @@ export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = []
                   <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">Scheduled Exams</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {selectedExams.map(exam => (
-                      <div key={exam.id} className="bg-amber-500/5 border border-amber-500/20 p-6 rounded-[32px] flex items-center justify-between">
+                      <div key={exam.id} className="bg-amber-500/5 border border-amber-500/20 p-6 rounded-2xl flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-600">
                              <Bookmark className="w-6 h-6 fill-current" />
@@ -302,7 +302,7 @@ export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = []
               )}
 
               {selectedTasks.length === 0 && selectedExams.length === 0 ? (
-                <div className="py-20 border-2 border-dashed border-border/40 rounded-[32px] flex flex-col items-center justify-center text-center text-muted-foreground bg-muted/5">
+                <div className="py-20 border-2 border-dashed border-border/40 rounded-2xl flex flex-col items-center justify-center text-center text-muted-foreground bg-muted/5">
                   <p className="font-bold uppercase tracking-widest text-xs opacity-50">No activity scheduled</p>
                 </div>
               ) : (
@@ -327,7 +327,7 @@ export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = []
                       return (
                         <div 
                           key={task.id} 
-                          className={`relative overflow-hidden bg-card border p-6 rounded-[32px] transition-all duration-300 hover:shadow-xl flex flex-col
+                          className={`relative overflow-hidden bg-card border p-6 rounded-2xl transition-all duration-300 hover:shadow-xl flex flex-col
                             ${task.isDone 
                               ? 'bg-success/5 border-success/30 opacity-70' 
                               : task.isMissed
@@ -418,7 +418,7 @@ function EditTaskForm({ task, onClose }: { task: TaskType, onClose: () => void }
   };
 
   return (
-    <div className="bg-muted/30 border border-border/60 p-6 rounded-[32px]">
+    <div className="bg-muted/30 border border-border/60 p-6 rounded-2xl">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="flex items-center justify-between border-b border-border/40 pb-4">
           <h4 className="font-heading font-black text-xl tracking-tight text-foreground">{task.subject}</h4>

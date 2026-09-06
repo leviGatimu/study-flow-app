@@ -276,7 +276,7 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
               />
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-6">
-                <div className="p-8 bg-white/5 rounded-[40px] border border-white/10">
+                <div className="p-8 bg-white/5 rounded-4xl border border-white/10">
                   <BookOpen className="w-16 h-16 text-white/20" />
                 </div>
                 <div className="space-y-2">
@@ -369,7 +369,7 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
               initial={{ opacity: 0, x: 20, scale: 0.97 }}
               animate={{ opacity: 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: 20, scale: 0.97 }}
-              className="absolute right-4 top-4 bottom-4 w-[380px] max-w-[calc(100vw-2rem)] z-[100] flex flex-col bg-[#0f0f0f]/95 backdrop-blur-2xl border border-white/10 rounded-[28px] shadow-2xl shadow-black/60 overflow-hidden"
+              className="absolute right-4 top-4 bottom-4 w-[380px] max-w-[calc(100vw-2rem)] z-[100] flex flex-col bg-[#0f0f0f]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden"
             >
               <div className="p-5 border-b border-white/5 flex items-center justify-between bg-white/5 shrink-0">
                 <div className="flex items-center gap-3">

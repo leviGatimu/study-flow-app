@@ -77,7 +77,7 @@ export function RankRoadmap({ userProgress }: { userProgress: UserProgress }) {
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
       {/* Left Column: Ranks Roadmap List (8 cols) */}
       <div className="lg:col-span-8 space-y-6">
-        <div className="bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl rounded-[32px] p-6 md:p-10 relative overflow-hidden">
+        <div className="bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl rounded-2xl p-6 md:p-10 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary rounded-full blur-3xl -z-10 opacity-[0.02] translate-x-1/3 -translate-y-1/3" />
           
           <div className="flex items-center justify-between mb-8">
@@ -114,13 +114,13 @@ export function RankRoadmap({ userProgress }: { userProgress: UserProgress }) {
                 >
                   {/* Circle Icon Badge */}
                   <div className={cn(
-                    "relative z-10 w-16 h-16 rounded-[22px] border-2 flex items-center justify-center shrink-0 transition-all duration-700 hidden md:flex",
+                    "relative z-10 w-16 h-16 rounded-xl border-2 flex items-center justify-center shrink-0 transition-all duration-700 hidden md:flex",
                     isCurrent ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20 scale-105" : 
                     isUnlocked ? "bg-card border-border/60 text-foreground" : "bg-muted/10 border-border/10 text-muted-foreground/30"
                   )}>
                     {isUnlocked ? <Icon className="w-6.5 h-6.5" /> : <Lock className="w-5 h-5 opacity-60" />}
                     {isCurrent && (
-                      <div className="absolute -inset-1.5 border-2 border-primary/30 rounded-[28px] animate-pulse" />
+                      <div className="absolute -inset-1.5 border-2 border-primary/30 rounded-2xl animate-pulse" />
                     )}
                   </div>
 
@@ -181,7 +181,7 @@ export function RankRoadmap({ userProgress }: { userProgress: UserProgress }) {
       <div className="lg:col-span-4 space-y-6">
         
         {/* RPG Profile Character Slab */}
-        <Card className="p-8 border-border/40 shadow-xl rounded-[32px] bg-card/40 backdrop-blur-xl relative overflow-hidden group">
+        <Card className="p-8 border-border/40 shadow-xl rounded-2xl bg-card/40 backdrop-blur-xl relative overflow-hidden group">
           {/* Subtle Watermark BG */}
           <div className="absolute top-0 right-0 p-4 opacity-[0.01] -z-10 translate-x-1/4 -translate-y-1/4 group-hover:scale-105 group-hover:rotate-6 transition-transform duration-1000">
             <Trophy className="w-64 h-64" />
@@ -191,10 +191,10 @@ export function RankRoadmap({ userProgress }: { userProgress: UserProgress }) {
             {/* Avatar Row */}
             <div className="flex items-center gap-4.5">
               <div className="relative shrink-0">
-                <div className="w-16 h-16 rounded-[22px] bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 relative z-10">
+                <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 relative z-10">
                   <span className="text-2xl font-heading font-black">{userProgress.level}</span>
                 </div>
-                <div className="absolute inset-0 bg-primary rounded-[22px] blur-lg opacity-35 animate-pulse" />
+                <div className="absolute inset-0 bg-primary rounded-xl blur-lg opacity-35 animate-pulse" />
               </div>
               
               <div className="min-w-0 space-y-1">
@@ -259,7 +259,7 @@ export function RankRoadmap({ userProgress }: { userProgress: UserProgress }) {
         </Card>
 
         {/* Level Up Strategy */}
-        <div className="bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl rounded-[32px] p-6.5 relative overflow-hidden space-y-5">
+        <div className="bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl rounded-2xl p-6.5 relative overflow-hidden space-y-5">
           <h3 className="font-heading font-black text-lg text-foreground flex items-center gap-2">
             <Zap className="w-5 h-5 text-yellow-500 fill-yellow-500/10 shrink-0" />
             Rank Up Strategies

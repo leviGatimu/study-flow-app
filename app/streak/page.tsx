@@ -57,8 +57,8 @@ export default async function StreakPage() {
         {/* Left Column: Big Streak Stats */}
         <div className="lg:col-span-5 space-y-8">
           <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-red-600 rounded-[40px] blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
-            <div className="relative bg-card border border-orange-500/20 rounded-[40px] p-10 flex flex-col items-center text-center space-y-6 shadow-2xl">
+            <div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-red-600 rounded-4xl blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+            <div className="relative bg-card border border-orange-500/20 rounded-4xl p-10 flex flex-col items-center text-center space-y-6 shadow-2xl">
               <div className="relative">
                 <Flame className="w-24 h-24 text-orange-500 fill-orange-500 animate-pulse" />
                 <div className="absolute inset-0 bg-orange-500 blur-2xl opacity-20 animate-pulse" />
@@ -76,14 +76,14 @@ export default async function StreakPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-card border border-border/60 rounded-[32px] p-6 flex flex-col items-center text-center space-y-3 hover:border-blue-500/30 transition-colors">
+            <div className="bg-card border border-border/60 rounded-2xl p-6 flex flex-col items-center text-center space-y-3 hover:border-blue-500/30 transition-colors">
               <Trophy className="w-8 h-8 text-blue-500" />
               <div>
                 <span className="text-2xl font-black block">{userProgress?.longestStreak || 0}</span>
                 <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">All-Time Best</span>
               </div>
             </div>
-            <div className="bg-card border border-border/60 rounded-[32px] p-6 flex flex-col items-center text-center space-y-3 hover:border-purple-500/30 transition-colors">
+            <div className="bg-card border border-border/60 rounded-2xl p-6 flex flex-col items-center text-center space-y-3 hover:border-purple-500/30 transition-colors">
               <Zap className="w-8 h-8 text-purple-500" />
               <div>
                 <span className="text-2xl font-black block">{userProgress?.xp || 0}</span>
@@ -92,7 +92,7 @@ export default async function StreakPage() {
             </div>
           </div>
 
-          <div className="bg-card border border-border/60 rounded-[32px] p-8 space-y-6">
+          <div className="bg-card border border-border/60 rounded-2xl p-8 space-y-6">
             <h3 className="font-heading font-bold text-lg flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-primary" />
               Consistency Metrics
@@ -116,7 +116,7 @@ export default async function StreakPage() {
         <div className="lg:col-span-7 space-y-8">
           <StreakCalendar activeTimestamps={activeTimestamps} />
 
-          <div className="bg-primary/5 border border-primary/10 rounded-[40px] p-10 space-y-6 relative overflow-hidden group">
+          <div className="bg-primary/5 border border-primary/10 rounded-4xl p-10 space-y-6 relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-8 opacity-5 transition-transform duration-700">
                <Target className="w-32 h-32" />
             </div>

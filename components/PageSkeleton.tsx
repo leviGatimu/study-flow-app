@@ -13,7 +13,7 @@ export function PageSkeleton({ cards = 6 }: { cards?: number }) {
       <div className="px-4 md:px-8 pb-16">
         <div className="max-w-[1600px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: cards }).map((_, i) => (
-            <Skeleton key={i} className="h-44 rounded-[28px]" />
+            <Skeleton key={i} className="h-44 rounded-2xl" />
           ))}
         </div>
       </div>

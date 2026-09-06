@@ -46,7 +46,7 @@ export default async function NewQuizPage() {
           </p>
         </div>
 
-        <div className="bg-card border border-border/60 rounded-[32px] shadow-xl p-8 md:p-10">
+        <div className="bg-card border border-border/60 rounded-2xl shadow-xl p-8 md:p-10">
           <TutorSetupForm subjects={subjects} />
         </div>
       </main>
