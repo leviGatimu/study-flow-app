@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useId, useState, useTransition } from 'react';
 import { createTemplate } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -12,6 +12,7 @@ import { Plus, BookOpen, Clock, Calendar, CheckCircle2 } from 'lucide-react';
 export function ManageForm({ subjects = [] }: { subjects?: { id: string; name: string }[] }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const fieldId = useId();
 
   const [formData, setFormData] = useState({
     dayOfWeek: "1",
@@ -45,28 +46,27 @@ export function ManageForm({ subjects = [] }: { subjects?: { id: string; name: s
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="rounded-2xl h-12 px-6 font-heading font-black shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all text-base gap-2">
+        <Button className="rounded-xl h-12 px-6 font-heading font-semibold text-base gap-2">
           <Plus className="w-5 h-5" /> Add New Study Block
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl p-0 overflow-hidden border shadow-2xl">
+      <DialogContent className="sm:max-w-xl p-0 overflow-hidden border shadow-xl rounded-2xl">
         <div className="bg-card">
-          <DialogHeader className="p-8 border-b bg-muted/20 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-            <DialogTitle className="text-3xl font-heading font-black text-foreground relative z-10">Create Study Block</DialogTitle>
-            <p className="text-muted-foreground font-medium relative z-10">Define a new recurring class or revision session.</p>
+          <DialogHeader className="p-8 border-b bg-muted/20">
+            <DialogTitle className="text-2xl font-heading font-bold tracking-tight text-foreground">Create Study Block</DialogTitle>
+            <p className="text-sm text-muted-foreground">Define a new recurring class or revision session.</p>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="p-8 space-y-8">
             <div className="space-y-3">
-              <Label className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2 ml-1">
-                <BookOpen className="w-3 h-3 text-primary" /> Subject Name
+              <Label htmlFor={`${fieldId}-subject`} className="text-xs font-medium text-muted-foreground flex items-center gap-2 ml-1">
+                <BookOpen className="w-3 h-3 text-primary" /> Subject name
               </Label>
               <Select value={formData.subject} onValueChange={v => setFormData({...formData, subject: v})} required>
-                <SelectTrigger className="h-14 rounded-2xl bg-muted/30 border-border/60 font-bold px-5 text-base">
+                <SelectTrigger id={`${fieldId}-subject`} className="h-14 rounded-xl bg-muted/30 border-border/60 font-semibold px-5 text-base">
                   <SelectValue placeholder="Select subject..." />
                 </SelectTrigger>
-                <SelectContent className="rounded-2xl border-border/60 shadow-xl font-bold">
+                <SelectContent className="rounded-xl border-border/60 shadow-xl font-semibold">
                   {subjects.map(s => (
                     <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
                   ))}
@@ -76,14 +76,14 @@ export function ManageForm({ subjects = [] }: { subjects?: { id: string; name: s
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <Label className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2 ml-1">
-                  <Calendar className="w-3 h-3 text-primary" /> Day of Week
+                <Label htmlFor={`${fieldId}-day`} className="text-xs font-medium text-muted-foreground flex items-center gap-2 ml-1">
+                  <Calendar className="w-3 h-3 text-primary" /> Day of week
                 </Label>
                 <Select value={formData.dayOfWeek} onValueChange={v => setFormData({...formData, dayOfWeek: v})}>
-                  <SelectTrigger className="h-14 rounded-2xl bg-muted/30 border-border/60 font-bold px-5 text-base">
+                  <SelectTrigger id={`${fieldId}-day`} className="h-14 rounded-xl bg-muted/30 border-border/60 font-semibold px-5 text-base">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl border-border/60 shadow-xl font-bold">
+                  <SelectContent className="rounded-xl border-border/60 shadow-xl font-semibold">
                     <SelectItem value="0">Sunday</SelectItem>
                     <SelectItem value="1">Monday</SelectItem>
                     <SelectItem value="2">Tuesday</SelectItem>
@@ -96,16 +96,16 @@ export function ManageForm({ subjects = [] }: { subjects?: { id: string; name: s
               </div>
 
               <div className="space-y-3">
-                <Label className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2 ml-1">
-                  <CheckCircle2 className="w-3 h-3 text-primary" /> Activity Type
+                <Label htmlFor={`${fieldId}-type`} className="text-xs font-medium text-muted-foreground flex items-center gap-2 ml-1">
+                  <CheckCircle2 className="w-3 h-3 text-primary" /> Activity type
                 </Label>
                 <Select value={formData.type} onValueChange={v => setFormData({...formData, type: v})}>
-                  <SelectTrigger className="h-14 rounded-2xl bg-muted/30 border-border/60 font-bold px-5 text-base">
+                  <SelectTrigger id={`${fieldId}-type`} className="h-14 rounded-xl bg-muted/30 border-border/60 font-semibold px-5 text-base">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl border-border/60 shadow-xl font-bold">
-                    <SelectItem value="HOMEWORK">HOMEWORK</SelectItem>
-                    <SelectItem value="REVISION">REVISION</SelectItem>
+                  <SelectContent className="rounded-xl border-border/60 shadow-xl font-semibold">
+                    <SelectItem value="HOMEWORK">Homework</SelectItem>
+                    <SelectItem value="REVISION">Revision</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -113,57 +113,60 @@ export function ManageForm({ subjects = [] }: { subjects?: { id: string; name: s
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <Label className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2 ml-1">
-                  <Clock className="w-3 h-3 text-primary" /> Start Time
+                <Label htmlFor={`${fieldId}-start`} className="text-xs font-medium text-muted-foreground flex items-center gap-2 ml-1">
+                  <Clock className="w-3 h-3 text-primary" /> Start time
                 </Label>
-                <Input 
-                  type="time" 
-                  required 
-                  className="h-14 rounded-2xl bg-muted/30 border-border/60 font-bold px-5 text-lg" 
-                  value={formData.startTime} 
-                  onChange={e => setFormData({...formData, startTime: e.target.value})} 
+                <Input
+                  id={`${fieldId}-start`}
+                  type="time"
+                  required
+                  className="h-14 rounded-xl bg-muted/30 border-border/60 font-semibold px-5 text-lg"
+                  value={formData.startTime}
+                  onChange={e => setFormData({...formData, startTime: e.target.value})}
                 />
               </div>
               <div className="space-y-3">
-                <Label className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2 ml-1">
-                  <Clock className="w-3 h-3 text-primary" /> End Time
+                <Label htmlFor={`${fieldId}-end`} className="text-xs font-medium text-muted-foreground flex items-center gap-2 ml-1">
+                  <Clock className="w-3 h-3 text-primary" /> End time
                 </Label>
-                <Input 
-                  type="time" 
-                  required 
-                  className="h-14 rounded-2xl bg-muted/30 border-border/60 font-bold px-5 text-lg" 
-                  value={formData.endTime} 
-                  onChange={e => setFormData({...formData, endTime: e.target.value})} 
+                <Input
+                  id={`${fieldId}-end`}
+                  type="time"
+                  required
+                  className="h-14 rounded-xl bg-muted/30 border-border/60 font-semibold px-5 text-lg"
+                  value={formData.endTime}
+                  onChange={e => setFormData({...formData, endTime: e.target.value})}
                 />
               </div>
             </div>
 
             <div className="space-y-3 pb-2">
-              <Label className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2 ml-1">
-                <Calendar className="w-3 h-3 text-primary" /> Target Deadline Day
+              <Label htmlFor={`${fieldId}-deadline`} className="text-xs font-medium text-muted-foreground flex items-center gap-2 ml-1">
+                <Calendar className="w-3 h-3 text-primary" /> Target deadline day
               </Label>
-              <Input 
-                required 
-                className="h-14 rounded-2xl bg-muted/30 border-border/60 font-bold px-5 text-base" 
-                value={formData.deadlineDay} 
-                onChange={e => setFormData({...formData, deadlineDay: e.target.value})} 
-                placeholder="e.g. Wednesday" 
+              <Input
+                id={`${fieldId}-deadline`}
+                required
+                className="h-14 rounded-xl bg-muted/30 border-border/60 font-semibold px-5 text-base"
+                value={formData.deadlineDay}
+                onChange={e => setFormData({...formData, deadlineDay: e.target.value})}
+                placeholder="e.g. Wednesday"
               />
             </div>
 
             <div className="flex gap-4 pt-4">
-              <Button 
-                variant="ghost" 
-                type="button" 
-                onClick={() => setOpen(false)} 
-                className="flex-1 h-14 rounded-2xl font-bold text-muted-foreground"
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => setOpen(false)}
+                className="flex-1 h-14 rounded-xl font-medium text-muted-foreground"
               >
                 Cancel
               </Button>
-              <Button 
-                disabled={isPending} 
-                type="submit" 
-                className="flex-[2] h-14 rounded-2xl font-heading font-black text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all"
+              <Button
+                disabled={isPending}
+                type="submit"
+                className="flex-[2] h-14 rounded-xl font-heading font-semibold text-lg"
               >
                 {isPending ? 'Saving...' : 'Save Study Block'}
               </Button>

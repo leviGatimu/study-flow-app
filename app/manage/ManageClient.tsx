@@ -9,7 +9,6 @@ import {
   Repeat,
   Hourglass,
   CalendarRange,
-  Sparkles,
   Flame,
   Layers,
 } from 'lucide-react';
@@ -114,18 +113,12 @@ export function ManageClient({ initialTemplates, subjects }: ManageClientProps) 
   }, [initialTemplates]);
 
   return (
-    <div className="space-y-10 max-w-[1500px] mx-auto pb-20 px-1">
+    <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto animate-in fade-in duration-500 pb-16 px-4 md:px-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-10">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.25em] text-primary/70 mb-2">
-            Weekly Timetable
-          </p>
-          <h1 className="text-4xl md:text-5xl font-heading font-black tracking-tight text-foreground flex items-center gap-3">
-            Manage Schedule
-            <Sparkles className="w-7 h-7 text-primary animate-pulse" />
-          </h1>
-          <p className="text-sm text-muted-foreground mt-2 font-medium max-w-xl">
+          <h1 className="text-2xl font-heading font-bold tracking-tight text-foreground">Manage Schedule</h1>
+          <p className="text-sm text-muted-foreground mt-2 max-w-xl">
             Define and coordinate your recurring classes, homework sessions, and revision blocks.
           </p>
         </div>
@@ -134,32 +127,28 @@ export function ManageClient({ initialTemplates, subjects }: ManageClientProps) 
         </div>
       </div>
 
-      {/* Stat strip — borderless soft cards */}
+      {/* Stat strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<Hourglass className="w-5 h-5" />}
-          tint="primary"
-          label="Weekly Study Time"
+          label="Weekly study time"
           value={stats.totalHoursStr}
         />
         <StatCard
           icon={<Layers className="w-5 h-5" />}
-          tint="violet"
-          label="Total Blocks"
+          label="Total blocks"
           value={`${stats.totalBlocks}`}
           sub={`${stats.homeworkCount} homework · ${stats.revisionCount} revision`}
         />
         <StatCard
           icon={<Flame className="w-5 h-5" />}
-          tint="amber"
-          label="Peak Focus Day"
+          label="Peak focus day"
           value={stats.peakDayName}
           sub={stats.peakDayMins > 0 ? formatMinutes(stats.peakDayMins) : undefined}
         />
         <StatCard
           icon={<Repeat className="w-5 h-5" />}
-          tint="emerald"
-          label="Revision Blocks"
+          label="Revision blocks"
           value={`${stats.revisionCount}`}
           sub={`of ${stats.totalBlocks} total`}
         />
@@ -190,10 +179,10 @@ export function ManageClient({ initialTemplates, subjects }: ManageClientProps) 
       <AnimatePresence mode="wait">
         <motion.div
           key={String(activeTab)}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.25 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
           className="space-y-12"
         >
           {activeTab === 'all' ? (
@@ -219,7 +208,7 @@ export function ManageClient({ initialTemplates, subjects }: ManageClientProps) 
               name={FULL_DAY_NAMES[Number(activeTab)]}
               templates={sortedGrouped[Number(activeTab)] || []}
               subjects={subjects}
-              emptyText="No study blocks scheduled for this day yet."
+              emptyText='No study blocks scheduled for this day yet. Use "Add New Study Block" above to create one.'
             />
           )}
         </motion.div>
@@ -245,9 +234,9 @@ function DaySection({
   return (
     <section className="space-y-5">
       <div className="flex items-center gap-3">
-        <h2 className="text-2xl font-heading font-black tracking-tight">{name}</h2>
+        <h2 className="text-2xl font-heading font-bold tracking-tight text-foreground">{name}</h2>
         {templates.length > 0 && (
-          <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-full">
+          <span className="text-xs font-medium text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-full">
             {templates.length} block{templates.length > 1 ? 's' : ''} · {formatMinutes(totalMins)}
           </span>
         )}
@@ -255,7 +244,7 @@ function DaySection({
       </div>
 
       {templates.length === 0 ? (
-        <EmptyState text={emptyText || 'No study blocks scheduled.'} />
+        <EmptyState text={emptyText || 'No study blocks scheduled. Use "Add New Study Block" above to create one.'} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {templates.map((t) => (
@@ -276,14 +265,9 @@ function TemplateCard({
   subjects: { id: string; name: string }[];
 }) {
   const isHomework = template.type === 'HOMEWORK';
-  const accent = isHomework ? 'primary' : 'orange';
 
   return (
-    <motion.div
-      whileHover={{ y: -3 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-      className="group relative overflow-hidden rounded-2xl bg-card/60 backdrop-blur-md p-5 shadow-sm hover:shadow-lg transition-shadow"
-    >
+    <div className="group relative overflow-hidden bg-card border border-border/60 shadow-sm rounded-2xl p-5 hover:shadow-md transition-shadow duration-200">
       {/* Left accent bar (homework = solid primary, revision = orange) */}
       <span
         className={cn(
@@ -292,7 +276,7 @@ function TemplateCard({
         )}
       />
       {/* Watermark icon */}
-      <div className="absolute -right-3 -bottom-3 opacity-[0.06] group-hover:opacity-10 transition-opacity rotate-12 pointer-events-none">
+      <div className="absolute -right-3 -bottom-3 opacity-[0.06] rotate-12 pointer-events-none">
         {isHomework ? <BookOpen size={96} /> : <Repeat size={96} />}
       </div>
 
@@ -301,22 +285,22 @@ function TemplateCard({
         <div className="flex items-start justify-between gap-2">
           <span
             className={cn(
-              'inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider',
+              'inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium',
               isHomework
                 ? 'bg-primary/10 text-primary'
                 : 'bg-orange-500/10 text-orange-600',
             )}
           >
-            {template.type}
+            {isHomework ? 'Homework' : 'Revision'}
           </span>
-          <div className="flex items-center -mt-1 opacity-60 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center -mt-1">
             <EditTemplateForm template={template} subjects={subjects} />
             <DeleteTemplateButton id={template.id} />
           </div>
         </div>
 
         {/* Subject */}
-        <h3 className="text-base font-heading font-black leading-snug text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+        <h3 className="text-base font-heading font-bold leading-snug text-foreground line-clamp-2">
           {template.subject}
         </h3>
 
@@ -336,10 +320,10 @@ function TemplateCard({
 
         {/* Deadline */}
         <div className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2 text-xs">
-          <span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground">
             Deadline
           </span>
-          <span className="flex items-center gap-1.5 font-bold text-foreground">
+          <span className="flex items-center gap-1.5 font-semibold text-foreground">
             <span
               className={cn(
                 'w-1.5 h-1.5 rounded-full',
@@ -350,17 +334,17 @@ function TemplateCard({
           </span>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 function Meta({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="bg-muted/30 rounded-xl px-3 py-2 flex flex-col gap-1">
-      <span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">
+      <span className="text-xs font-medium text-muted-foreground">
         {label}
       </span>
-      <span className="flex items-center gap-1.5 font-bold text-foreground leading-none">
+      <span className="flex items-center gap-1.5 font-semibold text-foreground leading-none">
         <span className="text-muted-foreground">{icon}</span>
         {value}
       </span>
@@ -369,39 +353,30 @@ function Meta({ icon, label, value }: { icon: React.ReactNode; label: string; va
 }
 
 /* ---------- Stat card ---------- */
-const TINTS: Record<string, string> = {
-  primary: 'text-primary bg-primary/10',
-  violet: 'text-violet-500 bg-violet-500/10',
-  amber: 'text-amber-500 bg-amber-500/10',
-  emerald: 'text-emerald-500 bg-emerald-500/10',
-};
-
 function StatCard({
   icon,
-  tint,
   label,
   value,
   sub,
 }: {
   icon: React.ReactNode;
-  tint: string;
   label: string;
   value: string;
   sub?: string;
 }) {
   return (
-    <div className="rounded-2xl bg-card/50 backdrop-blur-md p-4 flex items-center gap-3.5 hover:bg-card/80 transition-colors">
-      <div className={cn('h-11 w-11 rounded-xl flex items-center justify-center shrink-0', TINTS[tint])}>
+    <div className="bg-card border border-border/60 shadow-sm rounded-2xl p-5 flex items-center gap-3.5">
+      <div className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary">
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground leading-none mb-1.5">
+        <p className="text-xs font-medium text-muted-foreground leading-none mb-1.5 truncate">
           {label}
         </p>
-        <p className="text-lg font-heading font-black text-foreground leading-none truncate">
+        <p className="text-lg font-heading font-bold text-foreground leading-none truncate">
           {value}
         </p>
-        {sub && <p className="text-[10px] font-bold text-muted-foreground mt-1 truncate">{sub}</p>}
+        {sub && <p className="text-xs text-muted-foreground mt-1 truncate">{sub}</p>}
       </div>
     </div>
   );
@@ -423,11 +398,13 @@ function FilterPill({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
-        'flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all',
+        'flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-colors',
         active
-          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+          ? 'bg-primary text-primary-foreground shadow-sm'
           : 'bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
     >
@@ -436,7 +413,7 @@ function FilterPill({
       {count > 0 && (
         <span
           className={cn(
-            'text-[10px] px-1.5 py-0.5 rounded-full font-black min-w-[18px] text-center',
+            'text-xs px-1.5 py-0.5 rounded-full font-semibold min-w-[18px] text-center',
             active ? 'bg-white/20 text-primary-foreground' : 'bg-background/70 text-muted-foreground',
           )}
         >
@@ -450,9 +427,9 @@ function FilterPill({
 /* ---------- Empty state ---------- */
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="py-16 rounded-2xl flex flex-col items-center justify-center text-muted-foreground bg-muted/20 p-6 text-center">
-      <CalendarIcon className="w-10 h-10 text-muted-foreground/30 mb-3" />
-      <p className="font-bold text-sm max-w-sm">{text}</p>
+    <div className="flex flex-col items-center justify-center gap-3 text-center py-6 bg-muted/50 rounded-2xl border border-border/50">
+      <CalendarIcon className="w-8 h-8 text-muted-foreground/40" />
+      <p className="text-sm font-medium text-muted-foreground max-w-sm">{text}</p>
     </div>
   );
 }
