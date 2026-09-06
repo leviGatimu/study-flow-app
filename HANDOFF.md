@@ -878,6 +878,39 @@ Rebuilt app/page.tsx on the primitives. 8 panels -> 4.
     lines and heavily wired to FocusContext). They are the next candidates if
     the page still feels inconsistent.
 
+## The dev server IS reachable - it is IPv6 (2026-09-06)
+
+Previous sessions concluded "Chrome cannot reach the local dev server" and gave
+up on visual verification, burning four rounds on UI nobody could see. The
+cause looks like the address, not the network:
+
+    curl http://127.0.0.1:3000/login   ->  no response
+    curl http://localhost:3000/login   ->  200
+    curl http://[::1]:3000/login       ->  200
+
+`next dev` binds `::` (IPv6 any) and Windows does not map 127.0.0.1 onto it
+here. USE localhost OR [::1], NOT 127.0.0.1. If a future session wants to
+verify the UI, that is the unblock - though it still needs Levi to be logged
+in, and note that `npm run dev` points at PRODUCTION Supabase, so do not create
+test accounts to get past the login screen.
+
+## A trap I walked into: build:desktop breaks a running dev server
+
+`npm run build:desktop` regenerates the Prisma client for SQLite. On Windows it
+then dies with EPERM because the running dev server holds the query-engine DLL
+- but IT HAS ALREADY REWRITTEN THE JAVASCRIPT CLIENT BY THEN. The failure is
+not atomic. Every query in the running app starts failing with:
+
+    Error validating datasource `db`: the URL must start with the protocol `file:`
+
+Recovery is `npm run db:postgres` (it EPERMs on the same DLL and that is
+harmless - the engine binary is per-platform, not per-provider) followed by a
+DEV SERVER RESTART, because Node has the old client module cached in memory.
+
+So: stop the dev server BEFORE building the desktop target. The existing
+warning in this file said db:postgres was needed "afterwards"; the real point
+is that the two cannot overlap at all.
+
 ## Loose-end pass (2026-09-06) - seven real bugs, six found by RUNNING things
 
 The lesson of this session: every one of these was in code that had been read,
