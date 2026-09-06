@@ -65,8 +65,8 @@ interface SettingsInterfaceProps {
     currentTerm: string;
     progress: {
       name: string;
-      geminiApiKey: string | null;
-      openaiApiKey: string | null;
+      // Removed deliberately: the real keys never reach the browser.
+      // Use `aiKeys` below, which carries only "is one set" + last 4 chars.
       primaryAiProvider: string;
       ollamaEnabled?: boolean;
       ollamaBaseUrl?: string | null;
@@ -80,6 +80,14 @@ interface SettingsInterfaceProps {
       level: number;
       timezone?: string;
     } | null;
+    /**
+     * Enough to show "Configured" and the last four characters, and nothing
+     * more. The keys themselves stay on the server.
+     */
+    aiKeys?: {
+      gemini: { configured: boolean; last4: string | null };
+      openai: { configured: boolean; last4: string | null };
+    };
   };
 }
 
@@ -190,8 +198,10 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
   const [timezone, setTimezone] = useState(initialData.progress?.timezone || DEFAULT_TZ);
   const [isUpdatingTz, setIsUpdatingTz] = useState(false);
   const timezoneOptions = getTimezoneOptions();
-  const [geminiKey, setGeminiKey] = useState(initialData.progress?.geminiApiKey || '');
-  const [openaiKey, setOpenaiKey] = useState(initialData.progress?.openaiApiKey || '');
+  // Start empty: the stored key is never sent to the browser, so there is
+  // nothing to prefill. Leaving a field blank keeps the existing key.
+  const [geminiKey, setGeminiKey] = useState('');
+  const [openaiKey, setOpenaiKey] = useState('');
   const [primaryAiProvider, setPrimaryAiProviderState] = useState(initialData.progress?.primaryAiProvider || 'gemini');
 
   // Offline (Ollama) config
@@ -1003,7 +1013,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                       <Label className="text-xs font-semibold tracking-wider uppercase text-muted-foreground flex items-center gap-1.5">
                         Google Gemini API Key
                       </Label>
-                      {initialData.progress?.geminiApiKey && (
+                      {initialData.aiKeys?.gemini.configured && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-medium">Configured</span>
                       )}
                     </div>
@@ -1015,7 +1025,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                         type="password"
                         value={geminiKey}
                         onChange={(e) => setGeminiKey(e.target.value)}
-                        placeholder="Paste your Gemini API key here" 
+                        placeholder={initialData.aiKeys?.gemini.configured ? `Saved key ending ...${initialData.aiKeys.gemini.last4} - paste a new one to replace it` : "Paste your Gemini API key here"} 
                         className="h-10 pl-9 font-mono text-xs"
                       />
                     </div>
@@ -1025,7 +1035,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                       </span>
                       <Button 
                         size="xs"
-                        disabled={isUpdating || geminiKey === (initialData.progress?.geminiApiKey || '')}
+                        disabled={isUpdating || geminiKey.trim() === ''}
                         onClick={handleUpdateGeminiKey}
                         className="h-7 text-xs px-3"
                       >
@@ -1040,7 +1050,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                       <Label className="text-xs font-semibold tracking-wider uppercase text-muted-foreground flex items-center gap-1.5">
                         OpenAI API Key
                       </Label>
-                      {initialData.progress?.openaiApiKey && (
+                      {initialData.aiKeys?.openai.configured && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-medium">Configured</span>
                       )}
                     </div>
@@ -1052,7 +1062,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                         type="password"
                         value={openaiKey}
                         onChange={(e) => setOpenaiKey(e.target.value)}
-                        placeholder="Paste your OpenAI API key here (sk-...)" 
+                        placeholder={initialData.aiKeys?.openai.configured ? `Saved key ending ...${initialData.aiKeys.openai.last4} - paste a new one to replace it` : "Paste your OpenAI API key here (sk-...)"} 
                         className="h-10 pl-9 font-mono text-xs"
                       />
                     </div>
@@ -1062,7 +1072,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                       </span>
                       <Button 
                         size="xs"
-                        disabled={isUpdating || openaiKey === (initialData.progress?.openaiApiKey || '')}
+                        disabled={isUpdating || openaiKey.trim() === ''}
                         onClick={handleUpdateOpenAIKey}
                         className="h-7 text-xs px-3"
                       >

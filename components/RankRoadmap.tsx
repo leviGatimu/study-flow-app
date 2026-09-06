@@ -14,7 +14,7 @@ import {
   Clock,
   Award
 } from "lucide-react";
-import { UserProgress } from "@/lib/types";
+import { SafeUserProgress as UserProgress } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { RANKS, getXpForNextLevel } from "@/lib/gamification";

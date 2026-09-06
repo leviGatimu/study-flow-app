@@ -23,7 +23,7 @@ import { HeaderStats } from "@/components/HeaderStats";
 import { ReminderManager } from "@/components/ReminderManager";
 import { openCommandMenu } from "@/components/CommandMenu";
 import { logoutUser } from "@/lib/actions";
-import { UserProgress } from "@/lib/types";
+import { SafeUserProgress as UserProgress } from "@/lib/types";
 import {
   DropdownMenu,
   DropdownMenuContent,

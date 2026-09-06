@@ -13,7 +13,7 @@ import {
   Filter, Calendar, ChevronDown, ChevronUp, Eye, Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TaskWithTemplate, UserProgress } from '@/lib/types';
+import { TaskWithTemplate, SafeUserProgress as UserProgress } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { format, subDays, isAfter, startOfDay, differenceInDays } from 'date-fns';
 import { Input } from "@/components/ui/input";

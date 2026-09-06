@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { AppHeader } from "@/components/AppHeader";
 import { CommandMenu } from "@/components/CommandMenu";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
-import { UserProgress } from "@/lib/types";
+import { SafeUserProgress as UserProgress } from "@/lib/types";
 import { isBareRoute } from "@/lib/nav";
 
 /**

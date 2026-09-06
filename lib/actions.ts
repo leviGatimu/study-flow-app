@@ -707,14 +707,58 @@ export async function syncStreak() {
  * duplication. It also WRITES (streak advance, XP), so running it once per
  * request is more correct, not just faster.
  */
+/**
+ * Every UserProgress column except geminiApiKey and openaiApiKey.
+ *
+ * Written as an explicit allowlist rather than an omit, so a NEW secret column
+ * added to the schema is excluded by default instead of silently leaking the
+ * day it is introduced.
+ */
+const PROGRESS_WITHOUT_KEYS = {
+  id: true,
+  userId: true,
+  name: true,
+  currentStreak: true,
+  longestStreak: true,
+  lastActiveDate: true,
+  schoolEndDate: true,
+  primaryAiProvider: true,
+  ollamaEnabled: true,
+  ollamaBaseUrl: true,
+  ollamaModel: true,
+  ollamaVisionModel: true,
+  focusSessions: true,
+  totalFocusMinutes: true,
+  xp: true,
+  level: true,
+  dailySummaryTime: true,
+  timezone: true,
+  updatedAt: true,
+  deletedAt: true,
+} as const;
+
 const syncStreakFor = cache(async function syncStreakFor(userId: string) {
 
   const tz = await getUserTimezone(userId);
   const today = startOfDay(getZonedNow(tz));
 
-  let progress = await prisma.userProgress.findUnique({ where: { userId } });
+  // Every field EXCEPT the API keys.
+  //
+  // This used to be a bare findUnique, so the row came back complete - and
+  // syncStreak's result is handed to client components on /ai, /history,
+  // /ranks, /streak and /exams. That put the user's live, billing-linked
+  // Gemini and OpenAI keys into the RSC payload of five pages, readable by any
+  // browser extension or injected script. Nothing outside lib/ai-actions.ts
+  // needs them, and that reads them directly.
+  let progress = await prisma.userProgress.findUnique({
+    where: { userId },
+    select: PROGRESS_WITHOUT_KEYS,
+  });
   if (!progress) {
-    progress = await prisma.userProgress.create({ data: { userId } });
+    progress = await prisma.userProgress.create({
+      data: { userId },
+      select: PROGRESS_WITHOUT_KEYS,
+    });
   }
 
   // The streak now lives on the Class: it resets each academic year, while XP
@@ -922,12 +966,27 @@ export async function getSettingsData() {
 
   if (!user) return null;
 
+  // Whether a key is set, and its last four characters - never the key itself.
+  // The settings form used to receive the real keys and hold them in React
+  // state, which put live billing-linked credentials in the page payload.
+  const stored = await prisma.userProgress.findUnique({
+    where: { userId },
+    select: { geminiApiKey: true, openaiApiKey: true },
+  });
+
+  const hint = (key: string | null | undefined) =>
+    key ? { configured: true as const, last4: key.slice(-4) } : { configured: false as const, last4: null };
+
   return {
     id: user.id,
     username: user.username,
     createdAt: user.createdAt,
     currentTerm: user.currentTerm,
-    progress
+    progress,
+    aiKeys: {
+      gemini: hint(stored?.geminiApiKey),
+      openai: hint(stored?.openaiApiKey),
+    },
   };
 }
 

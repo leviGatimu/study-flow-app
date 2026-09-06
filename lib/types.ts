@@ -21,9 +21,24 @@ export type ChatSessionWithMessages = ChatSession & {
   messages: ChatMessage[];
 };
 
-export { 
-  type Task, 
-  type ScheduleTemplate, 
+/**
+ * UserProgress without the AI API keys.
+ *
+ * The keys are the user's own, billing-linked credentials. They belong on the
+ * server only: nothing that renders in a browser needs them, and anything
+ * passed to a client component is serialised into the page payload where a
+ * browser extension or injected script can read it.
+ *
+ * syncStreak used to return the whole row, so the keys were shipped to /ai,
+ * /history, /ranks, /streak and /exams - none of which ever read them. Type
+ * every client-facing prop as this, so re-introducing the leak fails to
+ * compile rather than going unnoticed.
+ */
+export type SafeUserProgress = Omit<UserProgress, 'geminiApiKey' | 'openaiApiKey'>;
+
+export {
+  type Task,
+  type ScheduleTemplate,
   type Project, 
   type ProjectDoc, 
   type ChatSession, 

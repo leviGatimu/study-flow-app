@@ -7,7 +7,7 @@ import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV, NavSection, resolveNav } from "@/lib/nav";
 import { QuickAddForm } from "@/components/QuickAddForm";
-import { UserProgress } from "@/lib/types";
+import { SafeUserProgress as UserProgress } from "@/lib/types";
 
 /**
  * Primary navigation: a fixed 64px icon rail.

@@ -6,7 +6,7 @@ import { Flame, Globe, Sparkles, Trophy } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { DEFAULT_TIMEZONE, formatTimeZoneLabel } from "@/lib/utils";
-import { UserProgress } from "@/lib/types";
+import { SafeUserProgress as UserProgress } from "@/lib/types";
 
 /**
  * The always-on stat strip in the app header: streak, all-time best, level/XP
