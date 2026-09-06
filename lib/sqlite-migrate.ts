@@ -73,10 +73,23 @@ export async function runSqliteMigrations(): Promise<void> {
     const sql = readFileSync(file, 'utf8');
     // Prisma's SQLite output is one statement per ";" at end of line. Executed
     // individually because the driver does not accept multi-statement strings.
+    //
+    // Every generated statement is preceded by its own "-- CreateTable" style
+    // comment, so comment lines are stripped from INSIDE each chunk. Dropping a
+    // chunk merely because it started with a comment discarded all 29 CREATE
+    // TABLEs while still recording the migration as applied, which left a fresh
+    // install with an empty database that could never repair itself.
+    // Only whole comment lines go: a "--" inside a string literal must survive.
     const statements = sql
       .split(/;\s*$/m)
-      .map((s) => s.trim())
-      .filter((s) => s && !s.startsWith('--'));
+      .map((chunk) =>
+        chunk
+          .split(/\r?\n/)
+          .filter((line) => !line.trim().startsWith('--'))
+          .join('\n')
+          .trim()
+      )
+      .filter(Boolean);
 
     try {
       for (const statement of statements) {

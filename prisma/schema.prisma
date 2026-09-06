@@ -85,6 +85,8 @@ model ReportCard {
   deletedAt      DateTime?
   termId         String?
   termRef        Term?          @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  @@index([termId])
 }
 
 model SubjectGrade {
@@ -117,6 +119,8 @@ model Homework {
   deletedAt   DateTime?
   termId      String?
   termRef     Term?     @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  @@index([termId])
 }
 
 model StudioNote {
@@ -132,6 +136,7 @@ model StudioNote {
   class     Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@unique([userId, subject])
+  @@index([classId])
 }
 
 model TutorModule {
@@ -156,6 +161,8 @@ model TutorModule {
   deletedAt      DateTime?
   classId        String?
   class          Class?        @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId])
 }
 
 model QuizAttempt {
@@ -183,6 +190,8 @@ model Project {
   deletedAt   DateTime?
   classId     String?
   class       Class?       @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId])
 }
 
 model ProjectDoc {
@@ -233,6 +242,8 @@ model ScheduleTemplate {
   deletedAt   DateTime?
   classId     String?
   class       Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId])
 }
 
 model Task {
@@ -261,6 +272,9 @@ model Task {
   /// already done for it.
   examId String?
   exam   ExamEvent? @relation(fields: [examId], references: [id], onDelete: SetNull)
+
+  @@index([examId])
+  @@index([termId])
 }
 
 model MarkedDay {
@@ -274,6 +288,7 @@ model MarkedDay {
   termRef   Term?     @relation(fields: [termId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
+  @@index([termId])
 }
 
 model UserProgress {
@@ -315,6 +330,8 @@ model Resource {
   deletedAt DateTime?
   classId   String?
   class     Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId])
 }
 
 model ExamEvent {
@@ -353,6 +370,9 @@ model ExamEvent {
   deletedAt     DateTime?
   termId        String?
   termRef       Term?     @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  @@index([subjectId])
+  @@index([termId])
 }
 
 model WeeklySummary {
@@ -371,6 +391,7 @@ model WeeklySummary {
   termRef          Term?     @relation(fields: [termId], references: [id], onDelete: Cascade)
 
   @@unique([userId, startDate, endDate])
+  @@index([termId])
 }
 
 model DailySummary {
@@ -389,6 +410,7 @@ model DailySummary {
   termRef          Term?     @relation(fields: [termId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
+  @@index([termId])
 }
 
 model MasteryItem {
@@ -403,6 +425,8 @@ model MasteryItem {
   deletedAt   DateTime?
   classId     String?
   class       Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId])
 }
 
 model StickyNote {
@@ -433,6 +457,8 @@ model AiNote {
   deletedAt   DateTime?
   classId     String?
   class       Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId])
 }
 
 model SubjectGoal {
@@ -448,6 +474,7 @@ model SubjectGoal {
   class       Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@unique([userId, subject])
+  @@index([classId])
 }
 
 model Subject {
@@ -463,6 +490,7 @@ model Subject {
   exams     ExamEvent[]
 
   @@unique([userId, name])
+  @@index([classId])
 }
 
 /// An academic year (what Levi calls a "class"): Year 1, S6, Level 300.
