@@ -52,7 +52,7 @@ export function QuickAddForm({ initialDate, trigger, subjects = [] }: { initialD
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="rounded-[32px] sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-2xl font-heading font-black">Quick Add Task</DialogTitle>
           <p className="text-sm text-muted-foreground">Add a one-off task for {initialDate ? format(initialDate, 'MMMM do') : 'today'}.</p>

@@ -26,12 +26,9 @@ Items marked DONE were fixed the same day.
 - [x] AI API keys shipped to the browser on /ai, /history, /ranks, /streak,
       /exams via syncStreak's unfiltered findUnique. FIXED - see
       SafeUserProgress in lib/types.ts.
-- [ ] LEVI'S PERSONAL TIMETABLE IS HARDCODED AND SENT TO EVERY USER'S AI.
-      SCHOOL_TIMETABLE_DATA (lib/ai-actions.ts:360-367) is your real class
-      list, fed into every getScheduleSummary tool call and every
-      analyzeTimetable prompt. The app is multi-tenant now, so other users'
-      AI reasons over YOUR subjects, and your schedule leaks to them. Move it
-      per-user or delete it and use their own ScheduleTemplate.
+- [x] Levi's personal timetable was hardcoded and sent to every user's AI.
+      FIXED: buildSchoolTimetable() reads the user's own ScheduleTemplate.
+      Verified John now gets his own 17 blocks, not Levi's 20.
 - [ ] Quiz self-grading embeds raw student answers in the grading prompt
       (lib/tutor-actions.ts:328-351). Harmless while single-user; delimit the
       answers before this is ever exposed to other students.
@@ -39,21 +36,20 @@ Items marked DONE were fixed the same day.
 ### Data integrity
 - [x] toggleTaskDone paid +100 XP on every call; completeHomework +200. FIXED
       by the XP ledger's idempotency key.
-- [ ] Model output is written straight to the DB with no shape validation, via
-      4 copy-pasted "strip fences then JSON.parse" blocks
-      (lib/tutor-actions.ts:94,262,358,436; lib/marks-actions.ts:66). A
-      hallucinated grade becomes a permanent academic record. parseJsonLoose
-      (ai-actions.ts:1170) and sanitizePlan (1398) already do this properly -
-      copy that pattern.
+- [x] Model output written straight to the DB with no validation. FIXED: all
+      4 copy-pasted parsers replaced by lib/ai-parse.ts (parseJsonLoose +
+      sanitizeGrades/sanitizeQuestions/asString/asNumber). A malformed grade
+      is now dropped and counted, not stored; a quiz that fails to parse no
+      longer loses the student's submitted answers.
 - [ ] Anthropic/Groq keys are silently stored in the geminiApiKey column
       (ai-actions.ts:816-819), permanently breaking that key. ~150 lines of
       askAnthropic/askGroq are unreachable dead code. Wire them up or delete.
 
 ### Correctness / cost
-- [ ] No Range support in app/uploads/[...path]/route.ts, so AUDIO SEEKING IS
-      BROKEN TODAY - the player gets a 200 instead of a 206 and Chromium marks
-      the track unseekable. Fix this first; it also gives progressive PDF
-      loading for free.
+- [x] No Range support, so audio seeking was broken. FIXED: the uploads route
+      now parses Range, answers 206 with Content-Range, advertises
+      Accept-Ranges, and 416s an unsatisfiable range. 10 tests cover the
+      boundaries. This also unblocks progressive PDF loading for the viewer.
 - [ ] askGemini has NO timeout at all; OpenAI/Groq inherit a 10s default that
       is too short for vision calls. Ollama correctly uses 120s.
 - [ ] getScheduleSummary sends EVERY task the user has ever had to the model
@@ -1218,8 +1214,17 @@ inconsistency is inside page bodies. Counts: 221 arbitrary rounded-[Npx],
 
 Batch order, smallest risk first - do NOT sweep these all at once, that is
 exactly the big-bang that was rejected before:
-  0. 7 shared DialogContent radius overrides -> the primitive's own rounded-2xl.
-     Highest leverage per line; opened from nearly every page.
+  0. [DONE 2026-09-06] 6 shared DialogContent radius overrides removed so the
+     Dialog primitive's own rounded-2xl applies: ManageForm, EditTemplateForm,
+     QuickAddForm, AddResourceForm, ConfirmModal, ValidationModal.
+     The audit listed LiveFocusBanner as a 7th, but its rounded-[32px] is on a
+     Card, not a DialogContent - left alone, and it sits beside the protected
+     LiveFocusCard.
+     NINE MORE DialogContent overrides exist and belong to batch 1:
+     DailySummaryCard:221, OverallSummaryButton:114, SummaryCard:214,
+     AIChatInterface:657, HomeworkList:46, MarksClient:457 and :928,
+     DialogTriggerButton:17, and TaskList:306 - TaskList IS PROTECTED, do not
+     touch it without asking.
   1. Arbitrary radius -> tokens, in 4-5 PRs grouped by route family.
   2. Motion cleanup (the 2026-08-29 sweep playbook, which worked).
   3. Glow-orb removal, per design family.

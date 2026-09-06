@@ -30,7 +30,7 @@ export function ConfirmModal({
 }: ConfirmModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[400px] rounded-[32px] p-8 border-none shadow-2xl">
+      <DialogContent className="sm:max-w-[400px] p-8 border-none shadow-2xl">
         <div className="flex flex-col items-center text-center space-y-6">
           <div className="p-4 bg-destructive/10 rounded-full text-destructive">
             <AlertTriangle className="w-10 h-10" />

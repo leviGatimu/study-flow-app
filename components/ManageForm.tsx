@@ -49,7 +49,7 @@ export function ManageForm({ subjects = [] }: { subjects?: { id: string; name: s
           <Plus className="w-5 h-5" /> Add New Study Block
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl rounded-[32px] p-0 overflow-hidden border shadow-2xl">
+      <DialogContent className="sm:max-w-xl p-0 overflow-hidden border shadow-2xl">
         <div className="bg-card">
           <DialogHeader className="p-8 border-b bg-muted/20 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />

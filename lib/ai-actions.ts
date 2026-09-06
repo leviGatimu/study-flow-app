@@ -358,14 +358,50 @@ export async function detectAIProvider(apiKey: string): Promise<DetectedProvider
   return null;
 }
 
-const SCHOOL_TIMETABLE_DATA = `
-SCHOOL TIMETABLE (Weekly):
-- Monday: 07:30-09:00 Devotion, 09:00-10:40 Networking, 11:00-11:50 Citizenship, 11:50-12:40 C, 13:40-15:20 JS, 15:40-17:20 Embedded.
-- Tuesday: 07:30-09:00 Devotion, 09:00-10:40 PHP, 11:00-12:40 GUI, 13:40-15:20 English, 15:40-17:20 Clubs.
-- Wednesday: 07:30-09:00 Devotion, 09:00-10:40 C, 11:00-12:40 Database, 13:40-14:30 Entrepreneurship, 14:30-15:20 Computer Basics, 15:40-17:20 Circuits.
-- Thursday: 07:30-09:00 Devotion, 09:00-10:40 Circuits, 11:00-12:40 Web UI, 13:40-14:30 JS Extra, 14:30-15:20 JS, 15:40-17:20 C.
-- Friday: 07:30-09:00 Devotion, 09:00-11:50 Math, 11:50-12:40 Embedded, 13:40-14:30 Kinyarwanda, 14:30-15:20 Math, 15:40-17:20 Lab.
-`;
+/**
+ * The user's own weekly timetable, rendered for a prompt.
+ *
+ * This used to be SCHOOL_TIMETABLE_DATA: a hardcoded constant holding one
+ * particular student's real class list, right down to their Devotion and
+ * Kinyarwanda periods. It was fed into every getScheduleSummary tool result
+ * and every timetable-analysis prompt. Once the app became multi-tenant that
+ * meant every other user's AI reasoned over someone else's subjects - wrong
+ * answers for them, and a leak of that student's schedule to strangers.
+ *
+ * Built from their own ScheduleTemplate rows instead. Returns an explicit
+ * "no timetable" line rather than an empty string, so the model is told the
+ * schedule is unknown instead of quietly inventing one.
+ */
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+async function buildSchoolTimetable(forUserId?: string): Promise<string> {
+  // executeTool has four call sites and no userId to hand down, so resolve it
+  // here. getUserId is memoised per request, so this is not an extra round trip.
+  const userId = forUserId ?? (await getUserId());
+  if (!userId) return 'SCHOOL TIMETABLE: unavailable.';
+
+  const templates = await prisma.scheduleTemplate.findMany({
+    where: { userId, deletedAt: null },
+    select: { dayOfWeek: true, subject: true, startTime: true, endTime: true },
+    orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+  });
+
+  if (templates.length === 0) {
+    return 'SCHOOL TIMETABLE: none set up yet - do not assume one.';
+  }
+
+  const byDay = new Map<number, string[]>();
+  for (const t of templates) {
+    const entry = `${t.startTime}-${t.endTime} ${t.subject}`;
+    byDay.set(t.dayOfWeek, [...(byDay.get(t.dayOfWeek) ?? []), entry]);
+  }
+
+  const lines = [...byDay.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([day, entries]) => `- ${DAY_NAMES[day] ?? `Day ${day}`}: ${entries.join(', ')}.`);
+
+  return ['SCHOOL TIMETABLE (Weekly):', ...lines].join('\n');
+}
 
 async function executeTool(name: string, args: unknown) {
   if (name === 'scheduleTask') {
@@ -390,7 +426,7 @@ async function executeTool(name: string, args: unknown) {
       tasks, 
       events, 
       streak,
-      schoolTimetable: SCHOOL_TIMETABLE_DATA
+      schoolTimetable: await buildSchoolTimetable()
     };
   }
 
@@ -1464,10 +1500,11 @@ export async function analyzeTimetable(
   }
 
   const todayStr = new Date().toISOString().slice(0, 10);
+  const schoolTimetable = await buildSchoolTimetable(userId);
   const systemInstruction = `You read a student's exam timetable and produce a study plan.
 Today's date is ${todayStr}.
 
-${SCHOOL_TIMETABLE_DATA}
+${schoolTimetable}
 
 Respond with ONLY one valid JSON object — no prose, no markdown fences:
 {

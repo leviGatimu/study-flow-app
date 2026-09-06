@@ -45,8 +45,45 @@ function mimeFor(name: string): string {
   return MIME[ext] ?? 'application/octet-stream';
 }
 
+/**
+ * Parse a single-range `Range: bytes=start-end` header against a known size.
+ *
+ * Returns undefined when there is no range to honour, or null when the range
+ * is unsatisfiable (which the caller answers with a 416). Only one range is
+ * supported: multipart/byteranges buys nothing for audio seeking or a PDF
+ * reader, and every client falls back gracefully to a full response.
+ */
+function parseRange(header: string | null, size: number) {
+  if (!header) return undefined;
+
+  const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!match) return undefined;
+
+  const [, rawStart, rawEnd] = match;
+  if (rawStart === '' && rawEnd === '') return undefined;
+
+  let start: number;
+  let end: number;
+
+  if (rawStart === '') {
+    // "bytes=-500" means the LAST 500 bytes.
+    const suffix = Number(rawEnd);
+    if (!Number.isFinite(suffix) || suffix <= 0) return null;
+    start = Math.max(0, size - suffix);
+    end = size - 1;
+  } else {
+    start = Number(rawStart);
+    end = rawEnd === '' ? size - 1 : Number(rawEnd);
+  }
+
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  if (start < 0 || start >= size || end < start) return null;
+
+  return { start, end: Math.min(end, size - 1) };
+}
+
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const userId = await getUserId();
@@ -83,18 +120,51 @@ export async function GET(
     return new Response('Not found', { status: 404 });
   }
 
+  const common = {
+    'Content-Type': mimeFor(full),
+    // The filename carries a timestamp and content never changes in place,
+    // so this is safe to cache hard. Private: it is the user's own file.
+    'Cache-Control': 'private, max-age=31536000, immutable',
+    'Content-Disposition': 'inline',
+    // Never let a stored file be interpreted as something else.
+    'X-Content-Type-Options': 'nosniff',
+    // Advertised on every response, not just partial ones - it is how a client
+    // learns it may range-request at all.
+    'Accept-Ranges': 'bytes',
+  };
+
+  // Without this the <audio> element cannot seek: it issues a ranged request,
+  // gets a 200 with the whole body instead of a 206, and Chromium then treats
+  // the resource as non-seekable. It also lets a PDF reader fetch page by page
+  // rather than pulling the whole file before showing anything.
+  const range = parseRange(request.headers.get('range'), size);
+
+  if (range === null) {
+    return new Response('Range Not Satisfiable', {
+      status: 416,
+      headers: { ...common, 'Content-Range': `bytes */${size}` },
+    });
+  }
+
+  if (range) {
+    const { start, end } = range;
+    const partial = Readable.toWeb(
+      createReadStream(full, { start, end })
+    ) as ReadableStream;
+
+    return new Response(partial, {
+      status: 206,
+      headers: {
+        ...common,
+        'Content-Range': `bytes ${start}-${end}/${size}`,
+        'Content-Length': String(end - start + 1),
+      },
+    });
+  }
+
   const stream = Readable.toWeb(createReadStream(full)) as ReadableStream;
 
   return new Response(stream, {
-    headers: {
-      'Content-Type': mimeFor(full),
-      'Content-Length': String(size),
-      // The filename carries a timestamp and content never changes in place,
-      // so this is safe to cache hard. Private: it is the user's own file.
-      'Cache-Control': 'private, max-age=31536000, immutable',
-      'Content-Disposition': 'inline',
-      // Never let a stored file be interpreted as something else.
-      'X-Content-Type-Options': 'nosniff',
-    },
+    headers: { ...common, 'Content-Length': String(size) },
   });
 }

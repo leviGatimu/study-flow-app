@@ -63,7 +63,7 @@ export function AddResourceForm({ subject: initialSubject, allSubjects = [] }: {
           <Plus className="w-3.5 h-3.5 mr-2" /> Add Material
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md rounded-[32px] p-8 border shadow-2xl">
+      <DialogContent className="sm:max-w-md p-8 border shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-3xl font-heading font-black tracking-tighter">Add Resource</DialogTitle>
         </DialogHeader>

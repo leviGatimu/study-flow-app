@@ -27,7 +27,7 @@ export function ValidationModal({
 }: ValidationModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[440px] rounded-[40px] p-0 border-none shadow-2xl overflow-hidden bg-card/90 backdrop-blur-xl">
+      <DialogContent className="sm:max-w-[440px] p-0 border-none shadow-2xl overflow-hidden bg-card/90 backdrop-blur-xl">
         <div className="relative p-10 flex flex-col items-center text-center space-y-8">
           
           {/* Decorative background glow */}

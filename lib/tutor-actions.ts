@@ -8,6 +8,7 @@ import { redirect } from 'next/navigation';
 import { grantXp } from './gamification';
 import { randomUUID } from 'node:crypto';
 import mammoth from 'mammoth';
+import { parseJsonLoose, sanitizeQuestions, asString, asNumber } from '@/lib/ai-parse';
 
 // Canonical description of every question shape the quiz engine understands.
 const QUESTION_TYPE_SPEC = `Every question object has "id", "type", and "question". Per type, also include:
@@ -92,23 +93,23 @@ Rules: make options/distractors plausible; for MATCHING the "definitions" array 
     if (result.error) return { error: result.error };
 
     // Parse JSON safely
-    let cleanJson = result.text.trim();
-    if (cleanJson.startsWith('```')) {
-      const match = cleanJson.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (match && match[1]) {
-        cleanJson = match[1];
-      } else {
-        cleanJson = cleanJson.replace(/```json/g, '').replace(/```/g, '').trim();
-      }
+    const data = parseJsonLoose(result.text);
+    if (!data) return { error: 'The AI did not return a usable quiz. Try again.' };
+
+    // Model output is untrusted: drop questions the quiz UI cannot render,
+    // notably MULTIPLE_CHOICE with no options, which used to render as a
+    // question with nothing to pick.
+    const { questions, dropped } = sanitizeQuestions(data.questions);
+    if (questions.length === 0) {
+      return { error: 'No usable questions were generated. Try a clearer document.' };
     }
-    const data = JSON.parse(cleanJson);
 
     const module = await prisma.tutorModule.create({
       data: {
         userId,
         subject,
-        title: data.title,
-        questions: JSON.stringify(data.questions),
+        title: asString(data.title, 300) ?? subject,
+        questions: JSON.stringify(questions),
         notes: "[]",
         videos: "[]",
         flashcards: "[]",
@@ -263,21 +264,15 @@ Return ONLY a JSON array of the 5 new question objects (no markdown, no backtick
     const result = await askAIBuddy(prompt, []);
     if (result.error) return { error: result.error };
 
-    let cleanJson = result.text.trim();
-    if (cleanJson.startsWith('```')) {
-      const match = cleanJson.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (match && match[1]) {
-        cleanJson = match[1];
-      } else {
-        cleanJson = cleanJson.replace(/```json/g, '').replace(/```/g, '').trim();
-      }
+    const parsed = parseJsonLoose(result.text);
+    const { questions: newQuestions } = sanitizeQuestions(parsed);
+    if (newQuestions.length === 0) {
+      return { error: 'No usable extra questions were generated. Try again.' };
     }
 
-    const newQuestions = JSON.parse(cleanJson);
-    
     // Ensure unique IDs
     const timestamp = Date.now();
-    const processedNewQuestions = newQuestions.map((q: any, i: number) => ({
+    const processedNewQuestions = newQuestions.map((q, i) => ({
       ...q,
       id: `gen_${timestamp}_${i}`
     }));
@@ -359,37 +354,37 @@ Do not include markdown blocks.`;
     if (result.error) return { error: result.error };
 
     // More robust JSON cleaning
-    let cleanJson = result.text.trim();
-    if (cleanJson.startsWith('```')) {
-      const match = cleanJson.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (match && match[1]) {
-        cleanJson = match[1];
-      } else {
-        // Fallback: just strip the backticks if regex fails
-        cleanJson = cleanJson.replace(/```json/g, '').replace(/```/g, '').trim();
-      }
+    const data = parseJsonLoose(result.text);
+    // A malformed response used to throw here and be swallowed into a generic
+    // "Failed to grade", losing the answers the student had just submitted.
+    if (!data) {
+      return { error: 'The AI response could not be read. Your answers were kept - try grading again.' };
     }
 
-    const data = JSON.parse(cleanJson);
+    const overallScore = asNumber(data.overallScore, 0, 100);
+    if (overallScore === null) {
+      return { error: 'The AI returned an invalid score. Your answers were kept - try grading again.' };
+    }
 
-    const augmentedFeedback = data.feedback.map((f: any) => ({
-      ...f,
-      studentAnswer: studentAnswers.find(sa => sa.id === f.questionId)?.answer || ""
+    const feedbackList = Array.isArray(data.feedback) ? data.feedback : [];
+    const augmentedFeedback = feedbackList.map((f: any) => ({
+      ...(f && typeof f === 'object' ? f : {}),
+      studentAnswer: studentAnswers.find(sa => sa.id === f?.questionId)?.answer || ""
     }));
 
     // Save the attempt history
     await prisma.quizAttempt.create({
       data: {
         moduleId: module.id,
-        score: data.overallScore,
+        score: overallScore,
         feedback: JSON.stringify(augmentedFeedback)
       }
     });
 
     // Update the module's best/latest score via the existing function
-    await updateTutorModuleScore(module.id, data.overallScore, data.understanding);
+    await updateTutorModuleScore(module.id, overallScore, asString(data.understanding, 200) ?? 'Reviewed');
 
-    return { success: true, data: { ...data, feedback: augmentedFeedback } };
+    return { success: true, data: { ...data, overallScore, feedback: augmentedFeedback } };
   } catch (error) {
     console.error("Grading error:", error);
     return { error: "Failed to grade the quiz." };
@@ -437,17 +432,19 @@ Do not include markdown formatting or backticks.`;
     const result = await askAIBuddy(prompt, []);
     if (result.error) return { error: result.error };
 
-    let cleanJson = result.text.trim();
-    if (cleanJson.startsWith('```')) {
-      const match = cleanJson.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (match && match[1]) {
-        cleanJson = match[1];
-      } else {
-        cleanJson = cleanJson.replace(/```json/g, '').replace(/```/g, '').trim();
-      }
+    const parsed = parseJsonLoose(result.text);
+    const rawCards = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.flashcards) ? parsed.flashcards : [];
+
+    // A card with no front or no back is unusable, and used to be stored
+    // anyway - it rendered as a blank flashcard with no way to remove it.
+    const flashcardsList = rawCards
+      .map((fc: any) => ({ front: asString(fc?.front, 2000), back: asString(fc?.back, 4000) }))
+      .filter((fc: { front: string | null; back: string | null }) => fc.front && fc.back);
+
+    if (flashcardsList.length === 0) {
+      return { error: 'No usable flashcards were generated. Try again.' };
     }
 
-    const flashcardsList = JSON.parse(cleanJson);
     const initializedFlashcards = flashcardsList.map((fc: any) => ({
       ...fc,
       interval: 0,
