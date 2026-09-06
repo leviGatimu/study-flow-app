@@ -15,15 +15,58 @@ changes, one bad checkout from being lost. `main` is still at a353a40 (June),
 untouched, so nothing deploys differently until you merge:
     git checkout main && git merge --ff-only phase-0-8-restructure
 
-## OPEN BUG, found 2026-09-06, NOT fixed (Levi to decide)
-toggleTaskDone (lib/actions.ts:413-427) grants +100 XP every time it is called
-with isDone=true, without checking the task's previous state. Untick and
-re-tick a task and you are paid twice; a double-submit does the same. This is
-live today and inflating the XP total.
-Not fixed because the structural repair is the XP ledger described under Phase
-9 below, and patching it now creates a second place to change. A 4-line guard
-(make the updateMany require isDone:false, grant only when count > 0) is the
-interim fix if you want it before the ledger lands.
+## THE BACKLOG, from five audits on 2026-09-06
+
+Ordered by severity. Everything below is verified in-tree; nothing is a guess.
+Items marked DONE were fixed the same day.
+
+### Security
+- [x] Desktop installer shipped the production JWT_SECRET + Postgres password
+      in plain text (resources/server/.env). FIXED.
+- [x] AI API keys shipped to the browser on /ai, /history, /ranks, /streak,
+      /exams via syncStreak's unfiltered findUnique. FIXED - see
+      SafeUserProgress in lib/types.ts.
+- [ ] LEVI'S PERSONAL TIMETABLE IS HARDCODED AND SENT TO EVERY USER'S AI.
+      SCHOOL_TIMETABLE_DATA (lib/ai-actions.ts:360-367) is your real class
+      list, fed into every getScheduleSummary tool call and every
+      analyzeTimetable prompt. The app is multi-tenant now, so other users'
+      AI reasons over YOUR subjects, and your schedule leaks to them. Move it
+      per-user or delete it and use their own ScheduleTemplate.
+- [ ] Quiz self-grading embeds raw student answers in the grading prompt
+      (lib/tutor-actions.ts:328-351). Harmless while single-user; delimit the
+      answers before this is ever exposed to other students.
+
+### Data integrity
+- [x] toggleTaskDone paid +100 XP on every call; completeHomework +200. FIXED
+      by the XP ledger's idempotency key.
+- [ ] Model output is written straight to the DB with no shape validation, via
+      4 copy-pasted "strip fences then JSON.parse" blocks
+      (lib/tutor-actions.ts:94,262,358,436; lib/marks-actions.ts:66). A
+      hallucinated grade becomes a permanent academic record. parseJsonLoose
+      (ai-actions.ts:1170) and sanitizePlan (1398) already do this properly -
+      copy that pattern.
+- [ ] Anthropic/Groq keys are silently stored in the geminiApiKey column
+      (ai-actions.ts:816-819), permanently breaking that key. ~150 lines of
+      askAnthropic/askGroq are unreachable dead code. Wire them up or delete.
+
+### Correctness / cost
+- [ ] No Range support in app/uploads/[...path]/route.ts, so AUDIO SEEKING IS
+      BROKEN TODAY - the player gets a 200 instead of a 206 and Chromium marks
+      the track unseekable. Fix this first; it also gives progressive PDF
+      loading for free.
+- [ ] askGemini has NO timeout at all; OpenAI/Groq inherit a 10s default that
+      is too short for vision calls. Ollama correctly uses 120s.
+- [ ] getScheduleSummary sends EVERY task the user has ever had to the model
+      (getAllTasks has no date filter) - grows forever, costs forever.
+- [ ] Several prompts have no size cap: generateAiNoteFromText, the chat's
+      document context, createTutorModule, uploadReportCard. The 25MB limit in
+      UploadTimetableDialog is fictional - nothing checks file.size.
+
+### Known-dead or duplicated
+- [ ] components/PDFViewer.tsx is never imported. Every "open file" in the app
+      is a plain <a target="_blank">, so there is no in-app viewer at all.
+- [ ] Three separate chat UIs over one askAIBuddy (app/ai, StudioWorkspace,
+      ProjectInterface) could share one panel.
 
 ## WHEN YOU WAKE UP - three things need YOU, not me
 
@@ -1113,6 +1156,79 @@ The destructive pass is now repairSubjects(), a "Tidy up" button on /subjects.
 getSubjects() still seeds an empty table but deletes nothing. This was the
 open item flagged for Levi last session, and it mattered before sync: a
 delete-on-read propagates to every device.
+
+## THE THREE NEW FEATURES (asked for 2026-09-06, designed, not built)
+
+### Offline desktop login
+Correction to the earlier assumption: the desktop app is ALREADY fully offline
+and always has been. There is no online step to preserve - each PC has its own
+local SQLite User table, disjoint from the web app's. registerUser/loginUser
+run against the local file, bcrypt on-device, no network.
+So "offline login" is really "make the desktop account the SAME account as the
+web one". Simplest design that does not weaken the web app: verify once against
+the server on first login, then provision a local User row with a locally
+computed bcrypt hash; every later login is a local bcrypt.compare. Trade-off:
+a crackable hash sits on that PC - but that is already true of every
+desktop-registered account today, so it extends the existing local-trust
+assumption rather than widening it.
+
+### Resources as a real folder system
+THE REAL FOLDER IS C:\Users\user\Downloads\School, and its shape is deeper than
+described: Year -> Term -> Subject -> Category
+  School\Year 1\Term 3\Physics\{Assignments, Exam, Notes, Practice, revision}
+That maps almost exactly onto Class -> Term -> Subject, which the schema
+already has. Key off those FKs rather than inventing a parallel tree.
+  - Schema: a self-referencing Folder model (parentId), NOT a materialised path
+    string - a path string cannot represent an empty folder, and several real
+    ones are empty (Year 2\Term 1, Year 2\Term 3).
+  - saveUpload is flat by design and resolveUploadPath deliberately basenames
+    away directories; both need real multi-segment handling, and the uploads
+    route must stop taking only the last path segment.
+  - Naming drift is real and must be tolerated, not assumed away:
+    Entreprenuership/Entrepreneurship, Embedded system/Embedded systems,
+    PHP/Php, Math/Mathematics.
+  - REFUSED BY DESIGN, do not implement: automatically deleting, renaming or
+    moving a real file as a side effect of a DB cascade or a sync, and any
+    live filesystem watcher over the user's folder. Drift is surfaced as a
+    reviewable list from a scan-on-open, never auto-repaired.
+  - Desktop-only: the web build has no disk. Gate the whole thing on
+    window.electron.
+
+### Document viewer
+pdfjs-dist and mammoth are ALREADY dependencies, and the pdf.js worker already
+loads from a local asset (verified in .next/static), so it is offline-safe.
+Build one DocumentViewer dispatching by extension: pdfjs canvas for PDF, img
+for images, pre/react-markdown for txt/md, mammoth for docx, and an honest
+"open externally" for legacy .doc, which has no offline renderer. Do NOT add
+react-pdf - it wraps the pdfjs-dist already present.
+Fix the Range bug FIRST; the viewer depends on it for large files.
+
+## UI CONSISTENCY - the plan, and a correction
+
+IMPORTANT correction to this file: the "Today page restyle" entry describes a
+dashboard rebuilt on the five primitives. THAT WAS REVERTED. app/page.tsx on
+disk is the original 8-panel hand-styled dashboard, and it is the reference.
+Also wrong here: TermStatusBanner does NOT use the primitives. Only
+app/year/YearClient.tsx does, and Stat is used nowhere at all.
+
+The app chrome (sidebar, header, palette) is already clean. Every
+inconsistency is inside page bodies. Counts: 221 arbitrary rounded-[Npx],
+932 font-black, 443 tiny micro-labels across 59 files, 64 hover lift/scale,
+20+ decorative glow orbs, and FOUR competing page-header systems.
+
+Batch order, smallest risk first - do NOT sweep these all at once, that is
+exactly the big-bang that was rejected before:
+  0. 7 shared DialogContent radius overrides -> the primitive's own rounded-2xl.
+     Highest leverage per line; opened from nearly every page.
+  1. Arbitrary radius -> tokens, in 4-5 PRs grouped by route family.
+  2. Motion cleanup (the 2026-08-29 sweep playbook, which worked).
+  3. Glow-orb removal, per design family.
+  4. Micro-labels -> sentence case. Changes visible copy - show one page first.
+  5. font-black -> font-bold on non-numeric text. The biggest visual lever.
+  6. LAST, one page at a time, with a screenshot each: reconcile the four
+     header systems. This is the actual decision and cannot be mechanical.
+Protected throughout: TaskList, LiveFocusCard, DailyQuote, MemoryGuard,
+FocusSessionUI's motion, and every font property.
 
 ## Working Notes
 
