@@ -15,6 +15,16 @@ changes, one bad checkout from being lost. `main` is still at a353a40 (June),
 untouched, so nothing deploys differently until you merge:
     git checkout main && git merge --ff-only phase-0-8-restructure
 
+## OPEN BUG, found 2026-09-06, NOT fixed (Levi to decide)
+toggleTaskDone (lib/actions.ts:413-427) grants +100 XP every time it is called
+with isDone=true, without checking the task's previous state. Untick and
+re-tick a task and you are paid twice; a double-submit does the same. This is
+live today and inflating the XP total.
+Not fixed because the structural repair is the XP ledger described under Phase
+9 below, and patching it now creates a second place to change. A 4-line guard
+(make the updateMany require isDone:false, grant only when count > 0) is the
+interim fix if you want it before the ledger lands.
+
 ## WHEN YOU WAKE UP - three things need YOU, not me
 
 1. VERCEL DATABASE_URL still points at port 6543 (transaction pooler), which
@@ -40,6 +50,13 @@ untouched, so nothing deploys differently until you merge:
    the client to SQLite would have broken the app you had open. Stop the dev
    server first, then `npm run build:desktop`, `npm run pack` in desktop-app/,
    open it - and run `npm run db:postgres` afterwards or `npm run dev` breaks.
+   SAFE TO PACK NOW: until 2026-09-06 an installer built from this tree shipped
+   the production JWT_SECRET and Postgres password in plain text inside
+   resources/server/.env. That is fixed (the .env is excluded and the desktop
+   app mints its own signing secret per install) - but if you built and
+   distributed an installer BEFORE that fix, rotate JWT_SECRET and the database
+   password, because anyone holding that file can forge a login for the live
+   site or connect straight to the database.
 
 ## PHASE 9 - two-way sync. STARTED 2026-09-06 (Levi approved Stage 0)
 
@@ -74,9 +91,49 @@ So the first real deliverable is NOT the engine. It is an IDENTITY MAP: a
 per-model declaration of what makes a row "the same row". Everything else
 depends on it.
 
+### STAGE 0 IS DONE (2026-09-06)
+
+  lib/sync/identity.ts       what makes a row "the same row", all 28 models
+  test/sync/harness.mjs      three isolated SQLite DBs from the real migrations
+  test/sync/hazards.test.mjs the four known failures, reproduced for real
+  test/sync/identity.test.mjs  drift guard against the schema
+
+  npm run test:sync:setup    once, after any schema change
+  npm run test:sync          16 tests, ~4s
+
+The harness generates its OWN Prisma client to
+node_modules/.prisma/client-sqlite-test. It must keep doing that: the desktop
+build generates over the app's client, so a harness sharing that path would
+break a running dev server mid-test (see the build:desktop trap above).
+
+Decisions worth not re-litigating, all reasoned in identity.ts:
+  - v1 scope is the academic core. ExamEvent and Homework are IN, because
+    Task.examId would otherwise dangle. Chat and music are OUT.
+  - DailySummary/WeeklySummary are never synced - recomputed from Task.
+  - MasteryItem and Resource keep ID matching ON PURPOSE. The app already
+    allows two checklist items with the same title, so a natural key would
+    merge two different things and destroy one.
+  - Subject must be matched CASE-FOLDED. normalizeSubject does not lowercase
+    and the Postgres constraint is case-sensitive, so "Physics"/"physics" are
+    two rows to the DB and one subject to the student.
+
+### THE XP PROBLEM - decide this before Stage 3
+There is NO XP ledger anywhere. xp / level / focusSessions / totalFocusMinutes
+are running totals written by read-modify-write (lib/gamification.ts addXp).
+Last-writer-wins on them does not just fail to add two devices' earnings, it
+ERASES one side's, unrecoverably, because nothing records where the XP came
+from. Two options, and the first is better:
+  a) an append-only XpEvent table (userId, source, amount, sourceId, createdAt)
+     with xp/level recomputed from it - append-only rows need no conflict
+     resolution at all;
+  b) devices report DELTAS since their last sync and the server sums them.
+Streaks are a related case: Class.currentStreak should become a CACHE derived
+from the set of days with a completed Task, not an authoritative value - a
+streak is a function of a sequence and cannot be merged as an integer.
+
 ### Sequencing (each stage leaves the tree shippable)
 
-  Stage 0  Two-device test harness + the identity map
+  Stage 0  Two-device test harness + the identity map   [DONE]
   Stage 1  Outbox - capture writes via a Prisma client extension in
            lib/prisma.ts, so hundreds of call sites stay untouched
   Stage 2  /api/sync push+pull, cursor on SERVER time (client clocks lie)
