@@ -85,6 +85,41 @@ async function safeJson(response: Response) {
   }
 }
 
+/**
+ * How long a real generation call may take before we give up on it.
+ *
+ * The old default was 10s for everything, which aborts legitimate work: a
+ * vision call over a scanned report card, or a long document summary, routinely
+ * runs longer than that and was being reported to the user as "AI unavailable".
+ * Ollama already had 120s for exactly this reason.
+ *
+ * Key PROBES keep the short default - those either answer immediately or the
+ * key is wrong.
+ */
+const AI_GENERATION_TIMEOUT_MS = 60_000;
+
+/**
+ * Bound a promise that is not a fetch.
+ *
+ * The Gemini SDK's chat.sendMessage takes no AbortSignal, so it had NO timeout
+ * at all - a hung request left the user watching a spinner indefinitely while
+ * every other provider had one. This does not cancel the underlying request,
+ * which the SDK gives us no way to do; it stops the caller waiting on it, so
+ * the provider-failover path can move on to the next model.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} did not respond within ${Math.round(ms / 1000)}s.`)),
+      ms
+    );
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error) => { clearTimeout(timer); reject(error); }
+    );
+  });
+}
+
 async function fetchWithTimeout(url: string, options: any, timeout = 10000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
@@ -498,7 +533,7 @@ async function askGemini(
     });
   }
 
-  let result = await chat.sendMessage(messageParts);
+  let result = await withTimeout(chat.sendMessage(messageParts), AI_GENERATION_TIMEOUT_MS, 'Gemini');
   let iterations = 0;
   const MAX_ITERATIONS = 5;
 
@@ -518,7 +553,7 @@ async function askGemini(
       }))
     );
 
-    result = await chat.sendMessage(toolResults as any);
+    result = await withTimeout(chat.sendMessage(toolResults as any), AI_GENERATION_TIMEOUT_MS, 'Gemini');
   }
   
   return { text: result.response.text() };
@@ -587,7 +622,7 @@ async function askOpenAI(
         })),
       }),
       cache: 'no-store',
-    });
+    }, AI_GENERATION_TIMEOUT_MS);
 
     const data = await safeJson(response);
     if (!response.ok) {
@@ -682,7 +717,7 @@ async function askAnthropic(
         messages,
       }),
       cache: 'no-store',
-    });
+    }, AI_GENERATION_TIMEOUT_MS);
 
     const data = await safeJson(response);
     if (!response.ok) {
@@ -744,7 +779,7 @@ async function askGroq(
       temperature: 0.4,
     }),
     cache: 'no-store',
-  });
+  }, AI_GENERATION_TIMEOUT_MS);
 
   const data = await safeJson(response);
   if (!response.ok) {
