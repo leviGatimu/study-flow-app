@@ -52,8 +52,7 @@ export function ExamCountdown({ events }: { events: ExamEvent[] }) {
   };
 
   return (
-    <div className="bg-card border border-border/60 rounded-3xl p-6 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+    <div className="bg-card border border-border/60 rounded-2xl p-6 shadow-sm group hover:shadow-md transition-shadow duration-200">
       
       <div className="flex items-center justify-between mb-6 relative z-10">
         <Link href="/exams" className="hover:text-primary transition-colors">
@@ -67,7 +66,7 @@ export function ExamCountdown({ events }: { events: ExamEvent[] }) {
               <Plus className="w-4 h-4" />
             </Button>
           </DialogTrigger>
-          <DialogContent className="rounded-[32px]">
+          <DialogContent className="rounded-2xl">
             <DialogHeader>
               <DialogTitle className="text-2xl font-heading font-black">Add Major Event</DialogTitle>
             </DialogHeader>

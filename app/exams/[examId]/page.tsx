@@ -1,4 +1,6 @@
 import { getEventById, getSubjectStats, getMasteryItems, getSubjectSessions } from '@/lib/actions';
+import { getExamWithPrep } from '@/lib/exam-actions';
+import { ExamPlanner } from '@/components/ExamPlanner';
 import { getUserId } from '@/lib/auth';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
@@ -38,10 +40,16 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
   const exam = await getEventById(examId);
   if (!exam) notFound();
 
-  const [stats, masteryItems, sessions] = await Promise.all([
-    getSubjectStats(exam.title),
-    getMasteryItems(exam.title),
-    getSubjectSessions(exam.title),
+  // The subject this exam assesses. Until Phase 5 this was exam.title, so
+  // "Physics MID-TERM" looked up a subject that does not exist and every
+  // preparation panel below silently showed zeroes.
+  const subjectKey = exam.subject?.name ?? exam.title;
+
+  const [stats, masteryItems, sessions, prep] = await Promise.all([
+    getSubjectStats(subjectKey),
+    getMasteryItems(subjectKey),
+    getSubjectSessions(subjectKey),
+    getExamWithPrep(examId),
   ]);
 
   const now = startOfDay(new Date());
@@ -63,7 +71,22 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
         : `${daysRemaining} Days`;
 
   return (
-    <div className="max-w-[1600px] mx-auto p-6 md:p-12 space-y-12 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-32">
+    <>
+      {prep && (
+        <div className="max-w-[1200px] mx-auto px-6 md:px-12 pt-6">
+          <ExamPlanner
+            examId={examId}
+            subjectId={prep.exam.subjectId}
+            subjectName={prep.exam.subject?.name ?? null}
+            subjects={prep.subjects}
+            revisionTasks={prep.exam.revisionTasks}
+            score={prep.exam.score}
+            maxScore={prep.exam.maxScore}
+            isPast={isPast}
+          />
+        </div>
+      )}
+    <div className="max-w-[1600px] mx-auto p-6 md:p-12 space-y-12 pb-32">
       <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[160px] pointer-events-none -z-10" />
 
       {/* Header */}
@@ -231,14 +254,15 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 
               {topicsTotal > 0 && <Progress value={topicsPct} className="h-2 bg-muted rounded-full" />}
 
-              <AddMasteryForm subject={exam.title} />
+              <AddMasteryForm subject={subjectKey} />
 
-              <MasteryList items={masteryItems as MasteryItem[]} subject={exam.title} />
+              <MasteryList items={masteryItems as MasteryItem[]} subject={subjectKey} />
             </div>
           </Card>
         </div>
       </div>
     </div>
+    </>
   );
 }
 

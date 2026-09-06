@@ -51,8 +51,13 @@ export default async function ExamsPage() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const nearestExam = upcomingExams[0];
-  const nearestStats = nearestExam ? await getSubjectStats(nearestExam.title) : null;
-  const nearestMastery = nearestExam ? await getMasteryItems(nearestExam.title) : [];
+  // See the note in [examId]/page.tsx: the exam's TITLE is not its subject.
+  const nearestSubject = nearestExam
+    ? ((nearestExam as any).subject?.name ?? nearestExam.title)
+    : null;
+  const [nearestStats, nearestMastery] = nearestExam
+    ? await Promise.all([getSubjectStats(nearestSubject!), getMasteryItems(nearestSubject!)])
+    : [null, []];
   
   const daysRemaining = nearestExam ? differenceInDays(new Date(nearestExam.date), now) : 0;
 
@@ -61,7 +66,7 @@ export default async function ExamsPage() {
   const examDay = nearestExam ? format(new Date(nearestExam.date), 'dd') : '';
 
   return (
-    <div className="max-w-[1600px] mx-auto p-6 md:p-12 space-y-16 animate-in fade-in slide-in-from-bottom-6 duration-1000 pb-32">
+    <div className="max-w-[1600px] mx-auto p-6 md:p-12 space-y-16 pb-32">
       
       {/* Dynamic background glow */}
       <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[160px] pointer-events-none -z-10" />
