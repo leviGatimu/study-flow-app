@@ -25,7 +25,11 @@
         "from": "../.next/standalone",
         "to": "server",
         "filter": [
-          "**/*"
+          "**/*",
+          "!.env",
+          "!.env.*",
+          "!**/.env",
+          "!**/.env.*"
         ]
       },
       {

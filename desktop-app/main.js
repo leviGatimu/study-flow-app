@@ -5,6 +5,7 @@ const { spawn } = require('child_process');
 const http = require('http');
 const fs = require('fs');
 const net = require('net');
+const crypto = require('crypto');
 
 // 1. HARDWARE COMPATIBILITY: Enable GPU acceleration for smooth rendering of glassmorphism and animations
 // app.disableHardwareAcceleration();
@@ -23,6 +24,47 @@ const logPath = path.join(appDataPath, 'debug.log');
 // version - so every auto-update would have destroyed every PDF, proof of work
 // and audio file the user had uploaded.
 const uploadsPath = path.join(appDataPath, 'uploads');
+const jwtSecretPath = path.join(appDataPath, 'jwt-secret');
+
+/**
+ * A signing secret that belongs to THIS INSTALL and nothing else.
+ *
+ * Next copies the project's root .env into .next/standalone/.env, and
+ * electron-builder ships that whole directory as plain files under
+ * resources/server - outside the asar. The desktop app therefore used to boot
+ * with the PRODUCTION JWT_SECRET and Postgres credentials sitting in a
+ * readable file on every user's disk, which is enough to forge a session
+ * cookie for the live web app or connect straight to its database.
+ *
+ * The desktop server has no business knowing either: it only ever talks to the
+ * local SQLite file. So the .env is now excluded from the package (see
+ * extraResources in package.json) and the secret is generated per install and
+ * kept in userData, beside the database.
+ *
+ * Consequence worth knowing: rotating this logs out existing desktop sessions
+ * once. That is correct - those sessions were signed with a secret that should
+ * never have been on the machine.
+ */
+function getOrCreateJwtSecret() {
+  try {
+    if (fs.existsSync(jwtSecretPath)) {
+      const existing = fs.readFileSync(jwtSecretPath, 'utf8').trim();
+      if (existing.length >= 32) return existing;
+    }
+  } catch (e) {
+    // Unreadable: fall through and mint a new one rather than refuse to boot.
+  }
+
+  const secret = crypto.randomBytes(48).toString('base64url');
+  try {
+    fs.writeFileSync(jwtSecretPath, secret, { mode: 0o600 });
+  } catch (e) {
+    // Cannot persist it: the app still runs, but sessions will not survive a
+    // restart. Better than failing to start.
+    log(`WARNING: could not persist the session secret: ${e.message}`);
+  }
+  return secret;
+}
 
 // Standalone Next.js structure: root/server.js, root/.next, root/public, root/node_modules
 const rootDir = isPackaged ? process.resourcesPath : path.join(__dirname, '..');
@@ -257,6 +299,9 @@ async function createWindow() {
       HOSTNAME: hostname,
       DATABASE_URL: `file:${dbPath}`,
       UPLOADS_DIR: uploadsPath,
+      // Set explicitly so Next's env loader cannot fall back to a bundled
+      // .env - it only fills in variables that are not already present.
+      JWT_SECRET: getOrCreateJwtSecret(),
       ELECTRON_RUN_AS_NODE: '1',
       NEXT_TELEMETRY_DISABLED: '1'
     },
