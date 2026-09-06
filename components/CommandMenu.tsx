@@ -14,9 +14,14 @@ import {
 import {
   Brain,
   BookOpen,
+  FileText,
   FolderOpen,
+  GraduationCap,
+  Layers,
+  Library,
   Loader2,
   StickyNote,
+  TrendingUp,
   Zap,
 } from "lucide-react";
 import { universalSearch } from "@/lib/actions";
@@ -39,6 +44,11 @@ type Results = {
   tutorModules: any[];
   projects: any[];
   homeworks: any[];
+  subjects: any[];
+  exams: any[];
+  resources: any[];
+  notes: any[];
+  marks: any[];
 };
 
 const EMPTY: Results = {
@@ -47,6 +57,11 @@ const EMPTY: Results = {
   tutorModules: [],
   projects: [],
   homeworks: [],
+  subjects: [],
+  exams: [],
+  resources: [],
+  notes: [],
+  marks: [],
 };
 
 export function CommandMenu() {
@@ -117,12 +132,7 @@ export function CommandMenu() {
   };
 
   const hasResults = useMemo(
-    () =>
-      results.tasks.length > 0 ||
-      results.stickyNotes.length > 0 ||
-      results.tutorModules.length > 0 ||
-      results.projects.length > 0 ||
-      results.homeworks.length > 0,
+    () => Object.values(results).some((group) => group.length > 0),
     [results]
   );
 
@@ -220,6 +230,93 @@ export function CommandMenu() {
               >
                 <FolderOpen className="mr-2 size-4 text-muted-foreground" />
                 <span className="truncate">{p.title}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {results.subjects.length > 0 && (
+          <CommandGroup heading="Subjects">
+            {results.subjects.map((s) => (
+              <CommandItem
+                key={s.id}
+                value={`subject-${s.id}-${s.name}`}
+                onSelect={() => go("/subjects")}
+              >
+                <Library className="mr-2 size-4 text-muted-foreground" />
+                <span className="truncate">{s.name}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {results.exams.length > 0 && (
+          <CommandGroup heading="Exams">
+            {results.exams.map((e) => (
+              <CommandItem
+                key={e.id}
+                value={`exam-${e.id}-${e.title}`}
+                onSelect={() => go(`/exams/${e.id}`)}
+              >
+                <GraduationCap className="mr-2 size-4 text-muted-foreground" />
+                <span className="truncate">{e.title}</span>
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                  {e.subject?.name ?? new Date(e.date).toLocaleDateString()}
+                </span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {results.resources.length > 0 && (
+          <CommandGroup heading="Resources">
+            {results.resources.map((r) => (
+              <CommandItem
+                key={r.id}
+                value={`resource-${r.id}-${r.title}`}
+                onSelect={() => go(`/resources/${encodeURIComponent(r.subject)}`)}
+              >
+                <Layers className="mr-2 size-4 text-muted-foreground" />
+                <span className="truncate">{r.title}</span>
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                  {r.subject}
+                </span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {results.notes.length > 0 && (
+          <CommandGroup heading="Subject Notes">
+            {results.notes.map((n) => (
+              <CommandItem
+                key={n.id}
+                value={`studionote-${n.id}-${n.subject}`}
+                onSelect={() => go("/subjects")}
+              >
+                <FileText className="mr-2 size-4 text-muted-foreground" />
+                <span className="truncate">{n.subject}</span>
+                <span className="ml-auto shrink-0 max-w-[50%] truncate text-xs text-muted-foreground">
+                  {n.content}
+                </span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {results.marks.length > 0 && (
+          <CommandGroup heading="Marks">
+            {results.marks.map((m) => (
+              <CommandItem
+                key={m.id}
+                value={`mark-${m.id}-${m.subject}`}
+                onSelect={() => go("/marks")}
+              >
+                <TrendingUp className="mr-2 size-4 text-muted-foreground" />
+                <span className="truncate">{m.subject}</span>
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                  {m.grade} · {m.reportCard?.term}
+                </span>
               </CommandItem>
             ))}
           </CommandGroup>

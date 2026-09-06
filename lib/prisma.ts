@@ -28,3 +28,26 @@ export const prisma =
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
+
+/**
+ * True when this build is talking to the desktop's local SQLite file rather
+ * than Postgres. Same test the launcher and the migration runner use.
+ */
+export const IS_SQLITE = (process.env.DATABASE_URL ?? '').startsWith('file:');
+
+/**
+ * A case-insensitive "contains" filter that behaves the same on both providers.
+ *
+ * `contains` alone is case-SENSITIVE on Postgres but case-INsensitive on
+ * SQLite, so the same search returned different results on the web and on the
+ * desktop app. Prisma's `mode: 'insensitive'` fixes Postgres but is rejected
+ * outright by SQLite, hence the switch.
+ *
+ * SQLite's LIKE only folds case for ASCII, which is close enough here - it is
+ * the same limitation the rest of the desktop build lives with.
+ */
+export function containsInsensitive(value: string) {
+  return IS_SQLITE
+    ? { contains: value }
+    : { contains: value, mode: 'insensitive' as const };
+}

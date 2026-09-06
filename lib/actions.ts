@@ -2,7 +2,7 @@
 
 import { cache } from 'react';
 
-import { prisma } from '@/lib/prisma';
+import { prisma, containsInsensitive } from '@/lib/prisma';
 import { startOfDay, endOfDay, addDays, isSameDay, differenceInDays, format } from 'date-fns';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -2058,56 +2058,108 @@ export async function clearAllStickyNotes() {
 
 /**
  * Universal Search Action
+ *
+ * Every filter goes through containsInsensitive(): plain `contains` is
+ * case-sensitive on Postgres and case-insensitive on SQLite, so searching
+ * "physics" found nothing on the web and everything on the desktop build.
+ *
+ * Soft-deleted rows are excluded. Search was previously happy to offer a task
+ * you had already deleted.
  */
 export async function universalSearch(query: string) {
-  const userId = await getUserId();
-  if (!userId || !query || query.length < 2) return { 
-    tasks: [], stickyNotes: [], tutorModules: [], projects: [], homeworks: [] 
+  const empty = {
+    tasks: [], stickyNotes: [], tutorModules: [], projects: [], homeworks: [],
+    subjects: [], exams: [], resources: [], notes: [], marks: [],
   };
 
-  const [tasks, stickyNotes, tutorModules, projects, homeworks] = await Promise.all([
+  const userId = await getUserId();
+  if (!userId || !query || query.length < 2) return empty;
+
+  const like = containsInsensitive(query);
+
+  const [
+    tasks, stickyNotes, tutorModules, projects, homeworks,
+    subjects, exams, resources, notes, marks,
+  ] = await Promise.all([
     prisma.task.findMany({
-      where: { userId, subject: { contains: query } },
+      where: { userId, isDeleted: false, deletedAt: null, subject: like },
+      orderBy: { date: 'desc' },
       take: 5
     }),
     prisma.stickyNote.findMany({
-      where: { 
-        userId, 
-        OR: [
-          { title: { contains: query } },
-          { content: { contains: query } }
-        ] 
+      where: {
+        userId,
+        OR: [{ title: like }, { content: like }]
       },
       take: 5
     }),
     prisma.tutorModule.findMany({
-      where: { 
-        userId, 
-        OR: [
-          { title: { contains: query } },
-          { subject: { contains: query } },
-          { notes: { contains: query } }
-        ] 
+      where: {
+        userId,
+        deletedAt: null,
+        OR: [{ title: like }, { subject: like }, { notes: like }]
       },
       take: 5
     }),
     prisma.project.findMany({
-      where: { userId, title: { contains: query } },
+      where: { userId, deletedAt: null, title: like },
       take: 5
     }),
     prisma.homework.findMany({
-      where: { 
-        userId, 
-        OR: [
-          { title: { contains: query } },
-          { subject: { contains: query } }
-        ] 
+      where: {
+        userId,
+        deletedAt: null,
+        OR: [{ title: like }, { subject: like }]
       },
       take: 5
-    })
+    }),
+    prisma.subject.findMany({
+      where: { userId, deletedAt: null, name: like },
+      take: 5
+    }),
+    prisma.examEvent.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        OR: [{ title: like }, { notes: like }, { subject: { name: like } }]
+      },
+      include: { subject: { select: { name: true } } },
+      orderBy: { date: 'desc' },
+      take: 5
+    }),
+    prisma.resource.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        OR: [{ title: like }, { subject: like }]
+      },
+      take: 5
+    }),
+    prisma.studioNote.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        OR: [{ subject: like }, { content: like }]
+      },
+      take: 5
+    }),
+    // Marks live on the report card's grades, so match the grade rows and
+    // carry the card back for the link target.
+    prisma.subjectGrade.findMany({
+      where: {
+        deletedAt: null,
+        reportCard: { userId, deletedAt: null },
+        OR: [{ subject: like }, { grade: like }, { status: like }]
+      },
+      include: { reportCard: { select: { id: true, term: true } } },
+      take: 5
+    }),
   ]);
 
-  return { tasks, stickyNotes, tutorModules, projects, homeworks };
+  return {
+    tasks, stickyNotes, tutorModules, projects, homeworks,
+    subjects, exams, resources, notes, marks,
+  };
 }
 
 /**
