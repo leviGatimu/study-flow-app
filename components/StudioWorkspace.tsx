@@ -194,47 +194,47 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
   };
 
   return (
-    <div ref={containerRef} className="h-screen w-screen flex flex-col bg-[#0a0a0a] text-white overflow-hidden">
+    <div ref={containerRef} className="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden">
       {/* HEADER */}
-      <header className="h-14 border-b border-white/10 bg-black/40 backdrop-blur-md px-4 flex items-center justify-between shrink-0 z-50 select-none">
+      <header className="h-14 border-b border-border/10 bg-background/40 backdrop-blur-md px-4 flex items-center justify-between shrink-0 z-50 select-none">
         <div className="flex items-center gap-3 min-w-0">
           <Link href={`/resources/${encodeURIComponent(subject)}`}>
-            <Button variant="ghost" size="icon" className="text-white/60 hover:text-white hover:bg-white/10 rounded-full h-9 w-9">
+            <Button variant="ghost" size="icon" aria-label="Back to resources" className="text-foreground/60 hover:text-foreground hover:bg-foreground/10 rounded-full h-9 w-9">
               <ChevronLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <div className="h-6 w-px bg-white/10" />
+          <div className="h-6 w-px bg-foreground/10" />
           <div className="flex items-center gap-2 min-w-0">
             <div className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0" />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 shrink-0">Studio</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40 shrink-0">Studio</span>
             <h1 className="text-sm font-black tracking-wider uppercase truncate">{subject}</h1>
           </div>
         </div>
 
         {/* Pomodoro */}
-        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full pl-4 pr-1.5 py-1.5">
+        <div className="flex items-center gap-2 bg-foreground/5 border border-border/10 rounded-full pl-4 pr-1.5 py-1.5">
           <span className={cn("text-[9px] font-black uppercase tracking-widest", timerMode === "focus" ? "text-primary" : "text-emerald-400")}>
             {timerMode}
           </span>
           <span className="text-base font-heading font-black tabular-nums tracking-wider w-[52px] text-center">{mmss}</span>
-          <Button onClick={() => setTimerRunning((r) => !r)} variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-white/10 text-white/80">
+          <Button onClick={() => setTimerRunning((r) => !r)} variant="ghost" size="icon" aria-label={timerRunning ? "Pause timer" : "Start timer"} className="h-7 w-7 rounded-full hover:bg-foreground/10 text-foreground/80">
             {timerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
           </Button>
-          <Button onClick={resetTimer} variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-white/10 text-white/40">
+          <Button onClick={resetTimer} variant="ghost" size="icon" aria-label="Reset timer" className="h-7 w-7 rounded-full hover:bg-foreground/10 text-foreground/40">
             <RotateCcw className="w-3.5 h-3.5" />
           </Button>
         </div>
 
         <div className="flex items-center gap-3">
           {resources.length > 1 && layout !== "notes" && (
-            <div className="hidden lg:flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10">
+            <div className="hidden lg:flex items-center gap-1 bg-foreground/5 p-1 rounded-xl border border-border/10">
               {resources.map((res, i) => (
                 <button
                   key={res.id}
                   onClick={() => setActivePdf(res.url)}
                   className={cn(
                     "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                    activePdf === res.url ? "bg-primary text-white" : "text-white/40 hover:text-white hover:bg-white/5"
+                    activePdf === res.url ? "bg-primary text-primary-foreground" : "text-foreground/40 hover:text-foreground hover:bg-foreground/5"
                   )}
                 >
                   Source {i + 1}
@@ -243,7 +243,7 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
             </div>
           )}
 
-          <button onClick={doSave} className="flex items-center gap-2 text-[10px] font-bold text-white/40 hover:text-white/80 transition-colors">
+          <button onClick={doSave} className="flex items-center gap-2 text-[10px] font-bold text-foreground/40 hover:text-foreground/80 transition-colors">
             {isSaving ? (
               <><Loader2 className="w-3 h-3 animate-spin" /> Saving…</>
             ) : (
@@ -251,7 +251,7 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
             )}
           </button>
 
-          <Button onClick={() => setIsAiOpen((o) => !o)} size="sm" className="rounded-full bg-white text-black hover:bg-white/90 gap-2 font-black text-[10px] tracking-widest uppercase h-9 px-4">
+          <Button onClick={() => setIsAiOpen((o) => !o)} size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90 gap-2 font-black text-[10px] tracking-widest uppercase h-9 px-4">
             <BrainCircuit className="w-3.5 h-3.5" />
             AI
           </Button>
@@ -266,7 +266,7 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
         {layout !== "notes" && (
           <div
             style={{ width: layout === "split" ? `${leftWidth}%` : "100%" }}
-            className="h-full bg-[#141414] relative overflow-hidden shrink-0"
+            className="h-full bg-muted relative overflow-hidden shrink-0"
           >
             {activePdf ? (
               <iframe
@@ -276,12 +276,12 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
               />
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-6">
-                <div className="p-8 bg-white/5 rounded-4xl border border-white/10">
-                  <BookOpen className="w-16 h-16 text-white/20" />
+                <div className="p-8 bg-foreground/5 rounded-4xl border border-border/10">
+                  <BookOpen className="w-16 h-16 text-foreground/20" />
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-xl font-heading font-black">No source material</h3>
-                  <p className="text-white/40 text-sm max-w-xs">Upload a PDF to this subject in Resources to view it side-by-side.</p>
+                  <p className="text-foreground/40 text-sm max-w-xs">Upload a PDF to this subject in Resources to view it side-by-side.</p>
                 </div>
               </div>
             )}
@@ -291,9 +291,10 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
                 onClick={() => setInvertPdf((v) => !v)}
                 className={cn(
                   "absolute top-3 right-3 h-9 w-9 rounded-xl flex items-center justify-center border backdrop-blur-md transition-all",
-                  invertPdf ? "bg-primary border-primary text-white" : "bg-black/50 border-white/10 text-white/50 hover:text-white"
+                  invertPdf ? "bg-primary border-primary text-primary-foreground" : "bg-background/50 border-border/10 text-foreground/50 hover:text-foreground"
                 )}
                 title="Toggle dark/night reading"
+                aria-label="Toggle dark/night reading"
               >
                 <Sun className="w-4 h-4" />
               </button>
@@ -306,7 +307,7 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
           <div
             onMouseDown={() => setIsResizing(true)}
             className={cn(
-              "w-1.5 hover:w-2 bg-white/5 hover:bg-primary cursor-col-resize transition-all duration-200 relative z-20 shrink-0",
+              "w-1.5 hover:w-2 bg-foreground/5 hover:bg-primary cursor-col-resize transition-all duration-200 relative z-20 shrink-0",
               isResizing && "bg-primary w-2"
             )}
           />
@@ -314,26 +315,26 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
 
         {/* NOTES */}
         {layout !== "pdf" && (
-          <div className="h-full bg-black relative flex flex-col flex-1 min-w-0">
+          <div className="h-full bg-background relative flex flex-col flex-1 min-w-0">
             {/* Notes toolbar */}
-            <div className="h-11 shrink-0 border-b border-white/5 flex items-center justify-between px-4 select-none">
-              <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-white/10">
+            <div className="h-11 shrink-0 border-b border-border/5 flex items-center justify-between px-4 select-none">
+              <div className="flex items-center gap-1 bg-foreground/5 p-1 rounded-lg border border-border/10">
                 <button
                   onClick={() => setEditorMode("write")}
                   className={cn("flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest transition-all",
-                    editorMode === "write" ? "bg-primary text-white" : "text-white/40 hover:text-white")}
+                    editorMode === "write" ? "bg-primary text-primary-foreground" : "text-foreground/40 hover:text-foreground")}
                 >
                   <Pencil className="w-3 h-3" /> Write
                 </button>
                 <button
                   onClick={() => setEditorMode("preview")}
                   className={cn("flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest transition-all",
-                    editorMode === "preview" ? "bg-primary text-white" : "text-white/40 hover:text-white")}
+                    editorMode === "preview" ? "bg-primary text-primary-foreground" : "text-foreground/40 hover:text-foreground")}
                 >
                   <Eye className="w-3 h-3" /> Preview
                 </button>
               </div>
-              <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-white/30">
+              <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-foreground/30">
                 <span>{wordCount} words</span>
                 <span>{content.length} chars</span>
               </div>
@@ -345,17 +346,17 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="Start writing your notes here… Markdown supported (# headings, **bold**, - lists, `code`)."
-                className="flex-1 w-full p-8 md:p-12 bg-transparent border-none focus-visible:ring-0 text-lg font-medium leading-relaxed text-white/85 resize-none custom-scrollbar placeholder:text-white/15 selection:bg-primary/40"
+                className="flex-1 w-full p-8 md:p-12 bg-transparent border-none focus-visible:ring-0 text-lg font-medium leading-relaxed text-foreground/85 resize-none custom-scrollbar placeholder:text-foreground/15 selection:bg-primary/40"
                 spellCheck={false}
               />
             ) : (
               <div className="flex-1 overflow-y-auto p-8 md:p-12 custom-scrollbar">
                 {content.trim() ? (
-                  <article className="prose prose-invert max-w-3xl prose-headings:font-heading prose-headings:font-black prose-p:text-white/80 prose-li:text-white/80 prose-strong:text-white prose-code:text-primary leading-relaxed">
+                  <article className="prose dark:prose-invert max-w-3xl prose-headings:font-heading prose-headings:font-black prose-p:text-foreground/80 prose-li:text-foreground/80 prose-strong:text-foreground prose-code:text-primary leading-relaxed">
                     <ReactMarkdown>{content}</ReactMarkdown>
                   </article>
                 ) : (
-                  <p className="text-white/20 text-sm font-medium italic">Nothing to preview yet. Switch to Write and start typing.</p>
+                  <p className="text-foreground/20 text-sm font-medium italic">Nothing to preview yet. Switch to Write and start typing.</p>
                 )}
               </div>
             )}
@@ -369,20 +370,20 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
               initial={{ opacity: 0, x: 20, scale: 0.97 }}
               animate={{ opacity: 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: 20, scale: 0.97 }}
-              className="absolute right-4 top-4 bottom-4 w-[380px] max-w-[calc(100vw-2rem)] z-[100] flex flex-col bg-[#0f0f0f]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden"
+              className="absolute right-4 top-4 bottom-4 w-[380px] max-w-[calc(100vw-2rem)] z-[100] flex flex-col bg-popover/95 backdrop-blur-2xl border border-border/10 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden"
             >
-              <div className="p-5 border-b border-white/5 flex items-center justify-between bg-white/5 shrink-0">
+              <div className="p-5 border-b border-border/5 flex items-center justify-between bg-foreground/5 shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-2xl bg-white text-black flex items-center justify-center">
+                  <div className="h-9 w-9 rounded-2xl bg-foreground text-background flex items-center justify-center">
                     <BrainCircuit className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className="text-xs font-black uppercase tracking-widest leading-none mb-1 text-white">Study Assistant</p>
-                    <p className="text-[10px] font-bold text-white/40">Knows your {subject} notes</p>
+                    <p className="text-xs font-black uppercase tracking-widest leading-none mb-1 text-foreground">Study Assistant</p>
+                    <p className="text-[10px] font-bold text-foreground/40">Knows your {subject} notes</p>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setIsAiOpen(false)} className="rounded-full hover:bg-white/10">
-                  <X className="w-5 h-5 text-white/60" />
+                <Button variant="ghost" size="icon" onClick={() => setIsAiOpen(false)} aria-label="Close AI assistant" className="rounded-full hover:bg-foreground/10">
+                  <X className="w-5 h-5 text-foreground/60" />
                 </Button>
               </div>
 
@@ -397,17 +398,17 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
                   const text = m.parts[0].text as string;
                   const isUser = m.role === "user";
                   return (
-                    <div key={i} className={cn("rounded-2xl text-sm leading-relaxed", isUser ? "bg-primary text-white ml-6 p-3.5 font-medium" : "bg-white/5 text-white/85 mr-2 p-3.5 border border-white/10")}>
+                    <div key={i} className={cn("rounded-2xl text-sm leading-relaxed", isUser ? "bg-primary text-primary-foreground ml-6 p-3.5 font-medium" : "bg-foreground/5 text-foreground/85 mr-2 p-3.5 border border-border/10")}>
                       {isUser ? (
                         text
                       ) : (
                         <>
-                          <article className="prose prose-invert prose-sm max-w-none prose-p:text-white/85 prose-code:text-primary prose-headings:text-white">
+                          <article className="prose dark:prose-invert prose-sm max-w-none prose-p:text-foreground/85 prose-code:text-primary prose-headings:text-foreground">
                             <ReactMarkdown>{text}</ReactMarkdown>
                           </article>
                           <button
                             onClick={() => insertIntoNotes(text)}
-                            className="mt-3 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-primary hover:text-white transition-colors"
+                            className="mt-3 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-primary hover:text-foreground transition-colors"
                           >
                             <CornerDownLeft className="w-3 h-3" /> Insert into notes
                           </button>
@@ -417,21 +418,21 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
                   );
                 })}
                 {isAiLoading && (
-                  <div className="flex items-center gap-3 text-white/40 text-xs font-bold animate-pulse">
+                  <div className="flex items-center gap-3 text-foreground/40 text-xs font-bold animate-pulse">
                     <Loader2 className="w-4 h-4 animate-spin" /> Thinking…
                   </div>
                 )}
               </div>
 
-              <form onSubmit={handleAiSubmit} className="p-4 bg-black/40 border-t border-white/5 shrink-0">
+              <form onSubmit={handleAiSubmit} className="p-4 bg-background/40 border-t border-border/5 shrink-0">
                 <div className="relative">
                   <input
                     value={aiQuery}
                     onChange={(e) => setAiQuery(e.target.value)}
                     placeholder="Ask anything…"
-                    className="w-full h-12 bg-white/5 border border-white/10 rounded-2xl px-4 pr-12 text-sm font-bold focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all text-white placeholder:text-white/20"
+                    className="w-full h-12 bg-foreground/5 border border-border/10 rounded-2xl px-4 pr-12 text-sm font-bold focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-foreground/20"
                   />
-                  <button type="submit" disabled={isAiLoading} className="absolute right-1.5 top-1.5 h-9 w-9 bg-white rounded-xl flex items-center justify-center text-black hover:bg-primary hover:text-white transition-all disabled:opacity-40">
+                  <button type="submit" disabled={isAiLoading} aria-label="Send message" className="absolute right-1.5 top-1.5 h-9 w-9 bg-foreground rounded-xl flex items-center justify-center text-background hover:bg-primary hover:text-foreground transition-all disabled:opacity-40">
                     <Send className="w-4 h-4" />
                   </button>
                 </div>
@@ -443,7 +444,7 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
 
       {/* BOTTOM HUD — now functional */}
       <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 select-none">
-        <div className="flex items-center gap-1 px-2 py-1.5 bg-black/80 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
+        <div className="flex items-center gap-1 px-2 py-1.5 bg-background/80 backdrop-blur-xl border border-border/10 rounded-full shadow-2xl">
           {([
             { mode: "pdf" as LayoutMode, icon: PanelLeft, label: "PDF" },
             { mode: "split" as LayoutMode, icon: Columns2, label: "Split" },
@@ -455,16 +456,16 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
               disabled={mode !== "notes" && !activePdf}
               className={cn(
                 "flex items-center gap-2 rounded-full px-4 h-9 text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-25 disabled:cursor-not-allowed",
-                layout === mode ? "bg-primary text-white" : "text-white/50 hover:text-white hover:bg-white/10"
+                layout === mode ? "bg-primary text-primary-foreground" : "text-foreground/50 hover:text-foreground hover:bg-foreground/10"
               )}
             >
               <Icon className="w-4 h-4" /> {label}
             </button>
           ))}
-          <div className="h-4 w-px bg-white/10 mx-1" />
+          <div className="h-4 w-px bg-foreground/10 mx-1" />
           <button
             onClick={toggleFullscreen}
-            className="flex items-center gap-2 rounded-full px-4 h-9 text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-white/10 transition-all"
+            className="flex items-center gap-2 rounded-full px-4 h-9 text-[10px] font-black uppercase tracking-widest text-foreground/50 hover:text-foreground hover:bg-foreground/10 transition-all"
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             {isFullscreen ? "Exit" : "Full"}

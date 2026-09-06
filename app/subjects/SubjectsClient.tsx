@@ -612,8 +612,8 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
   };
 
   return (
-    <div className="space-y-8 max-w-[1600px] mx-auto">
-      
+    <div className="space-y-8">
+
       {/* LANDING GRID VIEW (When selectedSubjectId is null) */}
       {!selectedSubjectId ? (
         <div className="space-y-8">
@@ -626,11 +626,11 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                   placeholder="Search subjects..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 rounded-2xl h-11 bg-muted/30 border border-border/50 text-xs font-semibold"
+                  className="pl-10 rounded-xl h-11 bg-muted/30 border border-border/50 text-xs font-semibold"
                 />
               </div>
-              <span className="text-xs font-bold text-muted-foreground hidden sm:inline-block">
-                Total Courses: <span className="text-primary font-black">{subjects.length}</span>
+              <span className="text-xs font-medium text-muted-foreground hidden sm:inline-block">
+                Total courses: <span className="text-primary font-semibold">{subjects.length}</span>
               </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -648,7 +648,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
               </Button>
               <Button
                 onClick={() => setIsAddOpen(true)}
-                className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/95 flex items-center gap-1.5 transition-transform"
+                className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/95 flex items-center gap-1.5"
               >
                 <Plus className="w-4.5 h-4.5" />
                 Add Subject
@@ -658,20 +658,14 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
 
           {/* Subjects Grid (12 Columns, each subject card takes 3 columns = 4 per row on large screens) */}
           {filteredSubjects.length === 0 ? (
-            <Card className="p-16 text-center border-dashed border-2 border-border/50 rounded-2xl bg-card/40 backdrop-blur-md">
-              <div className="max-w-md mx-auto space-y-4">
-                <div className="p-4 bg-muted/50 rounded-full inline-block">
-                  <BookOpenText className="w-12 h-12 text-muted-foreground/30" />
-                </div>
-                <h3 className="text-xl font-heading font-black">No Courses Registered</h3>
-                <p className="text-muted-foreground text-sm font-semibold">
-                  You haven't added any subjects to your workstation. Create one to start tracking your syllabus resources, grades, and goals.
-                </p>
-                <Button onClick={() => setIsAddOpen(true)} className="rounded-xl font-bold">
-                  Create a Subject
-                </Button>
-              </div>
-            </Card>
+            <div className="text-sm font-medium text-muted-foreground text-center py-16 bg-muted/50 rounded-2xl border border-border/50">
+              <BookOpenText className="w-10 h-10 text-muted-foreground/40 mx-auto mb-4" />
+              <p className="text-foreground font-semibold">No subjects yet</p>
+              <p className="mt-1">Add your first course to start tracking resources, grades, and goals.</p>
+              <Button onClick={() => setIsAddOpen(true)} className="rounded-xl font-bold mt-4">
+                Add a subject
+              </Button>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {filteredSubjects.map((s) => {
@@ -694,42 +688,57 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                   .filter(Boolean) as SubjectGrade[];
                 const latestGrade = subjectGrades.length > 0 ? subjectGrades[subjectGrades.length - 1].grade : null;
 
+                const openSubject = () => {
+                  setSelectedSubjectId(s.id);
+                  setRenameSubjectName(s.name);
+                };
+
                 return (
                   <div
                     key={s.id}
-                    onClick={() => {
-                      setSelectedSubjectId(s.id);
-                      setRenameSubjectName(s.name);
+                    role="button"
+                    tabIndex={0}
+                    onClick={openSubject}
+                    onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget) return;
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openSubject();
+                      }
                     }}
-                    className="group bg-card border border-border/60 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[220px]"
+                    className="group bg-card border border-border/60 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer flex flex-col justify-between min-h-[220px]"
                   >
                     <div className="space-y-4">
                       {/* Card Header */}
                       <div className="flex items-start justify-between gap-3">
-                        <div className="p-3 bg-primary/10 text-primary rounded-xl shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
+                        <div className="p-3 bg-primary/10 text-primary rounded-xl shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-200">
                           <BookOpen className="w-5 h-5" />
                         </div>
-                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               setTargetSubject(s);
                               setRenameSubjectName(s.name);
                               setIsRenameOpen(true);
                             }}
+                            aria-label={`Rename ${s.name}`}
                             className="p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors"
-                            title="Rename Subject"
+                            title="Rename subject"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               setTargetSubject(s);
                               setIsDeleteOpen(true);
                             }}
+                            aria-label={`Delete ${s.name}`}
                             className="p-1.5 hover:bg-red-500/10 text-muted-foreground hover:text-red-500 rounded-lg transition-colors"
-                            title="Delete Subject"
+                            title="Delete subject"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -738,29 +747,29 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
 
                       {/* Subject Name */}
                       <div>
-                        <h3 className="font-heading font-black text-lg text-foreground tracking-tight line-clamp-2 leading-snug">
+                        <h3 className="font-heading font-bold text-lg text-foreground tracking-tight line-clamp-2 leading-snug">
                           {s.name}
                         </h3>
                       </div>
                     </div>
 
                     {/* Stats Metrics Grid */}
-                    <div className="border-t border-border/40 pt-4 mt-4 grid grid-cols-2 gap-3 text-[11px] font-bold text-muted-foreground">
+                    <div className="border-t border-border/40 pt-4 mt-4 grid grid-cols-2 gap-3 text-xs font-medium text-muted-foreground">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                        <span className="truncate">{hwPending} Homeworks</span>
+                        <span className="truncate">{hwPending} homeworks</span>
                       </div>
                       <div className="flex items-center gap-1.5 min-w-0">
                         <Layers className="w-3.5 h-3.5 text-teal-500 shrink-0" />
-                        <span className="truncate">{resCount} Assets</span>
+                        <span className="truncate">{resCount} assets</span>
                       </div>
                       <div className="flex items-center gap-1.5 min-w-0">
                         <Target className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                        <span className="truncate">{targetGoal ? `Target ${targetGoal.targetGrade}%` : "No Goal"}</span>
+                        <span className="truncate">{targetGoal ? `Target ${targetGoal.targetGrade}%` : "No goal"}</span>
                       </div>
                       <div className="flex items-center gap-1.5 min-w-0">
                         <TrendingUp className="w-3.5 h-3.5 text-purple-500 shrink-0" />
-                        <span className="truncate text-foreground font-black">{latestGrade ? `Grade: ${latestGrade}` : "Ungraded"}</span>
+                        <span className="truncate text-foreground font-semibold">{latestGrade ? `Grade: ${latestGrade}` : "Ungraded"}</span>
                       </div>
                     </div>
                   </div>
@@ -778,7 +787,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
             <Button
               onClick={() => setSelectedSubjectId(null)}
               variant="ghost"
-              className="rounded-xl font-bold text-xs hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-transform"
+              className="rounded-xl font-bold text-xs hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center gap-1.5"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Course Grid
@@ -788,8 +797,8 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
           {/* Subject Control Header */}
           <div className="bg-card border border-border/60 p-8 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6">
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-black uppercase tracking-wider text-primary/60">Active Subject Workspace</p>
-              <h2 className="text-2xl md:text-3xl font-heading font-black tracking-tight text-foreground mt-2 leading-tight select-all break-words">
+              <p className="text-xs font-medium text-muted-foreground">Active subject workspace</p>
+              <h2 className="text-2xl md:text-3xl font-heading font-bold tracking-tight text-foreground mt-2 leading-tight select-all break-words">
                 {selectedSubject?.name}
               </h2>
             </div>
@@ -800,7 +809,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                   setRenameSubjectName(selectedSubject?.name || "");
                   setIsRenameOpen(true);
                 }}
-                className="rounded-xl font-bold hover:bg-muted/80 text-foreground flex items-center gap-1.5 transition-transform"
+                className="rounded-xl font-bold hover:bg-muted/80 text-foreground flex items-center gap-1.5"
               >
                 <Edit3 className="w-4 h-4" />
                 Rename
@@ -808,7 +817,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
               <Button
                 variant="destructive"
                 onClick={() => setIsDeleteOpen(true)}
-                className="rounded-xl font-bold flex items-center gap-1.5 transition-transform"
+                className="rounded-xl font-bold flex items-center gap-1.5"
               >
                 <Trash2 className="w-4 h-4" />
                 Delete
@@ -825,8 +834,8 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
               {/* 1. Academic Growth Curve (Recharts) */}
               <Card className="bg-card border border-border/60 p-6 rounded-2xl shadow-sm flex flex-col justify-between min-h-[340px]">
                 <div className="mb-4">
-                  <h3 className="text-base font-heading font-black text-foreground flex items-center gap-2">
-                    <TrendingUp className="w-4.5 h-4.5 text-primary" />
+                  <h3 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary" />
                     Academic Growth Curve
                   </h3>
                   <p className="text-xs font-semibold text-muted-foreground mt-0.5">
@@ -900,8 +909,8 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
               {/* 2. Target Goal & Gap Indicator Card */}
               <Card className="bg-card border border-border/60 p-6 rounded-2xl shadow-sm flex flex-col justify-between">
                 <div>
-                  <h3 className="text-base font-heading font-black text-foreground flex items-center gap-2">
-                    <Target className="w-4.5 h-4.5 text-orange-500" />
+                  <h3 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
+                    <Target className="w-5 h-5 text-orange-500" />
                     Target Goal & Gap Indicator
                   </h3>
                   <p className="text-xs font-semibold text-muted-foreground mt-0.5">
@@ -914,11 +923,11 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-[10px] font-black uppercase text-muted-foreground leading-none">Goal Target</p>
+                          <p className="text-xs font-medium text-muted-foreground">Goal target</p>
                           <p className="text-2xl font-heading font-black text-orange-500 mt-1">{subjectGoal.targetGrade}%</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-[10px] font-black uppercase text-muted-foreground leading-none">Current Average</p>
+                          <p className="text-xs font-medium text-muted-foreground">Current average</p>
                           <p className="text-2xl font-heading font-black text-primary mt-1">
                             {currentAverage !== null ? `${currentAverage}%` : "N/A"}
                           </p>
@@ -940,7 +949,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                             <div className="absolute right-[5%] top-0 h-full w-[2px] bg-orange-500" title="Target goal line" />
                           </div>
                           
-                          <p className="text-[10.5px] font-bold leading-normal">
+                          <p className="text-xs font-medium leading-normal">
                             {currentAverage >= subjectGoal.targetGrade ? (
                               <span className="text-emerald-500 flex items-center gap-1">
                                 <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Target achieved! You are {currentAverage - subjectGoal.targetGrade}% above benchmark.
@@ -970,7 +979,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                     setIsGoalOpen(true);
                   }}
                   variant={subjectGoal ? "outline" : "default"}
-                  className="w-full rounded-xl font-bold text-xs h-10 transition-transform"
+                  className="w-full rounded-xl font-bold text-xs h-10"
                 >
                   {subjectGoal ? "Modify Grade Goal" : "Set Target Goal"}
                 </Button>
@@ -979,14 +988,14 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
               {/* 3. Homework Assignments Tracker List */}
               <Card className="bg-card border border-border/60 p-6 rounded-2xl shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-base font-heading font-black text-foreground flex items-center gap-2">
-                    <BookOpen className="w-4.5 h-4.5 text-blue-500" />
+                  <h3 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-blue-500" />
                     Homework Tracker
                   </h3>
-                  
+
                   {subjectHomeworks.length > 0 && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-muted border border-border/40 text-muted-foreground">
-                      {subjectHomeworks.filter(h => h.isCompleted).length}/{subjectHomeworks.length} Done
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted border border-border/40 text-muted-foreground">
+                      {subjectHomeworks.filter(h => h.isCompleted).length}/{subjectHomeworks.length} done
                     </span>
                   )}
                 </div>
@@ -1020,12 +1029,12 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                       >
                         <div className="min-w-0 flex-1">
                           <p className="font-bold truncate leading-snug">{hw.title}</p>
-                          <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">
+                          <p className="text-xs text-muted-foreground font-medium mt-0.5">
                             Due: {new Date(hw.dueDate).toLocaleDateString()}
                           </p>
                         </div>
                         <span className={cn(
-                          "px-2 py-0.5 rounded-full font-black text-[9px] uppercase tracking-wider ml-3 shrink-0",
+                          "px-2 py-0.5 rounded-full font-medium text-xs ml-3 shrink-0",
                           hw.isCompleted
                             ? "bg-emerald-500/10 text-emerald-500"
                             : "bg-amber-500/10 text-amber-500"
@@ -1051,7 +1060,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                     className={cn(
                       "px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all",
                       activeWorkspaceTab === "notes"
-                        ? "bg-background text-foreground shadow-sm border border-border/40 font-black"
+                        ? "bg-background text-foreground shadow-sm border border-border/40"
                         : "text-muted-foreground hover:bg-background/40 hover:text-foreground"
                     )}
                   >
@@ -1063,7 +1072,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                     className={cn(
                       "px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all",
                       activeWorkspaceTab === "resources"
-                        ? "bg-background text-foreground shadow-sm border border-border/40 font-black"
+                        ? "bg-background text-foreground shadow-sm border border-border/40"
                         : "text-muted-foreground hover:bg-background/40 hover:text-foreground"
                     )}
                   >
@@ -1075,7 +1084,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                     className={cn(
                       "px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all",
                       activeWorkspaceTab === "chat"
-                        ? "bg-background text-foreground shadow-sm border border-border/40 font-black"
+                        ? "bg-background text-foreground shadow-sm border border-border/40"
                         : "text-muted-foreground hover:bg-background/40 hover:text-foreground"
                     )}
                   >
@@ -1086,7 +1095,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
 
                 {/* Additional dynamic status indicators on header */}
                 {activeWorkspaceTab === "notes" && (
-                  <div className="flex items-center gap-2 text-[10.5px] font-bold text-muted-foreground">
+                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                     {isNoteSaving ? (
                       <span className="flex items-center gap-1 text-amber-500 font-semibold animate-pulse">
                         <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...
@@ -1116,8 +1125,8 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                       placeholder="Type your course syllabus details, key formulas, lecture definitions, and exam reminders here. The AI Study Buddy will automatically parse these notes and use them as instant reference context..."
                       className="w-full flex-1 bg-muted/10 border border-border/40 rounded-xl p-4 font-mono text-sm leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary overflow-y-auto"
                     />
-                    <p className="text-[10px] text-muted-foreground/80 italic font-semibold leading-relaxed">
-                      ✍️ Type freely. Autosave saves your notes locally in the background. Markdown headers (#, ##), bullet points, and code snippets are supported.
+                    <p className="text-xs text-muted-foreground/80 italic font-medium leading-relaxed">
+                      Type freely. Autosave saves your notes locally in the background. Markdown headers (#, ##), bullet points, and code snippets are supported.
                     </p>
                   </div>
                 )}
@@ -1127,11 +1136,11 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                   <div className="flex-1 flex flex-col min-h-0 space-y-5">
                     {/* Inline add resource asset form */}
                     <form onSubmit={handleAddResourceSubmit} className="bg-muted/20 border border-border/40 p-4 rounded-2xl space-y-3.5">
-                      <p className="text-xs font-black uppercase text-primary/75 tracking-wider">Quick Add Assets</p>
+                      <p className="text-xs font-medium text-muted-foreground">Quick add assets</p>
                       
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <Label htmlFor="inlineResTitle" className="text-[10px] font-black uppercase text-muted-foreground/80">Title</Label>
+                          <Label htmlFor="inlineResTitle" className="text-xs font-medium text-muted-foreground">Title</Label>
                           <Input
                             id="inlineResTitle"
                             placeholder="e.g. Lectures PDF / Git Repo"
@@ -1142,14 +1151,14 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[10px] font-black uppercase text-muted-foreground/80">Asset Type</Label>
+                          <Label className="text-xs font-medium text-muted-foreground">Asset Type</Label>
                           <div className="grid grid-cols-2 gap-1 bg-background border border-border/40 p-0.5 rounded-lg h-9">
                             <button
                               type="button"
                               onClick={() => setResourceType("LINK")}
                               className={cn(
-                                "text-[10.5px] font-bold rounded-md transition-all",
-                                resourceType === "LINK" ? "bg-muted shadow text-foreground font-black" : "text-muted-foreground"
+                                "text-xs font-medium rounded-md transition-colors duration-200",
+                                resourceType === "LINK" ? "bg-muted shadow text-foreground font-semibold" : "text-muted-foreground"
                               )}
                             >
                               URL Link
@@ -1158,8 +1167,8 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                               type="button"
                               onClick={() => setResourceType("FILE")}
                               className={cn(
-                                "text-[10.5px] font-bold rounded-md transition-all",
-                                resourceType === "FILE" ? "bg-muted shadow text-foreground font-black" : "text-muted-foreground"
+                                "text-xs font-medium rounded-md transition-colors duration-200",
+                                resourceType === "FILE" ? "bg-muted shadow text-foreground font-semibold" : "text-muted-foreground"
                               )}
                             >
                               Local PDF
@@ -1172,7 +1181,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                         <div className="flex-1 min-w-0">
                           {resourceType === "LINK" ? (
                             <div className="space-y-1">
-                              <Label htmlFor="inlineResUrl" className="text-[10px] font-black uppercase text-muted-foreground/80">Link URL</Label>
+                              <Label htmlFor="inlineResUrl" className="text-xs font-medium text-muted-foreground">Link URL</Label>
                               <Input
                                 id="inlineResUrl"
                                 placeholder="e.g. https://github.com/..."
@@ -1184,7 +1193,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                             </div>
                           ) : (
                             <div className="space-y-1">
-                              <Label htmlFor="inlineResFile" className="text-[10px] font-black uppercase text-muted-foreground/80">Select Local File</Label>
+                              <Label htmlFor="inlineResFile" className="text-xs font-medium text-muted-foreground">Select Local File</Label>
                               <Input
                                 id="inlineResFile"
                                 type="file"
@@ -1198,7 +1207,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
 
                         <Button 
                           type="submit" 
-                          className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/95 text-xs h-9 px-4 transition-transform"
+                          className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/95 text-xs h-9 px-4"
                         >
                           Add Asset
                         </Button>
@@ -1207,7 +1216,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
 
                     {/* Resources List */}
                     <div className="flex-1 flex flex-col min-h-0 space-y-3">
-                      <p className="text-xs font-black uppercase text-muted-foreground tracking-wider">Vault Inventory</p>
+                      <p className="text-xs font-medium text-muted-foreground">Vault inventory</p>
                       
                       <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                         {subjectResources.length === 0 ? (
@@ -1234,7 +1243,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                                   <p className="font-bold text-foreground truncate" title={res.title}>
                                     {res.title}
                                   </p>
-                                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-md">
+                                  <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-md">
                                     {res.url}
                                   </p>
                                 </div>
@@ -1271,23 +1280,23 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                       <button
                         onClick={() => handleSendAiQuery("Summarize my current course notes.")}
                         disabled={isAiLoading}
-                        className="px-2.5 py-1 text-[10px] font-bold bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 rounded-lg hover:bg-purple-500/20 transition-all"
+                        className="px-2.5 py-1 text-xs font-medium bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 rounded-lg hover:bg-purple-500/20 transition-colors duration-200"
                       >
-                        📝 Summarize Notes
+                        Summarize notes
                       </button>
                       <button
                         onClick={() => handleSendAiQuery("Quiz me on 5 key active recall questions based on my notes.")}
                         disabled={isAiLoading}
-                        className="px-2.5 py-1 text-[10px] font-bold bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-500/20 transition-all"
+                        className="px-2.5 py-1 text-xs font-medium bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-500/20 transition-colors duration-200"
                       >
-                        ❓ Quiz Me
+                        Quiz me
                       </button>
                       <button
                         onClick={() => handleSendAiQuery("Explain the most critical core concept in these notes.")}
                         disabled={isAiLoading}
-                        className="px-2.5 py-1 text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition-all"
+                        className="px-2.5 py-1 text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition-colors duration-200"
                       >
-                        💡 Explain Core Concept
+                        Explain core concept
                       </button>
                     </div>
 
@@ -1347,7 +1356,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                       <Button
                         onClick={() => handleSendAiQuery()}
                         disabled={isAiLoading || !aiQuery.trim()}
-                        className="rounded-xl font-bold bg-primary text-primary-foreground h-10 w-10 p-0 flex items-center justify-center shrink-0 transition-transform"
+                        className="rounded-xl font-bold bg-primary text-primary-foreground h-10 w-10 p-0 flex items-center justify-center shrink-0"
                       >
                         <Send className="w-4 h-4" />
                       </Button>
@@ -1377,7 +1386,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-1">
-                <Label htmlFor="name" className="text-xs font-black uppercase text-muted-foreground/80">Subject Name</Label>
+                <Label htmlFor="name" className="text-xs font-medium text-muted-foreground">Subject Name</Label>
                 <Input
                   id="name"
                   placeholder="e.g. Embedded Systems"
@@ -1412,7 +1421,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-1">
-                <Label htmlFor="renameName" className="text-xs font-black uppercase text-muted-foreground/80">Subject Name</Label>
+                <Label htmlFor="renameName" className="text-xs font-medium text-muted-foreground">Subject Name</Label>
                 <Input
                   id="renameName"
                   value={renameSubjectName}
@@ -1488,7 +1497,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-1">
-                <Label htmlFor="goalGrade" className="text-xs font-black uppercase text-muted-foreground/80">Target Percentage (%)</Label>
+                <Label htmlFor="goalGrade" className="text-xs font-medium text-muted-foreground">Target Percentage (%)</Label>
                 <Input
                   id="goalGrade"
                   type="number"
@@ -1528,7 +1537,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
 
             <div className="space-y-4">
               <div className="space-y-1">
-                <Label className="text-xs font-black uppercase text-muted-foreground/80">Resource Type</Label>
+                <Label className="text-xs font-medium text-muted-foreground">Resource Type</Label>
                 <div className="grid grid-cols-2 gap-2 bg-muted/30 p-1 rounded-xl">
                   <button
                     type="button"
@@ -1554,7 +1563,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="resTitle" className="text-xs font-black uppercase text-muted-foreground/80">Title</Label>
+                <Label htmlFor="resTitle" className="text-xs font-medium text-muted-foreground">Title</Label>
                 <Input
                   id="resTitle"
                   placeholder="e.g. Lectures PDF / Git Repository"
@@ -1567,7 +1576,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
 
               {resourceType === "LINK" ? (
                 <div className="space-y-1">
-                  <Label htmlFor="resUrl" className="text-xs font-black uppercase text-muted-foreground/80">Link URL</Label>
+                  <Label htmlFor="resUrl" className="text-xs font-medium text-muted-foreground">Link URL</Label>
                   <Input
                     id="resUrl"
                     placeholder="e.g. https://github.com/..."
@@ -1579,7 +1588,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <Label htmlFor="resFile" className="text-xs font-black uppercase text-muted-foreground/80">Upload File</Label>
+                  <Label htmlFor="resFile" className="text-xs font-medium text-muted-foreground">Upload File</Label>
                   <Input
                     id="resFile"
                     type="file"

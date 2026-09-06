@@ -10,11 +10,12 @@ export function DeleteSubjectButton({ subject }: { subject: string }) {
   const [isPending, startTransition] = useTransition();
 
   return (
-    <Button 
-      variant="ghost" 
+    <Button
+      variant="ghost"
       size="icon"
       disabled={isPending}
-      className="h-10 w-10 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+      aria-label={`Delete all materials for ${subject}`}
+      className="h-10 w-10 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors duration-200"
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();

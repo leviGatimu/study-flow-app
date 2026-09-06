@@ -26,33 +26,29 @@ export default async function SubjectsPage() {
   ]);
 
   return (
-    <div className="flex flex-col">
-      {/* Dynamic Header */}
-      <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md px-4 md:px-8 pt-10 pb-6 border-b border-border/40 shrink-0 mb-8">
-        <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-5xl font-heading font-black tracking-tight text-foreground uppercase">
-              Subjects Hub <span className="text-primary font-bold text-3xl opacity-80">({subjects.length})</span>
-            </h1>
-            <p className="text-xl text-muted-foreground font-semibold mt-3">
-              Your academic command center. Manage courses, track performance growth, and organize study assets in one place.
-            </p>
-          </div>
+    <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto animate-in fade-in duration-500 pb-16">
+      {/* Hero */}
+      <section className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-8 pt-10 pb-6 border-b border-border/40">
+        <div>
+          <h1 className="text-4xl font-heading font-bold tracking-tight text-foreground">
+            Subjects Hub <span className="text-primary font-bold text-2xl opacity-80">({subjects.length})</span>
+          </h1>
+          <p className="text-base text-muted-foreground font-medium mt-2 max-w-2xl">
+            Your academic command center. Manage courses, track performance growth, and organize study assets in one place.
+          </p>
         </div>
-      </div>
+      </section>
 
-      <div className="animate-in slide-in-from-bottom-4 duration-500 px-4 md:px-8 pb-16">
-        <div className="max-w-[1600px] mx-auto">
-          <SubjectsClient
-            initialSubjects={subjects}
-            initialResources={resources}
-            initialHomeworks={homeworks}
-            initialGoals={goals}
-            initialReportCards={reportCards as any}
-            initialTutorModules={tutorModules}
-            initialNotes={studioNotes}
-          />
-        </div>
+      <div className="px-4 md:px-8">
+        <SubjectsClient
+          initialSubjects={subjects}
+          initialResources={resources}
+          initialHomeworks={homeworks}
+          initialGoals={goals}
+          initialReportCards={reportCards as any}
+          initialTutorModules={tutorModules}
+          initialNotes={studioNotes}
+        />
       </div>
     </div>
   );
