@@ -39,29 +39,23 @@ export function AIKeyPrompt() {
 
   return (
     <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-background px-6 py-10">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-[-6rem] top-[-4rem] h-72 w-72 rounded-full bg-primary/12 blur-3xl" />
-        <div className="absolute bottom-[-8rem] right-[-4rem] h-80 w-80 rounded-full bg-sky-400/10 blur-3xl dark:bg-sky-500/10" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_bottom_right,transparent,rgba(0,0,0,0.03))] dark:bg-[linear-gradient(to_bottom_right,transparent,rgba(255,255,255,0.03))]" />
-      </div>
-
       <div className="relative z-10 grid w-full max-w-6xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         {/* Intentional marketing/launch panel: stays dark in both light and dark themes for contrast against the activation card. */}
-        <section className="rounded-4xl border border-border/60 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-8 text-white shadow-2xl shadow-slate-900/10 md:p-10">
-          <div className="inline-flex rounded-full border border-sky-300/15 bg-white/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] text-sky-200/80">
-            AI Workstation
+        <section className="rounded-2xl border border-border/60 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-8 text-white shadow-2xl shadow-slate-900/10 md:p-10">
+          <div className="inline-flex rounded-full border border-sky-300/15 bg-white/10 px-4 py-2 text-xs font-medium text-sky-200/80">
+            AI workstation
           </div>
 
           <div className="mt-8 flex items-center gap-4">
-            <div className="rounded-2xl bg-white/10 p-4 text-sky-200">
+            <div className="rounded-xl bg-white/10 p-4 text-sky-200">
               <BrainCircuit className="h-10 w-10" />
             </div>
-            <div className="rounded-2xl bg-white/10 p-4 text-sky-200">
+            <div className="rounded-xl bg-white/10 p-4 text-sky-200">
               <Orbit className="h-10 w-10" />
             </div>
           </div>
 
-          <h2 className="mt-8 max-w-xl text-5xl font-heading font-black tracking-tight md:text-6xl">
+          <h2 className="mt-8 max-w-xl text-5xl font-heading font-bold tracking-tight md:text-6xl">
             Connect one key. Route it to the right model.
           </h2>
           <p className="mt-6 max-w-xl text-lg font-medium leading-relaxed text-slate-300">
@@ -72,7 +66,7 @@ export function AIKeyPrompt() {
             {PROVIDERS.map((provider) => (
               <div
                 key={provider}
-                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.24em] text-slate-200"
+                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-slate-200"
               >
                 {provider}
               </div>
@@ -80,16 +74,16 @@ export function AIKeyPrompt() {
           </div>
 
           <div className="mt-10 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-5">
               <ShieldCheck className="h-6 w-6 text-sky-200" />
-              <p className="mt-4 text-sm font-black uppercase tracking-[0.22em] text-sky-200/80">Verified Routing</p>
+              <p className="mt-4 text-sm font-medium text-sky-200/80">Verified routing</p>
               <p className="mt-2 text-sm font-medium leading-relaxed text-slate-300">
                 The backend tests the pasted key and only uses the provider that actually accepts it.
               </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-5">
               <Sparkles className="h-6 w-6 text-sky-200" />
-              <p className="mt-4 text-sm font-black uppercase tracking-[0.22em] text-sky-200/80">Adaptive Model Pick</p>
+              <p className="mt-4 text-sm font-medium text-sky-200/80">Adaptive model pick</p>
               <p className="mt-2 text-sm font-medium leading-relaxed text-slate-300">
                 Once validated, the assistant chooses a sensible live model for that provider.
               </p>
@@ -97,11 +91,11 @@ export function AIKeyPrompt() {
           </div>
         </section>
 
-        <section className="rounded-4xl border border-border/60 bg-card/88 p-8 shadow-xl backdrop-blur-xl md:p-10">
+        <section className="rounded-2xl border border-border/60 bg-card/88 p-8 shadow-xl backdrop-blur-xl md:p-10">
           <div className="mb-8 flex items-center justify-between gap-4">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Activation</p>
-              <h3 className="mt-2 text-3xl font-heading font-black tracking-tight">Bring AI Buddy online</h3>
+              <p className="text-xs font-medium text-primary">Activation</p>
+              <h3 className="mt-2 text-3xl font-heading font-bold tracking-tight">Bring AI Buddy online</h3>
             </div>
             <div className="rounded-xl bg-primary/10 p-4 text-primary">
               <KeyRound className="h-6 w-6" />
@@ -109,19 +103,20 @@ export function AIKeyPrompt() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="rounded-2xl border border-border/60 bg-muted/25 p-5">
-              <Label className="ml-1 text-xs font-black uppercase tracking-[0.24em] text-muted-foreground">API Key</Label>
+            <div className="rounded-xl border border-border/60 bg-muted/25 p-5">
+              <Label htmlFor="key" className="ml-1 text-xs font-medium text-muted-foreground">API key</Label>
               <div className="relative mt-3">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                   <KeyRound className="h-5 w-5" />
                 </div>
                 <Input
+                  id="key"
                   name="key"
                   type="password"
                   value={key}
                   onChange={(event) => setKey(event.target.value)}
                   placeholder="Paste your provider key here..."
-                  className="h-14 rounded-2xl border-border/60 bg-background pl-12 font-bold"
+                  className="h-14 rounded-xl border-border/60 bg-background pl-12 font-bold"
                   required
                   disabled={isSaving}
                 />
@@ -134,7 +129,7 @@ export function AIKeyPrompt() {
             <Button
               type="submit"
               disabled={isSaving || !key.trim()}
-              className="h-14 w-full rounded-2xl text-base font-black shadow-lg shadow-primary/20"
+              className="h-14 w-full rounded-xl text-base font-bold shadow-lg shadow-primary/20"
             >
               {isSaving ? "Testing Key..." : "Activate AI Buddy"}
             </Button>

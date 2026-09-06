@@ -114,17 +114,17 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
   return (
     <div className="flex flex-1 overflow-hidden">
       {/* Sidebar: Docs List */}
-      <div className="w-80 border-r bg-muted/20 flex flex-col shrink-0">
+      <div className="w-80 max-w-[85vw] border-r bg-muted/20 flex flex-col shrink-0">
         <div className="p-6 border-b bg-background/50">
-          <Link href="/projects" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors flex items-center gap-2 mb-6">
-            <ChevronLeft className="w-3 h-3" /> Back to Hub
+          <Link href="/projects" className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-2 mb-6">
+            <ChevronLeft className="w-3 h-3" /> Back to hub
           </Link>
-          <h2 className="text-2xl font-heading font-black truncate">{project.title}</h2>
-          
+          <h2 className="text-2xl font-heading font-bold truncate">{project.title}</h2>
+
           <div className="mt-6 space-y-4">
              <div className="flex justify-between items-end">
-               <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Overall Progress</span>
-               <span className="text-sm font-black text-primary">{projectProgress}%</span>
+               <span className="text-xs font-medium text-muted-foreground">Overall progress</span>
+               <span className="text-sm font-bold text-primary">{projectProgress}%</span>
              </div>
              <Slider 
                value={[projectProgress]} 
@@ -141,7 +141,7 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
 
         <div className="p-4 flex-1 overflow-y-auto space-y-1">
           <div className="flex items-center justify-between px-2 mb-4">
-             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Documentation</span>
+             <span className="text-xs font-medium text-muted-foreground">Documentation</span>
              <Button variant="ghost" size="icon" aria-label="Create new document" title="Create new document" className="h-6 w-6 rounded-lg" onClick={handleCreateDoc}>
                <Plus className="w-4 h-4" />
              </Button>
@@ -159,28 +159,39 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
                 <FileText className="w-4 h-4 shrink-0" />
                 <span className="truncate">{doc.title}</span>
               </div>
-              <Trash2
-                className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 hover:text-destructive transition-all"
-                aria-label="Delete document"
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label={`Delete document "${doc.title}"`}
                 onClick={(e) => {
                   e.stopPropagation();
                   setDocToDelete(doc.id);
                 }}
-              />
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDocToDelete(doc.id);
+                  }
+                }}
+                className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </span>
             </button>
           ))}
         </div>
 
-        <button 
+        <button
           onClick={() => setIsAiOpen(true)}
-          className="m-4 p-6 rounded-3xl bg-primary/10 border border-primary/20 text-primary flex items-center gap-4 hover:bg-primary/20 transition-all group shadow-sm"
+          className="m-4 p-6 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center gap-4 hover:bg-primary/20 transition-colors group shadow-sm"
         >
-           <div className="p-2 bg-primary rounded-xl text-white shadow-lg shadow-primary/20 transition-transform">
+           <div className="p-2 bg-primary rounded-xl text-white shadow-lg shadow-primary/20">
              <BrainCircuit className="w-5 h-5" />
            </div>
            <div className="text-left">
-              <p className="text-xs font-black uppercase tracking-widest leading-none mb-1">AI Architect</p>
-              <p className="text-[10px] font-bold opacity-70">Ask for project suggestions</p>
+              <p className="text-xs font-medium leading-none mb-1">AI Architect</p>
+              <p className="text-xs font-bold opacity-70">Ask for project suggestions</p>
            </div>
         </button>
       </div>
@@ -194,11 +205,11 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
                 value={docTitle}
                 aria-label="Document title"
                 onChange={(e) => { setDocTitle(e.target.value); setHasUnsavedChanges(true); }}
-                className="bg-transparent border-none font-heading font-black text-xl focus:ring-0 w-full"
+                className="bg-transparent border-none font-heading font-bold text-xl focus:ring-0 w-full"
               />
               <div className="flex items-center gap-3 shrink-0">
                 {hasUnsavedChanges && (
-                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 flex items-center gap-1.5">
+                  <span className="text-xs font-medium text-amber-500 flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                     Unsaved changes
                   </span>
@@ -209,7 +220,7 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
                   className="rounded-xl gap-2 h-10 px-6 font-bold shadow-md shadow-primary/10"
                 >
                   {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  {isSaving ? 'SAVING...' : 'SAVE'}
+                  {isSaving ? 'Saving...' : 'Save'}
                 </Button>
               </div>
             </div>
@@ -222,15 +233,15 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-             <div className="p-8 bg-muted/50 rounded-4xl mb-8">
+             <div className="p-8 bg-muted/50 rounded-2xl mb-8">
                <FileText className="w-20 h-20 text-muted-foreground/20" />
              </div>
-             <h3 className="text-3xl font-heading font-black mb-4 tracking-tight">Project Documentation</h3>
+             <h3 className="text-3xl font-heading font-bold mb-4 tracking-tight">Project Documentation</h3>
              <p className="text-muted-foreground font-medium max-w-md">
                Select an existing document or create a new one to start outlining your roadmap.
              </p>
-             <Button onClick={handleCreateDoc} className="mt-8 h-14 rounded-2xl font-bold px-8 shadow-lg shadow-primary/20 gap-2">
-               <Plus className="w-5 h-5" /> CREATE FIRST DOC
+             <Button onClick={handleCreateDoc} className="mt-8 h-14 rounded-xl font-bold px-8 shadow-lg shadow-primary/20 gap-2">
+               <Plus className="w-5 h-5" /> Create first doc
              </Button>
           </div>
         )}
@@ -239,18 +250,18 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
       {/* AI Sidepanel Overlay */}
       {isAiOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/20 backdrop-blur-sm" onClick={() => setIsAiOpen(false)}>
-           <div 
-             className="w-[500px] h-full bg-background border-l shadow-2xl flex flex-col"
+           <div
+             className="w-full max-w-[500px] h-full bg-background border-l shadow-2xl flex flex-col"
              onClick={(e) => e.stopPropagation()}
            >
               <div className="p-8 border-b flex items-center justify-between">
                  <div className="flex items-center gap-4">
-                   <div className="p-3 bg-primary/10 rounded-2xl text-primary">
+                   <div className="p-3 bg-primary/10 rounded-xl text-primary">
                      <BrainCircuit className="w-6 h-6" />
                    </div>
                    <div>
-                     <h3 className="text-xl font-heading font-black">AI Architect</h3>
-                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">AI Assistant</p>
+                     <h3 className="text-xl font-heading font-bold">AI Architect</h3>
+                     <p className="text-xs font-medium text-muted-foreground">AI Assistant</p>
                    </div>
                  </div>
                  <Button variant="ghost" size="icon" aria-label="Close AI panel" className="rounded-full" onClick={() => setIsAiOpen(false)}>
@@ -261,7 +272,7 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
               <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                  {aiResponse ? (
                    <div className="prose prose-sm dark:prose-invert max-w-none">
-                      <div className="bg-muted/30 p-6 rounded-3xl border border-border/40 whitespace-pre-wrap font-medium leading-relaxed text-base">
+                      <div className="bg-muted/30 p-6 rounded-2xl border border-border/40 whitespace-pre-wrap font-medium leading-relaxed text-base">
                         <Typewriter text={aiResponse} />
                       </div>
                       <Button 
@@ -282,20 +293,21 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
                    </div>
                  )}
                  {isAiLoading && (
-                   <div className="flex items-center gap-3 p-6 bg-muted/30 rounded-3xl border border-dashed border-primary/20 mt-6 animate-pulse">
+                   <div className="flex items-center gap-3 p-6 bg-muted/30 rounded-2xl border border-dashed border-primary/20 mt-6 animate-pulse">
                       <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                      <span className="font-bold text-sm text-primary uppercase tracking-widest">Architect is thinking...</span>
+                      <span className="font-semibold text-sm text-primary">Architect is thinking...</span>
                    </div>
                  )}
               </div>
 
               <div className="p-8 border-t bg-muted/10">
                  <div className="relative">
-                    <textarea 
+                    <textarea
                       value={aiInput}
                       onChange={(e) => setAiInput(e.target.value)}
+                      aria-label="Ask the Architect"
                       placeholder="Ask the Architect anything..."
-                      className="w-full min-h-[120px] p-6 rounded-2xl bg-background border border-border/60 font-medium focus:ring-2 focus:ring-primary/20 resize-none pr-16"
+                      className="w-full min-h-[120px] p-6 rounded-xl bg-background border border-border/60 font-medium focus:ring-2 focus:ring-primary/20 resize-none pr-16"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
@@ -303,9 +315,10 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
                         }
                       }}
                     />
-                    <Button 
-                      size="icon" 
-                      className="absolute right-4 bottom-4 h-12 w-12 rounded-2xl shadow-lg shadow-primary/20 transition-all"
+                    <Button
+                      size="icon"
+                      aria-label="Send question"
+                      className="absolute right-4 bottom-4 h-12 w-12 rounded-xl shadow-lg shadow-primary/20 transition-all"
                       onClick={handleAskAi}
                       disabled={isAiLoading || !aiInput.trim()}
                     >

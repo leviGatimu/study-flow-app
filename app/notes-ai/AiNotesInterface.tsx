@@ -107,8 +107,11 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
   const [generationPhase, setGenerationPhase] = useState('');
   const [isCreateMode, setIsCreateMode] = useState(initialNotes.length === 0);
   
-  // Sidebar state
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  // Sidebar state. Starts collapsed on narrow viewports so the notes list
+  // doesn't eat the whole screen on a phone; desktop keeps it open by default.
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 768
+  );
   
   // Create fields
   const [inputTitle, setInputTitle] = useState('');
@@ -362,15 +365,16 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
             animate={{ width: 320, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="w-80 border-r border-border/40 bg-card/25 flex flex-col h-full overflow-hidden shrink-0"
+            className="w-80 max-w-[85vw] border-r border-border/40 bg-card/25 flex flex-col h-full overflow-hidden shrink-0"
           >
             <div className="p-6 border-b border-border/40 flex items-center justify-between">
-              <h2 className="font-heading font-black text-xl text-foreground">AI-Notes</h2>
-              <Button 
+              <h2 className="font-heading font-bold text-xl text-foreground">AI-Notes</h2>
+              <Button
                 onClick={() => { setSelectedNote(null); setIsCreateMode(true); }}
-                variant="ghost" 
-                size="icon" 
+                variant="ghost"
+                size="icon"
                 className="h-9 w-9 rounded-xl hover:bg-primary/10 hover:text-primary transition-all"
+                aria-label="Generate new note"
                 title="Generate New Note"
               >
                 <Plus className="h-5 w-5" />
@@ -428,14 +432,14 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
 
                         <div className="flex-1 min-w-0 space-y-1">
                           <div className="flex items-center justify-between gap-1">
-                            <span className="text-[10px] font-black uppercase tracking-wider opacity-60">
+                            <span className="text-xs font-medium opacity-60">
                               {dateText}
                             </span>
-                            <span className="text-[10px] font-black uppercase tracking-wider opacity-60">
+                            <span className="text-xs font-medium opacity-60">
                               {note.stylePreset?.split(' ')[0]}
                             </span>
                           </div>
-                          <h4 className="font-heading font-black text-sm tracking-tight truncate">
+                          <h4 className="font-heading font-bold text-sm tracking-tight truncate">
                             {note.title}
                           </h4>
                           <p className={cn(
@@ -453,6 +457,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                           }}
                           variant="ghost"
                           size="icon"
+                          aria-label={`Delete note "${note.title}"`}
                           className={cn(
                             "h-8 w-8 rounded-lg shrink-0 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-1/2 -translate-y-1/2 hover:bg-destructive/10 hover:text-destructive",
                             isSelected ? "text-primary-foreground/80 hover:bg-white/10 hover:text-white" : "text-muted-foreground"
@@ -487,7 +492,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                   <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-sm">
                     <Sparkles className="h-6 w-6" />
                   </div>
-                  <h1 className="text-4xl font-heading font-black tracking-tight text-foreground">
+                  <h1 className="text-4xl font-heading font-bold tracking-tight text-foreground">
                     AI-Notes Studio
                   </h1>
                   <p className="text-muted-foreground font-semibold text-base max-w-2xl">
@@ -501,6 +506,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                   variant="ghost"
                   size="icon"
                   className="h-10 w-10 rounded-xl hidden md:flex hover:bg-muted text-muted-foreground border border-border/40 transition-all shrink-0 self-start"
+                  aria-label={isSidebarCollapsed ? "Show sidebar list" : "Collapse sidebar"}
                   title={isSidebarCollapsed ? "Show Sidebar List" : "Fullscreen Mode (Collapse Sidebar)"}
                 >
                   {isSidebarCollapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
@@ -516,10 +522,10 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                   <div className="h-16 w-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin shadow-lg" />
                   
                   <div className="space-y-2 max-w-md">
-                    <h3 className="font-heading font-black text-xl text-foreground">
+                    <h3 className="font-heading font-bold text-xl text-foreground">
                       Generating Study Notes
                     </h3>
-                    <p className="text-primary font-bold text-sm tracking-wider uppercase">
+                    <p className="text-primary font-bold text-sm">
                       {generationPhase}
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -533,8 +539,8 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                   <div className="xl:col-span-3 space-y-6">
                     <div className="bg-card/40 backdrop-blur-xl border border-border/40 rounded-2xl p-6 shadow-md space-y-5">
                       <div className="space-y-2">
-                        <Label htmlFor="title" className="font-heading font-black text-sm uppercase tracking-wider text-muted-foreground/75">
-                          Note Title
+                        <Label htmlFor="title" className="text-xs font-medium text-muted-foreground/75">
+                          Note title
                         </Label>
                         <Input 
                           id="title"
@@ -547,11 +553,21 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
 
                       {/* Drag Drop zone */}
                       <div className="space-y-2">
-                        <Label className="font-heading font-black text-sm uppercase tracking-wider text-muted-foreground/75">
-                          Upload Lecture File
+                        <Label htmlFor="lectureFile" className="text-xs font-medium text-muted-foreground/75">
+                          Upload lecture file
                         </Label>
-                        <div 
+                        <div
+                          id="lectureFile"
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Upload lecture file"
                           onClick={() => fileInputRef.current?.click()}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              fileInputRef.current?.click();
+                            }
+                          }}
                           className={cn(
                             "border-2 border-dashed border-border/60 hover:border-primary/50 hover:bg-primary/5 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-300 select-none group",
                             uploadedFile && "border-primary/40 bg-primary/5"
@@ -594,12 +610,12 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                       {/* Manual Text paste */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label htmlFor="manualText" className="font-heading font-black text-sm uppercase tracking-wider text-muted-foreground/75">
-                            Paste Study Content (or type raw text)
+                          <Label htmlFor="manualText" className="text-xs font-medium text-muted-foreground/75">
+                            Paste study content (or type raw text)
                           </Label>
                           {uploadedFile && (
-                            <span className="text-[10px] font-black uppercase text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md">
-                              Using File Text Instead
+                            <span className="text-xs font-medium text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md">
+                              Using file text instead
                             </span>
                           )}
                         </div>
@@ -625,8 +641,8 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
 
                   {/* Right Column: Style presets */}
                   <div className="xl:col-span-2 space-y-4">
-                    <Label className="font-heading font-black text-sm uppercase tracking-wider text-muted-foreground/75 block">
-                      Choose AI Note Style Accent
+                    <Label className="text-xs font-medium text-muted-foreground/75 block">
+                      Choose AI note style accent
                     </Label>
 
                     <div className="grid grid-cols-1 gap-4">
@@ -636,7 +652,17 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                         return (
                           <div
                             key={preset.name}
+                            role="button"
+                            tabIndex={0}
+                            aria-pressed={isSelected}
+                            aria-label={`Use ${preset.name} style`}
                             onClick={() => setSelectedPreset(preset.name)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setSelectedPreset(preset.name);
+                              }
+                            }}
                             className={cn(
                               "border border-border/40 bg-card/40 backdrop-blur-xl rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:shadow-md flex items-start gap-4 select-none relative overflow-hidden",
                               isSelected ? `border-primary bg-primary/5 ring-1 ring-primary/20` : "hover:border-border/80"
@@ -658,7 +684,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                             </div>
 
                             <div className="space-y-1 flex-1 pr-6">
-                              <h4 className="font-heading font-black text-sm text-foreground tracking-tight">
+                              <h4 className="font-heading font-bold text-sm text-foreground tracking-tight">
                                 {preset.name}
                               </h4>
                               <p className="text-xs text-muted-foreground leading-relaxed">
@@ -691,6 +717,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                     onClick={() => { setSelectedNote(null); setIsCreateMode(true); }}
                     variant="ghost"
                     size="icon"
+                    aria-label="Back to notes list"
                     className="h-9 w-9 rounded-xl md:hidden hover:bg-muted"
                   >
                     <ArrowLeft className="h-5 w-5" />
@@ -702,6 +729,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                     variant="ghost"
                     size="icon"
                     className="h-9 w-9 rounded-xl hidden md:flex hover:bg-muted text-muted-foreground border border-border/40 transition-all shrink-0"
+                    aria-label={isSidebarCollapsed ? "Show sidebar list" : "Collapse sidebar"}
                     title={isSidebarCollapsed ? "Show Sidebar List" : "Fullscreen Mode (Collapse Sidebar)"}
                   >
                     {isSidebarCollapsed ? <PanelLeft className="h-4.5 w-4.5" /> : <PanelLeftClose className="h-4.5 w-4.5" />}
@@ -709,19 +737,20 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
 
                   <div className="min-w-0 space-y-1">
                     {isEditMode ? (
-                      <Input 
+                      <Input
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
-                        className="font-heading font-black text-xl tracking-tight text-foreground bg-background/50 h-10 max-w-md rounded-xl border-border/40 px-3"
+                        aria-label="Note title"
+                        className="font-heading font-bold text-xl tracking-tight text-foreground bg-background/50 h-10 max-w-md rounded-xl border-border/40 px-3"
                       />
                     ) : (
-                      <h1 className="font-heading font-black text-2xl tracking-tight text-foreground truncate">
+                      <h1 className="font-heading font-bold text-2xl tracking-tight text-foreground truncate">
                         {selectedNote.title}
                       </h1>
                     )}
-                    <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground">
                       <span>Source:</span>
-                      <span className="bg-muted px-2 py-0.5 rounded-md text-foreground normal-case font-semibold truncate max-w-[140px]">
+                      <span className="bg-muted px-2 py-0.5 rounded-md text-foreground font-semibold truncate max-w-[140px]">
                         {selectedNote.sourceName || 'Manual paste'}
                       </span>
                       <span>• Accent:</span>
@@ -764,6 +793,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                         variant="ghost"
                         size="icon"
                         className="h-9 w-9 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground border border-border/40 transition-all"
+                        aria-label="Edit markdown notes"
                         title="Edit Markdown Notes"
                       >
                         <Edit3 className="h-4 w-4" />
@@ -774,6 +804,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                         variant="ghost"
                         size="icon"
                         className="h-9 w-9 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground border border-border/40 transition-all"
+                        aria-label="Copy markdown"
                         title="Copy Markdown"
                       >
                         <Copy className="h-4 w-4" />
@@ -784,6 +815,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                         variant="ghost"
                         size="icon"
                         className="h-9 w-9 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground border border-border/40 transition-all"
+                        aria-label="Export markdown"
                         title="Export Markdown"
                       >
                         <Download className="h-4 w-4" />
@@ -794,6 +826,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                         variant="ghost"
                         size="icon"
                         className="h-9 w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive text-muted-foreground border border-border/40 transition-all"
+                        aria-label="Delete notes"
                         title="Delete Notes"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -847,13 +880,13 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                       <ReactMarkdown
                         components={{
                           h1: ({ node, ...props }) => (
-                            <h1 {...props} className="font-heading font-black text-3xl md:text-4xl text-foreground tracking-tight border-b border-border/30 pb-3 mt-10 mb-6" />
+                            <h1 {...props} className="font-heading font-bold text-3xl md:text-4xl text-foreground tracking-tight border-b border-border/30 pb-3 mt-10 mb-6" />
                           ),
                           h2: ({ node, ...props }) => (
-                            <h2 {...props} className="font-heading font-black text-2xl text-foreground tracking-tight mt-8 mb-4" />
+                            <h2 {...props} className="font-heading font-bold text-2xl text-foreground tracking-tight mt-8 mb-4" />
                           ),
                           h3: ({ node, ...props }) => (
-                            <h3 {...props} className="font-heading font-black text-lg text-foreground tracking-tight mt-6 mb-2" />
+                            <h3 {...props} className="font-heading font-bold text-lg text-foreground tracking-tight mt-6 mb-2" />
                           ),
                           p: ({ node, ...props }) => (
                             <p {...props} className="text-base text-foreground/80 leading-relaxed mb-4" />
@@ -882,7 +915,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                             </div>
                           ),
                           th: ({ node, ...props }) => (
-                            <th {...props} className="px-4 py-3 bg-muted font-bold text-left text-xs uppercase tracking-wider" />
+                            <th {...props} className="px-4 py-3 bg-muted font-bold text-left text-xs" />
                           ),
                           td: ({ node, ...props }) => (
                             <td {...props} className="px-4 py-3 text-sm border-t border-border/30" />
@@ -911,7 +944,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
               className="bg-card border border-border/50 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-6"
             >
               <div className="space-y-1">
-                <h3 className="font-heading font-black text-xl text-foreground">
+                <h3 className="font-heading font-bold text-xl text-foreground">
                   Send to Sticky Note
                 </h3>
                 <p className="text-xs text-muted-foreground font-semibold">
@@ -921,7 +954,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="stickyTitle" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Title</Label>
+                  <Label htmlFor="stickyTitle" className="text-xs font-medium text-muted-foreground">Title</Label>
                   <Input 
                     id="stickyTitle"
                     className="rounded-xl border-border/40 h-10 bg-background/50 text-sm focus-visible:ring-1 focus-visible:ring-primary/25"
@@ -931,7 +964,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="stickyContent" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Content</Label>
+                  <Label htmlFor="stickyContent" className="text-xs font-medium text-muted-foreground">Content</Label>
                   <Textarea 
                     id="stickyContent"
                     className="rounded-xl border-border/40 min-h-[110px] bg-background/50 text-sm focus-visible:ring-1 focus-visible:ring-primary/25"
@@ -942,7 +975,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
 
                 {/* Color accents */}
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">Pin Color Accent</Label>
+                  <Label className="text-xs font-medium text-muted-foreground block">Pin color accent</Label>
                   <div className="flex items-center gap-3">
                     {[
                       { hex: '#fef08a', name: 'yellow' },
@@ -953,7 +986,10 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                     ].map(col => (
                       <button
                         key={col.hex}
+                        type="button"
                         onClick={() => setStickyColor(col.hex)}
+                        aria-label={`${col.name} accent`}
+                        aria-pressed={stickyColor === col.hex}
                         className={cn(
                           "h-7 w-7 rounded-full transition-transform border",
                           stickyColor === col.hex ? "scale-110 border-primary ring-2 ring-primary/20" : "border-border/30"
@@ -997,7 +1033,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
               className="bg-card border border-border/50 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-6"
             >
               <div className="space-y-1">
-                <h3 className="font-heading font-black text-xl text-foreground">
+                <h3 className="font-heading font-bold text-xl text-foreground">
                   Schedule Revision Task
                 </h3>
                 <p className="text-xs text-muted-foreground font-semibold">
@@ -1007,7 +1043,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="taskSubject" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Subject/Task Name</Label>
+                  <Label htmlFor="taskSubject" className="text-xs font-medium text-muted-foreground">Subject/task name</Label>
                   <Input 
                     id="taskSubject"
                     className="rounded-xl border-border/40 h-10 bg-background/50 text-sm focus-visible:ring-1 focus-visible:ring-primary/25"
@@ -1017,7 +1053,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="taskDate" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Date</Label>
+                  <Label htmlFor="taskDate" className="text-xs font-medium text-muted-foreground">Date</Label>
                   <Input 
                     id="taskDate"
                     type="date"
@@ -1029,7 +1065,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="startTime" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Start Time</Label>
+                    <Label htmlFor="startTime" className="text-xs font-medium text-muted-foreground">Start time</Label>
                     <Input 
                       id="startTime"
                       type="time"
@@ -1039,7 +1075,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="endTime" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">End Time</Label>
+                    <Label htmlFor="endTime" className="text-xs font-medium text-muted-foreground">End time</Label>
                     <Input 
                       id="endTime"
                       type="time"
@@ -1051,25 +1087,29 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">Session Type</Label>
+                  <Label className="text-xs font-medium text-muted-foreground block">Session type</Label>
                   <div className="grid grid-cols-2 gap-3">
                     <button
+                      type="button"
                       onClick={() => setTaskType('HOMEWORK')}
+                      aria-pressed={taskType === 'HOMEWORK'}
                       className={cn(
-                        "py-2 px-4 rounded-xl border text-xs font-black tracking-wide uppercase transition-all",
-                        taskType === 'HOMEWORK' 
-                          ? "bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-500/10" 
+                        "py-2 px-4 rounded-xl border text-xs font-bold transition-all",
+                        taskType === 'HOMEWORK'
+                          ? "bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-500/10"
                           : "border-border/30 hover:bg-muted"
                       )}
                     >
                       Homework
                     </button>
                     <button
+                      type="button"
                       onClick={() => setTaskType('REVISION')}
+                      aria-pressed={taskType === 'REVISION'}
                       className={cn(
-                        "py-2 px-4 rounded-xl border text-xs font-black tracking-wide uppercase transition-all",
-                        taskType === 'REVISION' 
-                          ? "bg-orange-500 text-white border-orange-500 shadow-md shadow-orange-500/10" 
+                        "py-2 px-4 rounded-xl border text-xs font-bold transition-all",
+                        taskType === 'REVISION'
+                          ? "bg-orange-500 text-white border-orange-500 shadow-md shadow-orange-500/10"
                           : "border-border/30 hover:bg-muted"
                       )}
                     >

@@ -201,7 +201,7 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 bg-card/80 p-6 rounded-2xl border shadow-sm backdrop-blur-md relative z-20">
         <div>
-          <h1 className="text-3xl font-heading font-black text-foreground flex items-center gap-3">
+          <h1 className="text-3xl font-heading font-bold text-foreground flex items-center gap-3">
             <Pin className="w-7 h-7 text-primary rotate-12" />
             Corkboard
           </h1>
@@ -218,12 +218,12 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
               placeholder="Search notes..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 rounded-2xl h-12 bg-background border-border/60 focus-visible:ring-primary/20"
+              className="pl-9 rounded-xl h-12 bg-background border-border/60 focus-visible:ring-primary/20"
             />
           </div>
 
           {/* Color Filter */}
-          <div className="flex items-center gap-1 bg-background p-1.5 rounded-2xl border border-border/60">
+          <div className="flex items-center gap-1 bg-background p-1.5 rounded-xl border border-border/60">
             <button
                onClick={() => setColorFilter(null)}
                aria-label="Show all colors"
@@ -253,15 +253,15 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
             onClick={handleMagicOrganize}
             variant="secondary"
             disabled={isOrganizing}
-            className="rounded-2xl gap-2 font-bold transition-transform h-12 w-full sm:w-auto text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400"
+            className="rounded-xl gap-2 font-bold transition-transform h-12 w-full sm:w-auto text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400"
           >
             {isOrganizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
             Magic Organize
           </Button>
 
-          <Button 
+          <Button
             onClick={() => setIsAdding(true)}
-            className="rounded-2xl gap-2 font-bold shadow-lg shadow-primary/20 transition-transform h-12 w-full sm:w-auto"
+            className="rounded-xl gap-2 font-bold shadow-lg shadow-primary/20 transition-transform h-12 w-full sm:w-auto"
           >
             <Plus className="w-5 h-5" />
             Add Note
@@ -272,7 +272,7 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
       {/* Wall Canvas */}
       <div 
         ref={boardRef}
-        className="flex-1 relative overflow-hidden rounded-4xl border-4 border-muted-foreground/10 bg-[url('/textures/cork-board.png')] bg-[#e8dcc7] dark:bg-[#3b3228] shadow-inner"
+        className="flex-1 relative overflow-hidden rounded-2xl border-4 border-muted-foreground/10 bg-[url('/textures/cork-board.png')] bg-[#e8dcc7] dark:bg-[#3b3228] shadow-inner"
       >
         <AnimatePresence>
           {filteredNotes.map((note) => {
@@ -314,15 +314,17 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
                 <div className="relative z-10 flex-1 flex flex-col pt-4">
                   {isEditing ? (
                     <div className="flex-1 flex flex-col gap-3">
-                       <Input 
+                       <Input
                          value={editTitle}
                          onChange={(e) => setEditTitle(e.target.value)}
-                         className="font-heading font-black text-xl bg-white/50 border-black/10 focus-visible:ring-black/20 h-10 px-2"
+                         aria-label="Note title"
+                         className="font-heading font-bold text-xl bg-white/50 border-black/10 focus-visible:ring-black/20 h-10 px-2"
                          autoFocus
                        />
-                       <Textarea 
+                       <Textarea
                          value={editContent}
                          onChange={(e) => setEditContent(e.target.value)}
+                         aria-label="Note content"
                          className="flex-1 font-medium text-sm bg-white/50 border-black/10 focus-visible:ring-black/20 resize-none p-2"
                        />
                        <Button size="sm" onClick={() => saveEdit(note.id)} className="bg-black/80 hover:bg-black text-white gap-2 font-bold">
@@ -333,7 +335,7 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
                     <>
                       <div className="flex items-start justify-between mb-2 gap-2">
                         <h3 className={cn(
-                          "font-heading font-black text-xl text-black/80 leading-tight pr-2 transition-all",
+                          "font-heading font-bold text-xl text-black/80 leading-tight pr-2 transition-all",
                           note.isDone && "line-through opacity-50"
                         )}>
                           {note.title}
@@ -385,11 +387,11 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
                       </div>
 
                       <div className="mt-3 pt-3 border-t border-black/10 flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-black/40">
+                        <span className="text-xs font-medium text-black/40">
                           {new Date(note.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                         </span>
                         {note.isDone && (
-                          <span className="text-[10px] font-black uppercase tracking-widest text-green-700 bg-green-200 px-2 py-0.5 rounded-full shadow-sm">
+                          <span className="text-xs font-medium text-green-700 bg-green-200 px-2 py-0.5 rounded-full shadow-sm">
                             Done
                           </span>
                         )}
@@ -419,10 +421,10 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
       </div>
 
       <div className="flex justify-end pt-2">
-         <Button 
+         <Button
             variant="ghost"
             onClick={() => setIsDeletingAll(true)}
-            className="rounded-2xl gap-2 font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            className="rounded-xl gap-2 font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/10"
           >
             <Eraser className="w-4 h-4" />
             Clean Board
@@ -441,46 +443,50 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
             >
               <div className="p-8 space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-heading font-black">Stick New Note</h2>
-                  <Button variant="ghost" size="icon" onClick={() => setIsAdding(false)} className="rounded-full">
+                  <h2 className="text-2xl font-heading font-bold">Stick New Note</h2>
+                  <Button variant="ghost" size="icon" onClick={() => setIsAdding(false)} aria-label="Close" className="rounded-full">
                     <X className="w-5 h-5" />
                   </Button>
                 </div>
 
                 <form onSubmit={handleAddNote} className="space-y-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">Task Name</label>
-                    <Input 
+                    <label htmlFor="newNoteTitle" className="text-xs font-medium text-muted-foreground px-1">Task name</label>
+                    <Input
+                      id="newNoteTitle"
                       placeholder="What needs to be done?"
                       value={newTitle}
                       onChange={(e) => setNewTitle(e.target.value)}
-                      className="rounded-2xl h-14 font-bold text-lg border-2 focus-visible:ring-primary/20"
+                      className="rounded-xl h-14 font-bold text-lg border-2 focus-visible:ring-primary/20"
                       autoFocus
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">Content (Markdown Supported)</label>
-                    <Textarea 
+                    <label htmlFor="newNoteContent" className="text-xs font-medium text-muted-foreground px-1">Content (Markdown supported)</label>
+                    <Textarea
+                      id="newNoteContent"
                       placeholder="Add details, bullet points, or checklists..."
                       value={newContent}
                       onChange={(e) => setNewContent(e.target.value)}
-                      className="rounded-2xl min-h-[120px] font-medium border-2 focus-visible:ring-primary/20 resize-none"
+                      className="rounded-xl min-h-[120px] font-medium border-2 focus-visible:ring-primary/20 resize-none"
                     />
                   </div>
 
                   <div className="space-y-3">
-                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">Pick a Color</label>
+                    <span className="text-xs font-medium text-muted-foreground px-1">Pick a color</span>
                     <div className="flex items-center gap-3 flex-wrap">
                       {COLORS.map((color) => (
                         <button
                           key={color.value}
                           type="button"
                           onClick={() => setSelectedColor(color.value)}
+                          aria-label={`${color.name} note`}
+                          aria-pressed={selectedColor === color.value}
                           className={cn(
                             "w-10 h-10 rounded-xl transition-all border-2",
-                            selectedColor === color.value 
-                              ? "border-primary scale-110 shadow-lg" 
+                            selectedColor === color.value
+                              ? "border-primary scale-110 shadow-lg"
                               : "border-transparent"
                           )}
                           style={{ backgroundColor: color.value }}
@@ -490,18 +496,18 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
                   </div>
 
                   <div className="flex gap-4 pt-2">
-                    <Button 
-                      type="submit" 
-                      className="flex-1 h-14 rounded-2xl font-black text-lg shadow-lg shadow-primary/20"
+                    <Button
+                      type="submit"
+                      className="flex-1 h-14 rounded-xl font-bold text-lg shadow-lg shadow-primary/20"
                       disabled={!newTitle.trim()}
                     >
                       Stick It!
                     </Button>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
+                    <Button
+                      type="button"
+                      variant="outline"
                       onClick={() => setIsAdding(false)}
-                      className="h-14 px-8 rounded-2xl font-bold"
+                      className="h-14 px-8 rounded-xl font-bold"
                     >
                       Cancel
                     </Button>
@@ -525,43 +531,46 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
             >
               <div className="p-8 space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-heading font-black flex items-center gap-2">
+                  <h2 className="text-2xl font-heading font-bold flex items-center gap-2">
                     <CalendarPlus className="w-6 h-6 text-primary" /> Promote to Task
                   </h2>
-                  <Button variant="ghost" size="icon" onClick={() => setPromoteNote(null)} className="rounded-full">
+                  <Button variant="ghost" size="icon" onClick={() => setPromoteNote(null)} aria-label="Close" className="rounded-full">
                     <X className="w-5 h-5" />
                   </Button>
                 </div>
 
                 <form onSubmit={submitPromote} className="space-y-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">Task Subject</label>
-                    <Input 
+                    <label htmlFor="promoteSubject" className="text-xs font-medium text-muted-foreground px-1">Task subject</label>
+                    <Input
+                      id="promoteSubject"
                       placeholder="e.g. Math, Physics"
                       value={promoteSubject}
                       onChange={(e) => setPromoteSubject(e.target.value)}
-                      className="rounded-2xl h-14 font-bold text-lg border-2 focus-visible:ring-primary/20"
+                      className="rounded-xl h-14 font-bold text-lg border-2 focus-visible:ring-primary/20"
                       autoFocus
                     />
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">Start Time</label>
-                      <Input 
+                      <label htmlFor="promoteStartTime" className="text-xs font-medium text-muted-foreground px-1">Start time</label>
+                      <Input
+                        id="promoteStartTime"
                         type="time"
                         value={promoteStartTime}
                         onChange={(e) => setPromoteStartTime(e.target.value)}
-                        className="rounded-2xl h-14 font-bold text-lg border-2 focus-visible:ring-primary/20"
+                        className="rounded-xl h-14 font-bold text-lg border-2 focus-visible:ring-primary/20"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">End Time</label>
-                      <Input 
+                      <label htmlFor="promoteEndTime" className="text-xs font-medium text-muted-foreground px-1">End time</label>
+                      <Input
+                        id="promoteEndTime"
                         type="time"
                         value={promoteEndTime}
                         onChange={(e) => setPromoteEndTime(e.target.value)}
-                        className="rounded-2xl h-14 font-bold text-lg border-2 focus-visible:ring-primary/20"
+                        className="rounded-xl h-14 font-bold text-lg border-2 focus-visible:ring-primary/20"
                       />
                     </div>
                   </div>
@@ -571,18 +580,18 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
                   </p>
 
                   <div className="flex gap-4 pt-2">
-                    <Button 
-                      type="submit" 
-                      className="flex-1 h-14 rounded-2xl font-black text-lg shadow-lg shadow-primary/20"
+                    <Button
+                      type="submit"
+                      className="flex-1 h-14 rounded-xl font-bold text-lg shadow-lg shadow-primary/20"
                       disabled={!promoteSubject.trim()}
                     >
                       Promote!
                     </Button>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
+                    <Button
+                      type="button"
+                      variant="outline"
                       onClick={() => setPromoteNote(null)}
-                      className="h-14 px-8 rounded-2xl font-bold"
+                      className="h-14 px-8 rounded-xl font-bold"
                     >
                       Cancel
                     </Button>
@@ -605,22 +614,22 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
               className="bg-card border border-border shadow-2xl rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden"
             >
               <div className="p-8 pb-4 shrink-0 flex items-center justify-between border-b border-border/40">
-                <h2 className="text-2xl font-heading font-black flex items-center gap-2 text-blue-600">
+                <h2 className="text-2xl font-heading font-bold flex items-center gap-2 text-blue-600">
                   <Wand2 className="w-6 h-6" /> Magic Organization Plan
                 </h2>
-                <Button variant="ghost" size="icon" onClick={() => setAiPlan(null)} className="rounded-full">
+                <Button variant="ghost" size="icon" onClick={() => setAiPlan(null)} aria-label="Close" className="rounded-full">
                   <X className="w-5 h-5" />
                 </Button>
               </div>
-              
+
               <div className="p-8 overflow-y-auto custom-scrollbar flex-1 prose prose-sm max-w-none dark:prose-invert">
                 <ReactMarkdown>{aiPlan}</ReactMarkdown>
               </div>
-              
+
               <div className="p-6 shrink-0 border-t border-border/40 bg-muted/30 flex justify-end">
-                <Button 
+                <Button
                   onClick={() => setAiPlan(null)}
-                  className="rounded-2xl font-bold h-12 px-8"
+                  className="rounded-xl font-bold h-12 px-8"
                 >
                   Got it, thanks!
                 </Button>

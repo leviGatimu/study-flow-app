@@ -360,14 +360,14 @@ export function TutorHub({ module }: { module: any }) {
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       
       {/* Simple Header */}
-      <header className="px-6 md:px-10 h-16 border-b border-border bg-card flex items-center justify-between sticky top-0 z-50">
+      <header className="px-6 md:px-10 h-16 border-b border-border bg-card flex items-center justify-between sticky top-0 z-30">
          <div className="flex items-center gap-4">
             <Button asChild variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted transition-all">
-               <Link href="/tutor"><ChevronLeft className="w-4 h-4" /></Link>
+               <Link href="/tutor" aria-label="Back to quiz library"><ChevronLeft className="w-4 h-4" /></Link>
             </Button>
             <div className="h-4 w-px bg-border hidden md:block" />
             <div className="flex items-center gap-3">
-               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
+               <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
                   {module.subject}
                </span>
                <h1 className="text-sm font-bold tracking-tight truncate max-w-[200px] sm:max-w-md">{module.title}</h1>
@@ -385,7 +385,7 @@ export function TutorHub({ module }: { module: any }) {
           
         {/* TABS SELECTOR (Only in History Mode) */}
         {mode === 'history' && (
-          <div className="border-b border-border bg-card shadow-sm sticky top-16 z-40">
+          <div className="border-b border-border bg-card shadow-sm sticky top-16 z-20">
             <div className="max-w-4xl mx-auto flex gap-6 px-6 md:px-10">
               <button 
                 onClick={() => setSubTab('quiz')}
@@ -479,19 +479,19 @@ export function TutorHub({ module }: { module: any }) {
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                   <Card className="p-6 rounded-xl border-border/60 flex flex-col justify-between shadow-sm">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Total Cards</span>
+                    <span className="text-xs font-medium text-muted-foreground">Total cards</span>
                     <span className="text-4xl font-heading font-black mt-2 text-foreground">{localFlashcards.length}</span>
                   </Card>
-                  
+
                   <Card className="p-6 rounded-xl border-border/60 flex flex-col justify-between bg-primary/5 border-primary/20 shadow-sm">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-primary">Due for Review</span>
+                    <span className="text-xs font-medium text-primary">Due for review</span>
                     <span className="text-4xl font-heading font-black mt-2 text-primary">
                       {localFlashcards.filter((fc: any) => !fc.nextReviewDate || new Date(fc.nextReviewDate) <= new Date()).length}
                     </span>
                   </Card>
 
                   <Card className="p-6 rounded-xl border-border/60 flex flex-col justify-between shadow-sm">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Next Scheduled Review</span>
+                    <span className="text-xs font-medium text-muted-foreground">Next scheduled review</span>
                     <span className="text-sm font-semibold mt-2 text-foreground truncate">
                       {(() => {
                         const sortedReviews = [...localFlashcards]
@@ -549,13 +549,13 @@ export function TutorHub({ module }: { module: any }) {
                           </div>
                           <div className="flex flex-col items-end gap-1.5 shrink-0 text-right">
                             {isDue ? (
-                              <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full">Due</span>
+                              <span className="text-xs font-medium px-2.5 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full">Due</span>
                             ) : (
-                              <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 bg-muted text-muted-foreground border rounded-full">
+                              <span className="text-xs font-medium px-2.5 py-1 bg-muted text-muted-foreground border rounded-full">
                                 Review: {format(new Date(fc.nextReviewDate), "MMM d")}
                               </span>
                             )}
-                            <span className="text-[9px] font-bold text-muted-foreground/60">Interval: {fc.interval || 0}d</span>
+                            <span className="text-xs font-bold text-muted-foreground/60">Interval: {fc.interval || 0}d</span>
                           </div>
                         </div>
                       );
@@ -601,7 +601,7 @@ export function TutorHub({ module }: { module: any }) {
                                 isIntermediate ? "bg-orange-500/10 border-orange-500/20 text-orange-600" :
                                 "bg-destructive/10 border-destructive/20 text-destructive"
                             )}>
-                                <span className="text-[10px] font-bold uppercase tracking-wider">Score</span>
+                                <span className="text-xs font-medium">Score</span>
                                 <span className="text-xl font-black leading-none">{attempt.score}</span>
                             </div>
                             <div>
@@ -631,8 +631,8 @@ export function TutorHub({ module }: { module: any }) {
             {/* Quiz top bar */}
             <div className="flex items-center justify-between px-6 md:px-10 py-3 border-b border-border bg-card/60 backdrop-blur-sm shrink-0">
               <div className="flex items-center gap-3 min-w-0">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-muted px-2.5 py-1 rounded-md truncate max-w-[180px]">{module.subject}</span>
-                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground hidden sm:block">Question {currentQ + 1} / {questions.length}</span>
+                <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-md truncate max-w-[180px]">{module.subject}</span>
+                <span className="text-xs font-medium text-muted-foreground hidden sm:block">Question {currentQ + 1} / {questions.length}</span>
               </div>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="sm" onClick={toggleFs} className="font-bold text-xs gap-2 text-muted-foreground hover:text-foreground">
@@ -660,10 +660,10 @@ export function TutorHub({ module }: { module: any }) {
                   return (
                     <>
                       <div className="space-y-5">
-                        <span className="inline-flex text-[11px] font-black uppercase tracking-widest text-primary bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20">
+                        <span className="inline-flex text-xs font-medium text-primary bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20">
                           {TYPE_LABEL[type] || 'Question'}
                         </span>
-                        <h2 className="text-3xl md:text-5xl font-heading font-black tracking-tight leading-[1.08]">
+                        <h2 className="text-3xl md:text-5xl font-heading font-bold tracking-tight leading-[1.08]">
                           {q.question}
                         </h2>
                         {hints[q.id] && (
@@ -771,20 +771,35 @@ export function TutorHub({ module }: { module: any }) {
                                     const isSel = selectedTerm === t;
                                     const paired = map[t];
                                     return (
-                                      <button
+                                      <div
                                         key={t}
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-pressed={isSel}
+                                        aria-label={`Term: ${t}${paired ? `, matched with ${paired}` : ''}`}
                                         onClick={() => setSelectedTerm(isSel ? null : t)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            setSelectedTerm(isSel ? null : t);
+                                          }
+                                        }}
                                         className={cn(
-                                          "w-full p-5 rounded-2xl border-2 text-left transition-all",
+                                          "w-full p-5 rounded-2xl border-2 text-left transition-all cursor-pointer",
                                           isSel ? "border-primary bg-primary/10 ring-2 ring-primary/20" : paired ? "border-emerald-500/40 bg-emerald-500/5" : "border-border bg-card hover:border-primary/40"
                                         )}
                                       >
                                         <div className="flex items-center justify-between gap-3">
-                                          <span className="text-lg font-black">{t}</span>
+                                          <span className="text-lg font-bold">{t}</span>
                                           {paired && (
-                                            <span onClick={(e) => { e.stopPropagation(); clearMatchTerm(q.id, t, terms); }} className="text-muted-foreground hover:text-destructive cursor-pointer">
+                                            <button
+                                              type="button"
+                                              onClick={(e) => { e.stopPropagation(); clearMatchTerm(q.id, t, terms); }}
+                                              aria-label={`Clear match for ${t}`}
+                                              className="text-muted-foreground hover:text-destructive cursor-pointer"
+                                            >
                                               <XIcon className="w-4 h-4" />
-                                            </span>
+                                            </button>
                                           )}
                                         </div>
                                         {paired ? (
@@ -792,7 +807,7 @@ export function TutorHub({ module }: { module: any }) {
                                         ) : (
                                           <p className="text-xs font-bold text-muted-foreground/60 mt-1.5">{isSel ? "Now pick a definition →" : "Tap to select"}</p>
                                         )}
-                                      </button>
+                                      </div>
                                     );
                                   })}
                                 </div>
@@ -827,7 +842,7 @@ export function TutorHub({ module }: { module: any }) {
                               <p className="text-sm font-bold text-muted-foreground">Arrange in the correct order (top = first).</p>
                               {order.map((it, idx) => (
                                 <div key={it} className="flex items-center gap-4 p-5 rounded-2xl border-2 border-border bg-card">
-                                  <span className="w-8 h-8 rounded-full bg-primary/10 text-primary font-black flex items-center justify-center shrink-0">{idx + 1}</span>
+                                  <span className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center shrink-0">{idx + 1}</span>
                                   <span className="flex-1 text-lg font-bold">{it}</span>
                                   <div className="flex flex-col gap-1">
                                     <button onClick={() => moveOrderItem(q, idx, -1)} disabled={idx === 0} className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"><ArrowUp className="w-4 h-4" /></button>
@@ -909,7 +924,7 @@ export function TutorHub({ module }: { module: any }) {
                   latestFeedback.overallScore >= 50 ? "border-orange-500 text-orange-600" : 
                   "border-destructive text-destructive"
                 )}>
-                    <span className="text-[10px] font-bold uppercase tracking-wider mb-[-4px]">Score</span>
+                    <span className="text-xs font-medium mb-[-4px]">Score</span>
                     <span className="text-5xl font-black">{latestFeedback.overallScore}%</span>
                 </div>
                 
@@ -963,7 +978,7 @@ export function TutorHub({ module }: { module: any }) {
                           <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
                               {/* Student Answer */}
                               <div className="space-y-2">
-                                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Your Answer</p>
+                                <p className="text-xs font-medium text-muted-foreground">Your answer</p>
                                 <div className="p-4 bg-muted/40 rounded-lg text-sm text-foreground/90 whitespace-pre-wrap">
                                     {f.studentAnswer || <span className="italic text-muted-foreground">No answer provided.</span>}
                                 </div>
@@ -971,8 +986,8 @@ export function TutorHub({ module }: { module: any }) {
                               
                               {/* AI Feedback */}
                               <div className="space-y-2">
-                                <p className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                                  <BrainCircuit className="w-3.5 h-3.5" /> AI Feedback
+                                <p className="text-xs font-medium text-primary flex items-center gap-1.5">
+                                  <BrainCircuit className="w-3.5 h-3.5" /> AI feedback
                                 </p>
                                 <div className="p-4 bg-primary/5 rounded-lg border border-primary/10 text-sm text-foreground/90 whitespace-pre-wrap">
                                     {f.aiFeedback}
@@ -997,24 +1012,33 @@ export function TutorHub({ module }: { module: any }) {
                 <div className="w-full max-w-xl flex flex-col items-center space-y-8">
                   {/* Card count/progress indicator */}
                   <div className="text-center space-y-1">
-                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                    <p className="text-xs font-medium text-muted-foreground">
                       Flashcard {currentFcIndex + 1} of {activeReviewDeck.length}
                     </p>
-                    <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">{studyAll ? "Studying All Cards" : "Reviewing Due Cards"}</p>
+                    <p className="text-xs font-medium text-primary">{studyAll ? "Studying all cards" : "Reviewing due cards"}</p>
                   </div>
 
                   {/* 3D Flip Card */}
-                  <div 
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label={isFcCardFlipped ? "Flip card back to the question" : "Reveal the answer"}
                     onClick={() => setIsFcCardFlipped(!isFcCardFlipped)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setIsFcCardFlipped(!isFcCardFlipped);
+                      }
+                    }}
                     className={cn(
                       "flip-card w-full h-[320px] cursor-pointer relative",
                       isFcCardFlipped && "flipped"
                     )}
                   >
-                    <div className="flip-card-inner w-full h-full shadow-xl rounded-3xl transition-transform duration-500">
+                    <div className="flip-card-inner w-full h-full shadow-xl rounded-2xl transition-transform duration-500">
                       {/* Front Side */}
                       <Card className="flip-card-front absolute inset-0 p-8 flex flex-col items-center justify-center text-center border-border/60 bg-card">
-                        <div className="absolute top-4 left-4 text-[10px] font-bold text-muted-foreground/45 uppercase tracking-widest">Question / Concept</div>
+                        <div className="absolute top-4 left-4 text-xs font-medium text-muted-foreground/45">Question / Concept</div>
                         <p className="text-xl font-heading font-bold text-foreground leading-snug max-w-md">
                           {activeReviewDeck[currentFcIndex]?.front}
                         </p>
@@ -1023,11 +1047,11 @@ export function TutorHub({ module }: { module: any }) {
 
                       {/* Back Side */}
                       <Card className="flip-card-back absolute inset-0 p-8 flex flex-col items-center justify-center text-center border-primary/30 bg-primary/5">
-                        <div className="absolute top-4 left-4 text-[10px] font-bold text-primary/45 uppercase tracking-widest">Answer / Definition</div>
+                        <div className="absolute top-4 left-4 text-xs font-medium text-primary/45">Answer / Definition</div>
                         <p className="text-lg font-medium text-foreground leading-relaxed max-w-md">
                           {activeReviewDeck[currentFcIndex]?.back}
                         </p>
-                        <span className="absolute bottom-6 text-[10px] font-bold text-muted-foreground">Click to flip back</span>
+                        <span className="absolute bottom-6 text-xs font-bold text-muted-foreground">Click to flip back</span>
                       </Card>
                     </div>
                   </div>
@@ -1043,34 +1067,34 @@ export function TutorHub({ module }: { module: any }) {
                       </Button>
                     ) : (
                       <div className="grid grid-cols-4 gap-3 w-full">
-                        <Button 
+                        <Button
                           onClick={() => handleRateFlashcard(1)}
                           variant="destructive"
                           className="h-14 rounded-xl font-bold text-xs flex flex-col gap-0.5 cursor-pointer"
                         >
                           <span>Again</span>
-                          <span className="text-[9px] font-normal opacity-85">Forgot</span>
+                          <span className="text-xs font-normal opacity-85">Forgot</span>
                         </Button>
-                        <Button 
+                        <Button
                           onClick={() => handleRateFlashcard(3)}
-                          className="h-14 rounded-xl font-bold text-xs bg-orange-500 hover:bg-orange-600 text-white flex flex-col gap-0.5 cursor-pointer"
+                          className="h-14 rounded-xl font-bold text-xs bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/20 flex flex-col gap-0.5 cursor-pointer"
                         >
                           <span>Hard</span>
-                          <span className="text-[9px] font-normal opacity-85">Struggled</span>
+                          <span className="text-xs font-normal opacity-85">Struggled</span>
                         </Button>
-                        <Button 
+                        <Button
                           onClick={() => handleRateFlashcard(4)}
-                          className="h-14 rounded-xl font-bold text-xs bg-blue-500 hover:bg-blue-600 text-white flex flex-col gap-0.5 cursor-pointer"
+                          className="h-14 rounded-xl font-bold text-xs flex flex-col gap-0.5 cursor-pointer"
                         >
                           <span>Good</span>
-                          <span className="text-[9px] font-normal opacity-85">Recalled</span>
+                          <span className="text-xs font-normal opacity-85">Recalled</span>
                         </Button>
-                        <Button 
+                        <Button
                           onClick={() => handleRateFlashcard(5)}
-                          className="h-14 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-600 text-white flex flex-col gap-0.5 cursor-pointer"
+                          className="h-14 rounded-xl font-bold text-xs bg-success text-success-foreground hover:bg-success/90 flex flex-col gap-0.5 cursor-pointer"
                         >
                           <span>Easy</span>
-                          <span className="text-[9px] font-normal opacity-85">Instant</span>
+                          <span className="text-xs font-normal opacity-85">Instant</span>
                         </Button>
                       </div>
                     )}
@@ -1083,7 +1107,7 @@ export function TutorHub({ module }: { module: any }) {
                     <Award className="w-10 h-10" />
                   </div>
                   <div className="space-y-2">
-                    <h2 className="text-3xl font-heading font-black tracking-tight text-foreground">Session Complete!</h2>
+                    <h2 className="text-3xl font-heading font-bold tracking-tight text-foreground">Session Complete!</h2>
                     <p className="text-sm text-muted-foreground font-medium">You reviewed all target flashcards in this session.</p>
                   </div>
                   <Card className="p-6 border border-border/60 rounded-2xl bg-card shadow-sm">

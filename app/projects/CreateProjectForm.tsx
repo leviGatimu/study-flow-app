@@ -28,28 +28,30 @@ export function CreateProjectForm() {
   return (
     <form action={handleSubmit} className="space-y-6 mt-4">
       <div className="space-y-2">
-        <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Project Title</Label>
-        <Input 
-          name="title" 
-          placeholder="e.g., E-Commerce App" 
-          className="h-14 rounded-2xl bg-muted/30 border-border/60 font-bold px-6"
+        <Label htmlFor="project-title" className="text-xs font-medium text-muted-foreground ml-1">Project title</Label>
+        <Input
+          id="project-title"
+          name="title"
+          placeholder="e.g., E-Commerce App"
+          className="h-14 rounded-xl bg-muted/30 border-border/60 font-bold px-6"
           required
         />
       </div>
       <div className="space-y-2">
-        <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Description (Optional)</Label>
-        <Textarea 
-          name="description" 
-          placeholder="What are you building?" 
-          className="min-h-[120px] rounded-3xl bg-muted/30 border-border/60 font-medium p-6 resize-none"
+        <Label htmlFor="project-description" className="text-xs font-medium text-muted-foreground ml-1">Description (optional)</Label>
+        <Textarea
+          id="project-description"
+          name="description"
+          placeholder="What are you building?"
+          className="min-h-[120px] rounded-xl bg-muted/30 border-border/60 font-medium p-6 resize-none"
         />
       </div>
-      <Button 
-        type="submit" 
+      <Button
+        type="submit"
         disabled={isPending}
-        className="w-full h-16 rounded-xl font-heading font-black text-lg shadow-xl shadow-primary/20"
+        className="w-full h-14 rounded-xl font-heading font-bold text-lg shadow-xl shadow-primary/20"
       >
-        {isPending ? 'CREATING...' : 'CREATE PROJECT'}
+        {isPending ? 'Creating...' : 'Create project'}
       </Button>
     </form>
   );

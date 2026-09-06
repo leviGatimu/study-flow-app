@@ -545,24 +545,18 @@ Today's date is ${new Date().toDateString()}.`
     >
       {/* Drag Overlay */}
       {isDragging && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm border-4 border-dashed border-primary/50 m-4 rounded-4xl">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm border-4 border-dashed border-primary/50 m-4 rounded-2xl">
           <div className="text-center pointer-events-none">
             <div className="p-6 bg-primary/10 rounded-full inline-block mb-4 shadow-lg shadow-primary/20">
               <ImageIcon className="h-12 w-12 text-primary" />
             </div>
-            <h3 className="text-2xl md:text-3xl font-heading font-black tracking-tight text-foreground">Drop files to analyze</h3>
+            <h3 className="text-2xl md:text-3xl font-heading font-bold tracking-tight text-foreground">Drop files to analyze</h3>
             <p className="text-muted-foreground mt-2 font-medium">Supports Images, PDFs, and Word Documents</p>
           </div>
         </div>
       )}
 
-      {/* Immersive Background */}
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-primary/5 blur-[120px] rounded-full mix-blend-screen animate-pulse duration-[8000ms]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-500/5 blur-[120px] rounded-full mix-blend-screen animate-pulse duration-[6000ms]" />
-      </div>
-
-      <input 
+      <input
         type="file" 
         ref={fileInputRef} 
         onChange={handleFileChange} 
@@ -583,7 +577,7 @@ Today's date is ${new Date().toDateString()}.`
               <div className={cn("p-2 text-white rounded-xl shadow-lg transition-colors duration-500", activePersonaObj.avatarBg)}>
                 <BrainCircuit className="h-5 w-5" />
               </div>
-              <h2 className="font-heading font-black tracking-tight whitespace-nowrap text-lg">AI Companion</h2>
+              <h2 className="font-heading font-bold tracking-tight whitespace-nowrap text-lg">AI Companion</h2>
             </motion.div>
           ) : (
             <div className="w-full flex justify-center">
@@ -611,7 +605,7 @@ Today's date is ${new Date().toDateString()}.`
 
           <div className="flex-1 overflow-y-auto custom-scrollbar px-3 space-y-1">
             {isSidebarExpanded && sessions.length > 0 && (
-              <h3 className="mb-2 mt-4 px-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Chat History</h3>
+              <h3 className="mb-2 mt-4 px-3 text-xs font-medium text-muted-foreground/60">Chat history</h3>
             )}
             <AnimatePresence>
               {sessions.map((session) => (
@@ -636,10 +630,21 @@ Today's date is ${new Date().toDateString()}.`
                     {isSidebarExpanded && <span className="truncate text-sm font-semibold">{session.title}</span>}
                   </div>
                   {isSidebarExpanded && (
-                    <Trash2
-                      className="h-4 w-4 shrink-0 opacity-0 transition-all duration-200 hover:text-destructive group-hover:opacity-100"
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Delete chat "${session.title}"`}
                       onClick={(event) => handleDeleteSession(event, session.id)}
-                    />
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleDeleteSession(event as unknown as React.MouseEvent, session.id);
+                        }
+                      }}
+                      className="shrink-0 opacity-0 transition-opacity duration-200 hover:text-destructive group-hover:opacity-100"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </span>
                   )}
                 </motion.button>
               ))}
@@ -656,18 +661,18 @@ Today's date is ${new Date().toDateString()}.`
               </DialogTrigger>
               <DialogContent className="sm:max-w-md rounded-2xl border-border bg-card p-8 shadow-2xl">
                 <DialogHeader className="mb-6">
-                  <DialogTitle className="text-2xl font-heading font-black">API Key Settings</DialogTitle>
+                  <DialogTitle className="text-2xl font-heading font-bold">API Key Settings</DialogTitle>
                 </DialogHeader>
                 <form action={handleUpdateKey} className="space-y-6">
                   <div className="space-y-3">
-                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">API Key</Label>
+                    <Label htmlFor="ai-settings-key" className="text-xs font-medium text-muted-foreground">API key</Label>
                     <div className="relative">
                       <KeyRound className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                      <Input name="key" type="password" placeholder="Enter your API key..." className="h-14 pl-12 rounded-2xl bg-muted/30 border-border/40 font-mono focus:border-primary" required />
+                      <Input id="ai-settings-key" name="key" type="password" placeholder="Enter your API key..." className="h-14 pl-12 rounded-xl bg-muted/30 border-border/40 font-mono focus:border-primary" required />
                     </div>
                     {settingsError ? <p className="text-sm text-destructive font-bold">{settingsError}</p> : null}
                   </div>
-                  <Button type="submit" className="h-14 w-full rounded-2xl font-black text-lg shadow-lg">Save Settings</Button>
+                  <Button type="submit" className="h-14 w-full rounded-xl font-bold text-lg shadow-lg">Save Settings</Button>
                 </form>
               </DialogContent>
              </Dialog>
@@ -694,31 +699,33 @@ Today's date is ${new Date().toDateString()}.`
             <header className="absolute top-0 w-full h-20 flex items-center justify-between px-6 pointer-events-none z-30">
               <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-background/40 backdrop-blur-xl border border-border/40 shadow-sm pointer-events-auto">
                  <div className={cn("w-2.5 h-2.5 rounded-full transition-colors duration-500 animate-pulse", isOffline ? "bg-amber-500" : activePersonaObj.avatarBg)} />
-                 <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{aiStatus}</span>
+                 <span className="text-xs font-medium text-muted-foreground">{aiStatus}</span>
               </div>
-              
+
               <div className="flex items-center gap-2 pointer-events-auto">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
                   className={cn(
                     "rounded-xl border border-border/40 bg-background/40 backdrop-blur-xl shadow-sm text-muted-foreground hover:text-foreground transition-all duration-300",
                     isSidebarExpanded ? "text-primary border-primary/20" : ""
                   )}
+                  aria-label="Toggle chat sessions"
                   title="Toggle Chat Sessions"
                 >
                   <MessageSquare className="h-4 w-4" />
                 </Button>
 
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
                   className={cn(
                     "rounded-xl border border-border/40 bg-background/40 backdrop-blur-xl shadow-sm text-muted-foreground hover:text-foreground transition-all duration-300",
                     isRightPanelOpen ? "text-primary border-primary/20" : ""
                   )}
+                  aria-label="Toggle companion dashboard"
                   title="Toggle Companion Dashboard"
                 >
                   <Layout className="h-4 w-4" />
@@ -746,7 +753,7 @@ Today's date is ${new Date().toDateString()}.`
                         {/* Avatar */}
                         <div className="shrink-0 mt-1">
                            {message.role === "user" ? (
-                              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground text-background font-black text-xs shadow-md">
+                              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground text-background font-bold text-xs shadow-md">
                                 {userName.slice(0, 1).toUpperCase()}
                               </div>
                            ) : (
@@ -822,7 +829,7 @@ Today's date is ${new Date().toDateString()}.`
                       animate={{ opacity: 1, y: -40, scale: 1.1 }}
                       exit={{ opacity: 0, y: -80, scale: 0.9 }}
                       transition={{ duration: 1.2, ease: "easeOut" }}
-                      className="absolute z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-yellow-500 text-black font-black text-xs shadow-xl shadow-yellow-500/20"
+                      className="absolute z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-yellow-500 text-black font-bold text-xs shadow-xl shadow-yellow-500/20"
                     >
                       <Award className="w-3.5 h-3.5" />
                       +{xp.amount} XP
@@ -837,7 +844,7 @@ Today's date is ${new Date().toDateString()}.`
                     animate={{ opacity: 1, y: 0 }}
                     className="text-center mb-10 w-full"
                   >
-                    <h2 className="text-4xl md:text-5xl lg:text-6xl font-heading font-black tracking-tighter mb-4 text-foreground">
+                    <h2 className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold tracking-tighter mb-4 text-foreground">
                       Hello, <span className="text-primary">{userName}</span>.
                     </h2>
                     <p className="text-lg md:text-xl text-muted-foreground font-medium max-w-2xl mx-auto">
@@ -864,12 +871,13 @@ Today's date is ${new Date().toDateString()}.`
                              ) : (
                                <div className="flex flex-col items-center gap-1 p-2 text-center">
                                  {file.type === 'pdf' ? <FileText className="w-6 h-6 text-primary" /> : <FileIcon className="w-6 h-6 text-primary" />}
-                                 <span className="text-[10px] font-bold truncate w-full px-1">{file.name}</span>
+                                 <span className="text-xs font-bold truncate w-full px-1">{file.name}</span>
                                 </div>
                              )}
-                             <button 
+                             <button
                                 type="button"
                                 onClick={() => removePendingFile(i)}
+                                aria-label={`Remove ${file.name}`}
                                 className="absolute top-1 right-1 bg-background/80 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                              >
                                 <X className="w-3 h-3" />
@@ -895,12 +903,13 @@ Today's date is ${new Date().toDateString()}.`
                       className="relative flex items-end gap-3"
                     >
                       <div className="shrink-0 p-1">
-                         <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon" 
+                         <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => fileInputRef.current?.click()}
-                            className="rounded-2xl h-10 w-10 text-muted-foreground hover:text-foreground"
+                            aria-label="Attach a file"
+                            className="rounded-xl h-10 w-10 text-muted-foreground hover:text-foreground"
                          >
                             <ImageIcon className="h-5 w-5" />
                          </Button>
@@ -925,11 +934,12 @@ Today's date is ${new Date().toDateString()}.`
                         disabled={isLoading}
                       />
                       <div className="shrink-0 p-1">
-                        <Button 
-                          type="submit" 
-                          size="icon" 
+                        <Button
+                          type="submit"
+                          size="icon"
+                          aria-label="Send message"
                           className={cn(
-                            "rounded-2xl shadow-lg transition-all disabled:opacity-50 disabled: duration-200",
+                            "rounded-xl shadow-lg transition-all disabled:opacity-50 disabled: duration-200",
                             hasMessages ? "h-10 w-10 bg-foreground text-background" : "h-12 w-12 bg-primary text-primary-foreground shadow-primary/20",
                             activePersonaObj.id !== 'default' && activePersonaObj.avatarBg
                           )}
@@ -963,7 +973,7 @@ Today's date is ${new Date().toDateString()}.`
                               <Icon className="h-4.5 w-4.5" />
                             </div>
                             <div>
-                              <p className="font-heading font-black text-foreground mb-1 group-hover:text-primary transition-colors text-sm">{prompt.label}</p>
+                              <p className="font-heading font-bold text-foreground mb-1 group-hover:text-primary transition-colors text-sm">{prompt.label}</p>
                               <p className="text-xs font-medium text-muted-foreground leading-relaxed line-clamp-2">{prompt.text}</p>
                             </div>
                           </div>
@@ -989,8 +999,8 @@ Today's date is ${new Date().toDateString()}.`
                 {/* Stats Dashboard header */}
                 <div className="p-4 h-20 border-b border-border/40 shrink-0 flex items-center justify-between">
                   <div className="flex flex-col">
-                    <h3 className="font-heading font-black tracking-tight text-sm uppercase text-muted-foreground">Study Dashboard</h3>
-                    <span className="text-[10px] text-muted-foreground/70">Real-time status sync</span>
+                    <h3 className="font-heading font-bold tracking-tight text-sm text-foreground">Study dashboard</h3>
+                    <span className="text-xs text-muted-foreground/70">Real-time status sync</span>
                   </div>
                   {/* Streak widget */}
                   <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 font-black text-xs animate-pulse">
@@ -1010,9 +1020,9 @@ Today's date is ${new Date().toDateString()}.`
                         <Award className="w-5 h-5" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[10px] font-black uppercase text-muted-foreground tracking-wider">Study Level</span>
+                        <span className="text-xs font-medium text-muted-foreground">Study level</span>
                         <div className="flex items-baseline gap-2">
-                          <span className="text-xl font-heading font-black text-foreground">Level {userProgress?.level || 1}</span>
+                          <span className="text-xl font-heading font-bold text-foreground">Level {userProgress?.level || 1}</span>
                           <span className={cn("text-xs font-semibold", getRank(userProgress?.level || 1).color)}>
                             {getRank(userProgress?.level || 1).name}
                           </span>
@@ -1022,8 +1032,8 @@ Today's date is ${new Date().toDateString()}.`
 
                     {/* Progress Bar */}
                     <div className="mt-4 space-y-1">
-                      <div className="flex justify-between text-[10px] font-black uppercase tracking-wider text-muted-foreground">
-                        <span>XP Progress</span>
+                      <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                        <span>XP progress</span>
                         <span>{userProgress?.xp || 0} / {xpNeeded} XP</span>
                       </div>
                       <div className="w-full h-2 bg-muted/60 rounded-full overflow-hidden relative border border-border/20">
@@ -1044,7 +1054,7 @@ Today's date is ${new Date().toDateString()}.`
 
                   {/* Persona Selector Section */}
                   <div className="space-y-3">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 px-1">Select Study Persona</h4>
+                    <h4 className="text-xs font-medium text-muted-foreground/60 px-1">Select study persona</h4>
                     <div className="grid grid-cols-1 gap-2">
                       {PERSONAS.map((p) => {
                         const isActive = p.id === persona;
@@ -1064,14 +1074,14 @@ Today's date is ${new Date().toDateString()}.`
                             </div>
                             <div className="flex-1 overflow-hidden">
                               <div className="flex justify-between items-center">
-                                <span className="text-sm font-black text-foreground">{p.name}</span>
+                                <span className="text-sm font-bold text-foreground">{p.name}</span>
                                 {isActive && (
-                                  <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white text-black">
+                                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-foreground text-background">
                                     Active
                                   </span>
                                 )}
                               </div>
-                              <p className="text-[10px] text-muted-foreground leading-normal mt-0.5 font-medium line-clamp-2">{p.desc}</p>
+                              <p className="text-xs text-muted-foreground leading-normal mt-0.5 font-medium line-clamp-2">{p.desc}</p>
                             </div>
                           </button>
                         );
@@ -1082,17 +1092,17 @@ Today's date is ${new Date().toDateString()}.`
                   {/* Today's Tasks List */}
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center justify-between px-1">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Today's Tasks</h4>
-                      <span className="text-[10px] font-semibold text-muted-foreground/80">
+                      <h4 className="text-xs font-medium text-muted-foreground/60">Today's tasks</h4>
+                      <span className="text-xs font-semibold text-muted-foreground/80">
                         {tasks.filter(t => t.isDone).length}/{tasks.length} Completed
                       </span>
                     </div>
 
                     <div className="space-y-2">
                       {tasks.length === 0 ? (
-                        <div className="text-center p-6 border border-dashed border-border/40 rounded-2xl bg-card/20">
-                          <p className="text-xs text-muted-foreground font-medium">No tasks scheduled for today.</p>
-                          <Button variant="link" onClick={() => handleSend("Suggest a study plan for today.")} className="text-xs text-primary font-black mt-2 p-0 h-auto">Ask for a plan</Button>
+                        <div className="text-sm font-medium text-muted-foreground text-center py-6 bg-muted/50 rounded-2xl border border-border/50">
+                          <p>No tasks scheduled for today.</p>
+                          <Button variant="link" onClick={() => handleSend("Suggest a study plan for today.")} className="text-xs text-primary font-bold mt-2 p-0 h-auto">Ask for a plan</Button>
                         </div>
                       ) : (
                         tasks.map((task) => (
@@ -1119,12 +1129,12 @@ Today's date is ${new Date().toDateString()}.`
 
                             <div className="flex-1 min-w-0">
                               <span className={cn(
-                                "text-xs font-black block truncate text-foreground",
+                                "text-xs font-bold block truncate text-foreground",
                                 task.isDone ? "line-through text-muted-foreground" : ""
                               )}>
                                 {task.subject}
                               </span>
-                              <span className="text-[10px] text-muted-foreground font-medium block">
+                              <span className="text-xs text-muted-foreground font-medium block">
                                 {task.startTime} - {task.endTime} • {task.type === "REVISION" ? "Revision" : "Homework"}
                               </span>
                             </div>
@@ -1133,6 +1143,7 @@ Today's date is ${new Date().toDateString()}.`
                               <button
                                 type="button"
                                 onClick={() => seedPromptForTask(task)}
+                                aria-label={`Import ${task.subject} into chat`}
                                 className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground shrink-0"
                                 title="Import target into chat"
                               >

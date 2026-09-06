@@ -23,21 +23,21 @@ export function ProjectList({ initialProjects }: { initialProjects: ProjectWithD
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-      {projects.map((project, idx) => (
-        <div 
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      {projects.map((project) => (
+        <div
           key={project.id}
-          className="group relative bg-card border border-border/60 rounded-4xl p-8 shadow-sm hover:shadow-2xl transition-all duration-500"
-          style={{ animationDelay: `${idx * 100}ms` }}
+          className="group relative bg-card border border-border/60 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow duration-200"
         >
           {/* Header */}
-          <div className="flex justify-between items-start mb-8">
-             <div className="p-4 bg-primary/10 rounded-2xl text-primary transition-transform duration-500">
+          <div className="flex justify-between items-start mb-6">
+             <div className="p-4 bg-primary/10 rounded-xl text-primary">
                <Rocket className="w-8 h-8" />
              </div>
-             <Button 
-               variant="ghost" 
-               size="icon" 
+             <Button
+               variant="ghost"
+               size="icon"
+               aria-label={`Delete project "${project.title}"`}
                className="rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
                onClick={() => handleDelete(project.id)}
              >
@@ -47,15 +47,15 @@ export function ProjectList({ initialProjects }: { initialProjects: ProjectWithD
 
           {/* Title & Stats */}
           <div className="space-y-4 mb-8">
-            <h3 className="text-3xl font-heading font-black tracking-tight group-hover:text-primary transition-colors">
+            <h3 className="text-2xl font-heading font-bold tracking-tight group-hover:text-primary transition-colors">
               {project.title}
             </h3>
             <div className="flex items-center gap-6">
-               <div className="flex items-center gap-2 text-muted-foreground font-bold text-xs uppercase tracking-widest">
+               <div className="flex items-center gap-2 text-muted-foreground font-medium text-xs">
                  <Calendar className="w-3.5 h-3.5" />
                  {format(new Date(project.createdAt), 'MMM yyyy')}
                </div>
-               <div className="flex items-center gap-2 text-muted-foreground font-bold text-xs uppercase tracking-widest">
+               <div className="flex items-center gap-2 text-muted-foreground font-medium text-xs">
                  <Clock className="w-3.5 h-3.5" />
                  {project.docs.length} Docs
                </div>
@@ -65,21 +65,21 @@ export function ProjectList({ initialProjects }: { initialProjects: ProjectWithD
           {/* Progress Section */}
           <div className="space-y-4 mb-10">
             <div className="flex justify-between items-end">
-               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Execution Level</span>
-               <span className="text-sm font-black text-primary">{project.progress}%</span>
+               <span className="text-xs font-medium text-muted-foreground">Execution level</span>
+               <span className="text-sm font-bold text-primary">{project.progress}%</span>
             </div>
             <Progress value={project.progress} className="h-3 rounded-full bg-muted shadow-inner" />
           </div>
 
           {/* Footer Action */}
           <Link href={`/projects/${project.id}`}>
-            <Button className="w-full h-14 rounded-xl bg-foreground text-background font-bold gap-3 hover:bg-primary hover:text-white transition-all shadow-lg hover:shadow-primary/20 group/btn">
-              OPEN PROJECT <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+            <Button className="w-full h-12 rounded-xl font-bold gap-2">
+              Open project <ArrowRight className="w-4 h-4" />
             </Button>
           </Link>
 
           {project.progress === 100 && (
-            <div className="absolute -top-3 -right-3 bg-success text-white p-2 rounded-xl shadow-xl border-4 border-background scale-110">
+            <div className="absolute -top-3 -right-3 bg-success text-success-foreground p-2 rounded-xl shadow-md border-2 border-background">
               <CheckCircle2 className="w-5 h-5" />
             </div>
           )}

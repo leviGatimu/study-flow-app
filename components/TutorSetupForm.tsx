@@ -50,7 +50,7 @@ export function TutorSetupForm({ subjects }: { subjects: string[] }) {
 
       {/* Question Style chooser */}
       <div className="space-y-3">
-        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Question Style</Label>
+        <span className="text-xs font-medium text-muted-foreground px-1">Question style</span>
         <div className="grid grid-cols-2 gap-3">
           {QUIZ_TYPES.map((t) => {
             const Icon = t.icon;
@@ -74,8 +74,8 @@ export function TutorSetupForm({ subjects }: { subjects: string[] }) {
                   <Icon className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className={cn("text-sm font-black leading-tight", active ? "text-primary" : "text-foreground")}>{t.label}</p>
-                  <p className="text-[10px] font-bold text-muted-foreground truncate">{t.desc}</p>
+                  <p className={cn("text-sm font-bold leading-tight", active ? "text-primary" : "text-foreground")}>{t.label}</p>
+                  <p className="text-xs font-bold text-muted-foreground truncate">{t.desc}</p>
                 </div>
               </button>
             );
@@ -85,9 +85,9 @@ export function TutorSetupForm({ subjects }: { subjects: string[] }) {
 
       {/* Subject Selection */}
       <div className="space-y-2">
-        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Target Subject</Label>
+        <Label htmlFor="subject-select" className="text-xs font-medium text-muted-foreground px-1">Target subject</Label>
         <Select name="subject" required>
-          <SelectTrigger className="h-14 rounded-2xl border-2 font-bold text-lg focus:ring-primary/20 transition-all hover:border-primary/30">
+          <SelectTrigger id="subject-select" className="h-14 rounded-2xl border-2 font-bold text-lg focus:ring-primary/20 transition-all hover:border-primary/30">
             <SelectValue placeholder="Select subject..." />
           </SelectTrigger>
           <SelectContent className="rounded-2xl border-2 p-2">
@@ -102,9 +102,9 @@ export function TutorSetupForm({ subjects }: { subjects: string[] }) {
 
       {/* Question Count Selection */}
       <div className="space-y-2">
-        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Number of Questions</Label>
+        <Label htmlFor="questionCount-select" className="text-xs font-medium text-muted-foreground px-1">Number of questions</Label>
         <Select name="questionCount" required defaultValue="10">
-          <SelectTrigger className="h-14 rounded-2xl border-2 font-bold text-lg focus:ring-primary/20 transition-all hover:border-primary/30">
+          <SelectTrigger id="questionCount-select" className="h-14 rounded-2xl border-2 font-bold text-lg focus:ring-primary/20 transition-all hover:border-primary/30">
             <SelectValue placeholder="Select number of questions..." />
           </SelectTrigger>
           <SelectContent className="rounded-2xl border-2 p-2">
@@ -118,7 +118,7 @@ export function TutorSetupForm({ subjects }: { subjects: string[] }) {
 
       {/* File Upload Zone */}
       <div className="space-y-2">
-        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Lecture Document</Label>
+        <Label htmlFor="pdf-upload-notion" className="text-xs font-medium text-muted-foreground px-1">Lecture document</Label>
         <div className="relative">
           <input 
             name="file" 
@@ -149,7 +149,7 @@ export function TutorSetupForm({ subjects }: { subjects: string[] }) {
                   </div>
                   <div className="text-left">
                     <p className="text-sm font-bold text-foreground max-w-[180px] truncate">{selectedFile.name}</p>
-                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">Ready for analysis</p>
+                    <p className="text-xs font-medium text-primary">Ready for analysis</p>
                   </div>
                </motion.div>
             ) : (
@@ -157,8 +157,8 @@ export function TutorSetupForm({ subjects }: { subjects: string[] }) {
                   <div className="h-12 w-12 rounded-xl bg-background border flex items-center justify-center mb-3">
                      <Upload className="w-5 h-5 text-muted-foreground" />
                   </div>
-                  <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Upload Document</p>
-                  <p className="text-[10px] text-muted-foreground/60 mt-1 font-bold">PDF OR TEXT UP TO 10MB</p>
+                  <p className="text-sm font-bold text-muted-foreground">Upload document</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1 font-bold">PDF or text, up to 10MB</p>
                </div>
             )}
           </label>
@@ -167,8 +167,9 @@ export function TutorSetupForm({ subjects }: { subjects: string[] }) {
 
       {/* Custom Focus Instructions */}
       <div className="space-y-2">
-        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Study Focus / Instructions (Optional)</Label>
-        <textarea 
+        <Label htmlFor="instructions" className="text-xs font-medium text-muted-foreground px-1">Study focus / instructions (optional)</Label>
+        <textarea
+          id="instructions"
           name="instructions"
           placeholder="e.g. Focus on technical definitions, ask about the history section, or make it extra challenging."
           className="w-full min-h-[100px] rounded-2xl border-2 bg-transparent p-4 font-bold text-sm focus:ring-primary/20 transition-all hover:border-primary/30 outline-none resize-none"
@@ -193,7 +194,7 @@ export function TutorSetupForm({ subjects }: { subjects: string[] }) {
         type="submit" 
         disabled={loading || !selectedFile}
         className={cn(
-          "w-full h-16 rounded-xl font-black text-xl shadow-xl transition-all",
+          "w-full h-16 rounded-xl font-bold text-xl shadow-xl transition-all",
           loading 
             ? "bg-muted cursor-wait" 
             : "bg-primary shadow-primary/20 hover:shadow-primary/40"
@@ -212,8 +213,8 @@ export function TutorSetupForm({ subjects }: { subjects: string[] }) {
         )}
       </Button>
 
-      <p className="text-[9px] font-black text-center text-muted-foreground uppercase tracking-[0.2em] opacity-40">
-        AI-Powered Academic Workspace
+      <p className="text-xs font-medium text-center text-muted-foreground opacity-40">
+        AI-powered academic workspace
       </p>
     </form>
   );

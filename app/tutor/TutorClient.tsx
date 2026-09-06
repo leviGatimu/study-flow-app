@@ -50,18 +50,18 @@ export default function TutorClient() {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-24">
-      
+    <div className="min-h-screen bg-background text-foreground pb-24 animate-in fade-in duration-500">
+
       {/* Premium, Clean Header */}
-      <header className="px-6 md:px-12 py-12 md:py-16 border-b border-border/40 bg-card/10 relative overflow-hidden">
+      <header className="px-4 md:px-8 py-12 md:py-16 border-b border-border/40 bg-card/10 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('/textures/cubes.png')] opacity-[0.02] dark:opacity-[0.04] pointer-events-none" />
-        
-        <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row md:items-end justify-between gap-8 relative z-10">
+
+        <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-end justify-between gap-8 relative z-10">
           <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-primary/10 text-[10px] font-black uppercase tracking-[0.2em] text-primary border border-primary/20">
-              <Brain className="w-3 h-3" /> Cognitive Training
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-primary/10 text-xs font-medium text-primary border border-primary/20">
+              <Brain className="w-3 h-3" /> Cognitive training
             </div>
-            <h1 className="text-5xl md:text-6xl font-heading font-black tracking-tighter">AI Quiz Generator</h1>
+            <h1 className="text-5xl md:text-6xl font-heading font-bold tracking-tighter">AI Quiz Generator</h1>
             <p className="text-lg text-muted-foreground font-medium max-w-xl">
               Upload your documents and let the AI generate interactive, targeted practice quizzes to test your mastery.
             </p>
@@ -77,18 +77,19 @@ export default function TutorClient() {
         </div>
       </header>
 
-      <div className="max-w-[1400px] mx-auto px-6 md:px-12 mt-12 space-y-8">
+      <div className="max-w-[1600px] mx-auto px-4 md:px-8 mt-12 space-y-8">
         
         {/* Search & Filter Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-           <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+           <h2 className="text-2xl font-heading font-bold tracking-tight text-foreground flex items-center gap-2">
              <LayoutGrid className="w-5 h-5 text-muted-foreground" /> Your Quiz Library
            </h2>
            <div className="relative w-full sm:w-80">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Search by title or subject..."
+                aria-label="Search quizzes by title or subject"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full h-12 pl-11 pr-4 bg-muted/40 border border-border/60 rounded-full text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/60"
@@ -128,21 +129,13 @@ export default function TutorClient() {
                const s = module.score || 0;
                return (
                  <Link key={module.id} href={`/tutor/${module.id}`} className="block group">
-                   <Card className="relative h-full overflow-hidden rounded-2xl border-border/60 bg-card p-6 transition-all duration-300 hover:shadow-[0_24px_60px_-20px_rgba(0,0,0,0.45)] hover:border-primary/40 flex flex-col">
-
-                     {/* Score-tinted ambient glow */}
-                     <div className={cn(
-                       "absolute -top-16 -right-16 w-44 h-44 rounded-full blur-3xl -z-0 opacity-20 group-hover:opacity-45 transition-opacity duration-500",
-                       scored && s >= 80 ? "bg-emerald-500" :
-                       scored && s >= 50 ? "bg-orange-500" :
-                       scored ? "bg-destructive" : "bg-primary"
-                     )} />
+                   <Card className="relative h-full overflow-hidden rounded-2xl border-border/60 bg-card p-6 transition-shadow duration-200 hover:shadow-md hover:border-primary/40 flex flex-col">
 
                      <div className="relative z-10 flex items-center justify-between mb-5">
-                       <span className="inline-flex text-[10px] font-black uppercase tracking-wider text-muted-foreground px-3 py-1 bg-muted rounded-full truncate max-w-[60%]">
+                       <span className="inline-flex text-xs font-medium text-muted-foreground px-3 py-1 bg-muted rounded-full truncate max-w-[60%]">
                           {module.subject}
                        </span>
-                       <span className="text-[10px] font-bold text-muted-foreground/70">
+                       <span className="text-xs font-bold text-muted-foreground/70">
                           {format(new Date(module.createdAt), "MMM d, yyyy")}
                        </span>
                      </div>
@@ -155,24 +148,24 @@ export default function TutorClient() {
                             <Sparkles className="w-6 h-6" />
                           </div>
                         )}
-                        <h3 className="text-xl font-heading font-black text-foreground line-clamp-3 leading-snug group-hover:text-primary transition-colors pt-0.5">
+                        <h3 className="text-xl font-heading font-bold text-foreground line-clamp-3 leading-snug group-hover:text-primary transition-colors pt-0.5">
                            {module.title}
                         </h3>
                      </div>
 
                      <div className="relative z-10 mt-6 pt-4 border-t border-border/40 flex items-center justify-between">
-                        <div className="flex items-center gap-3 text-[11px] font-bold text-muted-foreground">
+                        <div className="flex items-center gap-3 text-xs font-bold text-muted-foreground">
                            <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> {count} Qs</span>
                            {scored && (
                              <span className={cn(
-                               "flex items-center gap-1 uppercase tracking-wider",
+                               "flex items-center gap-1",
                                s >= 80 ? "text-emerald-600" : s >= 50 ? "text-orange-600" : "text-destructive"
                              )}>
                                <Trophy className="w-3.5 h-3.5" /> {s >= 80 ? "Mastered" : s >= 50 ? "Intermediate" : "Review"}
                              </span>
                            )}
                         </div>
-                        <span className="flex items-center gap-1.5 text-xs font-black text-primary group-hover:gap-2.5 transition-all">
+                        <span className="flex items-center gap-1.5 text-xs font-bold text-primary group-hover:gap-2.5 transition-all">
                            {scored ? "Review" : "Start"} <ArrowRight className="w-4 h-4" />
                         </span>
                      </div>
