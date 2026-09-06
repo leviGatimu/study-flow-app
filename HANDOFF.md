@@ -1,13 +1,19 @@
 # HANDOFF
 
 ## Current Task
-Restructuring Study Flow around an academic-year model, and toning the UI down
-from "too much" to a calm, consistent tool. Planning agreed with Levi on
-2026-08-28; no code written yet.
+Closing out every loose end left by Phases 0-8 (2026-09-06). Phase 9 is the
+only phase not started, deliberately - Levi chose "loose ends first, then
+decide" rather than starting the sync engine.
 
 ## Status
-Phases 0-7 COMPLETE. Phase 8 written but not enabled. Phase 9 not started.
-Typecheck clean; both build targets compile (`next build` and `build:desktop`).
+Phases 0-7 COMPLETE. Phase 8 code COMPLETE, still not enabled (needs Levi's
+keys). Phase 9 not started. Typecheck clean; `next build` passes.
+
+EVERYTHING IS NOW COMMITTED, on branch `phase-0-8-restructure`. Before
+2026-09-06 all of it - seven phases - existed only as uncommitted working-tree
+changes, one bad checkout from being lost. `main` is still at a353a40 (June),
+untouched, so nothing deploys differently until you merge:
+    git checkout main && git merge --ff-only phase-0-8-restructure
 
 ## WHEN YOU WAKE UP - three things need YOU, not me
 
@@ -15,15 +21,25 @@ Typecheck clean; both build targets compile (`next build` and `build:desktop`).
    measured 828ms per query vs 165ms on 5432. Local .env is already switched.
    The deployed site is still 5x slower than it needs to be.
 
-2. UPLOADS ARE STILL BROKEN IN PRODUCTION. The switchable backend is written;
-   it needs a Supabase Storage bucket and three env vars ON VERCEL ONLY.
-   See "Phase 8" below and .env.example. Files already uploaded there are gone.
+2. UPLOADS: create the bucket. Supabase dashboard -> Storage -> New bucket,
+   named "uploads", LEAVE IT PRIVATE (the app serves files through its own
+   authenticated /uploads route now, so a public bucket would only expose your
+   report cards). Then set the three variables from .env.example on VERCEL
+   ONLY. I could not create the bucket - writing to the production Supabase
+   project was blocked by the permission classifier. Files uploaded to Vercel
+   before this are gone regardless.
 
-3. THE DESKTOP APP HAS NEVER BEEN LAUNCHED FROM THIS TREE. The SQLite build
-   compiles and the migration SQL is verified against a real SQLite file, but
-   the Electron runtime path is unproven. Run `npm run build:desktop` then
-   `npm run pack` in desktop-app/ and actually open it before trusting it.
-   Remember to run `npm run db:postgres` afterwards or `npm run dev` breaks.
+3. THE ELECTRON APP HAS STILL NEVER BEEN LAUNCHED. What IS now verified is
+   everything below Electron: the SQLite migrations apply cleanly (29 tables,
+   31 indexes), and the real Prisma client does real app-shaped work against a
+   real SQLite file - Class/Term/Subject/Template/Exam/Task with nested
+   relations and groupBy. What remains unproven is only electron-builder
+   packaging and the window launch.
+   I could NOT run it because YOUR DEV SERVER WAS RUNNING: `npm run db:sqlite`
+   dies with EPERM while node holds the Prisma query-engine DLL, and switching
+   the client to SQLite would have broken the app you had open. Stop the dev
+   server first, then `npm run build:desktop`, `npm run pack` in desktop-app/,
+   open it - and run `npm run db:postgres` afterwards or `npm run dev` breaks.
 
 ## What NOT to do next without discussing it
 Phase 9 (two-way sync) is the one piece that cannot ship half-built - a partial
@@ -176,8 +192,12 @@ without it; users click through a warning.
 - [x] Phase 5 - Exam rework
 - [x] Phase 6 - Desktop SQLite build (speed done separately, see PERFORMANCE)
 - [x] Phase 7 - Desktop auto-updates (wired; NOT run through a real release yet)
-- [~] Phase 8 - Uploads: backend written and switchable; NOT ENABLED (needs Levi's keys)
+- [x] Phase 8 - Uploads: backend complete and unified behind one authenticated
+      route; NOT ENABLED (needs the bucket + Levi's keys on Vercel)
 - [ ] Phase 9 - Two-way sync engine
+- [x] 2026-09-06 - Loose-end pass: committed everything, repaired both migration
+      histories, fixed migrate-on-launch, the tour, reminders, subject
+      deletes-on-read, search, and desktop upload durability. See below.
 
 ## What Phases 0 + 1 actually changed
 
@@ -858,6 +878,96 @@ Rebuilt app/page.tsx on the primitives. 8 panels -> 4.
     lines and heavily wired to FocusContext). They are the next candidates if
     the page still feels inconsistent.
 
+## Loose-end pass (2026-09-06) - seven real bugs, six found by RUNNING things
+
+The lesson of this session: every one of these was in code that had been read,
+reviewed and described as done. They were found by executing the tooling, not
+by reading it. `prisma migrate status`, a scratch SQLite file, and one count()
+against production each found a bug that inspection had missed.
+
+### Migration history was broken in four ways
+  1. prisma/migrations/migration_lock.toml still said provider="sqlite", left
+     over from the SQLite era. EVERY `prisma migrate` command against Postgres
+     failed with P3019. The previous session's claim that "migrate deploy is
+     safe again" was never tested.
+  2. schema.prisma declared 2 indexes; the database had 20. The Phase 2 and
+     Phase 5 migrations created 18 indexes on classId/termId/subjectId/examId
+     that were never written back into the schema, so the next `db push` or
+     `migrate dev` would have silently dropped every one of them - on exactly
+     the columns every scoped query filters by.
+  3. The Phase 5 exam change existed in the database but as NO migration file,
+     so replaying prisma/migrations on a fresh database produced an app with no
+     exam columns. Reconstructed as a guarded additive migration + down.sql and
+     marked applied on production (the columns were already there).
+  4. prisma/migrations-sqlite had no migration_lock.toml at all, and was
+     missing the same 18 indexes.
+  Both histories now diff clean. `prisma migrate status` says "up to date".
+
+### migrate-on-launch applied NOTHING (the worst one)
+lib/sqlite-migrate.ts split each migration on ";" and then dropped any chunk
+starting with "--". Prisma prefixes every statement with its own
+"-- CreateTable" comment, so ALL 42 statements were discarded - and the
+migration was then recorded as applied. A fresh desktop install would have got
+an empty database that could never repair itself, and this is the code path
+Phase 7's auto-update depends on.
+Now strips comment lines from inside each chunk instead. VERIFIED by applying
+both migrations to a scratch file: 60 statements, 29 tables, 31 indexes, and a
+Task -> ExamEvent -> Subject join returning a score.
+
+### Search returned nothing for lowercase queries
+`contains` is case-SENSITIVE on Postgres. Measured against production data:
+"physics" 0 results, "Physics" 42. "javascript" 0, "Javascript" 13. The same
+query on the desktop build returns everything, because SQLite's LIKE folds
+case - same app, same data, different answers.
+containsInsensitive() in lib/prisma.ts switches on the provider. Confirmed
+empirically that SQLite REJECTS mode:'insensitive' outright, which is why it
+cannot simply always be passed. Search also gained subjects, exams, resources,
+subject notes and marks, and now excludes soft-deleted rows.
+
+### Desktop uploads would have been destroyed by every auto-update
+Uploads went to process.cwd()/public/uploads, which on the packaged app is
+INSIDE the installation directory. electron-updater's NSIS installer removes
+that directory before writing the new version. Phase 7 turned auto-updates on,
+so this was armed but had not yet fired.
+Uploads now honour UPLOADS_DIR, which main.js points at <userData>/uploads -
+beside the database, which already survives updates and is backed up.
+That put them outside public/, so app/uploads/[...path]/route.ts serves them.
+
+### Phase 8 changed shape: the bucket should be PRIVATE
+saveUpload used to return an absolute PUBLIC Supabase URL, which would have
+made every report card and proof of work readable by anyone with the link.
+Both backends now return "/uploads/<name>" and are served by that same
+authenticated route, so the bucket stays private and the stored value does not
+change meaning when the backend is switched. deleteUpload no longer routes by
+URL shape (both shapes are identical now) - it removes from the bucket and then
+also tries the disk, covering records written before storage was switched on.
+
+### The onboarding tour had rotted worse than recorded
+Five of eight anchored steps pointed at selectors that no longer existed, not
+three: `streak` and `command-palette` had gone too. A missing anchor degrades
+to a centred card, which is exactly why nobody noticed.
+Also fixed: an element hidden at the current breakpoint still answers
+querySelector but measures 0x0 at 0,0, so a step anchored to the rail or the
+stat strip would have spotlighted the top-left corner on a phone.
+The rail now DERIVES its anchor from the section name, so renaming a section
+cannot orphan a step again, and a missing anchor warns in development.
+
+### ReminderManager: was dead code, now shipped
+Mounting it as it stood would have popped an "Enable Reminders?" modal on first
+paint and, because a dismissed prompt leaves permission at "default", on every
+page load after that - and called getTodayTasks() every 30 seconds, 120
+database round trips an hour per tab against a database 165ms away.
+Now a bell in the header: permission requested only from a click, choice
+persisted, task list fetched on enable and refreshed every ten minutes, the
+30-second tick reading only memory. Honours the user's timezone, not the
+browser's.
+
+### getSubjects() no longer deletes
+The destructive pass is now repairSubjects(), a "Tidy up" button on /subjects.
+getSubjects() still seeds an empty table but deletes nothing. This was the
+open item flagged for Levi last session, and it mattered before sync: a
+delete-on-read propagates to every device.
+
 ## Working Notes
 
 (Phase 0 is done; the rules below are the ones to keep enforcing as pages move
@@ -902,6 +1012,11 @@ Scoping map for Phase 1:
 - Windows: prisma generate throws EPERM while the dev server is running.
 
 ## Recently Completed
+- Loose-end pass: migration histories repaired, migrate-on-launch fixed,
+  search made case-insensitive, tour re-anchored, reminders shipped, subject
+  deletes-on-read removed, desktop uploads moved out of the install dir
+  (2026-09-06)
+- Phases 0-8 committed for the first time, on branch phase-0-8-restructure
 - Landing page components + redesigned welcome screen (a353a40)
 - Per-user timezone setting; new users start with a fresh schedule (20daf98)
 - Delayed-appearance skeleton loaders and Vercel deploy config (9e6c080)

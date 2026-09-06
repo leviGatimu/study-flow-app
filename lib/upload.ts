@@ -100,8 +100,35 @@ async function getStorageClient(cfg: NonNullable<ReturnType<typeof storageConfig
 }
 
 /**
+ * Fetch a stored object out of Supabase Storage. Used by the /uploads route,
+ * which is what serves these files now that the bucket is private.
+ */
+export async function readRemoteUpload(
+  filename: string
+): Promise<{ body: ArrayBuffer; contentType: string | null } | null> {
+  const cfg = storageConfig();
+  if (!cfg) return null;
+
+  const safe = basename(filename);
+  if (!safe) return null;
+
+  const supabase = await getStorageClient(cfg);
+  const { data, error } = await supabase.storage.from(cfg.bucket).download(safe);
+  if (error || !data) return null;
+
+  return { body: await data.arrayBuffer(), contentType: data.type || null };
+}
+
+/**
  * Validate an uploaded file and persist it. Returns the URL to store on the
- * record — a "/uploads/..." path on disk, or a public object URL in storage.
+ * record: always "/uploads/<filename>", whichever backend holds the bytes.
+ *
+ * That URL used to be an absolute public Supabase URL when storage was on,
+ * which would have made every report card and proof of work readable by
+ * anyone who had the link. Both backends now go through the app's own
+ * authenticated /uploads route, so the bucket can stay private and the stored
+ * value does not change meaning when the backend is switched.
+ *
  * Throws on validation failure so callers can surface a friendly message.
  */
 export async function saveUpload(file: File, prefix = 'upload', maxBytes = MAX_UPLOAD_BYTES): Promise<string> {
@@ -134,8 +161,7 @@ export async function saveUpload(file: File, prefix = 'upload', maxBytes = MAX_U
       });
     if (error) throw new Error(`Upload failed: ${error.message}`);
 
-    const { data } = supabase.storage.from(cfg.bucket).getPublicUrl(filename);
-    return data.publicUrl;
+    return `/uploads/${filename}`;
   }
 
   // The directory may not exist yet on a fresh desktop profile, where it lives
@@ -156,16 +182,17 @@ export async function deleteUpload(url: string | null | undefined): Promise<void
   if (!filename) return;
 
   const cfg = storageConfig();
-  // A record may hold a disk path from before storage was switched on, so route
-  // by the URL's shape rather than by the current configuration alone.
-  if (cfg && !url.startsWith('/uploads/')) {
+  // Both backends now store the same "/uploads/<name>" shape, so the URL no
+  // longer says where the bytes are. When storage is configured, remove the
+  // object AND fall through to the disk: a record written before storage was
+  // switched on still has its file sitting on the local filesystem.
+  if (cfg) {
     try {
       const supabase = await getStorageClient(cfg);
       await supabase.storage.from(cfg.bucket).remove([filename]);
     } catch {
       // Already gone, or storage unreachable; nothing useful to do here.
     }
-    return;
   }
 
   try {

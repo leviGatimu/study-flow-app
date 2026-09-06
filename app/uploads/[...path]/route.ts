@@ -3,7 +3,7 @@ import { stat } from 'fs/promises';
 import { Readable } from 'stream';
 
 import { getUserId } from '@/lib/auth';
-import { resolveUploadPath } from '@/lib/upload';
+import { resolveUploadPath, readRemoteUpload } from '@/lib/upload';
 
 /**
  * Serve a locally-stored upload.
@@ -40,6 +40,11 @@ const MIME: Record<string, string> = {
   opus: 'audio/opus',
 };
 
+function mimeFor(name: string): string {
+  const ext = name.split('.').pop()?.toLowerCase() ?? '';
+  return MIME[ext] ?? 'application/octet-stream';
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ path: string[] }> }
@@ -49,8 +54,24 @@ export async function GET(
 
   const { path } = await params;
   // Uploads are stored flat, so only the last segment can name a real file.
+  const name = path[path.length - 1] ?? '';
+
+  // Object storage (the web build, once configured) holds the bytes remotely.
+  const remote = await readRemoteUpload(name);
+  if (remote) {
+    return new Response(remote.body, {
+      headers: {
+        'Content-Type': remote.contentType ?? mimeFor(name),
+        'Content-Length': String(remote.body.byteLength),
+        'Cache-Control': 'private, max-age=31536000, immutable',
+        'Content-Disposition': 'inline',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    });
+  }
+
   // resolveUploadPath rejects anything that escapes the uploads directory.
-  const full = resolveUploadPath(path[path.length - 1] ?? '');
+  const full = resolveUploadPath(name);
   if (!full) return new Response('Not found', { status: 404 });
 
   let size: number;
@@ -62,12 +83,11 @@ export async function GET(
     return new Response('Not found', { status: 404 });
   }
 
-  const ext = full.split('.').pop()?.toLowerCase() ?? '';
   const stream = Readable.toWeb(createReadStream(full)) as ReadableStream;
 
   return new Response(stream, {
     headers: {
-      'Content-Type': MIME[ext] ?? 'application/octet-stream',
+      'Content-Type': mimeFor(full),
       'Content-Length': String(size),
       // The filename carries a timestamp and content never changes in place,
       // so this is safe to cache hard. Private: it is the user's own file.
