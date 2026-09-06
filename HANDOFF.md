@@ -41,11 +41,67 @@ untouched, so nothing deploys differently until you merge:
    server first, then `npm run build:desktop`, `npm run pack` in desktop-app/,
    open it - and run `npm run db:postgres` afterwards or `npm run dev` breaks.
 
-## What NOT to do next without discussing it
-Phase 9 (two-way sync) is the one piece that cannot ship half-built - a partial
-sync engine corrupts data rather than merely annoying you. The foundations are
-all in place (stable cuids, updatedAt/deletedAt everywhere, and file storage
-once #2 is done). Start it as a deliberate piece of work, not as a follow-on.
+## PHASE 9 - two-way sync. STARTED 2026-09-06 (Levi approved Stage 0)
+
+Still true: a partial sync engine corrupts data rather than merely annoying
+you. It ships when it is proven, not when it runs once.
+
+### The plan changed after reading the schema. Read this before writing code.
+
+The original plan was "outbox + cursor + last-writer-wins on updatedAt". That
+is the right TRANSPORT but it cannot work on this schema, for two reasons that
+are already verified:
+
+1. SEVEN OF THE NINE UNIQUE CONSTRAINTS ARE NATURAL KEYS THAT BOTH DEVICES CAN
+   CREATE INDEPENDENTLY:
+       Subject(userId,name)         DailySummary(userId,date)
+       MarkedDay(userId,date)       StudioNote(userId,subject)
+       SubjectGoal(userId,subject)  WeeklySummary(userId,startDate,endDate)
+       Term(classId,index)
+   Each device mints its own cuid, so LWW-by-id never realises the two rows are
+   the same thing, and the merge dies on a constraint violation.
+   Subject is the CERTAIN one: seedSubjectsIfEmpty() populates the subject list
+   on a fresh desktop install BEFORE it has ever synced, so first sync collides
+   every single time.
+
+2. TASKS WOULD DUPLICATE SILENTLY, WHICH IS WORSE THAN FAILING.
+   ensureTasksGenerated (lib/actions.ts) dedupes on `templateId|dateKey` in
+   APPLICATION CODE - there is no unique constraint on Task. Two devices each
+   generate today's blocks, neither sees the other's, nothing errors, and the
+   user opens the app to find the whole timetable twice.
+
+So the first real deliverable is NOT the engine. It is an IDENTITY MAP: a
+per-model declaration of what makes a row "the same row". Everything else
+depends on it.
+
+### Sequencing (each stage leaves the tree shippable)
+
+  Stage 0  Two-device test harness + the identity map
+  Stage 1  Outbox - capture writes via a Prisma client extension in
+           lib/prisma.ts, so hundreds of call sites stay untouched
+  Stage 2  /api/sync push+pull, cursor on SERVER time (client clocks lie)
+  Stage 3  Merge rules: LWW, isDone=true beats false, natural-key
+           reconciliation, deletion propagation
+  Stage 4  Offline auth (desktop must open on a plane)
+  Stage 5  File sync - now cheap, both backends already speak one URL shape
+
+Rough cost: 4-7 focused sessions, dominated by Stage 0 and Stage 3, NOT by the
+API. Sync bugs only appear when two real devices diverge and reconnect.
+
+### Two decisions taken deliberately
+
+BUILD THE HARNESS BEFORE THE ENGINE. Simulating two devices against one server
+is the only way to prove this does not eat data, and it is what makes every
+later stage fast to verify. Writing merge logic first means writing it blind.
+
+DO NOT SYNC ALL 28 MODELS IN V1. Sync the academic core - Class, Term, Task,
+ScheduleTemplate, Subject, exams, homework, marks. Leave AI chat history and
+the music library local-only. That removes most of the large-file transfer and
+a third of the risk, and the scope can widen later. Syncing everything on day
+one is how this becomes a data-loss story.
+  CAVEAT to check in Stage 0: a SYNCED row pointing at a LOCAL-ONLY row is a
+  dangling reference. Task.examId is exactly that shape, so ExamEvent probably
+  has to be in the synced core rather than out of it.
 
 ## The agreed model
 
