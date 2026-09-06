@@ -1,4 +1,5 @@
-const { app, BrowserWindow, Menu, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, screen, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
@@ -56,30 +57,106 @@ function getFreePort(startPort) {
   });
 }
 
+/**
+ * Keep a rolling set of backups of the user's database.
+ *
+ * Taken BEFORE the server boots, because booting is what applies pending
+ * migrations. If a migration ever fails half way, the pre-migration copy is
+ * sitting right next to the live file.
+ */
+function backupDatabase() {
+  try {
+    if (!fs.existsSync(dbPath)) return;
+
+    const dir = path.join(appDataPath, 'backups');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    fs.copyFileSync(dbPath, path.join(dir, `database-${stamp}.db`));
+
+    // Keep the 10 most recent; old ones are not worth the disk.
+    const backups = fs
+      .readdirSync(dir)
+      .filter((f) => f.startsWith('database-') && f.endsWith('.db'))
+      .sort()
+      .reverse();
+    for (const stale of backups.slice(10)) {
+      try { fs.unlinkSync(path.join(dir, stale)); } catch (e) {}
+    }
+    log(`Backup written (${backups.length + 1} kept).`);
+  } catch (err) {
+    // A failed backup must not stop the app launching.
+    log(`WARNING: could not back up the database: ${err.message}`);
+  }
+}
+
 async function setupDatabase() {
-  log(`Initializing system storage...`);
+  log('Initializing system storage...');
   if (!fs.existsSync(appDataPath)) {
     fs.mkdirSync(appDataPath, { recursive: true });
   }
 
-  // CRITICAL: Copy template if database is missing
   if (!fs.existsSync(dbPath)) {
-    log(`Database not found. Provisioning fresh environment...`);
-    const templatePath = path.join(rootDir, 'prisma', 'dev.db');
-    if (fs.existsSync(templatePath)) {
-      try {
-        fs.copyFileSync(templatePath, dbPath);
-        log(`Environment provisioned successfully.`);
-      } catch (err) {
-        log(`ERROR: Failed to provision database: ${err.message}`);
-      }
-    } else {
-      log(`WARNING: Template not found at ${templatePath}`);
-    }
+    // Start EMPTY and let the migrations build the schema on first boot.
+    //
+    // This used to copy prisma/dev.db as a template, which shipped whatever
+    // schema that file happened to have - it was from the original two-table
+    // SQLite era and is years out of date. Migrations are now the only thing
+    // that defines the schema, so a fresh install and an upgraded install end
+    // up byte-for-byte identical.
+    log('No database found. A fresh one will be created by the migrations.');
+    fs.writeFileSync(dbPath, '');
+  } else {
+    backupDatabase();
   }
 
   process.env.DATABASE_URL = `file:${dbPath}`;
-  log(`Database locked at: ${dbPath}`);
+  log(`Database ready at: ${dbPath}`);
+}
+
+/**
+ * Check GitHub Releases for a newer build.
+ *
+ * Updates download in the background and are installed when the user agrees to
+ * restart - never mid-session, which would kill a focus timer.
+ *
+ * Only runs in a packaged app: in development there is no update feed and
+ * electron-updater throws.
+ */
+function setupAutoUpdates() {
+  if (!isPackaged) {
+    log('Dev build: skipping update check.');
+    return;
+  }
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.logger = { info: log, warn: log, error: log, debug: () => {} };
+
+  autoUpdater.on('update-available', (info) => log(`Update available: ${info.version}`));
+  autoUpdater.on('update-not-available', () => log('Already up to date.'));
+  autoUpdater.on('error', (err) => log(`Update check failed: ${err && err.message}`));
+
+  autoUpdater.on('update-downloaded', async (info) => {
+    log(`Update ${info.version} downloaded.`);
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      buttons: ['Restart now', 'Later'],
+      defaultId: 0,
+      cancelId: 1,
+      title: 'Update ready',
+      message: `Study Flow ${info.version} is ready to install.`,
+      detail: 'Your work is saved. The app will reopen where you left off.',
+    });
+    // "Later" still installs on quit, so the update is never lost.
+    if (response === 0) autoUpdater.quitAndInstall();
+  });
+
+  autoUpdater.checkForUpdates().catch((e) => log(`Update check error: ${e.message}`));
+  // And once every six hours for long-running sessions.
+  setInterval(() => {
+    autoUpdater.checkForUpdates().catch(() => {});
+  }, 6 * 60 * 60 * 1000);
 }
 
 async function createWindow() {
@@ -101,7 +178,10 @@ async function createWindow() {
     }
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    setupAutoUpdates();
+  });
 
   // Capture client-side console messages (errors, warnings, logs)
   mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
