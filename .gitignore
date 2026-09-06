@@ -89,3 +89,6 @@ desktop-app/err.txt
 
 # auto-downloaded Claude Code skill packages (local tooling, not project code)
 .claude/
+
+# derived schema for the sync harness (regenerate with npm run test:sync:setup)
+prisma/schema.sqlite-test.prisma
