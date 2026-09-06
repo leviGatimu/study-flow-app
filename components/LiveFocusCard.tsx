@@ -242,7 +242,7 @@ export function LiveFocusCard({
         checked={isTimetableSynced}
         onCheckedChange={handleToggleSync}
         aria-label="Follow your school timetable"
-        className="data-[state=checked]:bg-white data-[state=unchecked]:bg-white/25 [&_[data-slot=switch-thumb]]:bg-emerald-700"
+        className="data-[state=checked]:bg-white data-[state=unchecked]:bg-white/25 [&_[data-slot=switch-thumb]]:bg-primary"
       />
     </label>
   );
@@ -499,7 +499,7 @@ export function LiveFocusCard({
 
     return (
       <motion.div key="fallback-break" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full">
-        <Card className="relative overflow-hidden rounded-2xl border-none bg-gradient-to-br from-emerald-500 to-emerald-600 p-6 text-white shadow-sm md:p-8">
+        <Card className="relative overflow-hidden rounded-2xl border-none bg-gradient-to-br from-primary to-primary/85 p-6 text-primary-foreground shadow-sm md:p-8">
           {/* Header: what state you are in, and the one control that belongs here. */}
           <div className="flex items-center justify-between gap-4">
              <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium text-white">
