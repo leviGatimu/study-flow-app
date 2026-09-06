@@ -929,7 +929,7 @@ Today's date is ${new Date().toDateString()}.`
                           type="submit" 
                           size="icon" 
                           className={cn(
-                            "rounded-2xl shadow-lg transition-all disabled:opacity-50 disabled:hover:scale-100 duration-200",
+                            "rounded-2xl shadow-lg transition-all disabled:opacity-50 disabled: duration-200",
                             hasMessages ? "h-10 w-10 bg-foreground text-background" : "h-12 w-12 bg-primary text-primary-foreground shadow-primary/20",
                             activePersonaObj.id !== 'default' && activePersonaObj.avatarBg
                           )}
@@ -956,7 +956,7 @@ Today's date is ${new Date().toDateString()}.`
                         <button
                           key={prompt.label}
                           onClick={() => handleSend(prompt.text)}
-                          className="group relative overflow-hidden rounded-xl border border-border/40 bg-card/60 p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-primary/30"
+                          className="group relative overflow-hidden rounded-xl border border-border/40 bg-card/60 p-4 text-left transition-all duration-300 hover:shadow-xl hover:border-primary/30"
                         >
                           <div className="flex items-start gap-3.5">
                             <div className="p-2 bg-muted rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-colors text-muted-foreground">

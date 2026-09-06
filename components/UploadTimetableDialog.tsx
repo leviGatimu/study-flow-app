@@ -136,7 +136,7 @@ export function UploadTimetableDialog() {
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="h-11 px-6 rounded-xl border-border bg-card hover:bg-muted font-bold text-sm gap-2 shadow-sm hover:scale-[1.01] transition-all cursor-pointer"
+          className="h-11 px-6 rounded-xl border-border bg-card hover:bg-muted font-bold text-sm gap-2 shadow-sm transition-all cursor-pointer"
         >
           <Upload className="w-4 h-4" /> Upload Timetable
         </Button>
@@ -339,7 +339,7 @@ export function UploadTimetableDialog() {
                 <Button
                   onClick={handleCommit}
                   disabled={step === 'committing' || plan.exams.length === 0}
-                  className="flex-1 h-11 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-md hover:opacity-90 transition-all active:scale-[0.98] cursor-pointer gap-2"
+                  className="flex-1 h-11 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-md hover:opacity-90 transition-all cursor-pointer gap-2"
                 >
                   {step === 'committing' ? (
                     <>

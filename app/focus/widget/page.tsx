@@ -223,7 +223,7 @@ export default function FocusWidgetPage() {
                     <div className="flex items-center gap-2 shrink-0" style={NO_DRAG}>
                       <button
                         onClick={() => (isPaused ? resumeFocus() : pauseFocus())}
-                        className="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center shadow-xl hover:scale-105 active:scale-95 transition-transform"
+                        className="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center shadow-xl transition-transform"
                         title={isPaused ? 'Resume' : 'Pause'}
                       >
                         {isPaused ? <Play className="w-4.5 h-4.5 fill-current ml-0.5" /> : <Pause className="w-4.5 h-4.5 fill-current" />}

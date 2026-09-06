@@ -92,7 +92,7 @@ export function CreateHomeworkForm({ onSuccess, subjects }: CreateHomeworkFormPr
         />
       </div>
 
-      <Button type="submit" disabled={isPending} className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/95 text-primary-foreground font-black text-base shadow-lg shadow-primary/10 hover:scale-[1.01] transition-all active:scale-[0.99] cursor-pointer gap-2">
+      <Button type="submit" disabled={isPending} className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/95 text-primary-foreground font-black text-base shadow-lg shadow-primary/10 transition-all cursor-pointer gap-2">
         {isPending ? (
           <><Loader2 className="w-5 h-5 animate-spin" /> ADDING...</>
         ) : (

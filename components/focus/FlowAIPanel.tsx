@@ -306,7 +306,7 @@ export function FlowAIPanel({
               onClick={() => fileInputRef.current?.click()}
               className="w-full rounded-2xl border-2 border-dashed border-white/15 hover:border-primary/50 bg-white/[0.03] hover:bg-white/[0.06] transition-all p-10 flex flex-col items-center gap-4 group backdrop-blur-md"
             >
-              <div className="w-16 h-16 rounded-3xl bg-primary/15 border border-primary/25 flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
+              <div className="w-16 h-16 rounded-3xl bg-primary/15 border border-primary/25 flex items-center justify-center text-primary group- transition-transform">
                 {isProcessing ? <Loader2 className="w-7 h-7 animate-spin" /> : <Upload className="w-7 h-7" />}
               </div>
               <div className="text-center">

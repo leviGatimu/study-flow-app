@@ -217,7 +217,7 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
 
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button className="flex-1 h-12 rounded-2xl font-black text-xs gap-2 shadow-md shadow-primary/5 hover:scale-[1.01] transition-all">
+                    <Button className="flex-1 h-12 rounded-2xl font-black text-xs gap-2 shadow-md shadow-primary/5 transition-all">
                       <CheckCircle2 className="w-4 h-4" /> COMPLETE
                     </Button>
                   </DialogTrigger>

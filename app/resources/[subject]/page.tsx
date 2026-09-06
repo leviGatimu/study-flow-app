@@ -43,7 +43,7 @@ export default async function SubjectResourcesPage({ params }: { params: Promise
 
           <div className="flex items-center gap-4">
             <Link href={`/studio/${encodeURIComponent(decodedSubject)}`}>
-               <Button className="h-16 px-8 rounded-xl font-black text-lg gap-3 bg-[#0a0a0a] text-white hover:bg-black shadow-2xl hover:scale-[1.02] transition-all border border-white/10 group">
+               <Button className="h-16 px-8 rounded-xl font-black text-lg gap-3 bg-[#0a0a0a] text-white hover:bg-black shadow-2xl transition-all border border-white/10 group">
                   <Sparkles className="w-6 h-6 text-primary group-hover:rotate-12 transition-transform" />
                   DEEP WORK STUDIO
                </Button>
@@ -138,7 +138,7 @@ export default async function SubjectResourcesPage({ params }: { params: Promise
                  resources.map((res: Resource) => (
                    <div 
                     key={res.id} 
-                    className="group flex items-center justify-between p-6 rounded-2xl border border-border/40 bg-muted/20 hover:bg-white dark:hover:bg-black transition-all hover:shadow-xl hover:-translate-y-1"
+                    className="group flex items-center justify-between p-6 rounded-2xl border border-border/40 bg-muted/20 hover:bg-white dark:hover:bg-black transition-all hover:shadow-xl"
                    >
                      <div className="flex items-center gap-5">
                        <div className={cn(

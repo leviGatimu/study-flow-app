@@ -183,7 +183,7 @@ export function RankRoadmap({ userProgress }: { userProgress: UserProgress }) {
         {/* RPG Profile Character Slab */}
         <Card className="p-8 border-border/40 shadow-xl rounded-2xl bg-card/40 backdrop-blur-xl relative overflow-hidden group">
           {/* Subtle Watermark BG */}
-          <div className="absolute top-0 right-0 p-4 opacity-[0.01] -z-10 translate-x-1/4 -translate-y-1/4 group-hover:scale-105 group-hover:rotate-6 transition-transform duration-1000">
+          <div className="absolute top-0 right-0 p-4 opacity-[0.01] -z-10 translate-x-1/4 -translate-y-1/4 group- group-hover:rotate-6 transition-transform duration-1000">
             <Trophy className="w-64 h-64" />
           </div>
 

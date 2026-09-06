@@ -35,7 +35,7 @@ export function HomeworkList({ homeworks, subjects }: HomeworkListProps) {
 
           <Button 
             onClick={() => setShowAddForm(true)}
-            className="h-16 rounded-2xl font-black px-8 text-base shadow-xl shadow-primary/10 gap-3 hover:scale-[1.02] transition-all cursor-pointer"
+            className="h-16 rounded-2xl font-black px-8 text-base shadow-xl shadow-primary/10 gap-3 transition-all cursor-pointer"
           >
             <Plus className="w-5 h-5" /> ADD NEW HOMEWORK
           </Button>

@@ -128,7 +128,7 @@ export default function TutorClient() {
                const s = module.score || 0;
                return (
                  <Link key={module.id} href={`/tutor/${module.id}`} className="block group">
-                   <Card className="relative h-full overflow-hidden rounded-2xl border-border/60 bg-card p-6 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_24px_60px_-20px_rgba(0,0,0,0.45)] hover:border-primary/40 flex flex-col">
+                   <Card className="relative h-full overflow-hidden rounded-2xl border-border/60 bg-card p-6 transition-all duration-300 hover:shadow-[0_24px_60px_-20px_rgba(0,0,0,0.45)] hover:border-primary/40 flex flex-col">
 
                      {/* Score-tinted ambient glow */}
                      <div className={cn(

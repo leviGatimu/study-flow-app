@@ -27,7 +27,7 @@ export function ProjectList({ initialProjects }: { initialProjects: ProjectWithD
       {projects.map((project, idx) => (
         <div 
           key={project.id}
-          className="group relative bg-card border border-border/60 rounded-4xl p-8 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500"
+          className="group relative bg-card border border-border/60 rounded-4xl p-8 shadow-sm hover:shadow-2xl transition-all duration-500"
           style={{ animationDelay: `${idx * 100}ms` }}
         >
           {/* Header */}

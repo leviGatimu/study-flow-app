@@ -57,7 +57,7 @@ export function ExamCountdown({ events }: { events: ExamEvent[] }) {
       <div className="flex items-center justify-between mb-6 relative z-10">
         <Link href="/exams" className="hover:text-primary transition-colors">
           <h3 className="font-heading font-black text-lg flex items-center gap-2">
-            Upcoming Exams <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+            Upcoming Exams <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-" />
           </h3>
         </Link>
         <Dialog open={open} onOpenChange={setOpen}>

@@ -59,7 +59,7 @@ export default async function ResourcesPage() {
               href={`/resources/${encodeURIComponent(subject.name)}`}
               className="block h-full"
             >
-              <div className="bg-card border border-border/60 p-8 rounded-4xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-500 relative overflow-hidden h-full flex flex-col">
+              <div className="bg-card border border-border/60 p-8 rounded-4xl shadow-sm hover:shadow-xl transition-all duration-500 relative overflow-hidden h-full flex flex-col">
                 {/* Decorative Icon */}
                 <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
                   <BookOpen size={120} />
@@ -69,7 +69,7 @@ export default async function ResourcesPage() {
                   <div className="p-4 bg-primary/10 rounded-xl text-primary group-hover:bg-primary group-hover:text-white transition-all duration-500">
                     <BookOpen className="w-6 h-6" />
                   </div>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                  <ChevronRight className="w-5 h-5 text-muted-foreground group- transition-transform" />
                 </div>
 
                 <h3 className="text-2xl font-heading font-black mb-6 relative z-10 line-clamp-1 group-hover:text-primary transition-colors">

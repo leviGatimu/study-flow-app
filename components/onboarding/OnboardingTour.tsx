@@ -348,7 +348,7 @@ export function OnboardingTour() {
             )}
             <Button
               onClick={next}
-              className="h-11 px-6 rounded-2xl font-black text-sm gap-2 shadow-lg shadow-primary/25 hover:scale-[1.03] transition-transform"
+              className="h-11 px-6 rounded-2xl font-black text-sm gap-2 shadow-lg shadow-primary/25 transition-transform"
             >
               {isLast ? 'Finish 🎉' : isFirst ? 'Start tour' : 'Next'}
               {!isLast && <ArrowRight className="w-4 h-4" />}

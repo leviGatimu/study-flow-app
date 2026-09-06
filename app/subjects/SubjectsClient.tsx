@@ -701,7 +701,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                       setSelectedSubjectId(s.id);
                       setRenameSubjectName(s.name);
                     }}
-                    className="group bg-card border border-border/60 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-primary/20 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[220px]"
+                    className="group bg-card border border-border/60 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[220px]"
                   >
                     <div className="space-y-4">
                       {/* Card Header */}

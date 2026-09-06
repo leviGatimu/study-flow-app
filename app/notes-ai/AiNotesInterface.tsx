@@ -411,7 +411,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                         layoutId={`note-card-${note.id}`}
                         onClick={() => { setSelectedNote(note); setIsCreateMode(false); }}
                         className={cn(
-                          "group p-4 rounded-2xl cursor-pointer transition-all duration-300 relative border flex items-start gap-3.5 select-none active:scale-[0.98]",
+                          "group p-4 rounded-2xl cursor-pointer transition-all duration-300 relative border flex items-start gap-3.5 select-none",
                           isSelected 
                             ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 border-primary/20" 
                             : "border-border/30 hover:bg-muted/50 text-foreground"
@@ -615,7 +615,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
 
                       <Button 
                         onClick={handleGenerateNote}
-                        className="w-full h-12 rounded-xl text-base font-bold shadow-md shadow-primary/10 select-none cursor-pointer active:scale-98 transition-all"
+                        className="w-full h-12 rounded-xl text-base font-bold shadow-md shadow-primary/10 select-none cursor-pointer transition-all"
                       >
                         <Sparkles className="h-5 w-5 mr-2" />
                         Generate AI Notes
@@ -638,7 +638,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                             key={preset.name}
                             onClick={() => setSelectedPreset(preset.name)}
                             className={cn(
-                              "border border-border/40 bg-card/40 backdrop-blur-xl rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:scale-[1.01] hover:shadow-md flex items-start gap-4 select-none relative overflow-hidden",
+                              "border border-border/40 bg-card/40 backdrop-blur-xl rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:shadow-md flex items-start gap-4 select-none relative overflow-hidden",
                               isSelected ? `border-primary bg-primary/5 ring-1 ring-primary/20` : "hover:border-border/80"
                             )}
                           >

@@ -775,7 +775,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                           item.color,
                           accent === item.id 
                             ? "ring-2 ring-offset-2 ring-offset-background ring-foreground scale-110" 
-                            : "opacity-70 group-hover:opacity-100 group-hover:scale-105"
+                            : "opacity-70 group-hover:opacity-100 group-"
                         )}>
                           {accent === item.id && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
                         </div>

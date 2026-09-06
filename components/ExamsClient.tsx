@@ -33,7 +33,7 @@ export function ExamsClient({ events }: { events: any[] }) {
     <div className="flex items-center gap-4">
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button className="h-11 px-6 rounded-xl bg-primary text-primary-foreground hover:opacity-90 font-bold text-sm gap-2 shadow-sm hover:scale-[1.01] transition-all cursor-pointer">
+          <Button className="h-11 px-6 rounded-xl bg-primary text-primary-foreground hover:opacity-90 font-bold text-sm gap-2 shadow-sm transition-all cursor-pointer">
             <Plus className="w-4 h-4" /> Add Exam
           </Button>
         </DialogTrigger>
@@ -94,7 +94,7 @@ export function ExamsClient({ events }: { events: any[] }) {
                 <Button 
                   disabled={isPending} 
                   type="submit" 
-                  className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-md hover:opacity-90 transition-all active:scale-[0.98] cursor-pointer"
+                  className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-md hover:opacity-90 transition-all cursor-pointer"
                 >
                   {isPending ? 'Saving...' : 'Add Exam'}
                 </Button>

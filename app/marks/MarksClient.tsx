@@ -541,7 +541,7 @@ export function MarksClient({
           className="py-24 flex flex-col items-center justify-center text-center border border-border/40 rounded-2xl bg-card/45 relative overflow-hidden group shadow-md"
         >
            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-           <div className="w-16 h-16 bg-muted/50 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 border border-border/50 group-hover:scale-105 transition-transform duration-500">
+           <div className="w-16 h-16 bg-muted/50 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 border border-border/50 group- transition-transform duration-500">
               <Award className="w-8 h-8 text-primary/45" />
            </div>
            <h3 className="text-2xl font-heading font-black tracking-tight text-foreground uppercase">No Grades Logged</h3>
@@ -919,7 +919,7 @@ export function MarksClient({
                                 {letterGrade}
                               </span>
 
-                              <ChevronRight className="w-5 h-5 text-muted-foreground/30 group-hover:text-foreground group-hover:translate-x-0.5 transition-all hidden md:block" />
+                              <ChevronRight className="w-5 h-5 text-muted-foreground/30 group-hover:text-foreground group- transition-all hidden md:block" />
                             </div>
                           </motion.div>
                         </DialogTrigger>

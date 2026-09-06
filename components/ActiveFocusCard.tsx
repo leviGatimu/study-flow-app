@@ -90,7 +90,7 @@ export function ActiveFocusCard() {
                  <Button 
                     onClick={() => isPaused ? resumeFocus() : pauseFocus()}
                     className={cn(
-                      "flex-1 h-16 rounded-3xl font-black text-lg gap-3 shadow-xl transition-all hover:scale-[1.02]",
+                      "flex-1 h-16 rounded-3xl font-black text-lg gap-3 shadow-xl transition-all",
                       isPaused ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20" : "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20"
                     )}
                  >

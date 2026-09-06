@@ -134,14 +134,14 @@ export function SummaryCard({ summary }: SummaryCardProps) {
   ];
 
   return (
-    <div className="group bg-card/65 backdrop-blur-md border border-border/50 rounded-3xl p-7 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/20 transition-all duration-400 overflow-hidden relative flex flex-col justify-between min-h-[380px]">
+    <div className="group bg-card/65 backdrop-blur-md border border-border/50 rounded-3xl p-7 shadow-sm hover:shadow-xl hover:border-primary/20 transition-all duration-400 overflow-hidden relative flex flex-col justify-between min-h-[380px]">
 
       {/* Glow */}
-      <div className={cn("absolute -top-16 -right-16 w-44 h-44 rounded-full blur-[80px] opacity-15 pointer-events-none transition-all duration-700 group-hover:scale-125 group-hover:opacity-25", theme.glow)} />
+      <div className={cn("absolute -top-16 -right-16 w-44 h-44 rounded-full blur-[80px] opacity-15 pointer-events-none transition-all duration-700 group- group-hover:opacity-25", theme.glow)} />
       <div className={cn("absolute top-0 left-8 w-14 h-1.5 rounded-b-md", theme.glow)} />
 
       {/* Grade seal */}
-      <div className={cn("absolute top-7 right-7 w-20 h-20 rounded-2xl flex flex-col items-center justify-center border shadow-sm bg-background/80 backdrop-blur-sm select-none transition-transform duration-500 group-hover:scale-105", theme.border)}>
+      <div className={cn("absolute top-7 right-7 w-20 h-20 rounded-2xl flex flex-col items-center justify-center border shadow-sm bg-background/80 backdrop-blur-sm select-none transition-transform duration-500 group-", theme.border)}>
         <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 leading-none">GRADE</span>
         <span className={cn("text-4xl font-heading font-black tracking-tighter mt-1", theme.text)}>{summary.grade}</span>
       </div>
@@ -207,7 +207,7 @@ export function SummaryCard({ summary }: SummaryCardProps) {
       <div className="mt-6 pt-4 border-t border-border/30">
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <button className="w-full h-13 py-3.5 rounded-2xl bg-[#0f172a] dark:bg-white text-white dark:text-black hover:scale-[1.01] transition-all duration-300 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-sm">
+            <button className="w-full h-13 py-3.5 rounded-2xl bg-[#0f172a] dark:bg-white text-white dark:text-black transition-all duration-300 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-sm">
               View Full Report <Sparkles className="w-4 h-4 fill-current" />
             </button>
           </DialogTrigger>

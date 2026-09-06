@@ -150,7 +150,7 @@ export function StreakCelebration({ currentStreak, stats, onClose }: StreakCeleb
                   onClick={onClose}
                   className="w-full h-20 rounded-2xl font-black text-xl bg-white text-black hover:bg-zinc-200 shadow-2xl group transition-all"
                 >
-                  KEEP CRUSHING IT <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-2 transition-transform duration-300" />
+                  KEEP CRUSHING IT <ArrowRight className="w-6 h-6 ml-3 group- transition-transform duration-300" />
                 </Button>
               </div>
             </div>
