@@ -38,8 +38,16 @@ Panels are `rounded-2xl`. Controls inside them are `rounded-xl`.
 | Body | `text-sm text-muted-foreground` |
 | Label / meta | `text-xs font-medium text-muted-foreground`, **sentence case** |
 
-`font-black` is reserved for large hero **numbers** only (a countdown, a streak
-count). Never on a heading, never on a label.
+`font-black` is reserved for large hero **numbers** (a countdown, a streak
+count, the clock) and for the dashboard's personal greeting line. Never on a
+page title, a section heading, or a label.
+
+> That last exception is real, not a loophole. `components/DynamicGreeting.tsx`
+> renders "Good evening, Levi." as a `text-4xl font-heading font-black` h1 on
+> the reference page itself. It is a hero line, not a page label — which is why
+> `Resource Hub` and `School Portal` are `font-bold` while the greeting is not.
+> Seven agents split on this exact question; it is written down so the next one
+> does not have to guess.
 
 **Banned:** `text-[10px] uppercase tracking-[0.2em]` micro-labels. Write
 "Next exam", not "NEXT EXAM:". Sentence case throughout.

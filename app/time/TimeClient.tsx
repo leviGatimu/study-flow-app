@@ -66,9 +66,9 @@ export function TimeClient({
       
       {/* Back Button */}
       <div className="absolute top-10 left-10">
-        <Link 
-          href="/" 
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all group font-bold uppercase tracking-widest text-xs"
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group font-medium text-xs"
         >
           <div className="p-3 rounded-2xl bg-muted group-hover:bg-primary/10 group-hover:text-primary transition-all shadow-sm">
             <ChevronLeft className="w-5 h-5" />
@@ -81,7 +81,7 @@ export function TimeClient({
       <div className="flex flex-col items-center space-y-8 text-center">
         <div className="flex items-center gap-3 px-6 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary animate-pulse">
           <Globe className="w-4 h-4" />
-          <span className="text-xs font-black uppercase tracking-[0.3em]">{tzLabel} Time</span>
+          <span className="text-xs font-medium">{tzLabel} time</span>
         </div>
 
         <div className="space-y-4">
@@ -89,7 +89,7 @@ export function TimeClient({
             {time.split(' ')[0]}
           </h1>
           <div className="flex items-center justify-center gap-4">
-            <span className="text-4xl md:text-5xl font-heading font-black text-primary uppercase tracking-widest">
+            <span className="text-4xl md:text-5xl font-heading font-black text-primary">
               {time.split(' ')[1]}
             </span>
             <div className="h-10 w-px bg-border/60" />
@@ -105,17 +105,17 @@ export function TimeClient({
         
         {/* Current Task */}
         <div className={cn(
-          "relative overflow-hidden rounded-4xl p-8 transition-all duration-500 border-2",
+          "relative overflow-hidden rounded-2xl p-8 transition-all duration-500 border-2",
           currentTask ? "bg-primary/5 border-primary/20" : "bg-muted/20 border-border/40"
         )}>
           <div className="absolute top-0 right-0 p-6 opacity-10">
             <Zap className="w-16 h-16" />
           </div>
           <div className="relative z-10 space-y-4">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Current Mission</span>
+            <span className="text-xs font-medium text-muted-foreground/60">Current mission</span>
             {currentTask ? (
               <div className="space-y-2">
-                <h3 className="text-3xl font-heading font-black text-foreground">{currentTask.subject}</h3>
+                <h3 className="text-3xl font-heading font-bold text-foreground">{currentTask.subject}</h3>
                 <p className="text-sm font-bold text-primary flex items-center gap-2">
                   <Clock className="w-4 h-4" /> {currentTask.startTime} — {currentTask.endTime}
                 </p>
@@ -128,17 +128,17 @@ export function TimeClient({
 
         {/* Next Task */}
         <div className={cn(
-          "relative overflow-hidden rounded-4xl p-8 transition-all duration-500 border-2",
+          "relative overflow-hidden rounded-2xl p-8 transition-all duration-500 border-2",
           nextTask ? "bg-secondary/5 border-secondary/20" : "bg-muted/20 border-border/40"
         )}>
           <div className="absolute top-0 right-0 p-6 opacity-10">
             <Target className="w-16 h-16" />
           </div>
           <div className="relative z-10 space-y-4">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Coming Next</span>
+            <span className="text-xs font-medium text-muted-foreground/60">Coming next</span>
             {nextTask ? (
               <div className="space-y-2">
-                <h3 className="text-3xl font-heading font-black text-foreground">{nextTask.subject}</h3>
+                <h3 className="text-3xl font-heading font-bold text-foreground">{nextTask.subject}</h3>
                 <p className="text-sm font-bold text-secondary flex items-center gap-2">
                   <ArrowRight className="w-4 h-4" /> Starts at {nextTask.startTime}
                 </p>

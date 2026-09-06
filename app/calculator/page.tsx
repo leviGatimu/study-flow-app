@@ -379,7 +379,7 @@ export default function CalculatorPage() {
             title="Toggle fixed-point / engineering notation"
             onClick={() => setUseExponential((current) => !current)}
             className={cn(
-              "rounded-xl text-[11px] font-black",
+              "rounded-xl text-xs font-semibold",
               useExponential ? "bg-primary/10 text-primary" : "hover:bg-primary/10 hover:text-primary"
             )}
           >
@@ -399,9 +399,9 @@ export default function CalculatorPage() {
         <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
 
         <div className="flex-[0.42] flex flex-col justify-end px-6 md:px-12 py-8 md:py-12 relative">
-          <div className="absolute top-8 md:top-12 left-6 md:left-12 flex items-center gap-4 text-xs font-black uppercase tracking-[0.3em] text-muted-foreground/30">
+          <div className="absolute top-8 md:top-12 left-6 md:left-12 flex items-center gap-4 text-xs font-medium text-muted-foreground/30">
             <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            {settings.useDegrees ? "Degree" : "Radian"} Precision Core
+            {settings.useDegrees ? "Degree" : "Radian"} precision core
           </div>
 
           <div className="flex flex-col items-end gap-4 overflow-hidden">
@@ -414,7 +414,7 @@ export default function CalculatorPage() {
             {error ? (
               <div className="text-sm font-bold text-destructive">{error}</div>
             ) : (
-              <div className="text-xs font-bold uppercase tracking-[0.25em] text-muted-foreground/40">
+              <div className="text-xs font-medium text-muted-foreground/40">
                 {lastAnswer !== null ? `Ans ${formatNumber(lastAnswer, settings.precision, useExponential)}` : "Ready"}
               </div>
             )}
@@ -429,7 +429,7 @@ export default function CalculatorPage() {
                 variant="ghost"
                 onClick={() => handleMemory(item)}
                 className={cn(
-                  "h-9 rounded-lg px-4 text-xs font-black tracking-widest transition-all hover:text-primary hover:bg-primary/5",
+                  "h-9 rounded-lg px-4 text-xs font-semibold transition-colors hover:text-primary hover:bg-primary/5",
                   item === "MR" && memory !== null ? "text-primary" : "text-muted-foreground/60"
                 )}
               >
@@ -438,10 +438,10 @@ export default function CalculatorPage() {
             ))}
           </div>
           <div className="flex gap-4">
-            <div className="flex items-center gap-2 rounded-full border border-border/40 bg-muted/20 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+            <div className="flex items-center gap-2 rounded-full border border-border/40 bg-muted/20 px-4 py-1.5 text-xs font-medium text-muted-foreground/60">
               {settings.useDegrees ? "Deg" : "Rad"}
             </div>
-            <div className="flex items-center gap-2 rounded-full border border-border/40 bg-muted/20 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+            <div className="flex items-center gap-2 rounded-full border border-border/40 bg-muted/20 px-4 py-1.5 text-xs font-medium text-muted-foreground/60">
               {useExponential ? "F-E" : "Std"}
             </div>
           </div>
@@ -571,18 +571,20 @@ export default function CalculatorPage() {
             <div className="flex gap-8">
               <button
                 className={cn(
-                  "pb-2 text-xs font-black uppercase tracking-[0.3em] transition-colors",
+                  "pb-2 text-xs font-semibold transition-colors",
                   sideTab === "history" ? "border-b-2 border-primary text-primary" : "text-muted-foreground/40 hover:text-muted-foreground"
                 )}
+                aria-pressed={sideTab === "history"}
                 onClick={() => setSideTab("history")}
               >
                 History
               </button>
               <button
                 className={cn(
-                  "pb-2 text-xs font-black uppercase tracking-[0.3em] transition-colors",
+                  "pb-2 text-xs font-semibold transition-colors",
                   sideTab === "memory" ? "border-b-2 border-primary text-primary" : "text-muted-foreground/40 hover:text-muted-foreground"
                 )}
+                aria-pressed={sideTab === "memory"}
                 onClick={() => setSideTab("memory")}
               >
                 Memory
@@ -599,12 +601,19 @@ export default function CalculatorPage() {
                 variant="ghost"
                 size="icon"
                 onClick={() => (sideTab === "history" ? setHistory([]) : setMemory(null))}
+                aria-label={sideTab === "history" ? "Clear history" : "Clear memory"}
                 className="h-10 w-10 rounded-2xl hover:bg-destructive/10 hover:text-destructive"
               >
                 <Trash2 className="h-5 w-5" />
               </Button>
             )}
-            <Button variant="ghost" size="icon" onClick={() => setIsExpandedSidebar((current) => !current)} className="rounded-2xl hover:bg-primary/10 hover:text-primary">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsExpandedSidebar((current) => !current)}
+              aria-label={isExpandedSidebar ? "Collapse panel" : "Expand panel"}
+              className="rounded-2xl hover:bg-primary/10 hover:text-primary"
+            >
               {isExpandedSidebar ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
             </Button>
           </div>
@@ -619,7 +628,7 @@ export default function CalculatorPage() {
                     <History className="w-8 h-8 text-muted-foreground/20" />
                   </div>
                   <div>
-                    <p className="mb-2 text-sm font-black uppercase tracking-widest text-muted-foreground/40">Logs Empty</p>
+                    <p className="mb-2 font-heading text-sm font-medium text-foreground">No calculations yet</p>
                     <p className="text-xs font-medium text-muted-foreground/30">Your calculations will appear here for rapid recall.</p>
                   </div>
                 </div>
@@ -637,9 +646,8 @@ export default function CalculatorPage() {
                         setDisplay(item.res);
                         setError(null);
                       }}
-                      style={settings.animationsEnabled ? { animationDelay: `${index * 35}ms` } : undefined}
                     >
-                      <div className="absolute top-6 left-6 text-[10px] font-mono font-black text-muted-foreground/20 transition-colors group-hover:text-primary/40">
+                      <div className="absolute top-6 left-6 text-xs font-mono font-medium text-muted-foreground/20 transition-colors group-hover:text-primary/40">
                         {item.timestamp}
                       </div>
                       <p className="max-w-full truncate text-right font-mono text-lg text-muted-foreground/40 transition-colors group-hover:text-muted-foreground">
@@ -655,7 +663,7 @@ export default function CalculatorPage() {
             ) : (
               <div className="space-y-8">
                 <div className="rounded-2xl border border-border/60 bg-background p-8">
-                  <div className="mb-3 text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">Stored Register</div>
+                  <div className="mb-3 text-xs font-medium text-muted-foreground/40">Stored register</div>
                   <div className="text-5xl font-heading font-black tracking-tighter text-primary">
                     {memory !== null ? formatNumber(memory, settings.precision, useExponential) : "--"}
                   </div>
@@ -675,10 +683,10 @@ export default function CalculatorPage() {
           </div>
         ) : (
           <div className="flex-1 flex flex-col items-center gap-4 pt-6">
-            <Button variant="ghost" size="icon" onClick={() => { setSideTab("history"); setIsExpandedSidebar(true); }} className={cn("rounded-xl", sideTab === "history" && "bg-primary/10 text-primary")}>
+            <Button variant="ghost" size="icon" aria-label="Show history" onClick={() => { setSideTab("history"); setIsExpandedSidebar(true); }} className={cn("rounded-xl", sideTab === "history" && "bg-primary/10 text-primary")}>
               <History className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => { setSideTab("memory"); setIsExpandedSidebar(true); }} className={cn("rounded-xl", sideTab === "memory" && "bg-primary/10 text-primary")}>
+            <Button variant="ghost" size="icon" aria-label="Show memory" onClick={() => { setSideTab("memory"); setIsExpandedSidebar(true); }} className={cn("rounded-xl", sideTab === "memory" && "bg-primary/10 text-primary")}>
               <MemoryStick className="h-5 w-5" />
             </Button>
           </div>
@@ -686,17 +694,17 @@ export default function CalculatorPage() {
 
         {isExpandedSidebar ? (
           <div className="p-10 border-t border-border/40 bg-muted/20 space-y-6">
-            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
-              <span>Session Intelligence</span>
+            <div className="flex items-center justify-between text-xs font-medium text-muted-foreground/60">
+              <span>Session intelligence</span>
               <Sigma className="w-3 h-3" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-2xl border border-border/60 bg-background p-4 space-y-1">
-                <div className="text-[10px] font-bold text-muted-foreground/40">Operations</div>
+                <div className="text-xs font-medium text-muted-foreground/40">Operations</div>
                 <div className="text-xl font-black">{history.length}</div>
               </div>
               <div className="rounded-2xl border border-border/60 bg-background p-4 space-y-1">
-                <div className="text-[10px] font-bold text-muted-foreground/40">Precision</div>
+                <div className="text-xs font-medium text-muted-foreground/40">Precision</div>
                 <div className="text-xl font-black">{settings.precision} dp</div>
               </div>
             </div>

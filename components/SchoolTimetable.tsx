@@ -161,18 +161,20 @@ export function SchoolTimetable() {
         <div className="flex flex-wrap items-center gap-4">
            {/* View Mode Selector */}
            <div className="bg-card border border-border/60 p-1 rounded-xl flex items-center shadow-sm">
-             <Button 
-               variant={viewMode === 'agenda' ? 'default' : 'ghost'} 
+             <Button
+               variant={viewMode === 'agenda' ? 'default' : 'ghost'}
                size="sm"
                onClick={() => setViewMode('agenda')}
+               aria-pressed={viewMode === 'agenda'}
                className="rounded-lg h-9 font-bold text-xs gap-1.5 px-3 cursor-pointer"
              >
                <ListTodo className="w-3.5 h-3.5" /> Agenda View
              </Button>
-             <Button 
-               variant={viewMode === 'weekly' ? 'default' : 'ghost'} 
+             <Button
+               variant={viewMode === 'weekly' ? 'default' : 'ghost'}
                size="sm"
                onClick={() => setViewMode('weekly')}
+               aria-pressed={viewMode === 'weekly'}
                className="rounded-lg h-9 font-bold text-xs gap-1.5 px-3 cursor-pointer"
              >
                <CalendarDays className="w-3.5 h-3.5" /> Weekly Ledger
@@ -182,8 +184,8 @@ export function SchoolTimetable() {
            {/* Sync Switch */}
            <div className="bg-card border border-border/60 px-4 h-11 rounded-xl flex items-center gap-3 shadow-sm">
               <div className="flex flex-col select-none">
-                <span className="text-[8px] font-black uppercase tracking-wider text-muted-foreground leading-none mb-0.5">Sync state</span>
-                <span className="text-[10px] font-bold text-foreground leading-none">
+                <span className="text-xs font-medium text-muted-foreground leading-none mb-0.5">Sync state</span>
+                <span className="text-xs font-semibold text-foreground leading-none">
                   {isTimetableSynced ? 'Active' : 'Offline'}
                 </span>
               </div>
@@ -199,7 +201,7 @@ export function SchoolTimetable() {
            <div className="bg-primary/5 border border-primary/20 px-4 h-11 rounded-xl flex items-center gap-3 shadow-sm">
               <Clock className="w-4 h-4 text-primary" />
               <div>
-                <p className="text-[8px] font-black uppercase tracking-widest text-primary/60 leading-none mb-0.5">Session Clock</p>
+                <p className="text-xs font-medium text-primary/60 leading-none mb-0.5">Session clock</p>
                 <p className="text-xs font-heading font-black tabular-nums leading-none">{currentTimeStr}</p>
               </div>
            </div>
@@ -220,13 +222,14 @@ export function SchoolTimetable() {
                 <button
                   key={day}
                   onClick={() => setActiveDay(day)}
+                  aria-pressed={isSelected}
                   className={cn(
-                    "flex flex-col items-center justify-center min-w-[76px] py-2 px-3 rounded-xl border transition-all cursor-pointer",
-                    isSelected ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/10 scale-105" :
+                    "flex flex-col items-center justify-center min-w-[76px] py-2 px-3 rounded-xl border transition-colors cursor-pointer",
+                    isSelected ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/10" :
                     isToday ? "bg-primary/5 border-primary/30 text-primary" : "bg-card border-border/50 hover:border-primary/30 text-foreground"
                   )}
                 >
-                  <span className="text-[8px] font-black uppercase tracking-wider opacity-60 leading-none mb-1">{day.slice(0, 3)}</span>
+                  <span className="text-xs font-medium opacity-60 leading-none mb-1">{day.slice(0, 3)}</span>
                   <span className="text-base font-heading font-black leading-none">{format(date, 'd')}</span>
                 </button>
               );
@@ -251,7 +254,7 @@ export function SchoolTimetable() {
                   key={idx}
                   className={cn(
                     "p-5 rounded-2xl border transition-all duration-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden",
-                    isActive ? "bg-primary/5 border-primary shadow-md shadow-primary/5 scale-[1.005]" : 
+                    isActive ? "bg-primary/5 border-primary shadow-md shadow-primary/5" :
                     isPast ? "bg-muted/15 border-transparent opacity-45 grayscale" : "bg-card border-border/40 hover:border-primary/20",
                     isBreak && !isActive && !isPast && "bg-muted/10 border-dashed border-border/50 text-muted-foreground"
                   )}
@@ -278,7 +281,7 @@ export function SchoolTimetable() {
                       )}>
                         {lesson.subject}
                       </h4>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 leading-none">
+                      <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 leading-none">
                         <Clock className="w-3.5 h-3.5" /> {lesson.start} — {lesson.end}
                       </p>
                     </div>
@@ -288,17 +291,17 @@ export function SchoolTimetable() {
                   <div className="shrink-0 flex items-center sm:text-right">
                     {isActive ? (
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black text-primary uppercase bg-primary/15 px-3 py-1 rounded-full border border-primary/20 animate-pulse">
+                        <span className="text-xs font-semibold text-primary bg-primary/15 px-3 py-1 rounded-full border border-primary/20 animate-pulse">
                           {getTimeLeft(lesson.end)}
                         </span>
                         <Zap className="w-4 h-4 text-primary fill-primary animate-bounce" />
                       </div>
                     ) : isPast ? (
-                      <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-wider bg-muted/40 px-2.5 py-1 rounded-lg">
+                      <span className="text-xs font-medium text-muted-foreground/60 bg-muted/40 px-2.5 py-1 rounded-lg">
                         Completed
                       </span>
                     ) : (
-                      <span className="text-[9px] font-black text-primary/60 uppercase tracking-wider bg-primary/5 border border-primary/10 px-2.5 py-1 rounded-lg">
+                      <span className="text-xs font-medium text-primary/60 bg-primary/5 border border-primary/10 px-2.5 py-1 rounded-lg">
                         Upcoming
                       </span>
                     )}
@@ -331,7 +334,7 @@ export function SchoolTimetable() {
                   "flex md:flex-col items-center justify-center gap-2 md:gap-0.5 py-3 px-4 rounded-xl border min-w-[90px] shrink-0 text-center",
                   isToday ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-muted/40 border-border/50 text-foreground"
                 )}>
-                  <span className="text-[9px] font-black uppercase tracking-widest opacity-60 leading-none">{day.slice(0, 3)}</span>
+                  <span className="text-xs font-medium opacity-60 leading-none">{day.slice(0, 3)}</span>
                   <span className="text-xl font-heading font-black leading-none">{format(date, 'd')}</span>
                 </div>
 
@@ -355,7 +358,7 @@ export function SchoolTimetable() {
                           isBreak && !isActive && !isPast && "bg-muted/10 border-dashed border-border/40 text-muted-foreground/60"
                         )}
                       >
-                        <span className="text-[8px] font-black opacity-60 tracking-wider mb-1 block">
+                        <span className="text-xs font-medium opacity-60 mb-1 block">
                           {lesson.start} - {lesson.end}
                         </span>
                         <span className={cn("font-bold truncate leading-tight block", isPast && "line-through")}>

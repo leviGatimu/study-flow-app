@@ -67,14 +67,14 @@ export default function BiblePage() {
   if (!mounted) return null;
 
   return (
-    <div className="flex flex-col space-y-8 max-w-[1200px] mx-auto pb-16 px-4 md:px-8 pt-8">
+    <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto pb-16 px-4 md:px-8 pt-8 animate-in fade-in duration-500">
       {/* Top Header Navigation */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-2">
-          <Link href="/" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors mb-2">
+          <Link href="/" className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-primary transition-colors mb-2">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Dashboard
           </Link>
-          <h1 className="text-5xl font-heading font-black tracking-tight text-foreground flex items-center gap-3">
+          <h1 className="text-5xl font-heading font-bold tracking-tight text-foreground flex items-center gap-3">
             <Book className="w-10 h-10 text-primary" /> Scriptures & Wisdom
           </h1>
           <p className="text-muted-foreground font-medium">Your personal repository of encouragement and spiritual guidance.</p>
@@ -93,7 +93,7 @@ export default function BiblePage() {
           >
             <Bookmark className="w-4 h-4" /> Saved Verses
             {savedVerses.length > 0 && (
-              <span className="ml-1 text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-black">
+              <span className="ml-1 text-xs font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                 {savedVerses.length}
               </span>
             )}
@@ -121,7 +121,7 @@ export default function BiblePage() {
                 <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto border border-primary/20 text-primary mb-4">
                   <Bookmark className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-black">No bookmarked verses yet</h3>
+                <h3 className="font-heading text-lg font-bold">No bookmarked verses yet</h3>
                 <p className="text-muted-foreground text-sm max-w-sm mx-auto">
                   Click the bookmark button in the upper-right corner of the Daily Quote card on your dashboard to save encouraging scriptures here.
                 </p>
@@ -150,7 +150,8 @@ export default function BiblePage() {
                           size="icon"
                           onClick={() => removeBookmark(verse.ref)}
                           className="h-9 w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive text-muted-foreground/60 transition-colors"
-                          title="Remove Bookmark"
+                          aria-label="Remove bookmark"
+                          title="Remove bookmark"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -184,7 +185,7 @@ export default function BiblePage() {
         ) : (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-black text-muted-foreground uppercase tracking-widest px-1">Daily Verses History</h2>
+              <h2 className="text-2xl font-heading font-bold tracking-tight text-foreground px-1">Daily verses history</h2>
               {historyVerses.length > 0 && (
                 <Button onClick={clearHistory} variant="ghost" size="sm" className="text-xs font-bold hover:bg-destructive/10 hover:text-destructive text-muted-foreground/60 gap-1.5 rounded-xl">
                   <Trash2 className="w-3.5 h-3.5" /> Clear History
@@ -197,7 +198,7 @@ export default function BiblePage() {
                 <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto border border-border/60 text-muted-foreground/60 mb-4">
                   <History className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-black">History is empty</h3>
+                <h3 className="font-heading text-lg font-bold">History is empty</h3>
                 <p className="text-muted-foreground text-sm max-w-sm mx-auto">
                   As the daily scriptures rotate on your dashboard over time, they will automatically be recorded here.
                 </p>

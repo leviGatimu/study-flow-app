@@ -29,10 +29,10 @@ export default async function SchoolPage() {
   }
 
   return (
-    <div className="space-y-12 max-w-[1600px] mx-auto pb-16">
+    <div className="space-y-12 max-w-[1600px] mx-auto px-4 md:px-8 pb-16">
       <div className="pt-6 pb-2 border-b border-border/40 flex items-center justify-between">
         <div>
-          <h1 className="text-5xl font-heading font-black tracking-tight text-foreground">School Portal</h1>
+          <h1 className="text-5xl font-heading font-bold tracking-tight text-foreground">School Portal</h1>
           <p className="text-xl text-muted-foreground font-semibold mt-3">Live timetable and lesson tracking for {user.username}.</p>
         </div>
         <div className="p-4 bg-primary/10 rounded-3xl text-primary">

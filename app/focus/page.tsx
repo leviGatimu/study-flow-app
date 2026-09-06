@@ -18,7 +18,7 @@ export default async function FocusHubPage() {
   return (
     <div className="space-y-12 max-w-[1000px] mx-auto animate-in fade-in duration-500 pb-16">
       <div className="pt-6 pb-2 border-b border-border/40">
-        <h1 className="text-5xl font-heading font-black tracking-tight text-foreground">Focus Mode</h1>
+        <h1 className="text-5xl font-heading font-bold tracking-tight text-foreground">Focus Mode</h1>
         <p className="text-xl text-muted-foreground font-semibold mt-3">Enter the flow state and crush your objectives.</p>
       </div>
 

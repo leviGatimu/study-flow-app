@@ -70,8 +70,8 @@ export default function CalculatorSettingsPage() {
               <Settings className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-heading font-black tracking-tight">Calculator Preferences</h1>
-              <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground/60">Engine & UI Configuration</p>
+              <h1 className="text-3xl font-heading font-bold tracking-tight">Calculator Preferences</h1>
+              <p className="text-sm text-muted-foreground">Engine &amp; UI configuration</p>
             </div>
           </div>
         </div>
@@ -81,7 +81,7 @@ export default function CalculatorSettingsPage() {
             <RotateCcw className="w-4 h-4 mr-2" />
             Defaults
           </Button>
-          <Button onClick={persistSettings} className="h-12 rounded-2xl px-8 font-black shadow-lg shadow-primary/20">
+          <Button onClick={persistSettings} className="h-12 rounded-2xl px-8 font-bold shadow-lg shadow-primary/20">
             <Save className="w-4 h-4 mr-2" />
             Save Preferences
           </Button>
@@ -94,7 +94,7 @@ export default function CalculatorSettingsPage() {
             <section className="space-y-6">
               <div className="flex items-center gap-3 px-2">
                 <Cpu className="w-5 h-5 text-primary" />
-                <h2 className="text-sm font-black uppercase tracking-[0.3em] text-muted-foreground">Computational Core</h2>
+                <h2 className="font-heading text-lg font-bold text-foreground">Computational Core</h2>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -102,7 +102,7 @@ export default function CalculatorSettingsPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <Label className="text-base font-bold">Decimal Precision</Label>
-                      <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-black text-primary">{settings.precision} Places</span>
+                      <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">{settings.precision} places</span>
                     </div>
                     <p className="text-xs font-medium text-muted-foreground">Controls result rounding for standard and scientific output.</p>
                   </div>
@@ -118,13 +118,15 @@ export default function CalculatorSettingsPage() {
                     <div className="flex p-1 rounded-xl border border-border/60 bg-muted/40">
                       <button
                         onClick={() => updateSetting("useDegrees", true)}
-                        className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", settings.useDegrees ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground")}
+                        aria-pressed={settings.useDegrees}
+                        className={cn("px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors", settings.useDegrees ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground")}
                       >
                         Deg
                       </button>
                       <button
                         onClick={() => updateSetting("useDegrees", false)}
-                        className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", !settings.useDegrees ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground")}
+                        aria-pressed={!settings.useDegrees}
+                        className={cn("px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors", !settings.useDegrees ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground")}
                       >
                         Rad
                       </button>
@@ -137,12 +139,12 @@ export default function CalculatorSettingsPage() {
             <section className="space-y-6">
               <div className="flex items-center gap-3 px-2">
                 <Palette className="w-5 h-5 text-primary" />
-                <h2 className="text-sm font-black uppercase tracking-[0.3em] text-muted-foreground">User Interface</h2>
+                <h2 className="font-heading text-lg font-bold text-foreground">User interface</h2>
               </div>
 
-              <Card className="rounded-4xl border-2 border-border/40 bg-card/20 p-10 overflow-hidden relative">
+              <Card className="rounded-2xl border-2 border-border/40 bg-card/20 p-10 overflow-hidden relative">
                 <div className="absolute top-0 right-0 p-8">
-                  <div className={cn("w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary", settings.largeButtons ? "scale-125" : "scale-100")}>
+                  <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-primary", settings.largeButtons ? "bg-primary/20" : "bg-primary/10")}>
                     <Zap className="w-6 h-6" />
                   </div>
                 </div>
@@ -186,29 +188,29 @@ export default function CalculatorSettingsPage() {
             <section className="space-y-6">
               <div className="flex items-center gap-3 px-2">
                 <History className="w-5 h-5 text-primary" />
-                <h2 className="text-sm font-black uppercase tracking-[0.3em] text-muted-foreground">Log Management</h2>
+                <h2 className="font-heading text-lg font-bold text-foreground">Log management</h2>
               </div>
 
-              <Card className="rounded-4xl border-2 border-primary/20 bg-foreground text-background p-10 space-y-8 overflow-hidden relative group">
+              <Card className="rounded-2xl border-2 border-primary/20 bg-foreground text-background p-10 space-y-8 overflow-hidden relative group">
                 <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-10 transition-opacity" />
                 <div className="relative space-y-6">
                   <div className="space-y-2">
-                    <Label className="text-lg font-black text-white">History Buffer</Label>
-                    <p className="text-xs font-medium leading-relaxed text-white/40">
+                    <Label className="text-lg font-bold text-background">History buffer</Label>
+                    <p className="text-xs font-medium leading-relaxed text-background/40">
                       Controls how many completed calculations are kept in local history.
                     </p>
                   </div>
 
                   <div className="pt-4 space-y-6">
-                    <div className="flex justify-between text-xs font-black uppercase tracking-widest opacity-60">
-                      <span>Stored States</span>
-                      <span>{settings.historyLimit} Max</span>
+                    <div className="flex justify-between text-xs font-medium opacity-60">
+                      <span>Stored states</span>
+                      <span>{settings.historyLimit} max</span>
                     </div>
                     <Slider value={[settings.historyLimit]} onValueChange={(value) => updateSetting("historyLimit", value[0])} max={200} min={10} step={5} className="py-2" />
-                    <div className="text-sm font-semibold text-white/70">{historyCount} currently saved</div>
+                    <div className="text-sm font-semibold text-background/70">{historyCount} currently saved</div>
                   </div>
 
-                  <Button variant="ghost" onClick={purgeHistory} className="w-full h-12 rounded-2xl border border-white/10 bg-white/5 text-white font-bold hover:bg-white/10">
+                  <Button variant="ghost" onClick={purgeHistory} className="w-full h-12 rounded-2xl border border-background/10 bg-background/5 text-background font-bold hover:bg-background/10">
                     Purge History Cache
                   </Button>
                 </div>
@@ -218,7 +220,7 @@ export default function CalculatorSettingsPage() {
             <Card className="rounded-2xl border-2 border-border/60 bg-muted/20 p-8 space-y-4">
               <div className="flex items-center gap-3 text-primary">
                 <Info className="w-4 h-4" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Metadata</span>
+                <span className="text-xs font-medium">Metadata</span>
               </div>
               <p className="text-xs font-medium leading-relaxed text-muted-foreground/60">
                 Preferences are stored locally in your browser. The calculator engine supports chained expressions, parentheses, exponentiation, inverse trig functions, and persistent memory/history.
@@ -244,16 +246,18 @@ function ToggleRow({
   onCheckedChange: (checked: boolean) => void;
   icon?: React.ReactNode;
 }) {
+  const id = `calc-toggle-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
   return (
     <div className="flex items-center justify-between gap-6">
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           {icon}
-          <Label className="text-lg font-black">{label}</Label>
+          <Label htmlFor={id} className="text-lg font-semibold">{label}</Label>
         </div>
         <p className="max-w-md text-sm font-medium text-muted-foreground">{description}</p>
       </div>
-      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
     </div>
   );
 }

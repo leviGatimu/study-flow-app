@@ -125,7 +125,7 @@ function SettingsSection({ title, description, children }: { title: string; desc
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
       </div>
-      <div className="rounded-xl border border-border bg-card overflow-hidden divide-y divide-border">
+      <div className="rounded-2xl border border-border/60 shadow-sm bg-card overflow-hidden divide-y divide-border">
         {children}
       </div>
     </div>
@@ -513,11 +513,11 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
   ];
 
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-8 pt-8 pb-24">
-      
+    <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto px-4 md:px-8 pb-16 animate-in fade-in duration-500">
+
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+      <div>
+        <h1 className="text-2xl font-heading font-bold tracking-tight text-foreground">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">Manage your account, preferences, and data.</p>
       </div>
 
@@ -547,26 +547,26 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
               
               {/* Stats row */}
               <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-xl border border-border bg-card p-4 text-center">
+                <div className="rounded-2xl border border-border/60 shadow-sm bg-card p-4 text-center">
                   <div className="flex items-center justify-center gap-1.5 text-amber-500 mb-1">
                     <Trophy className="w-4 h-4" />
                   </div>
                   <p className="text-xl font-bold">{initialData.progress?.level || 1}</p>
-                  <p className="text-[11px] text-muted-foreground">Level</p>
+                  <p className="text-xs font-medium text-muted-foreground">Level</p>
                 </div>
-                <div className="rounded-xl border border-border bg-card p-4 text-center">
+                <div className="rounded-2xl border border-border/60 shadow-sm bg-card p-4 text-center">
                   <div className="flex items-center justify-center gap-1.5 text-orange-500 mb-1">
                     <Flame className="w-4 h-4" />
                   </div>
                   <p className="text-xl font-bold">{initialData.progress?.currentStreak || 0}</p>
-                  <p className="text-[11px] text-muted-foreground">Day streak</p>
+                  <p className="text-xs font-medium text-muted-foreground">Day streak</p>
                 </div>
-                <div className="rounded-xl border border-border bg-card p-4 text-center">
+                <div className="rounded-2xl border border-border/60 shadow-sm bg-card p-4 text-center">
                   <div className="flex items-center justify-center gap-1.5 text-blue-500 mb-1">
                     <Clock className="w-4 h-4" />
                   </div>
                   <p className="text-xl font-bold">{Math.round((initialData.progress?.totalFocusMinutes || 0) / 60)}h</p>
-                  <p className="text-[11px] text-muted-foreground">Focus time</p>
+                  <p className="text-xs font-medium text-muted-foreground">Focus time</p>
                 </div>
               </div>
 
@@ -578,20 +578,22 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                 <div className="px-4 py-3.5 space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground">Display Name</Label>
-                      <Input 
+                      <Label htmlFor="settings-display-name" className="text-xs font-medium text-muted-foreground">Display name</Label>
+                      <Input
+                        id="settings-display-name"
                         value={userName}
                         onChange={(e) => setUserName(e.target.value)}
-                        placeholder="Your name" 
+                        placeholder="Your name"
                         className="h-9"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground">Academic Term</Label>
-                      <Input 
+                      <Label htmlFor="settings-academic-term" className="text-xs font-medium text-muted-foreground">Academic term</Label>
+                      <Input
+                        id="settings-academic-term"
                         value={currentTerm}
                         onChange={(e) => setCurrentTerm(e.target.value)}
-                        placeholder="e.g. Term 1" 
+                        placeholder="e.g. Term 1"
                         className="h-9"
                       />
                     </div>
@@ -618,7 +620,8 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                     value={timezone}
                     disabled={isUpdatingTz}
                     onChange={(e) => handleUpdateTimezone(e.target.value)}
-                    className="h-9 w-56 max-w-[60vw] rounded-md border border-border bg-background px-2 text-xs disabled:opacity-60"
+                    aria-label="Your timezone"
+                    className="h-9 w-56 max-w-[60vw] rounded-xl border border-border bg-background px-2 text-xs disabled:opacity-60"
                   >
                     {!timezoneOptions.includes(timezone) && (
                       <option value={timezone}>{timezone.replace(/_/g, ' ')}</option>
@@ -635,17 +638,19 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                 <form onSubmit={handleUpdatePassword} className="px-4 py-4 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground">Current</Label>
+                      <Label htmlFor="settings-current-password" className="text-xs font-medium text-muted-foreground">Current</Label>
                       <div className="relative">
-                        <Input 
+                        <Input
+                          id="settings-current-password"
                           name="currentPassword"
                           type={showCurrentPassword ? "text" : "password"}
                           placeholder="••••••••"
                           className="h-9 pr-9"
                         />
-                        <button 
+                        <button
                           type="button"
                           onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          aria-label={showCurrentPassword ? "Hide current password" : "Show current password"}
                           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                         >
                           {showCurrentPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -653,17 +658,19 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground">New</Label>
+                      <Label htmlFor="settings-new-password" className="text-xs font-medium text-muted-foreground">New</Label>
                       <div className="relative">
-                        <Input 
+                        <Input
+                          id="settings-new-password"
                           name="newPassword"
                           type={showNewPassword ? "text" : "password"}
                           placeholder="••••••••"
                           className="h-9 pr-9"
                         />
-                        <button 
+                        <button
                           type="button"
                           onClick={() => setShowNewPassword(!showNewPassword)}
+                          aria-label={showNewPassword ? "Hide new password" : "Show new password"}
                           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                         >
                           {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -671,17 +678,19 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground">Confirm</Label>
+                      <Label htmlFor="settings-confirm-password" className="text-xs font-medium text-muted-foreground">Confirm</Label>
                       <div className="relative">
-                        <Input 
+                        <Input
+                          id="settings-confirm-password"
                           name="confirmPassword"
                           type={showConfirmPassword ? "text" : "password"}
                           placeholder="••••••••"
                           className="h-9 pr-9"
                         />
-                        <button 
+                        <button
                           type="button"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                         >
                           {showConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -767,19 +776,21 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                       <button
                         key={item.id}
                         onClick={() => setAccent(item.id as any)}
+                        aria-pressed={accent === item.id}
+                        aria-label={`Use ${item.label} accent`}
                         className="flex flex-col items-center gap-1.5 group"
                         title={item.label}
                       >
                         <div className={cn(
-                          "w-8 h-8 rounded-full transition-all flex items-center justify-center",
+                          "w-8 h-8 rounded-full transition-colors flex items-center justify-center",
                           item.color,
-                          accent === item.id 
-                            ? "ring-2 ring-offset-2 ring-offset-background ring-foreground scale-110" 
-                            : "opacity-70 group-hover:opacity-100 group-"
+                          accent === item.id
+                            ? "ring-2 ring-offset-2 ring-offset-background ring-foreground"
+                            : "opacity-70 group-hover:opacity-100"
                         )}>
                           {accent === item.id && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
                         </div>
-                        <span className={cn("text-[10px] font-medium", accent === item.id ? "text-foreground" : "text-muted-foreground")}>{item.label}</span>
+                        <span className={cn("text-xs font-medium", accent === item.id ? "text-foreground" : "text-muted-foreground")}>{item.label}</span>
                       </button>
                     ))}
                   </div>
@@ -790,6 +801,9 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                 <SettingsRow label="Sound notifications" icon={Bell}>
                   <button
                     onClick={() => handleToggleSound(!soundEnabled)}
+                    role="switch"
+                    aria-checked={soundEnabled}
+                    aria-label="Sound notifications"
                     className={cn(
                       "w-11 h-6 rounded-full flex items-center px-0.5 transition-colors duration-200",
                       soundEnabled ? "bg-primary" : "bg-muted-foreground/30"
@@ -806,13 +820,14 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                   <>
                     <SettingsRow label="Volume" icon={Volume2}>
                       <div className="flex items-center gap-3 w-40">
-                        <input 
+                        <input
                           type="range"
                           min="0"
                           max="1"
                           step="0.05"
                           value={soundVolume}
                           onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                          aria-label="Notification volume"
                           className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-primary"
                         />
                         <span className="text-xs text-muted-foreground w-8 text-right">{Math.round(soundVolume * 100)}%</span>
@@ -857,9 +872,10 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                 <div className="px-4 py-4 space-y-4">
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground">Short</Label>
+                      <Label htmlFor="settings-preset-short" className="text-xs font-medium text-muted-foreground">Short</Label>
                       <div className="relative">
-                        <Input 
+                        <Input
+                          id="settings-preset-short"
                           type="number"
                           value={preset1}
                           min={1}
@@ -871,9 +887,10 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground">Standard</Label>
+                      <Label htmlFor="settings-preset-standard" className="text-xs font-medium text-muted-foreground">Standard</Label>
                       <div className="relative">
-                        <Input 
+                        <Input
+                          id="settings-preset-standard"
                           type="number"
                           value={preset2}
                           min={1}
@@ -885,9 +902,10 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground">Deep</Label>
+                      <Label htmlFor="settings-preset-deep" className="text-xs font-medium text-muted-foreground">Deep</Label>
                       <div className="relative">
-                        <Input 
+                        <Input
+                          id="settings-preset-deep"
                           type="number"
                           value={preset3}
                           min={1}
@@ -907,7 +925,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                 </div>
               </SettingsSection>
 
-              <div className="rounded-xl border border-border bg-card p-4">
+              <div className="rounded-2xl border border-border/60 shadow-sm bg-card p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
                     <Info className="w-4 h-4 text-blue-500" />
@@ -942,15 +960,16 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                         key={per.id}
                         type="button"
                         onClick={() => handleAiPersonaChange(per.id)}
+                        aria-pressed={aiPersona === per.id}
                         className={cn(
-                          "p-3 rounded-lg border text-left transition-all",
+                          "p-3 rounded-xl border text-left transition-colors",
                           aiPersona === per.id
                             ? "bg-primary/10 border-primary text-foreground"
                             : "bg-transparent border-border hover:border-primary/30 text-foreground"
                         )}
                       >
                         <span className="text-sm font-medium block">{per.label}</span>
-                        <span className="text-[11px] text-muted-foreground block mt-0.5">{per.desc}</span>
+                        <span className="text-xs text-muted-foreground block mt-0.5">{per.desc}</span>
                       </button>
                     ))}
                   </div>
@@ -961,48 +980,51 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                 <div className="px-4 py-4 space-y-6">
                   {/* Primary Selector */}
                   <div className="space-y-2">
-                    <Label className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Primary AI Provider</Label>
+                    <Label className="text-xs font-medium text-muted-foreground">Primary AI provider</Label>
                     <div className="grid grid-cols-3 gap-3">
                       <button
                         type="button"
                         onClick={() => handleUpdatePrimaryProvider('gemini')}
+                        aria-pressed={primaryAiProvider === 'gemini'}
                         className={cn(
-                          "flex flex-col items-center justify-center p-4 rounded-xl border text-center transition-all",
+                          "flex flex-col items-center justify-center p-4 rounded-xl border text-center transition-colors",
                           primaryAiProvider === 'gemini'
                             ? "border-primary bg-primary/5 text-foreground shadow-sm font-semibold"
                             : "border-border hover:border-muted-foreground/30 text-muted-foreground"
                         )}
                       >
                         <span className="font-bold text-sm">Google Gemini</span>
-                        <span className="text-[10px] text-muted-foreground mt-1">Cloud · falls back to OpenAI/offline</span>
+                        <span className="text-xs text-muted-foreground mt-1">Cloud · falls back to OpenAI/offline</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleUpdatePrimaryProvider('openai')}
+                        aria-pressed={primaryAiProvider === 'openai'}
                         className={cn(
-                          "flex flex-col items-center justify-center p-4 rounded-xl border text-center transition-all",
+                          "flex flex-col items-center justify-center p-4 rounded-xl border text-center transition-colors",
                           primaryAiProvider === 'openai'
                             ? "border-primary bg-primary/5 text-foreground shadow-sm font-semibold"
                             : "border-border hover:border-muted-foreground/30 text-muted-foreground"
                         )}
                       >
                         <span className="font-bold text-sm">OpenAI</span>
-                        <span className="text-[10px] text-muted-foreground mt-1">Cloud · falls back to Gemini/offline</span>
+                        <span className="text-xs text-muted-foreground mt-1">Cloud · falls back to Gemini/offline</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleUpdatePrimaryProvider('ollama')}
+                        aria-pressed={primaryAiProvider === 'ollama'}
                         className={cn(
-                          "flex flex-col items-center justify-center p-4 rounded-xl border text-center transition-all",
+                          "flex flex-col items-center justify-center p-4 rounded-xl border text-center transition-colors",
                           primaryAiProvider === 'ollama'
                             ? "border-primary bg-primary/5 text-foreground shadow-sm font-semibold"
                             : "border-border hover:border-muted-foreground/30 text-muted-foreground"
                         )}
                       >
                         <span className="font-bold text-sm">Offline (Ollama)</span>
-                        <span className="text-[10px] text-muted-foreground mt-1">Local · always tried first</span>
+                        <span className="text-xs text-muted-foreground mt-1">Local · always tried first</span>
                       </button>
                     </div>
                   </div>
@@ -1010,27 +1032,28 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                   {/* Gemini Key Input */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs font-semibold tracking-wider uppercase text-muted-foreground flex items-center gap-1.5">
-                        Google Gemini API Key
+                      <Label htmlFor="settings-gemini-key" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                        Google Gemini API key
                       </Label>
                       {initialData.aiKeys?.gemini.configured && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-medium">Configured</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-medium">Configured</span>
                       )}
                     </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-3 flex items-center text-muted-foreground">
                         <Key className="w-3.5 h-3.5" />
                       </div>
-                      <Input 
+                      <Input
+                        id="settings-gemini-key"
                         type="password"
                         value={geminiKey}
                         onChange={(e) => setGeminiKey(e.target.value)}
-                        placeholder={initialData.aiKeys?.gemini.configured ? `Saved key ending ...${initialData.aiKeys.gemini.last4} - paste a new one to replace it` : "Paste your Gemini API key here"} 
+                        placeholder={initialData.aiKeys?.gemini.configured ? `Saved key ending ...${initialData.aiKeys.gemini.last4} - paste a new one to replace it` : "Paste your Gemini API key here"}
                         className="h-10 pl-9 font-mono text-xs"
                       />
                     </div>
                     <div className="flex items-center justify-between pt-1">
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         Recommended: <span className="font-medium text-foreground">gemini-2.0-flash</span>.
                       </span>
                       <Button 
@@ -1047,27 +1070,28 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                   {/* OpenAI Key Input */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs font-semibold tracking-wider uppercase text-muted-foreground flex items-center gap-1.5">
-                        OpenAI API Key
+                      <Label htmlFor="settings-openai-key" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                        OpenAI API key
                       </Label>
                       {initialData.aiKeys?.openai.configured && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-medium">Configured</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-medium">Configured</span>
                       )}
                     </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-3 flex items-center text-muted-foreground">
                         <Key className="w-3.5 h-3.5" />
                       </div>
-                      <Input 
+                      <Input
+                        id="settings-openai-key"
                         type="password"
                         value={openaiKey}
                         onChange={(e) => setOpenaiKey(e.target.value)}
-                        placeholder={initialData.aiKeys?.openai.configured ? `Saved key ending ...${initialData.aiKeys.openai.last4} - paste a new one to replace it` : "Paste your OpenAI API key here (sk-...)"} 
+                        placeholder={initialData.aiKeys?.openai.configured ? `Saved key ending ...${initialData.aiKeys.openai.last4} - paste a new one to replace it` : "Paste your OpenAI API key here (sk-...)"}
                         className="h-10 pl-9 font-mono text-xs"
                       />
                     </div>
                     <div className="flex items-center justify-between pt-1">
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         Recommended: <span className="font-medium text-foreground">gpt-4o-mini</span>.
                       </span>
                       <Button 
@@ -1082,24 +1106,24 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                   </div>
                   
                   {/* Offline Model (Ollama) */}
-                  <div className="space-y-3 rounded-xl border border-border p-4">
+                  <div className="space-y-3 rounded-2xl border border-border/60 shadow-sm p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Laptop className="w-4 h-4 text-muted-foreground" />
-                        <Label className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Offline Model (Ollama)</Label>
+                        <Label className="text-xs font-medium text-muted-foreground">Offline model (Ollama)</Label>
                       </div>
                       {ollamaStatus === 'checking' && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Checking…</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Checking…</span>
                       )}
                       {ollamaStatus === 'reachable' && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-medium">Detected — {ollamaModels.length} model{ollamaModels.length === 1 ? '' : 's'}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-medium">Detected — {ollamaModels.length} model{ollamaModels.length === 1 ? '' : 's'}</span>
                       )}
                       {ollamaStatus === 'unreachable' && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 font-medium">Ollama not running</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 font-medium">Ollama not running</span>
                       )}
                     </div>
 
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
                       When the internet is unavailable, the app uses a model running locally via Ollama. Install from ollama.com and pull a model (e.g. <code className="font-mono">ollama pull llama3.1</code>).
                     </p>
 
@@ -1116,9 +1140,10 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
 
                     {/* Base URL */}
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] tracking-wider uppercase text-muted-foreground">Server URL</Label>
+                      <Label htmlFor="settings-ollama-url" className="text-xs font-medium text-muted-foreground">Server URL</Label>
                       <div className="flex gap-2">
                         <Input
+                          id="settings-ollama-url"
                           value={ollamaBaseUrl}
                           onChange={(e) => setOllamaBaseUrl(e.target.value)}
                           placeholder="http://localhost:11434"
@@ -1130,12 +1155,13 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
 
                     {/* Text model */}
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] tracking-wider uppercase text-muted-foreground">Text / chat model</Label>
+                      <Label htmlFor="settings-ollama-text-model" className="text-xs font-medium text-muted-foreground">Text / chat model</Label>
                       {ollamaModels.length > 0 ? (
                         <select
+                          id="settings-ollama-text-model"
                           value={ollamaModel}
                           onChange={(e) => setOllamaModel(e.target.value)}
-                          className="h-9 w-full rounded-md border border-border bg-background px-2 text-xs"
+                          className="h-9 w-full rounded-xl border border-border bg-background px-2 text-xs"
                         >
                           <option value="">Auto (first available)</option>
                           {ollamaModels.map((m) => (
@@ -1144,6 +1170,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                         </select>
                       ) : (
                         <Input
+                          id="settings-ollama-text-model"
                           value={ollamaModel}
                           onChange={(e) => setOllamaModel(e.target.value)}
                           placeholder="e.g. llama3.1"
@@ -1154,12 +1181,13 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
 
                     {/* Vision model */}
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] tracking-wider uppercase text-muted-foreground">Vision model (for images, optional)</Label>
+                      <Label htmlFor="settings-ollama-vision-model" className="text-xs font-medium text-muted-foreground">Vision model (for images, optional)</Label>
                       {ollamaModels.length > 0 ? (
                         <select
+                          id="settings-ollama-vision-model"
                           value={ollamaVisionModel}
                           onChange={(e) => setOllamaVisionModel(e.target.value)}
-                          className="h-9 w-full rounded-md border border-border bg-background px-2 text-xs"
+                          className="h-9 w-full rounded-xl border border-border bg-background px-2 text-xs"
                         >
                           <option value="">None</option>
                           {ollamaModels.map((m) => (
@@ -1168,6 +1196,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                         </select>
                       ) : (
                         <Input
+                          id="settings-ollama-vision-model"
                           value={ollamaVisionModel}
                           onChange={(e) => setOllamaVisionModel(e.target.value)}
                           placeholder="e.g. llama3.2-vision"
@@ -1184,7 +1213,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                   </div>
 
                   {/* Explanatory Info Card */}
-                  <div className="rounded-xl border border-primary/10 bg-primary/5 p-3 text-xs text-muted-foreground leading-relaxed flex items-start gap-2.5">
+                  <div className="rounded-2xl border border-primary/10 bg-primary/5 p-3 text-xs text-muted-foreground leading-relaxed flex items-start gap-2.5">
                     <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                     <div>
                       <span className="font-semibold text-foreground">Smart Failover Enabled:</span> When online, your primary cloud provider is used (falling back to the secondary key on quota/rate-limit errors). When you go offline, the app automatically switches to your local Ollama model — so chat, notes, and quizzes keep working without internet.
@@ -1199,7 +1228,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
           {activeTab === 'data' && (
             <div className="space-y-8">
               
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
                     <Shield className="w-4 h-4 text-emerald-600" />
@@ -1221,11 +1250,12 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                 </SettingsRow>
                 <SettingsRow label="Import data" description="Restore from a previous backup" icon={Upload}>
                   <div className="relative">
-                    <input 
+                    <input
                       type="file"
                       accept=".json"
                       onChange={handleImportFile}
                       disabled={isImporting}
+                      aria-label="Import backup file"
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
                     <Button size="sm" variant="outline" disabled={isImporting}>
@@ -1299,7 +1329,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
           {/* ===== ABOUT ===== */}
           {activeTab === 'about' && (
             <div className="space-y-8">
-              <div className="rounded-xl border border-border bg-card p-8 text-center">
+              <div className="rounded-2xl border border-border/60 shadow-sm bg-card p-8 text-center">
                 <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <Zap className="w-8 h-8 text-primary" />
                 </div>

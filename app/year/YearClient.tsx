@@ -82,7 +82,7 @@ export function YearClient({
     });
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 md:px-8">
+    <div className="mx-auto max-w-[1600px] px-4 py-6 md:px-8 animate-in fade-in duration-500">
       <PageHeader
         title="Year & Terms"
         description="Your academic year, the terms inside it, and everything you have finished. Term dates only ever prompt you — nothing starts or ends on its own."
