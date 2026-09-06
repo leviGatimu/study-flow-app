@@ -3,6 +3,9 @@ import { cache } from 'react';
 import { prisma } from '@/lib/prisma';
 import { startOfDay } from 'date-fns';
 import { getZonedNow, DEFAULT_TIMEZONE } from '@/lib/utils';
+import { termHasStarted, termHasEnded } from '@/lib/term-dates';
+
+export { termHasStarted, termHasEnded } from '@/lib/term-dates';
 
 /**
  * Why the schedule is or is not running.
@@ -16,6 +19,8 @@ import { getZonedNow, DEFAULT_TIMEZONE } from '@/lib/utils';
 export type ScheduleReason =
   | 'RUNNING'
   | 'PAUSED'
+  /** The active term has a start date that has not arrived yet. */
+  | 'TERM_NOT_STARTED'
   | 'BETWEEN_TERMS'
   | 'CLASS_COMPLETE'
   | 'NO_CLASS';
@@ -119,15 +124,17 @@ export const getScheduleState = cache(async function getScheduleState(
     };
   }
 
+  const notStartedYet = !termHasStarted(term.startDate, today);
+
   return {
     ...base,
-    reason: isPaused ? 'PAUSED' : 'RUNNING',
-    isRunning: !isPaused,
+    reason: isPaused ? 'PAUSED' : notStartedYet ? 'TERM_NOT_STARTED' : 'RUNNING',
+    isRunning: !isPaused && !notStartedYet,
     termId: term.id,
     termName: term.name,
     termStartDate: term.startDate,
     termEndDate: term.endDate,
-    termEndDue: Boolean(term.endDate && startOfDay(term.endDate) <= today),
+    termEndDue: termHasEnded(term.endDate, today),
   };
 });
 
@@ -150,4 +157,22 @@ export async function ensureDefaultClass(userId: string) {
       },
     },
   });
+}
+
+/**
+ * The class a newly created row belongs to, or null when there is no active
+ * class.
+ *
+ * Phase 2 added classId/termId to every scoped model and backfilled existing
+ * rows, but NO creation path was ever updated to set them - so everything
+ * created since has been unscoped. That is why finishing Year 1 and starting
+ * Year 2 left last year's tutor modules still due on the dashboard: nothing
+ * recorded which year they belonged to, so nothing could exclude them.
+ *
+ * Stamping on create is harmless to existing reads (almost none filter on
+ * class yet) and is the prerequisite for any of them ever doing so.
+ */
+export async function activeScope(userId: string): Promise<{ classId: string | null; termId: string | null }> {
+  const { classId, termId } = await getScheduleState(userId);
+  return { classId, termId };
 }

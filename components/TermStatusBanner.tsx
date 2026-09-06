@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CalendarCheck, Flag, Pause, Play, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { CalendarCheck, CalendarClock, Flag, Pause, Play, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { addDays } from "date-fns";
 
@@ -56,6 +57,34 @@ export function TermStatusBanner({ state }: { state: ScheduleState | null }) {
           >
             <Play className="size-4" />
             {isPending ? "Resuming..." : "Resume"}
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (state.reason === "TERM_NOT_STARTED") {
+    const starts = state.termStartDate ? new Date(state.termStartDate) : null;
+    return (
+      <Banner
+        tone="amber"
+        icon={<CalendarClock className="size-5" />}
+        title={`${state.termName ?? "This term"} has not started yet`}
+        body={
+          starts
+            ? `It begins on ${starts.toLocaleDateString(undefined, {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              })}. Until then no blocks are generated and your streak stays where it is - the schedule is waiting, not broken.`
+            : "No blocks are generated until its start date arrives."
+        }
+        action={
+          <Button variant="outline" asChild className="gap-2">
+            <Link href="/year">
+              <CalendarClock className="size-4" />
+              Change the date
+            </Link>
           </Button>
         }
       />

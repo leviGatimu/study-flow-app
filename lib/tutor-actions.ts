@@ -9,6 +9,7 @@ import { grantXp } from './gamification';
 import { randomUUID } from 'node:crypto';
 import mammoth from 'mammoth';
 import { parseJsonLoose, sanitizeQuestions, asString, asNumber } from '@/lib/ai-parse';
+import { getScheduleState, activeScope } from '@/lib/term';
 
 // Canonical description of every question shape the quiz engine understands.
 const QUESTION_TYPE_SPEC = `Every question object has "id", "type", and "question". Per type, also include:
@@ -104,9 +105,14 @@ Rules: make options/distractors plausible; for MATCHING the "definitions" array 
       return { error: 'No usable questions were generated. Try a clearer document.' };
     }
 
+    // Stamp the year this belongs to, so finishing a class leaves its
+    // revision behind instead of carrying it into the next one.
+    const { classId } = await activeScope(userId);
+
     const module = await prisma.tutorModule.create({
       data: {
         userId,
+        classId,
         subject,
         title: asString(data.title, 300) ?? subject,
         questions: JSON.stringify(questions),
@@ -136,15 +142,32 @@ export async function getTutorModules() {
   });
 }
 
+/**
+ * Modules due for review, for the class the user is actually in.
+ *
+ * TutorModule is CLASS-scoped: the revision you owe for Year 1 is not revision
+ * you owe in Year 2. This filtered on userId alone, so finishing a year and
+ * starting the next one left last year's modules still nagging from the
+ * dashboard's Memory Guard, with no way to clear them short of deleting them.
+ *
+ * Scoped strictly to the active class - a module belonging to a finished year
+ * is history, and /tutor is where you go to look at it.
+ */
 export async function getDueTutorModules() {
   const userId = await getUserId();
   if (!userId) return [];
 
+  const { classId } = await getScheduleState(userId);
+  // No active class means nothing is currently being studied, so nothing is due.
+  if (!classId) return [];
+
   const now = new Date();
 
   return prisma.tutorModule.findMany({
-    where: { 
+    where: {
       userId,
+      classId,
+      deletedAt: null,
       nextReviewAt: { lte: now }
     },
     orderBy: { nextReviewAt: 'asc' },
