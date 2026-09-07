@@ -149,6 +149,24 @@ async function seedSubjectsIfEmpty(userId: string) {
   // Task and Homework are term-scoped, so they reach their year via the term.
   const scopedByTerm = classId ? { termRef: { classId } } : {};
 
+  // A NEW ACADEMIC YEAR MUST NEVER AUTO-SEED.
+  //
+  // This function exists for one situation: a legacy account whose Subject
+  // table was never populated. It is not a repair pass for an empty year - an
+  // empty year is the correct state of a year you have not set up yet.
+  //
+  // Scoping the count alone was not enough, and this bit for real: the
+  // report-card branch below reads SubjectGrade through ReportCard, which has
+  // no classId, so it stayed user-wide. The moment a new year's subject count
+  // hit zero, the next page load refilled that year with 16 subjects from the
+  // PREVIOUS year's report card - the exact carry-over the class scoping
+  // removes, leaking through the one query that could not be scoped.
+  //
+  // So the guard is ownership, not emptiness: if this user has ANY subject in
+  // ANY year, they are not a legacy account and nothing is seeded.
+  const everHadSubjects = await prisma.subject.count({ where: { userId } });
+  if (everHadSubjects > 0) return;
+
   const count = await prisma.subject.count({ where: { userId, ...scoped } });
   if (count === 0) {
     // 1. Try to seed ONLY from official report card grades first
