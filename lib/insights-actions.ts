@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/lib/auth';
+import { getScheduleState } from '@/lib/term';
 
 /** Strip "(revision)" / apostrophes so "Math (revision)" and "Math" collapse together. */
 function normalizeSubject(subject: string) {
@@ -79,28 +80,55 @@ export interface InsightsData {
   quizTrend: { label: string; score: number; subject: string }[];
 }
 
-export async function getInsightsData(): Promise<InsightsData | null> {
+/**
+ * Which academic years an insights view covers.
+ *
+ *   'class'    the year you are in now. The default, and what you almost
+ *              always mean by "how am I doing" - last year's Physics has no
+ *              bearing on this year's.
+ *   'lifetime' every year you have ever studied. This is where a running
+ *              total belongs: hours studied, blocks completed, all of it.
+ *
+ * These used to be the same thing: every query filtered on userId alone, so
+ * finishing Year 1 and starting Year 2 left the new year's insights diluted by
+ * a completed year's data, with no way to look at either on its own.
+ */
+export type InsightsScope = 'class' | 'lifetime';
+
+export async function getInsightsData(
+  scope: InsightsScope = 'class'
+): Promise<InsightsData | null> {
   const userId = await getUserId();
   if (!userId) return null;
 
+  // Task is TERM-scoped, not class-scoped, so it reaches its year through the
+  // term it belongs to.
+  const { classId } = await getScheduleState(userId);
+  const lifetime = scope === 'lifetime';
+
+  // A class filter that is simply absent for the lifetime view, rather than
+  // two parallel sets of queries that could drift apart.
+  const inClass = lifetime || !classId ? {} : { classId };
+  const taskInClass = lifetime || !classId ? {} : { termRef: { classId } };
+
   const [tasks, attempts, mastery, reportCards, goals, progress, exams, subjectRecords] =
     await Promise.all([
-      prisma.task.findMany({ where: { userId, isDeleted: false } }),
+      prisma.task.findMany({ where: { userId, isDeleted: false, ...taskInClass } }),
       prisma.quizAttempt.findMany({
-        where: { module: { userId } },
+        where: { module: { userId, ...inClass } },
         include: { module: { select: { subject: true } } },
         orderBy: { createdAt: 'asc' },
       }),
-      prisma.masteryItem.findMany({ where: { userId } }),
+      prisma.masteryItem.findMany({ where: { userId, ...inClass } }),
       prisma.reportCard.findMany({
         where: { userId },
         include: { grades: true },
         orderBy: { createdAt: 'asc' },
       }),
-      prisma.subjectGoal.findMany({ where: { userId } }),
+      prisma.subjectGoal.findMany({ where: { userId, ...inClass } }),
       prisma.userProgress.findUnique({ where: { userId } }),
       prisma.examEvent.findMany({ where: { userId } }),
-      prisma.subject.findMany({ where: { userId } }),
+      prisma.subject.findMany({ where: { userId, ...inClass } }),
     ]);
 
   const today = new Date();

@@ -32,7 +32,15 @@ function attentionColor(score: number) {
   return { text: "text-emerald-500", bg: "bg-emerald-500", soft: "bg-emerald-500/10 border-emerald-500/20" };
 }
 
-export function InsightsClient({ data }: { data: InsightsData }) {
+export function InsightsClient({
+  data,
+  scope,
+  classLabel,
+}: {
+  data: InsightsData;
+  scope: "class" | "lifetime";
+  classLabel: string | null;
+}) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -64,8 +72,50 @@ export function InsightsClient({ data }: { data: InsightsData }) {
             Insights
           </h1>
           <p className="text-sm text-muted-foreground">
-            Your academic performance across grades, quizzes, mastery and effort — synthesized.
+            {scope === "lifetime"
+              ? "Every year you have studied, added together."
+              : `How ${classLabel ?? "this year"} is going. Last year's work is kept separate.`}
           </p>
+
+          {/*
+            A year and a lifetime answer different questions. "How am I doing"
+            almost always means this year - last year's Physics has no bearing
+            on it - while a running total of hours studied only means anything
+            across all of them. This used to be one undivided view, so starting
+            a new year silently diluted it with a finished one.
+          */}
+          <div
+            role="tablist"
+            aria-label="Insights period"
+            className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted/50 p-1"
+          >
+            <Link
+              href="/insights"
+              role="tab"
+              aria-selected={scope === "class"}
+              className={
+                "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors " +
+                (scope === "class"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground")
+              }
+            >
+              {classLabel ?? "This year"}
+            </Link>
+            <Link
+              href="/insights?scope=lifetime"
+              role="tab"
+              aria-selected={scope === "lifetime"}
+              className={
+                "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors " +
+                (scope === "lifetime"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground")
+              }
+            >
+              All time
+            </Link>
+          </div>
         </div>
         <Link
           href={`/ai?prompt=${encodeURIComponent(

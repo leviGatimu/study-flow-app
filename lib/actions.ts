@@ -13,7 +13,7 @@ import { getZonedNow, getTimeZoneOffsetMinutes, DEFAULT_TIMEZONE } from './utils
 import { grantXp } from './gamification';
 import { randomUUID } from 'node:crypto';
 import { computeWeeklyPerformance, computeDailyPerformance, type WeeklyPerformance } from './grading';
-import { getScheduleState, ensureDefaultClass } from './term';
+import { getScheduleState, ensureDefaultClass, activeScope } from './term';
 
 /**
  * Resolve the IANA timezone the given user has chosen, falling back to the
@@ -164,7 +164,14 @@ function normalizeSubject(subject: string) {
  */
 /** Memoised: the same timetable is read by each generation pass in a render. */
 const getTemplatesForUser = cache(async function getTemplatesForUser(userId: string) {
-  return prisma.scheduleTemplate.findMany({ where: { userId } });
+  // Scoped to the year you are IN. A new academic year starts with a blank
+  // timetable by design - last year's Monday 8pm Networking is not this year's
+  // schedule. Without this, every read ignored the class and Year 2 silently
+  // inherited, and kept generating, Year 1's blocks.
+  const { classId } = await activeScope(userId);
+  return prisma.scheduleTemplate.findMany({
+    where: { userId, ...(classId ? { classId } : {}) },
+  });
 });
 
 export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
@@ -567,8 +574,9 @@ export async function getTemplates() {
   const userId = await getUserId();
   if (!userId) return [];
 
+  const { classId } = await activeScope(userId);
   return prisma.scheduleTemplate.findMany({
-    where: { userId },
+    where: { userId, ...(classId ? { classId } : {}) },
     orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
   });
 }
@@ -646,8 +654,9 @@ export async function createTemplate(data: {
   const userId = await getUserId();
   if (!userId) return;
 
-  await prisma.scheduleTemplate.create({ 
-    data: { ...data, userId } 
+  const { classId } = await activeScope(userId);
+  await prisma.scheduleTemplate.create({
+    data: { ...data, userId, classId }
   });
   revalidatePath('/manage');
 }
@@ -1215,8 +1224,9 @@ export async function addResource(formData: FormData) {
     url = await saveUpload(file, 'resource');
   }
 
-  await prisma.resource.create({ 
-    data: { userId, subject, title, type, url } 
+  const { classId } = await activeScope(userId);
+  await prisma.resource.create({
+    data: { userId, subject, title, type, url, classId }
   });
   
   revalidatePath('/resources');
@@ -1983,9 +1993,11 @@ export async function addMasteryItem(subject: string, title: string) {
   if (!userId) return;
 
   const normalized = normalizeSubject(subject);
+  const { classId } = await activeScope(userId);
   await prisma.masteryItem.create({
     data: {
       userId,
+      classId,
       subject: normalized,
       title,
       isCompleted: false

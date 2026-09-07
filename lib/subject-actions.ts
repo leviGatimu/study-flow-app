@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { normalizeSubject } from '@/lib/utils';
+import { activeScope } from '@/lib/term';
 
 /**
  * Read-only list of the user's subjects: id and name, one indexed query, no
@@ -21,8 +22,11 @@ export async function listSubjects(): Promise<{ id: string; name: string }[]> {
   const userId = await getUserId();
   if (!userId) return [];
 
+  // Scoped to the year you are in: a new academic year starts with no
+  // subjects, the same way it starts with no timetable.
+  const { classId } = await activeScope(userId);
   return prisma.subject.findMany({
-    where: { userId },
+    where: { userId, ...(classId ? { classId } : {}) },
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
   });
@@ -40,6 +44,7 @@ export async function listSubjects(): Promise<{ id: string; name: string }[]> {
  * not on any hot path.
  */
 async function createSubjectsIfMissing(userId: string, names: string[]) {
+  const { classId } = await activeScope(userId);
   const wanted = Array.from(new Set(names.map((n) => n.trim()).filter(Boolean)));
   if (wanted.length === 0) return;
 
@@ -53,7 +58,7 @@ async function createSubjectsIfMissing(userId: string, names: string[]) {
 
   try {
     await prisma.subject.createMany({
-      data: missing.map((name) => ({ userId, name })),
+      data: missing.map((name) => ({ userId, name, classId })),
     });
   } catch {
     // Someone else seeded between the read and the write. Settle it row by row.
@@ -61,7 +66,7 @@ async function createSubjectsIfMissing(userId: string, names: string[]) {
       await prisma.subject.upsert({
         where: { userId_name: { userId, name } },
         update: {},
-        create: { userId, name },
+        create: { userId, name, classId },
       });
     }
   }
@@ -134,7 +139,17 @@ export async function repairSubjects() {
  * bootstrap, not the repair pass above.
  */
 async function seedSubjectsIfEmpty(userId: string) {
-  const count = await prisma.subject.count({ where: { userId } });
+  // Everything here is scoped to the year you are in. Unscoped, a brand-new
+  // academic year would look "empty" and immediately reseed itself from the
+  // PREVIOUS year's templates, tasks and grades - which is exactly the
+  // carry-over a fresh year is supposed to avoid. Scoped, a new year finds
+  // nothing to seed from and correctly stays blank.
+  const { classId } = await activeScope(userId);
+  const scoped = classId ? { classId } : {};
+  // Task and Homework are term-scoped, so they reach their year via the term.
+  const scopedByTerm = classId ? { termRef: { classId } } : {};
+
+  const count = await prisma.subject.count({ where: { userId, ...scoped } });
   if (count === 0) {
     // 1. Try to seed ONLY from official report card grades first
     const grades = await prisma.subjectGrade.findMany({
@@ -167,15 +182,15 @@ async function seedSubjectsIfEmpty(userId: string) {
         tasks,
         notes
       ] = await Promise.all([
-        prisma.scheduleTemplate.findMany({ where: { userId }, select: { subject: true } }),
+        prisma.scheduleTemplate.findMany({ where: { userId, ...scoped }, select: { subject: true } }),
         prisma.subjectGrade.findMany({ where: { reportCard: { userId } }, select: { subject: true } }),
-        prisma.resource.findMany({ where: { userId }, select: { subject: true } }),
-        prisma.masteryItem.findMany({ where: { userId }, select: { subject: true } }),
-        prisma.homework.findMany({ where: { userId }, select: { subject: true } }),
-        prisma.tutorModule.findMany({ where: { userId }, select: { subject: true } }),
-        prisma.subjectGoal.findMany({ where: { userId }, select: { subject: true } }),
-        prisma.task.findMany({ where: { userId }, select: { subject: true } }),
-        prisma.studioNote.findMany({ where: { userId }, select: { subject: true } }),
+        prisma.resource.findMany({ where: { userId, ...scoped }, select: { subject: true } }),
+        prisma.masteryItem.findMany({ where: { userId, ...scoped }, select: { subject: true } }),
+        prisma.homework.findMany({ where: { userId, ...scopedByTerm }, select: { subject: true } }),
+        prisma.tutorModule.findMany({ where: { userId, ...scoped }, select: { subject: true } }),
+        prisma.subjectGoal.findMany({ where: { userId, ...scoped }, select: { subject: true } }),
+        prisma.task.findMany({ where: { userId, ...scopedByTerm }, select: { subject: true } }),
+        prisma.studioNote.findMany({ where: { userId, ...scoped }, select: { subject: true } }),
       ]);
 
       const subjectNames = new Set<string>();
@@ -218,8 +233,9 @@ export async function getSubjects() {
 
   await seedSubjectsIfEmpty(userId);
 
+  const { classId } = await activeScope(userId);
   return prisma.subject.findMany({
-    where: { userId },
+    where: { userId, ...(classId ? { classId } : {}) },
     orderBy: { name: 'asc' },
   });
 }
@@ -240,9 +256,11 @@ export async function addSubject(name: string) {
     throw new Error(`Subject "${trimmedName}" already exists`);
   }
 
+  const { classId } = await activeScope(userId);
   const subject = await prisma.subject.create({
     data: {
       userId,
+      classId,
       name: trimmedName,
     }
   });
