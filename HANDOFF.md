@@ -1,7 +1,51 @@
 # HANDOFF
 
 ## Current Task
-Desktop packaging pass (2026-09-08), on Levi's ask: "package this and put into
+ACADEMIC YEAR SCOPING (2026-09-08). Levi: "i hate that we still got some year 1
+data yet i said when new class started it starts fresh, same as the school
+portal". He listed milestones, homework, resources, progress, history, marks,
+goals, summaries, daily summaries, AI tutor, AI notes and sticky notes.
+
+THE DIAGNOSIS, and it was not what it looked like: Year 2 had not inherited
+anything. ~116 queries across 14 models, of which about 5 filtered by year at
+all - so every page had ALWAYS shown lifetime data, and starting a new class
+was never going to change that. An audit of the live database found every one
+of the 17 already-scoped models had a correct classId/termId on every row:
+the data was right, the queries never asked.
+
+Done in four lanes (schema, lib queries, UI, write guards - see the sections
+below), then verified end to end in a browser against the real database:
+  Year 2  -> /exams has no Completed Milestones, /marks has no Year 1 standing
+  Year 1  -> banner "Viewing Year 1 - a finished year. Everything here is
+             read-only", 27 milestones, Term 3 at 90.1% First Class Honors
+  Back to Year 2 -> clean slate again
+Counts per year for levi are in "THE LAST FOUR UNSCOPED MODELS" below.
+
+TWO SECURITY HOLES FOUND ON THE WAY, both pre-existing, both fixed:
+  - updateSubjectGrade / deleteSubjectGrade used `where: { id }` with no owner
+    check: any signed-in user could rewrite or delete anyone's marks.
+  - updateFlashcardsReview did the same on tutorModule. Now an updateMany
+    filtered by { id, userId }.
+
+ALSO FIXED: every /exams request threw `ReferenceError: DOMMatrix is not
+defined` server-side. 'use client' does not mean client-only - Next evaluates
+the module on the server to render it, and pdf.js builds a DOMMatrix at import
+time. lib/file-extract.ts now imports pdf.js lazily inside the function.
+
+STILL OPEN, needs Levi's call:
+  - Subject / SubjectGoal / StudioNote are unique on (userId, name), a
+    constraint predating academic years, so a subject can exist only ONCE per
+    account ever. Adding "Physics" in Year 2 hits "already exists" against an
+    empty-looking list. Current behaviour: the row is ADOPTED into the writing
+    year, which unblocks the user but removes it from the archive's list. The
+    real fix is widening those constraints to (userId, classId, name) plus an
+    update to lib/sync/identity.ts, which treats them as natural keys.
+  - User.currentTerm is a legacy free-text field: /marks still says "Term 3"
+    in Year 2. Cosmetic, unscoped by design, but wrong-looking.
+  - /focus and FocusSessionUI are the known un-gated write surface in an
+    archive (FocusSessionUI is off-limits per docs/ui-contract.md).
+
+Before that, same day: desktop packaging pass (2026-09-08), on Levi's ask: "package this and put into
 desktop ... ensure that UI is fine ... ensure the app is fine in production
 mode ready for all users ... also receiving updates, user can click button to
 update the app."
@@ -101,6 +145,154 @@ it looked "too basic" and had no way to act on it.
 Before that: closing out every loose end left by Phases 0-8 (2026-09-06).
 Phase 9 is the only phase not started, deliberately - Levi chose "loose ends
 first, then decide" rather than starting the sync engine.
+
+## THE LAST FOUR UNSCOPED MODELS - DONE (2026-09-08)
+
+Phase 2 scoped 17 models but left four with no scope column at all, so they
+could not be filtered by year even once the queries were fixed. They now have
+one, backfilled and verified against production.
+
+  prisma/schema.prisma
+      + nullable classId + Class relation + @@index([classId]) on SubjectGrade,
+        QuizAttempt, ChatSession and StickyNote, and the four inverse relations
+        on Class. FK is ON DELETE CASCADE, matching every other classId FK.
+      ChatMessage deliberately gets NOTHING: it hangs off ChatSession and is
+      scoped through it. Do not "fix" that by adding a column.
+  prisma/migrations/20260908000000_scope_remaining_models_to_class/
+      ADD COLUMN IF NOT EXISTS + CREATE INDEX IF NOT EXISTS + guarded FKs, plus
+      a down.sql. APPLIED to production with `prisma migrate deploy`; 5
+      migrations, "Database schema is up to date!".
+  prisma/migrations-sqlite/20260908000000_scope_remaining_models_to_class/
+      HAND-WRITTEN, not `prisma migrate diff` output. The generated SQLite diff
+      for an added FK column is a RedefineTables block (CREATE new_X, INSERT
+      SELECT, DROP X, RENAME). That is wrong here twice: lib/sqlite-migrate.ts
+      runs statements one at a time with no surrounding transaction, so a
+      failure mid-dance destroys the table it is copying, and reconcileColumns()
+      only understands CREATE TABLE / ALTER TABLE ADD COLUMN, so a redefine
+      leaves a database that skipped the migration unable to heal itself.
+      SQLite accepts REFERENCES in ADD COLUMN when the column defaults to NULL,
+      which it does here, so nothing is lost by staying additive. Proven on a
+      scratch database built from all four SQLite migrations: 30 tables, the FKs
+      register in PRAGMA foreign_key_list, enforce, and cascade.
+      `npm run db:sqlite:migration` now prints "This is an empty migration." -
+      the SQLite history and the schema agree, no drift.
+  scripts/backfill-class-scope.mjs   (--dry-run to preview)
+      SubjectGrade takes reportCard.termRef.classId; QuizAttempt inherits
+      module.classId; ChatSession and StickyNote use the date rule (the class
+      whose [startedAt, completedAt) window holds createdAt, falling back to the
+      user's FIRST class for anything older than it). Idempotent: reads and
+      writes both filter on classId IS NULL, so a re-run is a no-op and a
+      hand-corrected row is never overwritten.
+
+RESULT, all 76 rows on levi's "Year 1" (the expected answer - the Class rows
+were minted 2026-08-28/29 but the data goes back to May, so everything predates
+the first class): SubjectGrade 42, ChatSession 26, QuizAttempt 7, StickyNote 1.
+Zero NULLs left in all four tables; zero rows scoped to another user's class;
+zero grades disagreeing with their report card's term class. Re-ran the script
+to prove the no-op. `npm run test:sync` still 54/54.
+
+NOTE for whoever adds the next user-facing feature: user "Briann" has NO Class
+row at all (the other four users do). Nothing in these four models belongs to
+him, so the backfill was unaffected, but any code that assumes every user has a
+class will break on him.
+
+  EPERM TRAP, worked around, worth knowing: `npm run db:postgres` failed with
+  the documented EPERM on query_engine-windows.dll.node because the dev server
+  was up, and it dies BEFORE writing any client files - so the client was left
+  stale, not broken. The engine binary it could not rename was byte IDENTICAL
+  (same Prisma version, same provider), i.e. the only thing the lock blocks is a
+  no-op copy. Worked around by generating to a scratch output path and copying
+  everything except the .node file over client-custom-v8, then rewriting the
+  embedded output-path string back. Shared client verified afterwards:
+  activeProvider postgresql, new fields present, a real production query
+  returns. THE RUNNING DEV SERVER STILL HOLDS THE OLD CLIENT IN MEMORY -
+  restart it to pick up the new fields.
+
+## READ-ONLY YEAR ARCHIVE - UI (2026-09-08)
+
+Levi: "classify it as year 1 data, and when we click open year 1 it opens same
+interface just year 1 information loaded into, then go back to Year & terms then
+back to year 2 ... when a new class starts it starts fresh, same as the school
+portal". He chose a READ-ONLY archive: browsing a finished year shows
+everything and changes nothing.
+
+This is the UI half. lib/scope.ts owns which year every query reads from; that
+work and the four new classId columns are in their own sections.
+
+### How it works
+  app/archive-actions.ts    NEW. openArchivedYear(formData) validates the class
+      is the user's own, sets the viewingClassId cookie (httpOnly, 30d, same
+      options as the session cookie) and redirects to the dashboard.
+      exitArchive() clears it. Both are <form action> submits, not transitions:
+      the cookie changes what EVERY page reads, so the whole app has to
+      re-render. Choosing the ACTIVE class DELETES the cookie rather than
+      pinning its id - pinning would silently become an archive as soon as the
+      next year starts.
+  components/ArchiveContext.tsx   NEW. ArchiveProvider / useArchive /
+      useIsArchived / useArchiveReason / <ArchiveGate>. Any client component
+      can ask "am I in an archive" without another round trip.
+  components/ArchiveBanner.tsx    NEW. The bar under the header. Rendered in
+      AppShell OUTSIDE <main>, so it survives navigation and never scrolls
+      away. Always offers a way out - "Back to Year 2", or "Leave archive" when
+      there is no active year, which is a real state (finish a year, do not
+      start the next one) and would otherwise strand the user.
+  app/layout.tsx    computes the scope once and passes it into AppShell. The
+      ACTIVE year's label costs a second query, so it is only fetched when an
+      archive is actually open.
+
+### Page-level queries scoped (the ones that bypass lib/)
+  app/subjects/page.tsx    Resource, SubjectGoal, TutorModule, StudioNote by
+                           class; Homework, ReportCard by term.
+  app/streak/page.tsx      the activity calendar's Task query, by term.
+  app/timetable/page.tsx   this week's Task query, by term.
+  app/school/page.tsx      left alone - it only reads User.
+
+### The switcher
+Year & Terms: each finished year now has "Open <label>" (primary) beside a
+"Report" toggle, which is the old inline summary renamed. The year you are
+inside is badged "Open now" and its button becomes "Close <label>". While an
+archive is open the ACTIVE year's controls on that page are hidden too - they
+write to a year you are not looking at.
+
+### Write affordances gated
+Gated inside the shared component wherever possible, so one edit covers every
+call site: QuickAddForm (sidebar, header, calendar, dashboard, manage),
+UploadTimetableDialog, ManageForm, EditTemplateForm, AddResourceForm,
+AddMasteryForm, ExamsClient + DeleteExamButton, ExamCountdown, ExamPlanner,
+MasteryList, DeleteTask/Template/Resource/SubjectButton, TaskCheckbox,
+TaskList's attach-proof, CalendarGrid (mark day, last day, per-session edit and
+delete), StickyNotesContainer (including DRAG, which persists a position),
+StudioWorkspace (autosave, Ctrl+S and the save button all funnel through
+doSave, which is guarded once), TutorSetupForm + TutorClient, AiNotesInterface,
+SubjectsClient (including the notes autosave effect), MarksClient, GoalsClient,
+HomeworkList/HomeworkCard, projects.
+
+Two deliberate exceptions, both because they carry information as well as an
+action: TaskCheckbox and MasteryList's checkbox stay VISIBLE but disabled - the
+tick is the record of what was done. Everything else is hidden, since the
+banner already says why. The sidebar's "Add a task" is replaced by an
+explained, aria-disabled "Read-only year" button rather than vanishing, because
+an empty primary slot reads as a bug.
+
+### NOT gated - known, deliberate
+  - /focus and FocusSessionUI. Starting a session on an archived task would
+    write to it. FocusSessionUI is off limits in the UI contract and focus is
+    reached from a task row, so it needs its own pass.
+  - The AI chat surfaces (app/ai, StudioWorkspace's panel, SubjectsClient's
+    chat tab, ProjectInterface). askAIBuddy grants XP and can write ChatMessage
+    rows. XP is lifetime rather than year-scoped, so this is arguable; it was
+    left alone rather than removing the ability to ask questions about work you
+    are reading.
+  - app/settings. Account-level, not year-scoped. Correct as is.
+
+### Verified / not verified
+  npx tsc --noEmit clean. NOT run in a browser - the flow that still needs
+  eyeballing is: Year & Terms -> Open Year 1 -> banner appears -> dashboard,
+  exams, subjects and marks all show Year 1 -> Back to Year 2.
+
+  While fixing a build break: StickyNotesContainer's optimistic new-note object
+  literal did not have the classId the schema agent had just added. It now
+  passes classId: null (the server fills the real one).
 
 ## Status
 Phases 0-7 COMPLETE. Phase 8 code COMPLETE, still not enabled (needs Levi's

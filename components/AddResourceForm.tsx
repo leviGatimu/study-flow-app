@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Link as LinkIcon, FileText, UploadCloud, Loader2 } from 'lucide-react';
 import { addResource } from '@/lib/actions';
+import { useIsArchived } from '@/components/ArchiveContext';
 import { toast } from 'sonner';
 
 export function AddResourceForm({ subject: initialSubject, allSubjects = [] }: { subject?: string, allSubjects?: string[] }) {
@@ -21,6 +22,7 @@ export function AddResourceForm({ subject: initialSubject, allSubjects = [] }: {
   const [type, setType] = useState<'LINK' | 'FILE'>('LINK');
   const [isPending, setIsPending] = useState(false);
   const [subject, setSubject] = useState(initialSubject || '');
+  const archived = useIsArchived();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -55,6 +57,8 @@ export function AddResourceForm({ subject: initialSubject, allSubjects = [] }: {
       setIsPending(false);
     }
   };
+
+  if (archived) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

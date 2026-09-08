@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { getTutorModules } from "@/lib/tutor-actions";
 import { TutorModule } from "@/lib/types";
+import { useIsArchived } from "@/components/ArchiveContext";
 
 function ScoreRing({ score }: { score: number }) {
   const r = 22;
@@ -31,6 +32,7 @@ function ScoreRing({ score }: { score: number }) {
 }
 
 export default function TutorClient() {
+  const archived = useIsArchived();
   const [modules, setModules] = useState<TutorModule[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -67,7 +69,7 @@ export default function TutorClient() {
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className={cn("flex items-center gap-4", archived && "hidden")}>
             <Link href="/tutor/new">
               <Button className="h-14 px-8 rounded-full bg-foreground text-background hover:bg-primary hover:text-primary-foreground font-bold text-base gap-2 shadow-lg transition-all">
                 <Plus className="w-5 h-5" /> Generate New Quiz
@@ -114,7 +116,7 @@ export default function TutorClient() {
                 <p className="text-muted-foreground font-medium mt-2 mb-6 max-w-sm">
                    {searchQuery ? "Try adjusting your search terms." : "Click the button above to generate your first AI-powered practice quiz."}
                 </p>
-                {!searchQuery && (
+                {!searchQuery && !archived && (
                   <Link href="/tutor/new">
                     <Button variant="outline" className="rounded-full h-12 px-6 font-bold">
                       Create Quiz

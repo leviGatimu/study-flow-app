@@ -25,6 +25,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { planHomework, completeHomework, deleteHomework } from '@/lib/homework-actions';
+import { useIsArchived } from '@/components/ArchiveContext';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
@@ -36,6 +37,7 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
   const [isPlanning, setIsPlanning] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const archived = useIsArchived();
 
   const isOverdue = !homework.isCompleted && isPast(new Date(homework.dueDate)) && !isToday(new Date(homework.dueDate));
 
@@ -128,16 +130,18 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
               )}
             </div>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Delete homework"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="opacity-0 group-hover:opacity-100 transition-opacity h-9 w-9 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 -mr-1 -mt-1"
-            >
-              {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            </Button>
+            {!archived && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Delete homework"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="opacity-0 group-hover:opacity-100 transition-opacity h-9 w-9 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 -mr-1 -mt-1"
+              >
+                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              </Button>
+            )}
           </div>
 
           {/* Title + description */}
@@ -187,11 +191,13 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
             {!homework.isCompleted ? (
               <div className="flex items-center gap-3 pt-1">
                 <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="flex-1 h-11 rounded-xl font-bold text-xs gap-2 border-primary/20 hover:bg-primary/5 hover:text-primary transition-colors duration-200">
-                      <Clock className="w-4 h-4" /> Plan
-                    </Button>
-                  </DialogTrigger>
+                  {!archived && (
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="flex-1 h-11 rounded-xl font-bold text-xs gap-2 border-primary/20 hover:bg-primary/5 hover:text-primary transition-colors duration-200">
+                        <Clock className="w-4 h-4" /> Plan
+                      </Button>
+                    </DialogTrigger>
+                  )}
                   <DialogContent className="sm:max-w-md rounded-2xl p-8 border shadow-2xl bg-card">
                     <DialogHeader>
                       <DialogTitle className="text-xl font-heading font-bold text-foreground">Plan session</DialogTitle>
@@ -216,11 +222,13 @@ export function HomeworkCard({ homework }: HomeworkCardProps) {
                 </Dialog>
 
                 <Dialog>
-                  <DialogTrigger asChild>
-                    <Button className="flex-1 h-11 rounded-xl font-bold text-xs gap-2 shadow-sm transition-all">
-                      <CheckCircle2 className="w-4 h-4" /> Complete
-                    </Button>
-                  </DialogTrigger>
+                  {!archived && (
+                    <DialogTrigger asChild>
+                      <Button className="flex-1 h-11 rounded-xl font-bold text-xs gap-2 shadow-sm transition-all">
+                        <CheckCircle2 className="w-4 h-4" /> Complete
+                      </Button>
+                    </DialogTrigger>
+                  )}
                   <DialogContent className="sm:max-w-md rounded-2xl p-8 border shadow-2xl bg-card">
                     <DialogHeader>
                       <DialogTitle className="text-xl font-heading font-bold text-foreground">Finish homework</DialogTitle>

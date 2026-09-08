@@ -9,6 +9,7 @@ import { BookOpen, History, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreateHomeworkForm } from './CreateHomeworkForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useIsArchived } from '@/components/ArchiveContext';
 
 interface HomeworkListProps {
   homeworks: Homework[];
@@ -17,6 +18,7 @@ interface HomeworkListProps {
 
 export function HomeworkList({ homeworks, subjects }: HomeworkListProps) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const archived = useIsArchived();
   const activeHomeworks = homeworks.filter(h => !h.isCompleted);
   const completedHomeworks = homeworks.filter(h => h.isCompleted);
 
@@ -33,12 +35,14 @@ export function HomeworkList({ homeworks, subjects }: HomeworkListProps) {
             </TabsTrigger>
           </TabsList>
 
-          <Button
-            onClick={() => setShowAddForm(true)}
-            className="h-11 rounded-xl font-bold px-6 text-sm shadow-sm gap-2 transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> Add homework
-          </Button>
+          {!archived && (
+            <Button
+              onClick={() => setShowAddForm(true)}
+              className="h-11 rounded-xl font-bold px-6 text-sm shadow-sm gap-2 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" /> Add homework
+            </Button>
+          )}
         </div>
 
         {/* Pop-up form for adding homework */}

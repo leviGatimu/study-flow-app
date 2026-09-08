@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { deleteTemplate, getTemplateDeletionImpact } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { useIsArchived } from '@/components/ArchiveContext';
 
 /**
  * Remove a recurring block from the weekly timetable.
@@ -26,6 +27,7 @@ export function DeleteTemplateButton({ id }: { id: string }) {
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [impact, setImpact] = useState<{ completed: number; pending: number; subject: string } | null>(null);
+  const archived = useIsArchived();
 
   const openDialog = async () => {
     setOpen(true);
@@ -57,6 +59,8 @@ export function DeleteTemplateButton({ id }: { id: string }) {
 
     return `${name} will be removed from your weekly timetable. ${parts.join(', and ')}.`;
   };
+
+  if (archived) return null;
 
   return (
     <>

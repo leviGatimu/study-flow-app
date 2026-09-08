@@ -3,11 +3,12 @@
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react";
+import { Lock, PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { NAV, NavSection, resolveNav } from "@/lib/nav";
 import { QuickAddForm } from "@/components/QuickAddForm";
+import { useArchiveReason } from "@/components/ArchiveContext";
 import { SafeUserProgress as UserProgress } from "@/lib/types";
 
 /**
@@ -54,6 +55,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const activeSection = resolveNav(pathname)?.section;
+  const archiveReason = useArchiveReason();
 
   const pinned = useSyncExternalStore(subscribeToPin, readPin, pinOnServer);
   const [pointerInside, setPointerInside] = useState(false);
@@ -136,25 +138,49 @@ export function Sidebar({
         </div>
 
         <div className="mt-3 px-3">
-          <QuickAddForm
-            subjects={subjects}
-            trigger={
-              <button
-                type="button"
-                aria-label="Add a task"
-                title="Add a task"
-                className={cn(
-                  "flex h-10 w-full items-center rounded-xl bg-primary text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-                  expanded ? "gap-3 px-2.5" : "justify-center"
-                )}
-              >
-                <Plus className="size-5 shrink-0" />
-                {expanded && (
-                  <span className="truncate text-sm font-medium">Add a task</span>
-                )}
-              </button>
-            }
-          />
+          {/* While a finished year is open this stays in place but inert, and
+              says why. Removing it outright would leave the rail's most
+              prominent slot empty and read as a bug rather than a rule. */}
+          {archiveReason ? (
+            <button
+              type="button"
+              // aria-disabled rather than disabled: a `disabled` button gets no
+              // pointer events in Chrome, so its title tooltip - the thing that
+              // explains why it is off - would never appear.
+              aria-disabled="true"
+              aria-label="Add a task"
+              title={archiveReason}
+              className={cn(
+                "flex h-10 w-full items-center rounded-xl bg-muted text-muted-foreground",
+                expanded ? "gap-3 px-2.5" : "justify-center"
+              )}
+            >
+              <Lock className="size-5 shrink-0" />
+              {expanded && (
+                <span className="truncate text-sm font-medium">Read-only year</span>
+              )}
+            </button>
+          ) : (
+            <QuickAddForm
+              subjects={subjects}
+              trigger={
+                <button
+                  type="button"
+                  aria-label="Add a task"
+                  title="Add a task"
+                  className={cn(
+                    "flex h-10 w-full items-center rounded-xl bg-primary text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                    expanded ? "gap-3 px-2.5" : "justify-center"
+                  )}
+                >
+                  <Plus className="size-5 shrink-0" />
+                  {expanded && (
+                    <span className="truncate text-sm font-medium">Add a task</span>
+                  )}
+                </button>
+              }
+            />
+          )}
         </div>
 
         <nav aria-label="Primary" className="mt-3 flex flex-col gap-1 px-3">

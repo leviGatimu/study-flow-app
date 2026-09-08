@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { TaskCheckbox } from '@/components/TaskCheckbox';
 import { toggleMarkedDay, updateTask, deleteTask, setSchoolEndDate } from '@/lib/actions';
 import { QuickAddForm } from '@/components/QuickAddForm';
+import { useIsArchived } from '@/components/ArchiveContext';
+import { cn } from '@/lib/utils';
 import { ConfirmModal } from '@/components/ConfirmModal';
 
 type TaskType = {
@@ -44,6 +46,7 @@ export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = []
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const archived = useIsArchived();
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
@@ -302,6 +305,8 @@ export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = []
                   {selectedDate && isToday(selectedDate) && (
                     <span className="text-xs font-semibold bg-primary text-primary-foreground px-3 py-1.5 rounded-full mr-2">Today</span>
                   )}
+                  {!archived && (
+                  <>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -323,6 +328,8 @@ export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = []
                     {isSelectedDateMarked ? <BookmarkCheck className="w-4 h-4 mr-2" /> : <Bookmark className="w-4 h-4 mr-2" />}
                     {isSelectedDateMarked ? 'Unmark' : 'Mark day'}
                   </Button>
+                  </>
+                  )}
                 </div>
               </div>
             </DialogHeader>
@@ -412,7 +419,7 @@ export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = []
                               </span>
                             </div>
 
-                            <div className="flex items-center gap-1">
+                            <div className={cn("flex items-center gap-1", archived && "hidden")}>
                                <Button
                                 variant="ghost"
                                 size="icon"

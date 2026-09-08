@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { saveStudioNote } from "@/lib/studio-actions";
+import { useIsArchived } from "@/components/ArchiveContext";
 import { askAIBuddy } from "@/lib/ai-actions";
 import ReactMarkdown from "react-markdown";
 import Link from "next/link";
@@ -45,6 +46,7 @@ const BREAK_SECONDS = 5 * 60;
 
 export function StudioWorkspace({ subject, initialContent, resources }: StudioWorkspaceProps) {
   const [content, setContent] = useState(initialContent);
+  const archived = useIsArchived();
   const [isSaving, setIsSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [leftWidth, setLeftWidth] = useState(50);
@@ -74,11 +76,12 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
 
   // ---- Saving (debounced autosave + manual) ----
   const doSave = useCallback(async () => {
+    if (archived) return;
     setIsSaving(true);
     await saveStudioNote(subject, content);
     setIsSaving(false);
     setSavedAt(new Date());
-  }, [subject, content]);
+  }, [subject, content, archived]);
 
   useEffect(() => {
     if (content === initialContent) return;
@@ -243,8 +246,14 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
             </div>
           )}
 
-          <button onClick={doSave} className="flex items-center gap-2 text-[10px] font-bold text-foreground/40 hover:text-foreground/80 transition-colors">
-            {isSaving ? (
+          <button
+            onClick={doSave}
+            disabled={archived}
+            className="flex items-center gap-2 text-[10px] font-bold text-foreground/40 hover:text-foreground/80 transition-colors"
+          >
+            {archived ? (
+              <><div className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Read-only</>
+            ) : isSaving ? (
               <><Loader2 className="w-3 h-3 animate-spin" /> Saving…</>
             ) : (
               <><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {savedAt ? "Saved" : "Autosave on"}</>
@@ -344,6 +353,7 @@ export function StudioWorkspace({ subject, initialContent, resources }: StudioWo
               <Textarea
                 ref={textareaRef}
                 value={content}
+                readOnly={archived}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="Start writing your notes here… Markdown supported (# headings, **bold**, - lists, `code`)."
                 className="flex-1 w-full p-8 md:p-12 bg-transparent border-none focus-visible:ring-0 text-lg font-medium leading-relaxed text-foreground/85 resize-none custom-scrollbar placeholder:text-foreground/15 selection:bg-primary/40"

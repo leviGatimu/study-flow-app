@@ -8,11 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, BookOpen, Clock, Calendar, CheckCircle2 } from 'lucide-react';
+import { useIsArchived } from '@/components/ArchiveContext';
 
 export function ManageForm({ subjects = [] }: { subjects?: { id: string; name: string }[] }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const fieldId = useId();
+  const archived = useIsArchived();
 
   const [formData, setFormData] = useState({
     dayOfWeek: "1",
@@ -42,6 +44,10 @@ export function ManageForm({ subjects = [] }: { subjects?: { id: string; name: s
       });
     });
   };
+
+  // Timetable blocks belong to the active year; a finished year's weekly
+  // schedule is history.
+  if (archived) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

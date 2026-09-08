@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pencil, BookOpen, Clock, Calendar, CheckCircle2 } from 'lucide-react';
+import { useIsArchived } from '@/components/ArchiveContext';
 
 type TemplateType = {
   id: string;
@@ -22,6 +23,7 @@ type TemplateType = {
 export function EditTemplateForm({ template, subjects = [] }: { template: TemplateType; subjects?: { id: string; name: string }[] }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const archived = useIsArchived();
   const fieldId = useId();
 
   const [formData, setFormData] = useState({
@@ -43,6 +45,8 @@ export function EditTemplateForm({ template, subjects = [] }: { template: Templa
       open && setOpen(false);
     });
   };
+
+  if (archived) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

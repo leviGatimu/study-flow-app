@@ -7,6 +7,8 @@ import { Archive, Check, Pause, Play, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
+import { exitArchive, openArchivedYear } from "@/app/archive-actions";
+import { useArchive } from "@/components/ArchiveContext";
 import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { Panel } from "@/components/ui/panel";
@@ -68,6 +70,8 @@ export function YearClient({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
+  const archive = useArchive();
+
   const active = classes.find((c) => c.status === "ACTIVE") ?? null;
   const archived = classes.filter((c) => c.status !== "ACTIVE");
 
@@ -95,14 +99,15 @@ export function YearClient({
             schedule={schedule}
             isPending={isPending}
             run={run}
+            readOnly={archive !== null}
           />
         ) : (
-          <NewYear isPending={isPending} run={run} />
+          <NewYear isPending={isPending} run={run} readOnly={archive !== null} />
         )}
 
         <Section
           title="Finished years"
-          description="Read-only. Completed work is a record, not a workspace."
+          description="Open one to load the whole app with that year's work in it. Read-only — a finished year is a record, not a workspace."
         >
           {archived.length === 0 ? (
             <EmptyState
@@ -113,7 +118,7 @@ export function YearClient({
           ) : (
             <div className="space-y-3">
               {archived.map((c) => (
-                <ArchivedYear key={c.id} cls={c} />
+                <ArchivedYear key={c.id} cls={c} isOpen={archive?.classId === c.id} />
               ))}
             </div>
           )}
@@ -128,11 +133,18 @@ function ActiveYear({
   schedule,
   isPending,
   run,
+  readOnly,
 }: {
   cls: ClassRow;
   schedule: ScheduleState | null;
   isPending: boolean;
   run: (fn: () => Promise<any>, ok: string) => void;
+  /**
+   * True while a finished year is open. Every control here writes to the
+   * ACTIVE year, which is not the year you are looking at - so acting on them
+   * from inside an archive would be a change you did not mean to make.
+   */
+  readOnly: boolean;
 }) {
   const [label, setLabel] = useState(cls.label);
   const [adding, setAdding] = useState(false);
@@ -158,9 +170,10 @@ function ActiveYear({
                 id="year-label"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
+                disabled={readOnly}
                 className="h-9 w-44"
               />
-              {label.trim() !== cls.label && (
+              {!readOnly && label.trim() !== cls.label && (
                 <Button
                   size="sm"
                   disabled={isPending}
@@ -185,20 +198,22 @@ function ActiveYear({
             >
               {statusText}
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isPending}
-              className="gap-1.5"
-              onClick={() =>
-                paused
-                  ? run(resumeSchedule, "Schedule resumed.")
-                  : run(pauseSchedule, "Schedule paused.")
-              }
-            >
-              {paused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
-              {paused ? "Resume" : "Pause"}
-            </Button>
+            {!readOnly && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isPending}
+                className="gap-1.5"
+                onClick={() =>
+                  paused
+                    ? run(resumeSchedule, "Schedule resumed.")
+                    : run(pauseSchedule, "Schedule paused.")
+                }
+              >
+                {paused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
+                {paused ? "Resume" : "Pause"}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -213,51 +228,61 @@ function ActiveYear({
 
       <div className="space-y-2 pt-2">
         {cls.terms.map((term) => (
-          <TermRowView key={term.id} term={term} isPending={isPending} run={run} />
+          <TermRowView
+            key={term.id}
+            term={term}
+            isPending={isPending}
+            run={run}
+            readOnly={readOnly}
+          />
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 pt-2">
-        {!activeTerm && (
-          <Button
-            disabled={isPending}
-            className="gap-1.5"
-            onClick={() => run(() => startNextTerm(), "Term started.")}
-          >
-            <Play className="size-4" /> Start next term
-          </Button>
-        )}
-        {!adding ? (
-          <Button variant="outline" className="gap-1.5" onClick={() => setAdding(true)}>
-            <Plus className="size-4" /> Add a term
-          </Button>
-        ) : (
-          <AddTermForm
-            isPending={isPending}
-            run={run}
-            onClose={() => setAdding(false)}
-          />
-        )}
-      </div>
-
-      <Panel className="mt-4 space-y-3 border-dashed">
-        <div>
-          <p className="font-heading text-sm font-medium text-foreground">
-            Finish {cls.label}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Archives this year read-only and lets you open a new one. Your XP and
-            level carry over; the streak starts fresh. Nothing is deleted.
-          </p>
+      {!readOnly && (
+        <div className="flex flex-wrap items-center gap-2 pt-2">
+          {!activeTerm && (
+            <Button
+              disabled={isPending}
+              className="gap-1.5"
+              onClick={() => run(() => startNextTerm(), "Term started.")}
+            >
+              <Play className="size-4" /> Start next term
+            </Button>
+          )}
+          {!adding ? (
+            <Button variant="outline" className="gap-1.5" onClick={() => setAdding(true)}>
+              <Plus className="size-4" /> Add a term
+            </Button>
+          ) : (
+            <AddTermForm
+              isPending={isPending}
+              run={run}
+              onClose={() => setAdding(false)}
+            />
+          )}
         </div>
-        <Button
-          variant="outline"
-          disabled={isPending}
-          onClick={() => run(completeActiveClass, "Year archived.")}
-        >
-          Finish this year
-        </Button>
-      </Panel>
+      )}
+
+      {!readOnly && (
+        <Panel className="mt-4 space-y-3 border-dashed">
+          <div>
+            <p className="font-heading text-sm font-medium text-foreground">
+              Finish {cls.label}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Archives this year read-only and lets you open a new one. Your XP and
+              level carry over; the streak starts fresh. Nothing is deleted.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            disabled={isPending}
+            onClick={() => run(completeActiveClass, "Year archived.")}
+          >
+            Finish this year
+          </Button>
+        </Panel>
+      )}
     </Section>
   );
 }
@@ -266,10 +291,12 @@ function TermRowView({
   term,
   isPending,
   run,
+  readOnly,
 }: {
   term: TermRow;
   isPending: boolean;
   run: (fn: () => Promise<any>, ok: string) => void;
+  readOnly: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(term.name);
@@ -364,10 +391,12 @@ function TermRowView({
           <Button size="sm" variant="ghost" onClick={toggleSummary}>
             {showSummary ? "Hide" : "Report"}
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
-            Edit
-          </Button>
-          {term.status === "ACTIVE" && (
+          {!readOnly && (
+            <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+              Edit
+            </Button>
+          )}
+          {!readOnly && term.status === "ACTIVE" && (
             <Button
               size="sm"
               variant="outline"
@@ -456,9 +485,11 @@ function AddTermForm({
 function NewYear({
   isPending,
   run,
+  readOnly,
 }: {
   isPending: boolean;
   run: (fn: () => Promise<any>, ok: string) => void;
+  readOnly: boolean;
 }) {
   const [label, setLabel] = useState("");
 
@@ -466,29 +497,32 @@ function NewYear({
     <Section title="Start a year">
       <Panel className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          A new year starts blank — no timetable, no subjects. Call it whatever
-          your school calls it: Year 2, S6, Level 300.
+          {readOnly
+            ? "Close the archive you are viewing before starting a new year, so the new year is not created from inside an old one."
+            : "A new year starts blank — no timetable, no subjects. Call it whatever your school calls it: Year 2, S6, Level 300."}
         </p>
-        <div className="flex flex-wrap gap-2">
-          <Input
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="Year 2"
-            className="h-9 w-44"
-          />
-          <Button
-            disabled={isPending || !label.trim()}
-            onClick={() => run(() => startNewClass(label), "Year started.")}
-          >
-            Start
-          </Button>
-        </div>
+        {!readOnly && (
+          <div className="flex flex-wrap gap-2">
+            <Input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Year 2"
+              className="h-9 w-44"
+            />
+            <Button
+              disabled={isPending || !label.trim()}
+              onClick={() => run(() => startNewClass(label), "Year started.")}
+            >
+              Start
+            </Button>
+          </div>
+        )}
       </Panel>
     </Section>
   );
 }
 
-function ArchivedYear({ cls }: { cls: ClassRow }) {
+function ArchivedYear({ cls, isOpen }: { cls: ClassRow; isOpen: boolean }) {
   const [data, setData] = useState<Archive>(null);
   const [summary, setSummary] = useState<PeriodSummary | null>(null);
   const [open, setOpen] = useState(false);
@@ -514,16 +548,42 @@ function ArchivedYear({ cls }: { cls: ClassRow }) {
   return (
     <Panel className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="font-heading text-sm font-medium text-foreground">{cls.label}</p>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="font-heading text-sm font-medium text-foreground">{cls.label}</p>
+            {isOpen && (
+              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-500">
+                Open now
+              </span>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground">
             {day(cls.startedAt)} &ndash; {day(cls.completedAt) ?? "present"} &middot;{" "}
             {cls.terms.length} {cls.terms.length === 1 ? "term" : "terms"}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={toggle}>
-          {open ? "Hide" : "Open"}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={toggle}>
+            {open ? "Hide report" : "Report"}
+          </Button>
+          {/* A form post rather than a transition: the cookie changes what
+              EVERY page reads, so the whole app has to re-render against the
+              other year. Both actions redirect to the dashboard. */}
+          {isOpen ? (
+            <form action={exitArchive}>
+              <Button type="submit" variant="outline" size="sm">
+                Close {cls.label}
+              </Button>
+            </form>
+          ) : (
+            <form action={openArchivedYear}>
+              <input type="hidden" name="classId" value={cls.id} />
+              <Button type="submit" size="sm">
+                Open {cls.label}
+              </Button>
+            </form>
+          )}
+        </div>
       </div>
 
       {open && (

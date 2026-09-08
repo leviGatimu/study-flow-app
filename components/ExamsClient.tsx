@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { createEvent, deleteEvent } from '@/lib/actions';
+import { useIsArchived } from '@/components/ArchiveContext';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -15,6 +16,7 @@ export function ExamsClient({ events }: { events: any[] }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [formData, setFormData] = useState({ title: '', date: '', priority: 'NORMAL' });
+  const archived = useIsArchived();
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +30,8 @@ export function ExamsClient({ events }: { events: any[] }) {
       setOpen(false);
     });
   };
+
+  if (archived) return null;
 
   return (
     <div className="flex items-center gap-4">
@@ -108,6 +112,9 @@ export function ExamsClient({ events }: { events: any[] }) {
 
 export function DeleteExamButton({ id }: { id: string }) {
   const [isPending, startTransition] = useTransition();
+  const archived = useIsArchived();
+
+  if (archived) return null;
 
   return (
     <Button

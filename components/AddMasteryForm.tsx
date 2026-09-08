@@ -5,10 +5,12 @@ import { addMasteryItem } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus } from 'lucide-react';
+import { useIsArchived } from '@/components/ArchiveContext';
 
 export function AddMasteryForm({ subject }: { subject: string }) {
   const [title, setTitle] = useState('');
   const [isPending, startTransition] = useTransition();
+  const archived = useIsArchived();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,6 +21,8 @@ export function AddMasteryForm({ subject }: { subject: string }) {
       setTitle('');
     });
   };
+
+  if (archived) return null;
 
   return (
     <form onSubmit={handleSubmit} className="flex gap-2">

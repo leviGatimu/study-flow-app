@@ -7,6 +7,8 @@ import { GlobalShortcuts } from "@/components/GlobalShortcuts";
 import { getUserId } from "@/lib/auth";
 import { syncStreak } from "@/lib/actions";
 import { listSubjects } from "@/lib/subject-actions";
+import { getActiveScope, getViewScope } from "@/lib/scope";
+import type { ArchiveView } from "@/components/ArchiveContext";
 import { FocusProvider } from "@/lib/FocusContext";
 import { Toaster } from "sonner";
 
@@ -21,9 +23,21 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const userId = await getUserId();
-  const [userProgress, subjects] = userId
-    ? await Promise.all([syncStreak(), listSubjects()])
-    : [null, []];
+  const [userProgress, subjects, viewScope] = userId
+    ? await Promise.all([syncStreak(), listSubjects(), getViewScope(userId)])
+    : [null, [], null];
+
+  // The active year's label is only needed for the way out of an archive, and
+  // costs a second query - so it is only fetched when an archive is actually
+  // open, which is the rare case.
+  const archive: ArchiveView =
+    userId && viewScope?.isArchive
+      ? {
+          classId: viewScope.classId,
+          label: viewScope.label,
+          activeLabel: (await getActiveScope(userId))?.label ?? null,
+        }
+      : null;
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -56,7 +70,11 @@ export default async function RootLayout({
           <Toaster position="top-right" richColors />
           <FocusProvider>
             <GlobalShortcuts />
-            <AppShell userProgress={userProgress} subjects={subjects}>
+            <AppShell
+              userProgress={userProgress}
+              subjects={subjects}
+              archive={archive}
+            >
               {children}
             </AppShell>
           </FocusProvider>

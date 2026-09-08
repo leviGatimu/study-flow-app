@@ -8,12 +8,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { deleteProject } from '@/lib/project-actions';
+import { useIsArchived } from '@/components/ArchiveContext';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { ProjectWithDocs } from '@/lib/types';
 
 export function ProjectList({ initialProjects }: { initialProjects: ProjectWithDocs[] }) {
   const [projects, setProjects] = useState<ProjectWithDocs[]>(initialProjects);
+
+  const archived = useIsArchived();
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this project?')) {
@@ -34,15 +37,17 @@ export function ProjectList({ initialProjects }: { initialProjects: ProjectWithD
              <div className="p-4 bg-primary/10 rounded-xl text-primary">
                <Rocket className="w-8 h-8" />
              </div>
-             <Button
-               variant="ghost"
-               size="icon"
-               aria-label={`Delete project "${project.title}"`}
-               className="rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
-               onClick={() => handleDelete(project.id)}
-             >
-               <Trash2 className="w-5 h-5" />
-             </Button>
+             {!archived && (
+               <Button
+                 variant="ghost"
+                 size="icon"
+                 aria-label={`Delete project "${project.title}"`}
+                 className="rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
+                 onClick={() => handleDelete(project.id)}
+               >
+                 <Trash2 className="w-5 h-5" />
+               </Button>
+             )}
           </div>
 
           {/* Title & Stats */}

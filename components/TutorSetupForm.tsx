@@ -8,6 +8,7 @@ import { createTutorModule } from "@/lib/tutor-actions";
 import { Loader2, Upload, Sparkles, FileText, X, Shuffle, ListChecks, AlignLeft, Link2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useArchive } from "@/components/ArchiveContext";
 import { motion, AnimatePresence } from "framer-motion";
 
 const QUIZ_TYPES = [
@@ -22,6 +23,7 @@ export function TutorSetupForm({ subjects }: { subjects: string[] }) {
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [quizType, setQuizType] = useState('MIX');
+  const archive = useArchive();
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -42,6 +44,20 @@ export function TutorSetupForm({ subjects }: { subjects: string[] }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  // This form owns its whole page, so an empty card would read as broken.
+  if (archive) {
+    return (
+      <div className="text-sm font-medium text-muted-foreground text-center py-6 bg-muted/50 rounded-2xl border border-border/50">
+        <p className="text-foreground">{archive.label} is an archive.</p>
+        <p className="mt-1">
+          Quizzes you made that year are still in the library, but a new one
+          belongs to the year you are actually studying
+          {archive.activeLabel ? ` - go back to ${archive.activeLabel} to make one.` : "."}
+        </p>
+      </div>
+    );
   }
 
   return (

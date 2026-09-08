@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { createQuickTask } from '@/lib/actions';
+import { useIsArchived } from '@/components/ArchiveContext';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
@@ -15,6 +16,7 @@ export function QuickAddForm({ initialDate, trigger, subjects = [] }: { initialD
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const archived = useIsArchived();
 
   const [formData, setFormData] = useState({
     subject: '',
@@ -42,6 +44,11 @@ export function QuickAddForm({ initialDate, trigger, subjects = [] }: { initialD
       router.refresh();
     });
   };
+
+  // New tasks always belong to the ACTIVE year, so there is nothing sensible
+  // for this to do while a finished one is open. The Sidebar renders its own
+  // explained, disabled button in place of this.
+  if (archived) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

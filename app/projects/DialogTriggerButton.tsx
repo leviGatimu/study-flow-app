@@ -5,8 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { CreateProjectForm } from './CreateProjectForm';
 import { cn } from '@/lib/utils';
+import { useIsArchived } from '@/components/ArchiveContext';
 
 export function DialogTriggerButton({ className }: { className?: string }) {
+  const archived = useIsArchived();
+  if (archived) return null;
+
   return (
     <Dialog>
       <DialogTrigger asChild>
