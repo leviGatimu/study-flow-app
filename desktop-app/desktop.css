@@ -1,9 +1,28 @@
 /* desktop.css */
 /* This file is injected into the Electron window to make the web app feel like a native desktop app */
 
-/* 1. Remove scrollbars for a cleaner look while maintaining functionality */
+/* 1. Slim, quiet scrollbars.
+   These used to be width:0, which hid them completely. Survivable in a browser
+   tab, where the OS still flashes an overlay scrollbar as you scroll, but in
+   this window it left long lists (subjects, resources, the timetable) with no
+   indication that anything existed below the fold. Thin and low-contrast keeps
+   the clean look and keeps the affordance. */
 ::-webkit-scrollbar {
-    width: 0px;
+    width: 8px;
+    height: 8px;
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(120, 120, 120, 0.35);
+    border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 120, 120, 0.55);
+}
+
+::-webkit-scrollbar-corner {
     background: transparent;
 }
 
@@ -49,10 +68,7 @@ h1.text-foreground[class*="text-[12rem]"]::before {
 }
 
 /* 3. Global App Enhancements */
-/* Ensure the body has a solid background to prevent white flashes during transitions */
-body {
-    background-color: var(--background) !important;
-}
+/* Native window enhancements */
 
 /* 5. Login Page Refinements */
 /* Remove the top padding from the login panel on desktop */
@@ -77,11 +93,9 @@ input[name="username"], input[name="password"] {
 }
 
 /* 6. Interaction Refinements */
-/* Make buttons feel more tactile */
-button, .button, a.Button {
-    transition: transform 0.1s ease-out, filter 0.2s ease !important;
-}
-
-button:active, .button:active {
-    transform: scale(0.97) !important;
-}
+/* The press-shrink that used to live here (button:active { transform:
+   scale(0.97) }) is gone deliberately. It applied to EVERY button in the app,
+   desktop only, so the same control behaved differently here than on the web -
+   and docs/ui-contract.md rules out press shrink and hover scale outright
+   ("State feedback only: shadow, colour, opacity, a progress fill"). Buttons
+   already carry their own hover, focus and active states. */

@@ -51,6 +51,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { PWAInstaller } from '@/components/PWAInstaller';
+import { DesktopUpdater, useIsDesktopApp } from '@/components/DesktopUpdater';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/components/ThemeProvider';
 import { format } from 'date-fns';
@@ -178,6 +179,9 @@ function NavItem({ label, icon: Icon, active, onClick, count }: { label: string;
 export default function SettingsInterface({ initialData }: SettingsInterfaceProps) {
   const router = useRouter();
   const { theme, setTheme, accent, setAccent } = useTheme();
+  // Only true inside the packaged desktop shell; the web build never renders
+  // the update section at all.
+  const isDesktopApp = useIsDesktopApp();
   
   const [activeTab, setActiveTab] = useState('account');
 
@@ -861,6 +865,14 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                   <PWAInstaller />
                 </div>
               </SettingsSection>
+
+              {isDesktopApp && (
+                <SettingsSection title="Desktop app" description="Keep Study Flow up to date">
+                  <div className="px-4 py-3">
+                    <DesktopUpdater />
+                  </div>
+                </SettingsSection>
+              )}
             </div>
           )}
 
