@@ -151,5 +151,5 @@ durations and one easing, sentence case, no decorative glow. It exists because s
 ---
 
 <div align="center">
-<sub>Built by <a href="https://github.com/leviGatimu">leviGatimu</a></sub>
+<sub>Built by <a href="https://github.com/leviGatimu">leviGatimu</a>.</sub>
 </div>
