@@ -140,6 +140,12 @@ model SubjectGrade {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @default(now()) @updatedAt
   deletedAt    DateTime?
+  /// Denormalised from reportCard.termRef.classId so a grade can be filtered by
+  /// academic year without joining through ReportCard and Term on every read.
+  classId      String?
+  class        Class?     @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId])
 }
 
 model Homework {
@@ -214,6 +220,11 @@ model QuizAttempt {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @default(now()) @updatedAt
   deletedAt DateTime?
+  /// Inherited from the module the attempt belongs to.
+  classId   String?
+  class     Class?      @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId])
 }
 
 model Project {
@@ -254,6 +265,12 @@ model ChatSession {
   updatedAt DateTime      @updatedAt
   messages  ChatMessage[]
   deletedAt DateTime?
+  /// The academic year the conversation happened in. ChatMessage deliberately
+  /// has no column of its own: it is scoped through its session.
+  classId   String?
+  class     Class?        @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId])
 }
 
 model ChatMessage {
@@ -482,6 +499,10 @@ model StickyNote {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+  classId   String?
+  class     Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId])
 }
 
 model AiNote {
@@ -575,6 +596,10 @@ model Class {
   studioNotes       StudioNote[]
   aiNotes           AiNote[]
   projects          Project[]
+  subjectGrades     SubjectGrade[]
+  quizAttempts      QuizAttempt[]
+  chatSessions      ChatSession[]
+  stickyNotes       StickyNote[]
 
   @@index([userId, status])
 }
