@@ -4,7 +4,13 @@ import { addDays, startOfDay, endOfDay } from 'date-fns';
 
 import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/lib/auth';
-import { getScheduleState } from '@/lib/term';
+import {
+  getViewScope,
+  byClass,
+  requireTermStamp,
+  isViewingArchive,
+  ARCHIVE_WRITE_ERROR,
+} from '@/lib/scope';
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -50,8 +56,10 @@ export async function getExamWithPrep(examId: string) {
   });
   if (!exam) return null;
 
+  // The picker offers this year's subjects: linking an exam to a subject the
+  // year no longer teaches is how the title-as-subject-key bug looked.
   const subjects = await prisma.subject.findMany({
-    where: { userId, deletedAt: null },
+    where: { userId, ...byClass(await getViewScope(userId)), deletedAt: null },
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
   });
@@ -66,6 +74,10 @@ export async function setExamSubject(examId: string, subjectId: string | null) {
 
   const exam = await prisma.examEvent.findFirst({ where: { id: examId, userId } });
   if (!exam) return { error: 'Exam not found.' };
+
+  // A finished year is a record, not a workspace. This action reports failure
+  // by returning it, so the refusal is returned rather than thrown.
+  if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
   await prisma.examEvent.update({ where: { id: examId }, data: { subjectId } });
   refresh();
@@ -91,6 +103,8 @@ export async function updateExamDetails(
   const exam = await prisma.examEvent.findFirst({ where: { id: examId, userId } });
   if (!exam) return { error: 'Exam not found.' };
 
+  if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
+
   await prisma.examEvent.update({ where: { id: examId }, data });
   refresh();
   return { success: true };
@@ -110,6 +124,8 @@ export async function recordExamResult(
 
   const exam = await prisma.examEvent.findFirst({ where: { id: examId, userId } });
   if (!exam) return { error: 'Exam not found.' };
+
+  if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
   if (score !== null && maxScore !== null && maxScore <= 0) {
     return { error: 'Total marks must be greater than zero.' };
@@ -184,7 +200,7 @@ export async function planRevision(
     dayOffsets.push(Math.min(availableDays - 1, Math.max(0, fromStart - 1)));
   }
 
-  const term = await getScheduleState(userId);
+  const stamp = await requireTermStamp(userId);
 
   // Replace only the blocks that have not been done.
   const existing = await prisma.task.findMany({
@@ -202,7 +218,9 @@ export async function planRevision(
   const usedPerDay = new Map<string, number[]>();
 
   // Pre-load what is already scheduled on those days so revision does not land
-  // on top of an existing block.
+  // on top of an existing block. Deliberately NOT year-scoped: this is clash
+  // detection, and a block the query cannot see is a block revision lands on
+  // top of.
   const planDays = [...new Set(dayOffsets)].map((o) => addDays(windowStart, o));
   const dayTasks = await prisma.task.findMany({
     where: {
@@ -251,7 +269,7 @@ export async function planRevision(
     data: created.map((c) => ({
       userId,
       templateId: null,
-      termId: term.termId,
+      ...stamp,
       examId,
       date: c.date,
       startTime: c.startTime,
@@ -271,6 +289,8 @@ export async function planRevision(
 export async function clearRevisionPlan(examId: string) {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
+
+  if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
   const { count } = await prisma.task.deleteMany({
     where: { userId, examId, isDone: false, isDeleted: false },

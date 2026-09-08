@@ -8,6 +8,14 @@ import { revalidatePath } from 'next/cache';
 import { grantXp } from './gamification';
 import { randomUUID } from 'node:crypto';
 import { startOfDay, isSameDay } from 'date-fns';
+import {
+  getViewScope,
+  getActiveScope,
+  byClass,
+  requireClassStamp,
+  requireTermStamp,
+  assertWritableScope,
+} from '@/lib/scope';
 
 type Provider = 'gemini' | 'openai' | 'anthropic' | 'groq';
 
@@ -415,8 +423,11 @@ async function buildSchoolTimetable(forUserId?: string): Promise<string> {
   const userId = forUserId ?? (await getUserId());
   if (!userId) return 'SCHOOL TIMETABLE: unavailable.';
 
+  // This year's timetable. Unscoped, the model was told about every weekly
+  // block the user has ever had, and answered about a schedule they left
+  // behind when the year ended.
   const templates = await prisma.scheduleTemplate.findMany({
-    where: { userId, deletedAt: null },
+    where: { userId, ...byClass(await getActiveScope(userId)), deletedAt: null },
     select: { dayOfWeek: true, subject: true, startTime: true, endTime: true },
     orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
   });
@@ -972,7 +983,7 @@ export async function createChatSession(title: string = 'New Chat') {
   if (!userId) throw new Error('Unauthorized');
 
   const session = await prisma.chatSession.create({
-    data: { userId, title },
+    data: { userId, title, ...(await requireClassStamp(userId)) },
   });
 
   revalidatePath('/ai');
@@ -984,7 +995,7 @@ export async function getChatSessions() {
   if (!userId) return [];
 
   return prisma.chatSession.findMany({
-    where: { userId },
+    where: { userId, ...byClass(await getViewScope(userId)) },
     orderBy: { updatedAt: 'desc' },
   });
 }
@@ -1002,6 +1013,11 @@ export async function getChatMessages(sessionId: string) {
 export async function deleteChatSession(sessionId: string) {
   const userId = await getUserId();
   if (!userId) return;
+
+  // A finished year is a record, not a workspace. The UI hides these
+  // controls inside an archive; this is the guarantee behind that, because
+  // hidden is not the same as prevented.
+  await assertWritableScope(userId);
 
   await prisma.chatSession.deleteMany({ where: { id: sessionId, userId } });
   revalidatePath('/ai');
@@ -1171,7 +1187,9 @@ export async function organizeStickyNotes() {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
 
-  const notes = await prisma.stickyNote.findMany({ where: { userId, isDone: false } });
+  const notes = await prisma.stickyNote.findMany({
+    where: { userId, ...byClass(await getViewScope(userId)), isDone: false },
+  });
   if (notes.length === 0) return { error: 'No active notes to organize.' };
 
   const notesText = notes.map(n => `- Title: ${n.title}\n  Content: ${n.content}`).join('\n\n');
@@ -1188,7 +1206,7 @@ export async function getAiNotes() {
   if (!userId) return [];
 
   return prisma.aiNote.findMany({
-    where: { userId },
+    where: { userId, ...byClass(await getViewScope(userId)) },
     orderBy: { createdAt: 'desc' },
   });
 }
@@ -1200,6 +1218,7 @@ export async function createAiNote(title: string, content: string, sourceName?: 
   const note = await prisma.aiNote.create({
     data: {
       userId,
+      ...(await requireClassStamp(userId)),
       title,
       content,
       sourceName,
@@ -1214,6 +1233,8 @@ export async function createAiNote(title: string, content: string, sourceName?: 
 export async function updateAiNote(id: string, title: string, content: string) {
   const userId = await getUserId();
   if (!userId) throw new Error('Unauthorized');
+
+  await assertWritableScope(userId);
 
   const note = await prisma.aiNote.update({
     where: { id, userId },
@@ -1230,6 +1251,8 @@ export async function updateAiNote(id: string, title: string, content: string) {
 export async function deleteAiNote(id: string) {
   const userId = await getUserId();
   if (!userId) throw new Error('Unauthorized');
+
+  await assertWritableScope(userId);
 
   await prisma.aiNote.deleteMany({
     where: { id, userId },
@@ -1588,6 +1611,7 @@ export async function commitTimetablePlan(
   }
 
   const existing = await getEvents();
+  const stamp = await requireTermStamp(userId);
 
   let examsAdded = 0;
   for (const exam of clean.exams) {
@@ -1597,7 +1621,7 @@ export async function commitTimetablePlan(
     );
     if (isDuplicate) continue;
     await prisma.examEvent.create({
-      data: { userId, title: exam.subject, date: startOfDay(date), priority: exam.priority },
+      data: { userId, title: exam.subject, date: startOfDay(date), priority: exam.priority, ...stamp },
     });
     examsAdded++;
   }
@@ -1616,6 +1640,7 @@ export async function commitTimetablePlan(
         isDone: false,
         isMissed: false,
         isDeleted: false,
+        ...stamp,
       },
     });
     revisionAdded++;
