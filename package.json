@@ -11,7 +11,8 @@
     "backfill": "tsx prisma/backfill-classes.ts",
     "db:sqlite": "node scripts/prisma-sqlite.mjs && prisma generate --schema prisma/schema.sqlite.prisma",
     "db:sqlite:migration": "node scripts/prisma-sqlite.mjs && prisma migrate diff --from-migrations prisma/migrations-sqlite --to-schema-datamodel prisma/schema.sqlite.prisma --script",
-    "build:desktop": "npm run db:sqlite && next build",
+    "build:desktop": "node scripts/build-desktop.mjs",
+    "build:desktop:client": "node scripts/build-desktop.mjs --no-build",
     "db:postgres": "prisma generate --schema prisma/schema.prisma",
     "test:sync:setup": "node scripts/prisma-sqlite.mjs --test && prisma generate --schema prisma/schema.sqlite-test.prisma",
     "test:sync": "node --test \"test/**/*.test.mjs\""
