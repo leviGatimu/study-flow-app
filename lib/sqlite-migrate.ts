@@ -58,13 +58,11 @@ export async function runSqliteMigrations(): Promise<void> {
   );
 
   // Lexicographic order is the migration order, same convention as Prisma.
-  const pending = readdirSync(dir, { withFileTypes: true })
+  const all = readdirSync(dir, { withFileTypes: true })
     .filter((e) => e.isDirectory())
     .map((e) => e.name)
-    .sort()
-    .filter((name) => !applied.has(name));
-
-  if (pending.length === 0) return;
+    .sort();
+  const pending = all.filter((name) => !applied.has(name));
 
   for (const name of pending) {
     const file = join(dir, name, 'migration.sql');
@@ -93,15 +91,149 @@ export async function runSqliteMigrations(): Promise<void> {
 
     try {
       for (const statement of statements) {
-        await prisma.$executeRawUnsafe(statement);
+        try {
+          await prisma.$executeRawUnsafe(statement);
+        } catch (stmtErr: any) {
+          // If table or index already exists, skip it safely
+          const msg = stmtErr?.message || '';
+          if (msg.includes('already exists') || stmtErr?.meta?.message?.includes('already exists')) {
+            continue;
+          }
+          throw stmtErr;
+        }
       }
-      await prisma.$executeRawUnsafe(`INSERT INTO "${TABLE}" (name) VALUES (?)`, name);
+      await prisma.$executeRawUnsafe(`INSERT OR IGNORE INTO "${TABLE}" (name) VALUES (?)`, name);
       console.log(`[sqlite-migrate] applied ${name} (${statements.length} statements)`);
     } catch (err) {
-      // Fail loudly. A half-migrated database must not be quietly served: the
-      // launcher takes a backup before boot precisely so this is recoverable.
+      // Fail loudly only on real unrecoverable errors.
       console.error(`[sqlite-migrate] FAILED on ${name}:`, err);
       throw err;
     }
+  }
+
+  // Always, even when nothing was pending: a database repaired by an older
+  // launch must not need a second one, and a database broken by an older
+  // release has to heal itself the first time a fixed build runs.
+  await reconcileColumns(dir, all);
+}
+
+/** One column as the migrations declare it: `"isAdmin" BOOLEAN NOT NULL DEFAULT false`. */
+type ColumnDefs = Map<string, string>;
+
+const CREATE_TABLE = /CREATE TABLE\s+"([^"]+)"\s*\(([\s\S]*?)\n\s*\);/g;
+const ADD_COLUMN = /ALTER TABLE\s+"([^"]+)"\s+ADD COLUMN\s+("[^"]+"[^;]*);/g;
+
+/** Every column the migration files describe, per table, latest definition winning. */
+function declaredColumns(dir: string, migrations: string[]): Map<string, ColumnDefs> {
+  const declared = new Map<string, ColumnDefs>();
+  const columnsFor = (table: string) => {
+    const existing = declared.get(table) ?? new Map<string, string>();
+    declared.set(table, existing);
+    return existing;
+  };
+
+  for (const name of migrations) {
+    const file = join(dir, name, 'migration.sql');
+    if (!existsSync(file)) continue;
+    const sql = readFileSync(file, 'utf8');
+
+    CREATE_TABLE.lastIndex = 0;
+    for (let m = CREATE_TABLE.exec(sql); m; m = CREATE_TABLE.exec(sql)) {
+      const columns = columnsFor(m[1]);
+      for (const rawLine of m[2].split(/\r?\n/)) {
+        const line = rawLine.trim().replace(/,$/, '');
+        // Column lines start with a quoted name; CONSTRAINT ... lines do not.
+        const named = /^"([^"]+)"\s+\S/.exec(line);
+        if (named) columns.set(named[1], line);
+      }
+    }
+
+    ADD_COLUMN.lastIndex = 0;
+    for (let m = ADD_COLUMN.exec(sql); m; m = ADD_COLUMN.exec(sql)) {
+      const definition = m[2].trim();
+      const named = /^"([^"]+)"/.exec(definition);
+      if (named) columnsFor(m[1]).set(named[1], definition);
+    }
+  }
+
+  return declared;
+}
+
+/**
+ * SQLite will not accept every column definition in an ALTER TABLE ADD COLUMN:
+ * a non-constant default (CURRENT_TIMESTAMP) is rejected outright, and NOT NULL
+ * without a default is rejected on a table that already has rows. Both are
+ * added nullable instead and then backfilled with the value a fresh install
+ * would have had, which is what `backfill` carries.
+ */
+function addableDefinition(definition: string): { sql: string; backfill: string | null } {
+  const nonConstantDefault = /DEFAULT\s+CURRENT_(TIMESTAMP|TIME|DATE)/i.test(definition);
+  const notNullNoDefault = /NOT NULL/i.test(definition) && !/DEFAULT/i.test(definition);
+  if (!nonConstantDefault && !notNullNoDefault) return { sql: definition, backfill: null };
+
+  const sql = definition
+    .replace(/DEFAULT\s+CURRENT_(TIMESTAMP|TIME|DATE)/i, '')
+    .replace(/NOT NULL/i, '')
+    .replace(/UNIQUE/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const type = (/^"[^"]+"\s+(\w+)/.exec(sql)?.[1] ?? 'TEXT').toUpperCase();
+  const backfill = nonConstantDefault || type === 'DATETIME'
+    ? 'CURRENT_TIMESTAMP'
+    : type === 'TEXT'
+      ? "''"
+      : '0';
+
+  return { sql, backfill };
+}
+
+/**
+ * Bring tables that already existed up to the shape the migrations describe.
+ *
+ * The loop above skips a statement whose object "already exists" - correct in
+ * itself, the table IS there - but on a database that predates the migration
+ * ledger that meant every such table kept the shape it had years ago while the
+ * migration was still recorded as applied. The damage found on a real install:
+ * 20 tables missing columns, User.isAdmin among them, so every Prisma query
+ * failed with P2022 and the desktop app could only ever show its 503 page. New
+ * installs were fine, which is exactly why it survived so long - only upgraders
+ * were broken.
+ *
+ * Idempotent and cheap: one PRAGMA per table, and nothing else unless a column
+ * is genuinely missing.
+ */
+async function reconcileColumns(dir: string, migrations: string[]): Promise<void> {
+  let repaired = 0;
+
+  for (const [table, columns] of declaredColumns(dir, migrations)) {
+    const info = await prisma.$queryRawUnsafe<{ name: string }[]>(
+      `PRAGMA table_info("${table}")`
+    );
+    if (info.length === 0) continue; // Not in this database at all; not ours to touch.
+    const present = new Set(info.map((c) => c.name));
+
+    for (const [name, definition] of columns) {
+      if (present.has(name)) continue;
+      if (/PRIMARY KEY/i.test(definition)) {
+        // SQLite cannot add one, and a table missing its key is past repairing.
+        console.warn(`[sqlite-migrate] "${table}"."${name}" is a primary key and cannot be added`);
+        continue;
+      }
+
+      const { sql, backfill } = addableDefinition(definition);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "${table}" ADD COLUMN ${sql}`);
+      if (backfill) {
+        await prisma.$executeRawUnsafe(
+          `UPDATE "${table}" SET "${name}" = ${backfill} WHERE "${name}" IS NULL`
+        );
+      }
+      repaired += 1;
+      console.log(`[sqlite-migrate] repaired ${table}.${name}`);
+    }
+  }
+
+  if (repaired > 0) {
+    console.log(`[sqlite-migrate] reconciled ${repaired} missing column(s)`);
   }
 }
