@@ -1,8 +1,9 @@
 "use client";
 
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { NAV, NavSection, resolveNav } from "@/lib/nav";
@@ -10,17 +11,39 @@ import { QuickAddForm } from "@/components/QuickAddForm";
 import { SafeUserProgress as UserProgress } from "@/lib/types";
 
 /**
- * Primary navigation: a fixed 64px icon rail.
+ * Remembered per browser, so the rail opens the way you left it. Read through
+ * useSyncExternalStore rather than an effect: the server has no localStorage,
+ * so it renders unpinned and React reconciles on hydration without a
+ * setState-in-effect cascade.
+ */
+const PIN_KEY = "sidebarPinned";
+const PIN_EVENT = "sidebar-pin-change";
+
+const subscribeToPin = (onChange: () => void) => {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(PIN_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(PIN_EVENT, onChange);
+  };
+};
+const readPin = () => localStorage.getItem(PIN_KEY) === "true";
+const pinOnServer = () => false;
+
+/**
+ * Primary navigation: a 64px icon rail that opens to 240px on hover, on
+ * keyboard focus, or for good once you pin it.
  *
- * Each icon opens a flyout on hover or keyboard focus listing that section's
- * pages, so nothing is hidden behind "you must already be in this section" the
- * way an inline expanding list hides it - while the rail itself never costs
- * more than 64px of screen.
+ * Unpinned, the open panel is absolutely positioned OVER the page while the
+ * aside keeps reserving its 64px - a rail that widened in flow would shove the
+ * whole page sideways every time the pointer crossed it. Pinned, the aside
+ * reserves the full 240px and the panel fills it exactly, so nothing overlaps
+ * and the shift happens once, because you asked for it.
  *
- * There is no collapse toggle any more: the rail IS the collapsed state, so a
- * second one would be a control with nothing to do.
- *
- * Note the aside must NOT clip its overflow, or the flyouts get cut off.
+ * Sub-pages are listed inline under whichever section the pointer (or focus)
+ * is on, defaulting to the section you are in. That keeps the old flyout's one
+ * real virtue - any sub-page is reachable without first navigating into its
+ * section - without the flyout's dead zones between rail and panel.
  */
 export function Sidebar({
   userProgress,
@@ -32,49 +55,144 @@ export function Sidebar({
   const pathname = usePathname();
   const activeSection = resolveNav(pathname)?.section;
 
+  const pinned = useSyncExternalStore(subscribeToPin, readPin, pinOnServer);
+  const [pointerInside, setPointerInside] = useState(false);
+  const [focusInside, setFocusInside] = useState(false);
+  const [pointedSection, setPointedSection] = useState<string | null>(null);
+
+  const togglePin = () => {
+    localStorage.setItem(PIN_KEY, String(!pinned));
+    window.dispatchEvent(new Event(PIN_EVENT));
+  };
+
+  const expanded = pinned || pointerInside || focusInside;
+  const openSection = expanded
+    ? pointedSection ?? activeSection?.name ?? null
+    : null;
+
+  const collapse = () => {
+    setPointerInside(false);
+    setPointedSection(null);
+  };
+
   return (
     <aside
       data-tour="sidebar"
-      className="z-40 hidden w-16 shrink-0 flex-col items-center border-r border-border bg-sidebar py-3 md:flex"
-    >
-      <Link href="/" className="mb-3" aria-label="Study Flow home">
-        <img src="/logo.png" alt="" className="size-9 rounded-xl object-cover" />
-      </Link>
-
-      <QuickAddForm
-        subjects={subjects}
-        trigger={
-          <button
-            type="button"
-            aria-label="Add a task"
-            title="Add a task"
-            className="mb-3 flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-          >
-            <Plus className="size-5" />
-          </button>
-        }
-      />
-
-      <nav className="flex flex-col items-center gap-1">
-        {NAV.map((section) => (
-          <RailItem
-            key={section.name}
-            section={section}
-            pathname={pathname}
-            isActive={activeSection?.name === section.name}
-          />
-        ))}
-      </nav>
-
-      {userProgress && (
-        <Link
-          href="/ranks"
-          title={`Level ${userProgress.level}`}
-          className="mt-auto flex size-10 items-center justify-center rounded-xl border border-border bg-card font-heading text-sm font-semibold text-primary transition-colors hover:bg-muted"
-        >
-          {userProgress.level}
-        </Link>
+      className={cn(
+        "relative z-40 hidden shrink-0 transition-[width] duration-[var(--duration-base)] ease-out md:block",
+        pinned ? "w-60" : "w-16"
       )}
+    >
+      <div
+        onMouseEnter={() => setPointerInside(true)}
+        onMouseLeave={collapse}
+        onFocus={() => setFocusInside(true)}
+        onBlur={(e) => {
+          // Focus moving between two links inside the rail must not close it,
+          // so only a target outside the panel counts as leaving.
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            setFocusInside(false);
+            setPointedSection(null);
+          }
+        }}
+        className={cn(
+          "absolute inset-y-0 left-0 flex flex-col overflow-x-hidden overflow-y-auto border-r border-border bg-sidebar py-3 transition-[width] duration-[var(--duration-base)] ease-out",
+          expanded ? "w-60" : "w-16",
+          // Only the overlaying state needs to lift off the page beneath it.
+          expanded && !pinned && "shadow-lg"
+        )}
+      >
+        <div className="flex items-center gap-3 px-3">
+          <Link href="/" aria-label="Study Flow home" className="shrink-0">
+            <img
+              src="/logo.png"
+              alt=""
+              className="size-9 rounded-xl object-cover"
+            />
+          </Link>
+          {expanded && (
+            <>
+              <span className="truncate font-heading text-sm font-bold text-foreground">
+                Study Flow
+              </span>
+              <button
+                type="button"
+                onClick={togglePin}
+                aria-pressed={pinned}
+                title={pinned ? "Let the sidebar collapse" : "Keep the sidebar open"}
+                className="ml-auto flex size-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              >
+                {pinned ? (
+                  <PanelLeftClose className="size-4" />
+                ) : (
+                  <PanelLeftOpen className="size-4" />
+                )}
+                <span className="sr-only">
+                  {pinned ? "Let the sidebar collapse" : "Keep the sidebar open"}
+                </span>
+              </button>
+            </>
+          )}
+        </div>
+
+        <div className="mt-3 px-3">
+          <QuickAddForm
+            subjects={subjects}
+            trigger={
+              <button
+                type="button"
+                aria-label="Add a task"
+                title="Add a task"
+                className={cn(
+                  "flex h-10 w-full items-center rounded-xl bg-primary text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                  expanded ? "gap-3 px-2.5" : "justify-center"
+                )}
+              >
+                <Plus className="size-5 shrink-0" />
+                {expanded && (
+                  <span className="truncate text-sm font-medium">Add a task</span>
+                )}
+              </button>
+            }
+          />
+        </div>
+
+        <nav aria-label="Primary" className="mt-3 flex flex-col gap-1 px-3">
+          {NAV.map((section) => (
+            <RailItem
+              key={section.name}
+              section={section}
+              pathname={pathname}
+              expanded={expanded}
+              isActive={activeSection?.name === section.name}
+              showChildren={openSection === section.name}
+              onPoint={() => setPointedSection(section.name)}
+            />
+          ))}
+        </nav>
+
+        {userProgress && (
+          <div className="mt-auto px-3 pt-3">
+            <Link
+              href="/ranks"
+              title={`Level ${userProgress.level}`}
+              className={cn(
+                "flex h-10 w-full items-center rounded-xl border border-border bg-card transition-colors hover:bg-muted",
+                expanded ? "gap-3 px-2.5" : "justify-center"
+              )}
+            >
+              <span className="shrink-0 font-heading text-sm font-semibold text-primary">
+                {userProgress.level}
+              </span>
+              {expanded && (
+                <span className="truncate text-sm font-medium text-foreground">
+                  Level {userProgress.level}
+                </span>
+              )}
+            </Link>
+          </div>
+        )}
+      </div>
     </aside>
   );
 }
@@ -82,85 +200,70 @@ export function Sidebar({
 function RailItem({
   section,
   pathname,
+  expanded,
   isActive,
+  showChildren,
+  onPoint,
 }: {
   section: NavSection;
   pathname: string | null;
+  expanded: boolean;
   isActive: boolean;
+  showChildren: boolean;
+  onPoint: () => void;
 }) {
   const Icon = section.icon;
   const children = section.children ?? [];
 
   return (
-    <div className="group/item relative">
+    <div onMouseEnter={onPoint} onFocus={onPoint}>
       <Link
         href={section.href}
         aria-label={section.name}
+        aria-current={pathname === section.href ? "page" : undefined}
+        title={section.name}
         // Anchor for the onboarding tour: [data-tour="nav-subjects"] and so on.
         // Derived from the section rather than hand-written per item, so a
         // renamed or reordered section cannot leave the tour pointing at
         // nothing the way the old hard-coded nav-* anchors did.
         data-tour={`nav-${section.name.toLowerCase().replace(/\s+/g, "-")}`}
         className={cn(
-          "flex size-10 items-center justify-center rounded-xl transition-colors",
+          "flex h-10 w-full items-center rounded-xl transition-colors",
+          expanded ? "gap-3 px-2.5" : "justify-center",
           isActive
             ? "bg-primary/10 text-primary"
             : "text-muted-foreground hover:bg-muted hover:text-foreground"
         )}
       >
-        <Icon className="size-5" />
+        <Icon className="size-5 shrink-0" />
+        {expanded && (
+          <span className="truncate text-sm font-medium">{section.name}</span>
+        )}
       </Link>
 
-      {/*
-        The wrapper's left padding is the visual gap between rail and panel, and
-        it is deliberately part of the hoverable element: make it a margin, or
-        give it pointer-events-none, and that gap becomes a dead zone that
-        closes the flyout as the pointer crosses it.
-
-        Hovering an absolutely-positioned descendant still counts as hovering
-        the group, because :hover follows the DOM tree, not the visual box.
-      */}
-      <div
-        className={cn(
-          "absolute top-0 left-full z-50 hidden pl-2",
-          "group-hover/item:block group-focus-within/item:block"
-        )}
-      >
-        <div className="min-w-[12rem] rounded-2xl border border-border bg-popover p-1.5 shadow-lg">
-          {children.length === 0 ? (
-            <Link
-              href={section.href}
-              className="block rounded-xl px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
-            >
-              {section.name}
-            </Link>
-          ) : (
-            <>
-              <p className="px-3 py-1.5 text-xs text-muted-foreground">
-                {section.name}
-              </p>
-              {children.map((child) => {
-                const childActive =
-                  pathname === child.href || pathname?.startsWith(child.href + "/");
-                return (
-                  <Link
-                    key={child.href}
-                    href={child.href}
-                    className={cn(
-                      "block rounded-xl px-3 py-2 text-sm transition-colors",
-                      childActive
-                        ? "bg-primary/10 font-medium text-primary"
-                        : "text-foreground hover:bg-muted"
-                    )}
-                  >
-                    {child.name}
-                  </Link>
-                );
-              })}
-            </>
-          )}
+      {showChildren && children.length > 0 && (
+        <div className="mt-0.5 mb-1 flex flex-col gap-0.5 pl-10">
+          {children.map((child) => {
+            const childActive =
+              pathname === child.href || pathname?.startsWith(child.href + "/");
+            return (
+              <Link
+                key={child.href}
+                href={child.href}
+                aria-current={pathname === child.href ? "page" : undefined}
+                className={cn(
+                  "truncate rounded-lg px-2.5 py-1.5 text-sm transition-colors",
+                  childActive
+                    ? "bg-primary/10 font-medium text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                {child.name}
+              </Link>
+            );
+          })}
         </div>
-      </div>
+      )}
     </div>
   );
 }
