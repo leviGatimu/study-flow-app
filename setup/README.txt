@@ -5,8 +5,8 @@
 This folder contains the Windows executable installer for the Study Tracker
 desktop application.
 
-Current build: 1.0.1  (103 MB)
-Published at : https://github.com/leviGatimu/Study-Flow/releases/tag/v1.0.1
+Current build: 1.0.2  (103 MB)
+Published at : https://github.com/leviGatimu/Study-Flow/releases/tag/v1.0.2
 
 ------------------------------------------------------------------------
 1. WHAT'S INCLUDED

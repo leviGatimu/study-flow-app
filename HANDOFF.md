@@ -1,6 +1,36 @@
 # HANDOFF
 
 ## Current Task
+SHIP 1.0.2 TO THE DESKTOP UPDATE CHANNEL - DONE (2026-09-08). Levi: "push
+changes and ensure i can get new changes on the desktop app". The branch was
+already on GitHub; what was missing was the version-bump commit (672f171) and
+the release itself. v1.0.2 is now published with both assets - see "UPDATE
+CHANNEL" below. Next step is Levi's, not mine: open the installed app,
+Settings -> Desktop app -> Check for updates, and confirm it downloads and
+restarts into 1.0.2.
+
+OPEN QUESTION, NOT YET DECIDED. Levi, right after the build: "The issue i have
+with desktop app it aint like same as web one if i create assignment i cant see
+it on web one, so what i think we can do is just have desktop app fetch its data
+from supabase like the web one sadly". That is Phase 9's problem arriving early.
+Three shapes, unpicked:
+  a) desktop points DATABASE_URL at Supabase. Smallest diff, but it ships a
+     Postgres credential inside a public installer - every user would hold
+     read/write on EVERYONE's data, and the app dies without internet at
+     ~150-200ms per query from Kigali to fra1. Do not do this as-is.
+  b) desktop stops running its own Next server and talks to the deployed web
+     app over HTTP with the user's session cookie. One source of truth, no
+     credential shipped, still online-only.
+  c) Phase 9 sync, the local-first answer that was always the destination.
+     Stage 0 (identity map + hazard tests) is already done.
+
+ALSO STILL PENDING from the Supabase -> desktop import: the four new classId
+columns are NULL on every imported desktop row, so those rows vanish from both
+years until a repair pass runs on the desktop database. The previous session's
+throwaway repair script is gone with its scratchpad; scripts/backfill-class-scope.mjs
+is the same logic and only needs pointing at the SQLite client.
+
+## Previously (same day)
 ACADEMIC YEAR SCOPING (2026-09-08). Levi: "i hate that we still got some year 1
 data yet i said when new class started it starts fresh, same as the school
 portal". He listed milestones, homework, resources, progress, history, marks,
@@ -96,14 +126,18 @@ and NOT NULL with no default). Proven on a copy AND on Levi's live database:
 64 columns, no drift left, 2 users and 241 tasks intact. Backup kept at
 %APPDATA%/study-tracker-desktop/backups/database-before-column-repair.db.
 
-UPDATE CHANNEL - NOW LIVE. v1.0.1 is published at
-https://github.com/leviGatimu/Study-Flow/releases/tag/v1.0.1 with both assets
-(StudyTrackerSetup.exe 103,464,120 bytes + latest.yml), not a draft, not a
-pre-release. setup/StudyTrackerSetup.exe is byte-identical to the published
-asset (same sha512). WATCH OUT: the code repo is leviGatimu/study-flow-app but
-every shipped build is compiled to check leviGatimu/Study-Flow - `gh release
-create` without --repo goes to the wrong one and reaches nobody. Documented in
-setup/README.txt.
+UPDATE CHANNEL - LIVE, TWO RELEASES DEEP. v1.0.2 is published at
+https://github.com/leviGatimu/Study-Flow/releases/tag/v1.0.2 with both assets
+(StudyTrackerSetup.exe 103,494,164 bytes + latest.yml), not a draft, not a
+pre-release, marked Latest - so a 1.0.1 install finally has something higher to
+find. It carries all of the academic-year scoping work. v1.0.1 is still up.
+setup/ holds a byte-identical copy of the published exe (sha512 verified
+against latest.yml before upload). WATCH OUT: the code repo is
+leviGatimu/study-flow-app but every shipped build is compiled to check
+leviGatimu/Study-Flow - `gh release create` without --repo goes to the wrong one
+and reaches nobody. Documented in setup/README.txt. `gh` on this machine IS
+authenticated now (account leviGatimu, scopes repo/workflow) - an older note in
+this file saying "Bad credentials" is stale.
 
 ONE-OFF SUPABASE -> DESKTOP IMPORT (2026-09-08). Levi hit "desktop doesn't
 have Year 2" and chose a one-off import over building Phase 9 now. The two
@@ -125,8 +159,9 @@ edit to either side. Phase 9 remains the real fix, and its Stage 0 (identity
 map + hazard tests) is already done.
 
 STILL UNVERIFIED: the dashboard and Settings UI inside the packaged app (needs
-a login, which Claude does not do), and an actual download-and-restart, which
-needs a second release (1.0.2) to exist.
+a login, which Claude does not do), and an actual download-and-restart. The
+second release now exists, so the restart path is finally testable: Settings ->
+Desktop app -> Check for updates on the installed 1.0.1.
 
 PREVIOUS OPEN ITEM, now closed: `leviGatimu/Study-Flow` is public but has ZERO
 releases, so `releases/latest` 404s and every update check fails no matter how
