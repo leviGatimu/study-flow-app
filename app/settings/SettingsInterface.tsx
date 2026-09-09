@@ -881,7 +881,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                   only the server knows that. */}
               <SettingsSection
                 title="Sync with the website"
-                description="Work offline here; catch up when you reconnect"
+                description="Automatic — every change goes across on its own"
               >
                 <div className="px-4 py-3">
                   <SyncPanel />

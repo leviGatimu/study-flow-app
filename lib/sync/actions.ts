@@ -107,3 +107,63 @@ export async function disconnectSync() {
   revalidatePath('/settings');
   return { success: true };
 }
+
+/**
+ * A sync triggered by the app itself coming back to life.
+ *
+ * Waking a laptop or reconnecting is the moment the two sides are most likely
+ * to be far apart, and it is also the moment nobody thinks to press a button.
+ * Called from components/SyncOnActivity.tsx on focus and on `online`.
+ *
+ * Returns whether anything arrived, so the caller can refresh the page it is on
+ * rather than refreshing on every heartbeat. No revalidatePath here: this can
+ * fire while the user is mid-typing, and re-rendering the tree under them to
+ * report "nothing changed" would be worse than the staleness it fixes.
+ */
+export async function syncFromActivity(): Promise<{ changed: boolean }> {
+  const userId = await getUserId();
+  if (!userId || !IS_SQLITE) return { changed: false };
+
+  const { getSyncState } = await import('./client.ts');
+  const before = await getSyncState(userId);
+
+  const { syncAllPaired } = await import('./scheduler.ts');
+  await syncAllPaired();
+
+  const after = await getSyncState(userId);
+  const pulled = (after as { lastPulled?: number }).lastPulled ?? 0;
+  const movedOn =
+    (after as { lastSyncAt?: Date | null }).lastSyncAt?.getTime() !==
+    (before as { lastSyncAt?: Date | null }).lastSyncAt?.getTime();
+
+  return { changed: movedOn && pulled > 0 };
+}
+
+/**
+ * The cheap status poll, for the badge and the notification.
+ *
+ * Separate from getSyncStatus because that counts every pending row across
+ * eighteen models, which is right for the Settings panel and far too much to do
+ * every twenty seconds in the background.
+ */
+export type SyncPulse = {
+  paired: boolean;
+  lastSyncAt: Date | null;
+  lastPulled: number;
+  lastError: string | null;
+};
+
+export async function getSyncPulse(): Promise<SyncPulse> {
+  const userId = await getUserId();
+  if (!userId || !IS_SQLITE) {
+    return { paired: false, lastSyncAt: null, lastPulled: 0, lastError: null };
+  }
+
+  const state = await getSyncState(userId);
+  return {
+    paired: !!(state.serverUrl && state.token),
+    lastSyncAt: (state as { lastSyncAt?: Date | null }).lastSyncAt ?? null,
+    lastPulled: (state as { lastPulled?: number }).lastPulled ?? 0,
+    lastError: (state as { lastError?: string | null }).lastError ?? null,
+  };
+}

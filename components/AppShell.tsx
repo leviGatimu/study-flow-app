@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { AppHeader } from "@/components/AppHeader";
 import { CommandMenu } from "@/components/CommandMenu";
+import { SyncWatcher } from "@/components/SyncWatcher";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { ArchiveBanner } from "@/components/ArchiveBanner";
 import { ArchiveProvider, type ArchiveView } from "@/components/ArchiveContext";
@@ -41,6 +42,9 @@ export function AppShell({
       <div className="flex h-full w-full">
         <OnboardingTour />
         <CommandMenu />
+        {/* Headless. Watches for work arriving from another device, refreshes
+            the page under you and says so. Does nothing on the web build. */}
+        <SyncWatcher />
 
         <Sidebar userProgress={userProgress} subjects={subjects} />
 

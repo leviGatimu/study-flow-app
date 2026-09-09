@@ -59,7 +59,17 @@ export function SyncPanel() {
         return;
       }
       setPassword('');
-      setMessage(`Connected. Brought down ${'pulled' in result ? result.pulled : 0} rows.`);
+      setMessage(
+        `Connected. Brought down ${'pulled' in result ? result.pulled : 0} items. ` +
+          'From now on this happens by itself whenever anything changes.'
+      );
+
+      // Asked HERE and nowhere else. Connecting a device is the one moment the
+      // user has just said they want the two sides kept together, which makes
+      // "may I tell you when work arrives" a question rather than an ambush.
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        void Notification.requestPermission();
+      }
       await refresh();
     });
   };
@@ -96,8 +106,10 @@ export function SyncPanel() {
     return (
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Sign in with your website account once, and this app keeps itself in step with it —
-          including while you are offline. Your work stays on this machine either way.
+          Sign in with your website account once. After that this app keeps itself in step
+          automatically — every assignment, timetable edit and tick sends itself across within
+          seconds, and anything you change while offline goes up the moment you reconnect. Your
+          work stays on this machine either way.
         </p>
 
         <div className="space-y-3">
@@ -153,7 +165,7 @@ export function SyncPanel() {
             {status.pending > 0 ? (
               <>
                 <CloudUpload className="w-4 h-4 text-primary" />
-                {status.pending} change{status.pending === 1 ? '' : 's'} still only on this device
+                {status.pending} change{status.pending === 1 ? '' : 's'} on the way
               </>
             ) : (
               <>
@@ -163,13 +175,15 @@ export function SyncPanel() {
             )}
           </p>
           <p className="text-sm text-muted-foreground truncate">
-            {status.serverUrl}
-            {status.lastSyncAt && ` · last synced ${formatDistanceToNow(new Date(status.lastSyncAt))} ago`}
+            Syncing automatically · {status.serverUrl}
+            {status.lastSyncAt && ` · last ${formatDistanceToNow(new Date(status.lastSyncAt))} ago`}
           </p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <Button onClick={sync} disabled={pending} className="gap-2">
+          {/* Automatic sync covers every real change; this is for the moment
+              somebody wants to watch it happen rather than trust it. */}
+          <Button variant="outline" onClick={sync} disabled={pending} className="gap-2">
             <RefreshCw className={cn('w-4 h-4', pending && 'animate-spin')} />
             {pending ? 'Syncing…' : 'Sync now'}
           </Button>

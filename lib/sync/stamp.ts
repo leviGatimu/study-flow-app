@@ -24,6 +24,7 @@
  */
 
 import { SYNC_RULES } from './identity.ts';
+import { localWrite } from './notify.ts';
 
 /** Model names as Prisma exposes them, for the models that sync. */
 const SYNCED = new Set(
@@ -67,14 +68,26 @@ export function syncStampExtension(isServer: boolean) {
             return { ...row, syncedAt: value };
           };
 
-          if (operation === 'upsert') {
-            return query({
-              ...args,
-              create: stamp(args.create),
-              update: stamp(args.update),
-            });
-          }
-          return query({ ...args, data: stamp(args.data) });
+          // A device write that is not the engine's own is something the
+          // server has not seen, so tell the scheduler. `dirtied` stays false
+          // for anything carrying an explicit syncedAt - that is the merge
+          // applying a pull, and treating it as a local edit would have every
+          // sync immediately schedule another one.
+          let dirtied = false;
+          const stampAndFlag = (payload: unknown): unknown => {
+            const result = stamp(payload);
+            if (result !== payload) dirtied = true;
+            return result;
+          };
+
+          const next =
+            operation === 'upsert'
+              ? { ...args, create: stampAndFlag(args.create), update: stampAndFlag(args.update) }
+              : { ...args, data: stampAndFlag(args.data) };
+
+          const result = await query(next);
+          if (dirtied && !isServer) localWrite();
+          return result;
         },
       },
     },

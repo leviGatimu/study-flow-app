@@ -32,4 +32,17 @@ export async function register() {
     // A failed sweep is not a reason to refuse to start the app.
     console.error('[purge] skipped:', error);
   }
+
+  // Keep this install in step with the website by itself: once shortly after
+  // launch, again after any local edit settles, and on a timer as the safety
+  // net. Desktop only, like everything above - on the web this process IS the
+  // thing devices sync to.
+  try {
+    const { startSyncScheduler } = await import('@/lib/sync/scheduler');
+    startSyncScheduler();
+  } catch (error) {
+    // A device that cannot schedule syncs still works; it just falls back to
+    // the button in Settings. Never a reason to refuse to start.
+    console.error('[sync] scheduler did not start:', error);
+  }
 }
