@@ -47,7 +47,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -125,6 +125,104 @@ function removeOrphanedEngines(dir) {
   return removed;
 }
 
+/**
+ * Things that must NEVER end up inside the installer, and the check that they
+ * did not.
+ *
+ * next.config.ts already lists these under outputFileTracingExcludes. That
+ * config is not enough, and this is not belt-and-braces: on 2026-09-09 a build
+ * with those excludes in place still produced a 950 MB .next/standalone
+ * containing desktop-app/dist (473 MB - the PREVIOUS installer, nesting itself
+ * again), setup/ (the published exe), and public/uploads (71 MB of one person's
+ * PDFs, audio and proof-of-work photographs). The tracer's behaviour changed
+ * under us and nothing said so.
+ *
+ * Deleting them here is deterministic in a way a tracer hint is not. The
+ * assertion afterwards is the point, though: shipping somebody's private files
+ * inside a public installer has now happened twice, and it must fail the build
+ * rather than be noticed later.
+ */
+const MUST_NOT_SHIP = [
+  "desktop-app",
+  "setup",
+  "promo",
+  "demo",
+  "backups",
+  "docs",
+  "test",
+  "public/uploads",
+  "node_modules/.prisma/client-sqlite-test",
+];
+
+/** A standalone server bigger than this means something is nesting again. */
+const STANDALONE_LIMIT_MB = 250;
+
+function directorySizeMb(dir) {
+  let total = 0;
+  const walk = (current) => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const full = join(current, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.isFile()) {
+        try {
+          total += statSync(full).size;
+        } catch {
+          // A file that vanished mid-walk is not worth failing a build over.
+        }
+      }
+    }
+  };
+  walk(dir);
+  return total / (1024 * 1024);
+}
+
+function pruneStandalone() {
+  const standaloneRoot = join(root, ".next", "standalone");
+  if (!existsSync(standaloneRoot)) throw new Error(".next/standalone does not exist");
+
+  for (const relative of MUST_NOT_SHIP) {
+    const target = join(standaloneRoot, relative);
+    if (existsSync(target)) {
+      const mb = statSync(target).isDirectory() ? directorySizeMb(target) : 0;
+      rmSync(target, { recursive: true, force: true });
+      console.log(`   pruned ${relative}${mb > 1 ? ` (${mb.toFixed(0)} MB)` : ""}`);
+    }
+  }
+
+  // Loose databases and archives, wherever the tracer put them.
+  const sweep = (current) => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const full = join(current, entry.name);
+      if (entry.isDirectory()) sweep(full);
+      else if (/\.(db|zip)$|\.db\.bak/.test(entry.name)) {
+        rmSync(full, { force: true });
+        console.log(`   pruned ${full.slice(standaloneRoot.length + 1)}`);
+      }
+    }
+  };
+  sweep(standaloneRoot);
+
+  const survivors = MUST_NOT_SHIP.filter((r) => existsSync(join(standaloneRoot, r)));
+  if (survivors.length > 0) {
+    throw new Error(
+      `these must never be packaged and could not be removed: ${survivors.join(", ")}`
+    );
+  }
+
+  const mb = directorySizeMb(standaloneRoot);
+  console.log(`   .next/standalone is ${mb.toFixed(0)} MB`);
+  if (mb > STANDALONE_LIMIT_MB) {
+    throw new Error(
+      [
+        `.next/standalone is ${mb.toFixed(0)} MB, over the ${STANDALONE_LIMIT_MB} MB limit.`,
+        "Something large is being traced in again. Check what is biggest with",
+        "  du -sh .next/standalone/*",
+        "and add it to MUST_NOT_SHIP above - do not just raise the limit.",
+      ].join("\n")
+    );
+  }
+}
+
 let failure = null;
 
 try {
@@ -159,6 +257,9 @@ try {
     step("3/4  next build");
     run("npx --no-install next build");
     removeOrphanedEngines(STANDALONE_CLIENT);
+
+    console.log("\n   pruning what must never ship");
+    pruneStandalone();
   }
 } catch (error) {
   failure = error;

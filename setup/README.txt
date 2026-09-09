@@ -1,12 +1,12 @@
-﻿========================================================================
+========================================================================
              STUDY TRACKER - WINDOWS SETUP & INSTALLATION
 ========================================================================
 
 This folder contains the Windows executable installer for the Study Tracker
 desktop application.
 
-Current build: 1.0.2  (103 MB)
-Published at : https://github.com/leviGatimu/Study-Flow/releases/tag/v1.0.2
+Current build: 1.0.3  (103 MB)
+Published at : https://github.com/leviGatimu/Study-Flow/releases/tag/v1.0.3
 
 ------------------------------------------------------------------------
 1. WHAT'S INCLUDED
@@ -51,6 +51,19 @@ A release is only found if ALL of these hold:
   * its version is higher than the one the user is running.
 
 ------------------------------------------------------------------------
+3b. WHAT 1.0.3 ADDED
+------------------------------------------------------------------------
+This is the first build that talks to the website. It keeps its own
+local database and still works with no network at all, but anything you
+change now travels: an assignment added here is on the site within
+seconds, and anything changed there arrives here and says so.
+
+Connect it once under Settings -> Sync with the website, using the same
+username and password as the site. That sign-in is the only step that
+needs a connection; everything after it works offline and catches up
+when you reconnect.
+
+------------------------------------------------------------------------
 4. HOW TO REBUILD AND SHIP A NEW VERSION
 ------------------------------------------------------------------------
 1. Bump "version" in desktop-app/package.json. An update is only offered
@@ -78,6 +91,6 @@ A release is only found if ALL of these hold:
 6. Publish the release (PowerShell - one line, no backslash
    continuations, and pass --repo or gh will use the code repo instead):
 
-   gh release create v1.0.2 dist\StudyTrackerSetup.exe dist\latest.yml --repo leviGatimu/Study-Flow --title "Study Flow 1.0.2" --notes "what changed"
+   gh release create v1.0.3 dist\StudyTrackerSetup.exe dist\latest.yml --repo leviGatimu/Study-Flow --title "Study Flow 1.0.3" --notes "what changed"
 
 ========================================================================

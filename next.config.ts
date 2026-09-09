@@ -21,6 +21,14 @@ const nextConfig: NextConfig = {
    * by the server at runtime - uploads live in userData (see UPLOADS_DIR in
    * desktop-app/main.js) and the user's database is built by the migrations on
    * first boot.
+   *
+   * THIS LIST IS A HINT, NOT A GUARANTEE, AND IT HAS ALREADY FAILED ONCE. On
+   * 2026-09-09 a build with every one of these entries in place still produced
+   * a 950 MB .next/standalone containing desktop-app/dist, setup/ and
+   * public/uploads. The tracer's behaviour changed and nothing announced it.
+   * scripts/build-desktop.mjs now deletes these paths from the output after the
+   * build and FAILS if they are still there, which is the check that actually
+   * holds. Keep both: this one makes the build smaller, that one makes it safe.
    */
   outputFileTracingExcludes: {
     '*': [
