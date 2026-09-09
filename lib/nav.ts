@@ -108,7 +108,7 @@ export const NAV: NavSection[] = [
     icon: Settings,
     children: [
       { name: "Settings", href: "/settings", icon: Settings, keywords: "preferences account timezone ai keys" },
-      { name: "School Portal", href: "/school", icon: GraduationCap, keywords: "admin lessons" },
+      { name: "School Timetable", href: "/school-timetable", icon: GraduationCap, keywords: "lessons classes school day upload photo" },
     ],
   },
 ];

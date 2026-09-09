@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { TaskList } from '@/components/TaskList';
 import { listSubjects } from '@/lib/subject-actions';
+import { getSchoolLessons } from '@/lib/school-actions';
 import { ProgressWidget } from '@/components/ProgressWidget';
 import { MemoryGuard } from '@/components/MemoryGuard';
 import { LiveFocusCard } from '@/components/LiveFocusCard';
@@ -28,7 +29,7 @@ export default async function Dashboard() {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
-  const [todayTasks, tomorrowTasks, yesterdayTasks, streakData, events, dueModules, subjects, schedule] = await Promise.all([
+  const [todayTasks, tomorrowTasks, yesterdayTasks, streakData, events, dueModules, subjects, schedule, schoolLessons] = await Promise.all([
     getTodayTasks(),
     getTomorrowTasks(),
     getYesterdayTasks(),
@@ -36,7 +37,8 @@ export default async function Dashboard() {
     getEvents(),
     getDueTutorModules(),
     listSubjects(),
-    getCurrentScheduleState()
+    getCurrentScheduleState(),
+    getSchoolLessons()
   ]);
   
   const totalTasks = todayTasks.length;
@@ -104,6 +106,7 @@ export default async function Dashboard() {
           todayTasks={todayTasks as TaskWithTemplate[]} 
           tomorrowTasks={tomorrowTasks as TaskWithTemplate[]}
           yesterdayTasks={yesterdayTasks as TaskWithTemplate[]}
+          schoolLessons={schoolLessons}
         />
 
         {/* Main Grid Content */}

@@ -1,370 +1,443 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { 
-  Clock, 
-  Zap, 
-  School, 
-  Coffee, 
-  BookOpen, 
-  ListTodo, 
+/**
+ * The school-day portal: the lessons a student attends, and the editor for them.
+ *
+ * This file used to export a `SCHOOL_DATA` constant - one real student's real
+ * timetable, hardcoded - which the dashboard status card, the lesson notifier
+ * and the week view all imported. Every account saw the same lessons. The
+ * lessons now come from the database, per user and per academic year, and this
+ * component is where they are edited.
+ */
+
+import { useState, useEffect, useTransition } from 'react';
+import {
+  Clock,
+  Zap,
+  School,
+  Coffee,
+  BookOpen,
+  ListTodo,
   CalendarDays,
   Cpu,
   Laptop,
-  MessageSquareCode,
   Globe,
-  Award
+  Plus,
+  Pencil,
+  Trash2,
+  Upload,
 } from 'lucide-react';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { cn, getRwandaTime } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { EmptyState } from '@/components/ui/empty-state';
+import { useTimetableSync } from '@/components/useTimetableSync';
+import { UploadSchoolTimetableDialog } from '@/components/UploadSchoolTimetableDialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  DAY_NAMES,
+  lessonsOn,
+  minutesOf,
+  toMinutes,
+  weekdayOrder,
+  type SchoolLesson,
+} from '@/lib/school';
+import {
+  createSchoolLesson,
+  updateSchoolLesson,
+  deleteSchoolLesson,
+  type SchoolLessonInput,
+} from '@/lib/school-actions';
 
-export type Lesson = {
-  day: string;
-  start: string;
-  end: string;
-  subject: string;
+/** Monday through Sunday, as dayOfWeek values. */
+const WEEK = [1, 2, 3, 4, 5, 6, 0];
+
+const subjectIcon = (lesson: SchoolLesson) => {
+  if (lesson.isBreak) return Coffee;
+  const sub = lesson.subject.toLowerCase();
+  if (sub.includes('network')) return Globe;
+  if (/javascript|php|web|programming|software|comput/.test(sub)) return Laptop;
+  if (/embedded|electric|electronic|circuit|hardware/.test(sub)) return Cpu;
+  return BookOpen;
 };
 
-export const SCHOOL_DATA: Lesson[] = [
-  // Monday
-  { day: 'Monday', start: '07:30', end: '09:00', subject: 'Self Study / Devotion' },
-  { day: 'Monday', start: '09:00', end: '10:40', subject: 'Networking Fundamentals' },
-  { day: 'Monday', start: '10:40', end: '11:00', subject: 'Short Break' },
-  { day: 'Monday', start: '11:00', end: '11:50', subject: 'Citizenship' },
-  { day: 'Monday', start: '11:50', end: '12:40', subject: 'Fundamentals of C (Extra hour)' },
-  { day: 'Monday', start: '12:40', end: '13:40', subject: 'Lunch and Learn' },
-  { day: 'Monday', start: '13:40', end: '15:20', subject: 'Develop Web Application using Javascripts' },
-  { day: 'Monday', start: '15:20', end: '15:40', subject: 'Short Break' },
-  { day: 'Monday', start: '15:40', end: '17:20', subject: 'Design Embedded Systems' },
-  
-  // Tuesday
-  { day: 'Tuesday', start: '07:30', end: '09:00', subject: 'Self Study / Devotion' },
-  { day: 'Tuesday', start: '09:00', end: '10:40', subject: 'Develop Web Application using PHP' },
-  { day: 'Tuesday', start: '10:40', end: '11:00', subject: 'Short Break' },
-  { day: 'Tuesday', start: '11:00', end: '12:40', subject: 'Design Graphic User Interface' },
-  { day: 'Tuesday', start: '12:40', end: '13:40', subject: 'Lunch and Learn' },
-  { day: 'Tuesday', start: '13:40', end: '15:20', subject: 'Maintain Professional Conversation in Upper Technical English' },
-  { day: 'Tuesday', start: '15:20', end: '15:40', subject: 'Short Break' },
-  { day: 'Tuesday', start: '15:40', end: '16:30', subject: 'English (Extra hour)' },
-  { day: 'Tuesday', start: '16:30', end: '17:20', subject: "Students' clubs" },
-  
-  // Wednesday
-  { day: 'Wednesday', start: '07:30', end: '09:00', subject: 'Self Study / Devotion' },
-  { day: 'Wednesday', start: '09:00', end: '10:40', subject: 'Apply Fundamentals of Programming Using C' },
-  { day: 'Wednesday', start: '10:40', end: '11:00', subject: 'Short Break' },
-  { day: 'Wednesday', start: '11:00', end: '12:40', subject: 'Develop Basic Database' },
-  { day: 'Wednesday', start: '12:40', end: '13:40', subject: 'Lunch and Learn' },
-  { day: 'Wednesday', start: '13:40', end: '14:30', subject: 'Entrepreneurship' },
-  { day: 'Wednesday', start: '14:30', end: '15:20', subject: 'Computer Basics' },
-  { day: 'Wednesday', start: '15:20', end: '15:40', subject: 'Short Break' },
-  { day: 'Wednesday', start: '15:40', end: '17:20', subject: 'Design Electrical and Electronic Circuits and Optical Instruments' },
-  
-  // Thursday
-  { day: 'Thursday', start: '07:30', end: '09:00', subject: 'Self Study / Devotion' },
-  { day: 'Thursday', start: '09:00', end: '10:40', subject: 'Design Electrical and Electronic Circuits and Optical Instruments' },
-  { day: 'Thursday', start: '10:40', end: '11:00', subject: 'Short Break' },
-  { day: 'Thursday', start: '11:00', end: '12:40', subject: 'Design Web User Interface' },
-  { day: 'Thursday', start: '12:40', end: '13:40', subject: 'Lunch and Learn' },
-  { day: 'Thursday', start: '13:40', end: '14:30', subject: 'Javascript (Extra hour)' },
-  { day: 'Thursday', start: '14:30', end: '15:20', subject: 'Develop Web Application using Javascripts' },
-  { day: 'Thursday', start: '15:20', end: '15:40', subject: 'Short Break' },
-  { day: 'Thursday', start: '15:40', end: '17:20', subject: 'Apply Fundamentals of Programming Using C' },
-  
-  // Friday
-  { day: 'Friday', start: '07:30', end: '09:00', subject: 'Self Study / Devotion' },
-  { day: 'Friday', start: '09:00', end: '11:50', subject: 'Math (Algebra, Trig, Prob, Stats)' },
-  { day: 'Friday', start: '11:50', end: '12:40', subject: 'Design Embedded Systems' },
-  { day: 'Friday', start: '12:40', end: '13:40', subject: 'Lunch and Learn' },
-  { day: 'Friday', start: '13:40', end: '14:30', subject: 'Kinyarwanda' },
-  { day: 'Friday', start: '14:30', end: '15:20', subject: 'Math (Algebra, Trig, Prob, Stats)' },
-  { day: 'Friday', start: '15:20', end: '15:40', subject: 'Short Break' },
-  { day: 'Friday', start: '15:40', end: '17:20', subject: 'Lab (Embedded Systems)' },
-];
-
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-
-export function SchoolTimetable() {
+export function SchoolTimetable({
+  lessons,
+  canEdit,
+}: {
+  lessons: SchoolLesson[];
+  /** False while a finished year is open - an archive is a record, not a workspace. */
+  canEdit: boolean;
+}) {
   const [now, setNow] = useState(getRwandaTime());
-  const [isTimetableSynced, setIsTimetableSynced] = useState(true);
+  const [isTimetableSynced, setIsTimetableSynced] = useTimetableSync();
   const [viewMode, setViewMode] = useState<'agenda' | 'weekly'>('agenda');
-  
-  // Default to today's day if Mon-Fri, otherwise default to Monday
+  const [editing, setEditing] = useState<SchoolLesson | 'new' | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [pending, startTransition] = useTransition();
+
+  // Today, unless today has no lessons - then the first day that does, so the
+  // portal never opens on a blank screen at the weekend.
   const [activeDay, setActiveDay] = useState(() => {
-    const dayName = format(getRwandaTime(), 'EEEE');
-    return DAYS.includes(dayName) ? dayName : 'Monday';
+    const today = getRwandaTime().getDay();
+    if (lessons.some((l) => l.dayOfWeek === today)) return today;
+    return WEEK.find((day) => lessons.some((l) => l.dayOfWeek === day)) ?? 1;
   });
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('isTimetableSynced');
-      if (stored !== null) {
-        setIsTimetableSynced(stored === 'true');
-      }
-    }
-  }, []);
-
-  const handleToggleSync = (checked: boolean) => {
-    setIsTimetableSynced(checked);
-    localStorage.setItem('isTimetableSynced', String(checked));
-    window.dispatchEvent(new Event('storage'));
-  };
 
   useEffect(() => {
     const timer = setInterval(() => setNow(getRwandaTime()), 30000);
     return () => clearInterval(timer);
   }, []);
 
-  const currentTimeStr = format(now, 'HH:mm');
+  const remove = (lesson: SchoolLesson) => {
+    startTransition(async () => {
+      await deleteSchoolLesson(lesson.id);
+    });
+  };
+
+  const nowMinutes = minutesOf(now);
   const startOfCurrWeek = startOfWeek(now, { weekStartsOn: 1 });
+  const dateOf = (dayOfWeek: number) => addDays(startOfCurrWeek, weekdayOrder(dayOfWeek));
 
-  const getMinutes = (timeStr: string) => {
-    const [h, m] = timeStr.split(':').map(Number);
-    return h * 60 + m;
-  };
-
-  const getTimeLeft = (endStr: string) => {
-    const nowMinutes = getMinutes(format(now, 'HH:mm'));
-    const endMinutes = getMinutes(endStr);
-    const diff = endMinutes - nowMinutes;
+  const timeLeft = (endTime: string) => {
+    const diff = toMinutes(endTime) - nowMinutes;
     if (diff <= 0) return null;
-    if (diff >= 60) {
-      const h = Math.floor(diff / 60);
-      const m = diff % 60;
-      return `${h}h ${m}m left`;
-    }
-    return `${diff}m left`;
+    return diff >= 60 ? `${Math.floor(diff / 60)}h ${diff % 60}m left` : `${diff}m left`;
   };
 
-  const getSubjectIcon = (subject: string) => {
-    const sub = subject.toLowerCase();
-    if (sub.includes('break') || sub.includes('lunch')) return Coffee;
-    if (sub.includes('networking')) return Globe;
-    if (sub.includes('c programming') || sub.includes('fundamentals of c') || sub.includes('javascript') || sub.includes('php') || sub.includes('web')) return Laptop;
-    if (sub.includes('embedded') || sub.includes('electrical') || sub.includes('electronic') || sub.includes('circuit')) return Cpu;
-    return BookOpen;
-  };
+  if (lessons.length === 0) {
+    return (
+      <>
+        <EmptyState
+          icon={<School />}
+          title="No school timetable yet"
+          description={
+            canEdit
+              ? 'Upload a photo of your timetable and it will be read for you — or type the lessons in yourself. Either way they show up on your dashboard, your week view and as lesson reminders.'
+              : 'This academic year finished without a school timetable recorded.'
+          }
+          action={
+            canEdit ? (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button onClick={() => setUploading(true)} className="gap-2">
+                  <Upload className="w-4 h-4" /> Upload a photo
+                </Button>
+                <Button variant="outline" onClick={() => setEditing('new')} className="gap-2">
+                  <Plus className="w-4 h-4" /> Add a lesson by hand
+                </Button>
+              </div>
+            ) : undefined
+          }
+          className="py-16"
+        />
+        {editing !== null && (
+          <LessonDialog
+            key={editing === 'new' ? 'new' : editing.id}
+            lesson={editing === 'new' ? null : editing}
+            defaultDay={activeDay}
+            onClose={() => setEditing(null)}
+          />
+        )}
+        {uploading && (
+          <UploadSchoolTimetableDialog
+            existingCount={lessons.length}
+            onClose={() => setUploading(false)}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-20">
-      
-      {/* Settings & Controls Row */}
+      {/* Controls */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 pb-6 border-b border-border/40">
         <div>
-           <h2 className="text-3xl font-heading font-black tracking-tight text-foreground uppercase mb-1 flex items-center gap-3">
-             <School className="w-8 h-8 text-primary" /> Timetable Portal
-           </h2>
-           <p className="text-muted-foreground font-semibold text-sm">Your academic class schedules, break logs, and daily timeline.</p>
+          <h2 className="text-2xl font-heading font-semibold tracking-tight text-foreground mb-1 flex items-center gap-3">
+            <School className="w-6 h-6 text-primary" /> Your school week
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            The lessons you attend. Your study blocks live on the timetable page.
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-           {/* View Mode Selector */}
-           <div className="bg-card border border-border/60 p-1 rounded-xl flex items-center shadow-sm">
-             <Button
-               variant={viewMode === 'agenda' ? 'default' : 'ghost'}
-               size="sm"
-               onClick={() => setViewMode('agenda')}
-               aria-pressed={viewMode === 'agenda'}
-               className="rounded-lg h-9 font-bold text-xs gap-1.5 px-3 cursor-pointer"
-             >
-               <ListTodo className="w-3.5 h-3.5" /> Agenda View
-             </Button>
-             <Button
-               variant={viewMode === 'weekly' ? 'default' : 'ghost'}
-               size="sm"
-               onClick={() => setViewMode('weekly')}
-               aria-pressed={viewMode === 'weekly'}
-               className="rounded-lg h-9 font-bold text-xs gap-1.5 px-3 cursor-pointer"
-             >
-               <CalendarDays className="w-3.5 h-3.5" /> Weekly Ledger
-             </Button>
-           </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="bg-card border border-border/60 p-1 rounded-xl flex items-center shadow-sm">
+            <Button
+              variant={viewMode === 'agenda' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('agenda')}
+              aria-pressed={viewMode === 'agenda'}
+              className="rounded-lg h-9 text-xs gap-1.5 px-3 cursor-pointer"
+            >
+              <ListTodo className="w-3.5 h-3.5" /> Day
+            </Button>
+            <Button
+              variant={viewMode === 'weekly' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('weekly')}
+              aria-pressed={viewMode === 'weekly'}
+              className="rounded-lg h-9 text-xs gap-1.5 px-3 cursor-pointer"
+            >
+              <CalendarDays className="w-3.5 h-3.5" /> Week
+            </Button>
+          </div>
 
-           {/* Sync Switch */}
-           <div className="bg-card border border-border/60 px-4 h-11 rounded-xl flex items-center gap-3 shadow-sm">
-              <div className="flex flex-col select-none">
-                <span className="text-xs font-medium text-muted-foreground leading-none mb-0.5">Sync state</span>
-                <span className="text-xs font-semibold text-foreground leading-none">
-                  {isTimetableSynced ? 'Active' : 'Offline'}
-                </span>
-              </div>
-              <Switch 
-                checked={isTimetableSynced}
-                onCheckedChange={handleToggleSync}
-                aria-label="Toggle Timetable Sync"
-                className="scale-90"
-              />
-           </div>
+          <div className="bg-card border border-border/60 px-4 h-11 rounded-xl flex items-center gap-3 shadow-sm">
+            <div className="flex flex-col select-none">
+              <span className="text-xs text-muted-foreground leading-none mb-0.5">Lesson tracking</span>
+              <span className="text-xs font-medium text-foreground leading-none">
+                {isTimetableSynced ? 'On' : 'Off'}
+              </span>
+            </div>
+            <Switch
+              checked={isTimetableSynced}
+              onCheckedChange={setIsTimetableSynced}
+              aria-label="Track lessons on the dashboard"
+              className="scale-90"
+            />
+          </div>
 
-           {/* Current Time */}
-           <div className="bg-primary/5 border border-primary/20 px-4 h-11 rounded-xl flex items-center gap-3 shadow-sm">
-              <Clock className="w-4 h-4 text-primary" />
-              <div>
-                <p className="text-xs font-medium text-primary/60 leading-none mb-0.5">Session clock</p>
-                <p className="text-xs font-heading font-black tabular-nums leading-none">{currentTimeStr}</p>
-              </div>
-           </div>
+          <div className="bg-primary/5 border border-primary/20 px-4 h-11 rounded-xl flex items-center gap-3 shadow-sm">
+            <Clock className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium tabular-nums">{format(now, 'HH:mm')}</span>
+          </div>
+
+          {canEdit && (
+            <>
+              <Button variant="outline" onClick={() => setUploading(true)} className="h-11 gap-2">
+                <Upload className="w-4 h-4" /> Upload
+              </Button>
+              <Button onClick={() => setEditing('new')} className="h-11 gap-2">
+                <Plus className="w-4 h-4" /> Add lesson
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* AGENDA VIEW (Tabbed active day timeline - Spacious, no text wrapping issues) */}
       {viewMode === 'agenda' && (
         <div className="space-y-6 max-w-4xl mx-auto">
-          {/* Day Selector Tabs */}
           <div className="flex gap-2 justify-center border-b border-border/20 pb-4 overflow-x-auto">
-            {DAYS.map((day, idx) => {
-              const date = addDays(startOfCurrWeek, idx);
+            {WEEK.map((day) => {
+              const date = dateOf(day);
               const isToday = isSameDay(date, now);
-              const isSelected = activeDay === day;
+              const count = lessons.filter((l) => l.dayOfWeek === day).length;
 
               return (
                 <button
                   key={day}
                   onClick={() => setActiveDay(day)}
-                  aria-pressed={isSelected}
+                  aria-pressed={activeDay === day}
                   className={cn(
-                    "flex flex-col items-center justify-center min-w-[76px] py-2 px-3 rounded-xl border transition-colors cursor-pointer",
-                    isSelected ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/10" :
-                    isToday ? "bg-primary/5 border-primary/30 text-primary" : "bg-card border-border/50 hover:border-primary/30 text-foreground"
+                    'flex flex-col items-center justify-center min-w-[64px] py-2 px-3 rounded-xl border transition-colors cursor-pointer',
+                    activeDay === day
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : isToday
+                        ? 'bg-primary/5 border-primary/30 text-primary'
+                        : 'bg-card border-border/50 text-foreground',
+                    count === 0 && activeDay !== day && 'opacity-45'
                   )}
                 >
-                  <span className="text-xs font-medium opacity-60 leading-none mb-1">{day.slice(0, 3)}</span>
-                  <span className="text-base font-heading font-black leading-none">{format(date, 'd')}</span>
+                  <span className="text-xs opacity-60 leading-none mb-1">
+                    {DAY_NAMES[day].slice(0, 3)}
+                  </span>
+                  <span className="text-base font-heading font-semibold leading-none">
+                    {format(date, 'd')}
+                  </span>
                 </button>
               );
             })}
           </div>
 
-          {/* Timeline list of selected day's lessons */}
-          <div className="space-y-3.5 pt-2">
-            {SCHOOL_DATA.filter(l => l.day === activeDay).map((lesson, idx) => {
-              const lessonStart = getMinutes(lesson.start);
-              const lessonEnd = getMinutes(lesson.end);
-              const nowMinutes = getMinutes(currentTimeStr);
-              const isToday = isSameDay(addDays(startOfCurrWeek, DAYS.indexOf(activeDay)), now);
-              
-              const isActive = isTimetableSynced && isToday && nowMinutes >= lessonStart && nowMinutes < lessonEnd;
-              const isPast = isToday && nowMinutes >= lessonEnd;
-              const isBreak = lesson.subject.toLowerCase().includes('break') || lesson.subject.toLowerCase().includes('lunch');
-              const SubjectIcon = getSubjectIcon(lesson.subject);
+          <div className="space-y-3 pt-2">
+            {lessonsOn(lessons, activeDay).length === 0 ? (
+              <EmptyState
+                icon={<Coffee />}
+                title={`Nothing scheduled on ${DAY_NAMES[activeDay]}`}
+                description={canEdit ? 'A free day — or one you have not filled in yet.' : undefined}
+                action={
+                  canEdit ? (
+                    <Button variant="outline" size="sm" onClick={() => setEditing('new')} className="gap-2">
+                      <Plus className="w-4 h-4" /> Add a lesson
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              lessonsOn(lessons, activeDay).map((lesson) => {
+                const isToday = isSameDay(dateOf(activeDay), now);
+                const start = toMinutes(lesson.startTime);
+                const end = toMinutes(lesson.endTime);
+                const isActive =
+                  isTimetableSynced && isToday && nowMinutes >= start && nowMinutes < end;
+                const isPast = isToday && nowMinutes >= end;
+                const Icon = subjectIcon(lesson);
 
-              return (
-                <div 
-                  key={idx}
-                  className={cn(
-                    "p-5 rounded-2xl border transition-all duration-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden",
-                    isActive ? "bg-primary/5 border-primary shadow-md shadow-primary/5" :
-                    isPast ? "bg-muted/15 border-transparent opacity-45 grayscale" : "bg-card border-border/40 hover:border-primary/20",
-                    isBreak && !isActive && !isPast && "bg-muted/10 border-dashed border-border/50 text-muted-foreground"
-                  )}
-                >
-                  {/* Glowing left strip for active class */}
-                  {isActive && (
-                    <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
-                  )}
-
-                  {/* Class Info */}
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border",
-                      isActive ? "bg-primary/10 border-primary/30 text-primary animate-pulse" :
-                      isBreak ? "bg-muted text-muted-foreground border-border/50" : "bg-primary/5 border-primary/10 text-primary"
-                    )}>
-                      <SubjectIcon className="w-5 h-5" />
-                    </div>
-
-                    <div className="space-y-1 min-w-0">
-                      <h4 className={cn(
-                        "text-base font-bold tracking-tight text-foreground truncate",
-                        isPast && "line-through"
-                      )}>
-                        {lesson.subject}
-                      </h4>
-                      <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 leading-none">
-                        <Clock className="w-3.5 h-3.5" /> {lesson.start} — {lesson.end}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Status Indicator */}
-                  <div className="shrink-0 flex items-center sm:text-right">
-                    {isActive ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-primary bg-primary/15 px-3 py-1 rounded-full border border-primary/20 animate-pulse">
-                          {getTimeLeft(lesson.end)}
-                        </span>
-                        <Zap className="w-4 h-4 text-primary fill-primary animate-bounce" />
-                      </div>
-                    ) : isPast ? (
-                      <span className="text-xs font-medium text-muted-foreground/60 bg-muted/40 px-2.5 py-1 rounded-lg">
-                        Completed
-                      </span>
-                    ) : (
-                      <span className="text-xs font-medium text-primary/60 bg-primary/5 border border-primary/10 px-2.5 py-1 rounded-lg">
-                        Upcoming
-                      </span>
+                return (
+                  <div
+                    key={lesson.id}
+                    className={cn(
+                      'p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden',
+                      isActive
+                        ? 'bg-primary/5 border-primary'
+                        : isPast
+                          ? 'bg-muted/15 border-transparent opacity-45'
+                          : 'bg-card border-border/40',
+                      lesson.isBreak && !isActive && !isPast && 'bg-muted/10 border-dashed'
                     )}
+                  >
+                    {isActive && <div className="absolute inset-y-0 left-0 w-1 bg-primary" />}
+
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div
+                        className={cn(
+                          'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border',
+                          isActive
+                            ? 'bg-primary/10 border-primary/30 text-primary'
+                            : lesson.isBreak
+                              ? 'bg-muted text-muted-foreground border-border/50'
+                              : 'bg-primary/5 border-primary/10 text-primary'
+                        )}
+                      >
+                        <Icon className="w-5 h-5" />
+                      </div>
+
+                      <div className="space-y-1 min-w-0">
+                        <h4
+                          className={cn(
+                            'text-base font-medium text-foreground truncate',
+                            isPast && 'line-through'
+                          )}
+                        >
+                          {lesson.subject}
+                        </h4>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5 leading-none">
+                          <Clock className="w-3.5 h-3.5" /> {lesson.startTime} — {lesson.endTime}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-2">
+                      {isActive ? (
+                        <span className="text-xs font-medium text-primary bg-primary/15 px-3 py-1 rounded-full border border-primary/20 flex items-center gap-1.5">
+                          <Zap className="w-3.5 h-3.5" /> {timeLeft(lesson.endTime)}
+                        </span>
+                      ) : isPast ? (
+                        <span className="text-xs text-muted-foreground/60 bg-muted/40 px-2.5 py-1 rounded-lg">
+                          Done
+                        </span>
+                      ) : null}
+
+                      {canEdit && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            aria-label={`Edit ${lesson.subject}`}
+                            onClick={() => setEditing(lesson)}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            aria-label={`Delete ${lesson.subject}`}
+                            disabled={pending}
+                            onClick={() => remove(lesson)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
       )}
 
-      {/* WEEKLY LEDGER VIEW (Horizontal day bands - takes full width, no squeezed vertical columns) */}
       {viewMode === 'weekly' && (
-        <div className="space-y-6">
-          {DAYS.map((day, dayIdx) => {
-            const date = addDays(startOfCurrWeek, dayIdx);
+        <div className="space-y-4">
+          {WEEK.filter((day) => lessons.some((l) => l.dayOfWeek === day)).map((day) => {
+            const date = dateOf(day);
             const isToday = isSameDay(date, now);
-            const dayLessons = SCHOOL_DATA.filter(l => l.day === day);
 
             return (
-              <div 
-                key={day} 
+              <div
+                key={day}
                 className={cn(
-                  "bg-card/45 backdrop-blur-md border border-border/40 rounded-2xl p-5 flex flex-col md:flex-row items-stretch md:items-center gap-6 relative overflow-hidden transition-all duration-300",
-                  isToday ? "border-primary shadow-md shadow-primary/5 bg-primary/[0.01]" : "hover:border-primary/20"
+                  'bg-card/45 border border-border/40 rounded-2xl p-5 flex flex-col md:flex-row items-stretch md:items-center gap-6',
+                  isToday && 'border-primary bg-primary/[0.02]'
                 )}
               >
-                {/* Day Details Block */}
-                <div className={cn(
-                  "flex md:flex-col items-center justify-center gap-2 md:gap-0.5 py-3 px-4 rounded-xl border min-w-[90px] shrink-0 text-center",
-                  isToday ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-muted/40 border-border/50 text-foreground"
-                )}>
-                  <span className="text-xs font-medium opacity-60 leading-none">{day.slice(0, 3)}</span>
-                  <span className="text-xl font-heading font-black leading-none">{format(date, 'd')}</span>
+                <div
+                  className={cn(
+                    'flex md:flex-col items-center justify-center gap-2 md:gap-0.5 py-3 px-4 rounded-xl border min-w-[90px] shrink-0 text-center',
+                    isToday
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-muted/40 border-border/50 text-foreground'
+                  )}
+                >
+                  <span className="text-xs opacity-60 leading-none">{DAY_NAMES[day].slice(0, 3)}</span>
+                  <span className="text-xl font-heading font-semibold leading-none">
+                    {format(date, 'd')}
+                  </span>
                 </div>
 
-                {/* Horizontal flow of class bubbles */}
                 <div className="flex-1 flex flex-wrap gap-3 items-center">
-                  {dayLessons.map((lesson, idx) => {
-                    const lessonStart = getMinutes(lesson.start);
-                    const lessonEnd = getMinutes(lesson.end);
-                    const nowMinutes = getMinutes(currentTimeStr);
-                    const isActive = isTimetableSynced && isToday && nowMinutes >= lessonStart && nowMinutes < lessonEnd;
-                    const isPast = isToday && nowMinutes >= lessonEnd;
-                    const isBreak = lesson.subject.toLowerCase().includes('break') || lesson.subject.toLowerCase().includes('lunch');
+                  {lessonsOn(lessons, day).map((lesson) => {
+                    const start = toMinutes(lesson.startTime);
+                    const end = toMinutes(lesson.endTime);
+                    const isActive =
+                      isTimetableSynced && isToday && nowMinutes >= start && nowMinutes < end;
+                    const isPast = isToday && nowMinutes >= end;
 
                     return (
-                      <div 
-                        key={idx}
+                      <button
+                        key={lesson.id}
+                        type="button"
+                        disabled={!canEdit}
+                        onClick={() => canEdit && setEditing(lesson)}
                         className={cn(
-                          "py-2.5 px-4 rounded-xl border text-xs font-semibold transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-w-[150px] max-w-[200px] shrink-0",
-                          isActive ? "bg-primary text-primary-foreground border-primary shadow-sm" : 
-                          isPast ? "bg-muted/15 border-transparent opacity-40 grayscale" : "bg-card border-border/50 hover:border-primary/30",
-                          isBreak && !isActive && !isPast && "bg-muted/10 border-dashed border-border/40 text-muted-foreground/60"
+                          'py-2.5 px-4 rounded-xl border text-xs text-left flex flex-col justify-between min-w-[150px] max-w-[200px] shrink-0',
+                          isActive
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : isPast
+                              ? 'bg-muted/15 border-transparent opacity-40'
+                              : 'bg-card border-border/50',
+                          lesson.isBreak && !isActive && !isPast && 'border-dashed text-muted-foreground',
+                          canEdit && 'cursor-pointer hover:border-primary/40'
                         )}
                       >
-                        <span className="text-xs font-medium opacity-60 mb-1 block">
-                          {lesson.start} - {lesson.end}
+                        <span className="text-xs opacity-60 mb-1 block">
+                          {lesson.startTime} - {lesson.endTime}
                         </span>
-                        <span className={cn("font-bold truncate leading-tight block", isPast && "line-through")}>
+                        <span className={cn('font-medium truncate block', isPast && 'line-through')}>
                           {lesson.subject}
                         </span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -374,6 +447,153 @@ export function SchoolTimetable() {
         </div>
       )}
 
+      {editing !== null && (
+        <LessonDialog
+          key={editing === 'new' ? 'new' : editing.id}
+          lesson={editing === 'new' ? null : editing}
+          defaultDay={activeDay}
+          onClose={() => setEditing(null)}
+        />
+      )}
+      {uploading && (
+        <UploadSchoolTimetableDialog
+          existingCount={lessons.length}
+          onClose={() => setUploading(false)}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * Add or edit one lesson.
+ *
+ * Times are `<input type="time">`, which produces exactly the "HH:MM" the
+ * server validates - typing a time is one of the few places a native control
+ * beats anything hand-rolled, and it gets the mobile keyboard right for free.
+ *
+ * Mounted only while open, and keyed on the row being edited, so the form seeds
+ * itself from props once at mount. The alternative - one long-lived dialog
+ * refilled by an effect when `open` flips - is a setState-in-effect cascade the
+ * lint config rejects, and it is the weaker design anyway: state that belongs
+ * to one row should not outlive it.
+ */
+function LessonDialog({
+  lesson,
+  defaultDay,
+  onClose,
+}: {
+  lesson: SchoolLesson | null;
+  defaultDay: number;
+  onClose: () => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const [form, setForm] = useState<SchoolLessonInput>(
+    lesson
+      ? {
+          dayOfWeek: lesson.dayOfWeek,
+          startTime: lesson.startTime,
+          endTime: lesson.endTime,
+          subject: lesson.subject,
+          isBreak: lesson.isBreak,
+        }
+      : { dayOfWeek: defaultDay, startTime: '09:00', endTime: '10:00', subject: '', isBreak: false }
+  );
+
+  const submit = () => {
+    setError(null);
+    startTransition(async () => {
+      const result = lesson
+        ? await updateSchoolLesson(lesson.id, form)
+        : await createSchoolLesson(form);
+      if (result?.error) setError(result.error);
+      else onClose();
+    });
+  };
+
+  return (
+    <Dialog open onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{lesson ? 'Edit lesson' : 'Add a lesson'}</DialogTitle>
+          <DialogDescription>
+            Part of your school day — not a study block you tick off.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="lesson-subject">Lesson</Label>
+            <Input
+              id="lesson-subject"
+              value={form.subject}
+              placeholder="Networking Fundamentals"
+              onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="lesson-day">Day</Label>
+            <Select
+              value={String(form.dayOfWeek)}
+              onValueChange={(value) => setForm((f) => ({ ...f, dayOfWeek: Number(value) }))}
+            >
+              <SelectTrigger id="lesson-day">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {WEEK.map((day) => (
+                  <SelectItem key={day} value={String(day)}>
+                    {DAY_NAMES[day]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="lesson-start">Starts</Label>
+              <Input
+                id="lesson-start"
+                type="time"
+                value={form.startTime}
+                onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lesson-end">Ends</Label>
+              <Input
+                id="lesson-end"
+                type="time"
+                value={form.endTime}
+                onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-3 text-sm text-muted-foreground cursor-pointer">
+            <Switch
+              checked={form.isBreak ?? false}
+              onCheckedChange={(checked) => setForm((f) => ({ ...f, isBreak: checked }))}
+            />
+            This is a break or lunch
+          </label>
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={pending}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={pending || !form.subject.trim()}>
+            {pending ? 'Saving…' : lesson ? 'Save changes' : 'Add lesson'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

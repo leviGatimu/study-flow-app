@@ -100,7 +100,7 @@ describe('identity map', () => {
       [...SYNCED_MODELS].sort(),
       [
         'class', 'examEvent', 'homework', 'markedDay', 'masteryItem', 'reportCard',
-        'resource', 'scheduleTemplate', 'studioNote', 'subject', 'subjectGoal',
+        'resource', 'scheduleTemplate', 'schoolLesson', 'studioNote', 'subject', 'subjectGoal',
         'subjectGrade', 'task', 'term', 'user', 'userProgress', 'xpEvent',
       ],
       'the synced set changed - if that was deliberate, update this test and HANDOFF.md'

@@ -118,6 +118,16 @@ export const SYNC_RULES: Record<string, SyncRule> = {
       'the fields a user edits on one device.',
   },
 
+  schoolLesson: {
+    match: 'NATURAL_KEY',
+    key: ['userId', 'classId', 'dayOfWeek', 'startTime'],
+    why:
+      'Same shape as scheduleTemplate and the same hazard: no unique ' +
+      'constraint, so a merge by id duplicates the whole school week silently. ' +
+      'subject and endTime are payload - renaming a lesson on one device must ' +
+      'edit the slot, not create a second one at the same time.',
+  },
+
   task: {
     match: 'NATURAL_KEY',
     key: ['userId', 'templateId', 'examId', 'date'],

@@ -1,15 +1,25 @@
 "use client";
 
-import { useEffect, useCallback, useState, useRef } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useFocus } from '@/lib/FocusContext';
 import { TaskWithTemplate } from '@/lib/types';
-import { SCHOOL_DATA } from './SchoolTimetable';
-import { format } from 'date-fns';
+import { lessonAt, minutesOf, type SchoolLesson } from '@/lib/school';
+import { getRwandaTime } from '@/lib/utils';
 import { playNotificationSound } from '@/lib/sound';
 
-export function NotificationManager({ todayTasks }: { todayTasks: TaskWithTemplate[] }) {
+export function NotificationManager({
+  todayTasks,
+  schoolLessons = [],
+}: {
+  todayTasks: TaskWithTemplate[];
+  /**
+   * The user's own lessons. Empty means no school alerts at all - this used to
+   * read a hardcoded array, so it would have announced one particular student's
+   * lessons to everyone.
+   */
+  schoolLessons?: SchoolLesson[];
+}) {
   const { isActive, isPaused, activeTask, step } = useFocus();
-  const [currentSubject, setCurrentSubject] = useState<string | null>(null);
   const lastNotifiedSubject = useRef<string | null>(null);
 
   // Request permission on mount
@@ -42,15 +52,11 @@ export function NotificationManager({ todayTasks }: { todayTasks: TaskWithTempla
         }
       }
 
-      const now = new Date();
-      const currentTimeStr = format(now, 'HH:mm');
-      const currentDayName = format(now, 'EEEE');
-
-      const active = SCHOOL_DATA.find(l => 
-        l.day === currentDayName && 
-        currentTimeStr >= l.start && 
-        currentTimeStr < l.end
-      );
+      // getRwandaTime, not new Date: the dashboard card decides which lesson is
+      // running in the user's configured timezone, and an alert disagreeing
+      // with the card on the same screen is worse than no alert.
+      const now = getRwandaTime();
+      const active = lessonAt(schoolLessons, now.getDay(), minutesOf(now));
 
       const subjectName = active ? active.subject : "Break";
       
@@ -58,7 +64,7 @@ export function NotificationManager({ todayTasks }: { todayTasks: TaskWithTempla
         if (active) {
            sendNotification(
              "School Subject Change 🔔",
-             `Your next lesson: ${active.subject} is starting now (${active.start} - ${active.end}).`
+             `Your next lesson: ${active.subject} is starting now (${active.startTime} - ${active.endTime}).`
            );
         } else if (lastNotifiedSubject.current && lastNotifiedSubject.current !== "Break") {
            sendNotification(
@@ -83,7 +89,7 @@ export function NotificationManager({ todayTasks }: { todayTasks: TaskWithTempla
         window.removeEventListener('storage', checkSchoolTimetable);
       }
     };
-  }, [sendNotification]);
+  }, [sendNotification, schoolLessons]);
 
   // 1. Schedule "Session Starting" notifications
   useEffect(() => {

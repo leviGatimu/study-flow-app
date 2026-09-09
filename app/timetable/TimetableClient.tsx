@@ -16,6 +16,7 @@ import {
 import { format, addDays, isSameDay, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { schoolDayBounds, type SchoolLesson } from '@/lib/school';
 
 interface TaskType {
   id: string;
@@ -31,6 +32,15 @@ interface TaskType {
 interface TimetableClientProps {
   initialTasks: TaskType[];
   startOfWeekStr: string;
+  /**
+   * The user's own school lessons, for the "at school" band below.
+   *
+   * This band used to be two constants - 07:30-17:20 Mon-Fri and 08:00-14:00 on
+   * Saturday - drawn on every user's week whether or not they went to school at
+   * those times, or at all. It is now the span of the lessons this user
+   * actually has, and a day with none draws nothing.
+   */
+  schoolLessons: SchoolLesson[];
 }
 
 type TimelineItem = {
@@ -48,11 +58,14 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 const toTitleCase = (value?: string) =>
   value ? value.charAt(0) + value.slice(1).toLowerCase() : '';
 
-// School Hours
-const SCHOOL_WEEKDAY = { start: "07:30", end: "17:20", label: "School Hours" };
-const SCHOOL_SATURDAY = { start: "08:00", end: "14:00", label: "School Hours" };
+/** DAYS is Monday-first; the schema counts days from Sunday. */
+const dayOfWeekOf = (index: number) => (index + 1) % 7;
 
-export function TimetableClient({ initialTasks, startOfWeekStr }: TimetableClientProps) {
+export function TimetableClient({
+  initialTasks,
+  startOfWeekStr,
+  schoolLessons,
+}: TimetableClientProps) {
   const [viewMode, setViewMode] = useState<'agenda' | 'weekly'>('agenda');
   const startOfWeekDate = useMemo(() => parseISO(startOfWeekStr), [startOfWeekStr]);
   const today = useMemo(() => new Date(), []);
@@ -78,11 +91,15 @@ export function TimetableClient({ initialTasks, startOfWeekStr }: TimetableClien
 
       const timeline: TimelineItem[] = [];
 
-      // 1. Add School if applicable
-      if (index < 5) { // Mon-Fri
-        timeline.push({ ...SCHOOL_WEEKDAY, type: 'SCHOOL' });
-      } else if (index === 5) { // Sat
-        timeline.push({ ...SCHOOL_SATURDAY, type: 'SCHOOL' });
+      // 1. Add school, as one band from the first lesson to the last
+      const school = schoolDayBounds(schoolLessons, dayOfWeekOf(index));
+      if (school) {
+        timeline.push({
+          start: school.start,
+          end: school.end,
+          label: 'School Hours',
+          type: 'SCHOOL',
+        });
       }
 
       // 2. Add Study Tasks
@@ -127,7 +144,7 @@ export function TimetableClient({ initialTasks, startOfWeekStr }: TimetableClien
     });
 
     return map;
-  }, [initialTasks, startOfWeekDate]);
+  }, [initialTasks, startOfWeekDate, schoolLessons]);
 
   return (
     <div className="space-y-8">

@@ -9,9 +9,14 @@ import Link from 'next/link';
 import { TaskWithTemplate } from '@/lib/types';
 import { cn, getRwandaTime } from '@/lib/utils';
 import { useFocus } from '@/lib/FocusContext';
+import { useTimetableSync } from '@/components/useTimetableSync';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SCHOOL_DATA, Lesson } from './SchoolTimetable';
-import { format } from 'date-fns';
+import {
+  lessonAt,
+  nextLessonAfter,
+  schoolDayBounds,
+  type SchoolLesson,
+} from '@/lib/school';
 
 /** "HH:MM" as minutes past midnight, for ordering blocks within a day. */
 const toMinutes = (time: string) => {
@@ -49,38 +54,28 @@ const CARD_ROW =
 export function LiveFocusCard({ 
   todayTasks,
   tomorrowTasks = [],
-  yesterdayTasks = []
+  yesterdayTasks = [],
+  schoolLessons = []
 }: { 
   todayTasks: TaskWithTemplate[],
   tomorrowTasks?: TaskWithTemplate[],
-  yesterdayTasks?: TaskWithTemplate[]
+  yesterdayTasks?: TaskWithTemplate[],
+  /**
+   * The user's OWN school day. Empty for an account that has not set one up,
+   * and the school states below then never render - which is the point. This
+   * used to be a hardcoded array imported from SchoolTimetable, so every user's
+   * dashboard announced one particular student's lessons.
+   */
+  schoolLessons?: SchoolLesson[]
 }) {
   const { activeTask, isPaused, step, timeLeft: contextTime, isActive, resetFocus } = useFocus();
-  const [isTimetableSynced, setIsTimetableSynced] = useState(true);
-
-  useEffect(() => {
-    const handleStorageChange = () => {
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('isTimetableSynced');
-        if (stored !== null) {
-          setIsTimetableSynced(stored === 'true');
-        }
-      }
-    };
-    handleStorageChange();
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
-  const handleToggleSync = (checked: boolean) => {
-    setIsTimetableSynced(checked);
-    localStorage.setItem('isTimetableSynced', String(checked));
-    window.dispatchEvent(new Event('storage'));
-  };
+  // The same flag the portal's toggle writes. Shared through one hook so the
+  // two cannot disagree about what "unset" means.
+  const [isTimetableSynced, setIsTimetableSynced] = useTimetableSync();
 
   const [currentScheduledTask, setCurrentScheduledTask] = useState<TaskWithTemplate | null>(null);
-  const [activeSchoolLesson, setActiveSchoolLesson] = useState<Lesson | null>(null);
-  const [nextSchoolLesson, setNextSchoolLesson] = useState<Lesson | null>(null);
+  const [activeSchoolLesson, setActiveSchoolLesson] = useState<SchoolLesson | null>(null);
+  const [nextSchoolLesson, setNextSchoolLesson] = useState<SchoolLesson | null>(null);
   const [nextTask, setNextTask] = useState<TaskWithTemplate | null>(null);
   const [localTimeLeft, setLocalTimeLeft] = useState({ h: 0, m: 0, s: 0 });
   const [breakTimeLeft, setBreakTimeLeft] = useState({ h: 0, m: 0, s: 0 });
@@ -94,18 +89,12 @@ export function LiveFocusCard({
     const updateTaskAndTimer = () => {
       const now = getRwandaTime();
       const currentTimeInMins = now.getHours() * 60 + now.getMinutes();
-      const currentDayName = format(now, 'EEEE');
 
       // 1. Find School Lesson scheduled for RIGHT NOW
-      const dayLessons = SCHOOL_DATA.filter(l => l.day === currentDayName);
-      const activeLesson = isTimetableSynced ? dayLessons.find(l => {
-        const [sH, sM] = l.start.split(':').map(Number);
-        const [eH, eM] = l.end.split(':').map(Number);
-        const start = sH * 60 + sM;
-        const end = eH * 60 + eM;
-        return currentTimeInMins >= start && currentTimeInMins < end;
-      }) : null;
-      setActiveSchoolLesson(activeLesson || null);
+      const activeLesson = isTimetableSynced
+        ? lessonAt(schoolLessons, now.getDay(), currentTimeInMins)
+        : null;
+      setActiveSchoolLesson(activeLesson);
 
       // 2. Find task scheduled for RIGHT NOW (including 5m prep window)
       // Prioritize tasks WITHOUT a templateId (Quick Tasks) first
@@ -144,12 +133,10 @@ export function LiveFocusCard({
       setCurrentScheduledTask(current || null);
 
       // 3. Find NEXT School Lesson today
-      const nextLesson = isTimetableSynced ? dayLessons.find(l => {
-        const [sH, sM] = l.start.split(':').map(Number);
-        const start = sH * 60 + sM;
-        return start > currentTimeInMins;
-      }) : null;
-      setNextSchoolLesson(nextLesson || null);
+      const nextLesson = isTimetableSynced
+        ? nextLessonAfter(schoolLessons, now.getDay(), currentTimeInMins)
+        : null;
+      setNextSchoolLesson(nextLesson);
 
       // 4. Find NEXT study task (Homework or Revision)
       const sortedToday = [...todayTasks].sort((a, b) => {
@@ -198,7 +185,7 @@ export function LiveFocusCard({
 
       // 6. Calculate timer for active school lesson
       if (activeLesson) {
-        const [eH, eM] = activeLesson.end.split(':').map(Number);
+        const [eH, eM] = activeLesson.endTime.split(':').map(Number);
         const end = new Date(now);
         end.setHours(eH, eM, 0, 0);
         const diff = end.getTime() - now.getTime();
@@ -213,7 +200,7 @@ export function LiveFocusCard({
 
       // 7. If in school break, calculate time until next lesson
       if (!activeLesson && nextLesson) {
-        const [sH, sM] = nextLesson.start.split(':').map(Number);
+        const [sH, sM] = nextLesson.startTime.split(':').map(Number);
         const start = new Date(now);
         start.setHours(sH, sM, 0, 0);
         const diff = start.getTime() - now.getTime();
@@ -246,7 +233,7 @@ export function LiveFocusCard({
     updateTaskAndTimer();
     const interval = setInterval(updateTaskAndTimer, 1000);
     return () => clearInterval(interval);
-  }, [searchPool, todayTasks, tomorrowTasks, isActive, isTimetableSynced]);
+  }, [searchPool, todayTasks, tomorrowTasks, isActive, isTimetableSynced, schoolLessons]);
 
   const isActuallyRunning = !!activeTask && step === 'FOCUS';
 
@@ -279,7 +266,7 @@ export function LiveFocusCard({
       <span className="text-xs font-medium text-white/70">Timetable sync</span>
       <Switch
         checked={isTimetableSynced}
-        onCheckedChange={handleToggleSync}
+        onCheckedChange={setIsTimetableSynced}
         aria-label="Follow your school timetable"
         className="data-[state=checked]:bg-white data-[state=unchecked]:bg-white/25 [&_[data-slot=switch-thumb]]:bg-primary"
       />
@@ -373,12 +360,7 @@ export function LiveFocusCard({
     //   - the blurb ("Stay focused and take good notes!") told you nothing you
     //     could act on. It now says when the school day releases you.
     if (activeSchoolLesson) {
-      const lessonsToday = SCHOOL_DATA
-        .filter((l) => l.day === format(getRwandaTime(), 'EEEE'))
-        .sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
-      const schoolDayEnd = lessonsToday.length > 0
-        ? lessonsToday[lessonsToday.length - 1].end
-        : null;
+      const schoolDayEnd = schoolDayBounds(schoolLessons, getRwandaTime().getDay())?.end ?? null;
 
       return (
         <motion.div key="school-lesson" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full">
@@ -393,7 +375,7 @@ export function LiveFocusCard({
                      <div className="h-1.5 w-1.5 rounded-full bg-white/40" />
                      <div className="flex items-center gap-2 text-xs font-bold text-white/80">
                         <Clock className="w-3.5 h-3.5" />
-                        <span>{activeSchoolLesson.start} — {activeSchoolLesson.end}</span>
+                        <span>{activeSchoolLesson.startTime} — {activeSchoolLesson.endTime}</span>
                      </div>
                   </div>
                   <div className="space-y-2">
@@ -413,7 +395,7 @@ export function LiveFocusCard({
                      <School className="w-4 h-4 shrink-0 text-white" />
                      <span className="truncate font-black text-xs uppercase tracking-widest">
                         {nextSchoolLesson
-                          ? `Then ${nextSchoolLesson.subject} at ${nextSchoolLesson.start}`
+                          ? `Then ${nextSchoolLesson.subject} at ${nextSchoolLesson.startTime}`
                           : 'Last lesson of the school day'}
                      </span>
                   </div>
@@ -428,7 +410,7 @@ export function LiveFocusCard({
                      <span className="text-2xl md:text-3xl opacity-40 mx-1">:</span>
                      <span className="text-2xl md:text-3xl opacity-60">{schoolTimeLeft.s.toString().padStart(2, '0')}</span>
                   </div>
-                  <Link href="/school" className="w-full mt-4">
+                  <Link href="/school-timetable" className="w-full mt-4">
                     <Button className="w-full h-12 rounded-xl bg-white text-primary hover:bg-white/90 font-black tracking-widest text-xs uppercase gap-2">
                        VIEW FULL TIMETABLE <ArrowRight className="w-4 h-4" />
                     </Button>
@@ -511,7 +493,7 @@ export function LiveFocusCard({
                      <div className="h-1.5 w-1.5 rounded-full bg-white/40" />
                      <div className="flex items-center gap-2 text-xs font-bold text-white/80">
                         <Clock className="w-3.5 h-3.5" />
-                        <span>Next: {nextSchoolLesson.start}</span>
+                        <span>Next: {nextSchoolLesson.startTime}</span>
                      </div>
                   </div>
                   <div className="space-y-2">
@@ -537,7 +519,7 @@ export function LiveFocusCard({
                      <span className="text-2xl md:text-3xl opacity-40 mx-1">:</span>
                      <span className="text-2xl md:text-3xl opacity-60">{schoolTimeLeft.s.toString().padStart(2, '0')}</span>
                   </div>
-                  <Link href="/school" className="w-full mt-4">
+                  <Link href="/school-timetable" className="w-full mt-4">
                     <Button className="w-full h-12 rounded-xl bg-white text-primary hover:bg-white/90 font-black tracking-widest text-xs uppercase gap-2">
                        VIEW FULL TIMETABLE <ArrowRight className="w-4 h-4" />
                     </Button>

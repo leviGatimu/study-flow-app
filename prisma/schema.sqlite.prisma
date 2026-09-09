@@ -44,6 +44,7 @@ model User {
   deletedAt       DateTime?
   classes         Class[]
   xpEvents        XpEvent[]
+  schoolLessons   SchoolLesson[]
 }
 
 /// Every XP grant that has ever happened, append-only.
@@ -303,6 +304,46 @@ model ScheduleTemplate {
   classId     String?
   class       Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
 
+  @@index([classId])
+}
+
+/// One period in the user's SCHOOL day - the lessons they attend, not the study
+/// blocks they set themselves.
+///
+/// ScheduleTemplate is the evening timetable the student owns: homework and
+/// revision they schedule. This is the other half, the day the school owns, and
+/// the two are deliberately separate models - a lesson is not something you
+/// tick off, generates no Task, and earns no XP.
+///
+/// It exists because this timetable used to be a hardcoded array inside
+/// components/SchoolTimetable.tsx. Every user's dashboard, notifications and
+/// week view therefore showed ONE student's real school day.
+///
+/// Class-scoped like ScheduleTemplate: a new academic year starts with an empty
+/// school timetable, because the lessons genuinely changed.
+model SchoolLesson {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  dayOfWeek Int // 0 for Sunday, 1 for Monday - the same convention as ScheduleTemplate
+  startTime String // format "HH:MM" 24hr
+  endTime   String // format "HH:MM" 24hr
+  subject   String
+
+  /// Breaks and lunch are lessons in the timetable's sense - they occupy a slot
+  /// and the day is wrong without them - but they are not something you attend,
+  /// so the UI greys them out rather than guessing from the subject name.
+  isBreak Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
+
+  classId String?
+  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dayOfWeek])
   @@index([classId])
 }
 
@@ -603,6 +644,7 @@ model Class {
   quizAttempts      QuizAttempt[]
   chatSessions      ChatSession[]
   stickyNotes       StickyNote[]
+  schoolLessons     SchoolLesson[]
 
   @@index([userId, status])
 }

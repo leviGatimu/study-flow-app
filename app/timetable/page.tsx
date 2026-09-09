@@ -3,6 +3,7 @@ import { startOfWeek, endOfWeek, addDays, format, isSameDay } from 'date-fns';
 import { getUserId } from "@/lib/auth";
 import { byTerm, getViewScope } from '@/lib/scope';
 import { redirect } from "next/navigation";
+import { getSchoolLessons } from '@/lib/school-actions';
 import { TimetableClient } from './TimetableClient';
 
 export const dynamic = 'force-dynamic';
@@ -21,15 +22,18 @@ export default async function TimetablePage() {
   // dates are in the past and its blocks live under their own dates.
   const scope = await getViewScope(userId);
 
-  const weekTasks = await prisma.task.findMany({
-    where: {
-      userId,
-      ...byTerm(scope),
-      date: { gte: start, lte: end },
-      isDeleted: false
-    },
-    orderBy: { startTime: 'asc' }
-  });
+  const [weekTasks, schoolLessons] = await Promise.all([
+    prisma.task.findMany({
+      where: {
+        userId,
+        ...byTerm(scope),
+        date: { gte: start, lte: end },
+        isDeleted: false
+      },
+      orderBy: { startTime: 'asc' }
+    }),
+    getSchoolLessons(),
+  ]);
 
   // Map tasks to serializable objects for Client Component
   const serializedTasks = weekTasks.map(t => ({
@@ -62,6 +66,7 @@ export default async function TimetablePage() {
           <TimetableClient
             initialTasks={serializedTasks}
             startOfWeekStr={start.toISOString()}
+            schoolLessons={schoolLessons}
           />
         </div>
       </div>
