@@ -14,6 +14,7 @@ import {
   CloudOff,
   Code2,
   Database,
+  Download,
   Flame,
   HardDrive,
   Lock,
@@ -129,7 +130,13 @@ function CustomCursor() {
 
 /* ------------------------------------------------------------------ */
 
-export function WelcomeClient() {
+export function WelcomeClient({
+  downloadUrl,
+  downloadVersion,
+}: {
+  downloadUrl: string;
+  downloadVersion: string;
+}) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -336,15 +343,33 @@ export function WelcomeClient() {
                   </div>
                 ))}
               </div>
-              <Link
-                href="/register"
-                className="group inline-flex items-center gap-3 mt-10 bg-slate-900 text-white pl-8 pr-5 py-4 rounded-2xl font-semibold hover:bg-slate-800 transition-colors"
-              >
-                Create your account
-                <span className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center group-hover:rotate-45 transition-transform">
+              {/* Download first, account second. Someone reading the desktop
+                  section has already decided they want the desktop app; making
+                  them register before they can even get it is a step that only
+                  loses people. */}
+              <div className="mt-10 flex flex-col sm:flex-row sm:items-center gap-4">
+                <a
+                  href={downloadUrl}
+                  className="group inline-flex items-center gap-3 bg-blue-600 text-white pl-8 pr-5 py-4 rounded-2xl font-semibold hover:bg-blue-500 transition-colors shadow-[0_12px_30px_-10px_rgba(37,99,235,0.8)]"
+                >
+                  <Download size={18} strokeWidth={2.5} />
+                  Download for Windows
+                  <span className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center group-hover:translate-y-0.5 transition-transform">
+                    <ArrowUpRight size={16} />
+                  </span>
+                </a>
+                <Link
+                  href="/register"
+                  className="inline-flex items-center gap-2 text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                >
+                  or use it in your browser
                   <ArrowUpRight size={16} />
-                </span>
-              </Link>
+                </Link>
+              </div>
+              <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+                {downloadVersion ? `Version ${downloadVersion} · ` : ''}Windows 64-bit · ~104 MB ·
+                updates itself from then on.
+              </p>
             </ScrollReveal>
 
             <ScrollReveal direction="left" className="relative">

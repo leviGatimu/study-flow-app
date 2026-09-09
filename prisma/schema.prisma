@@ -51,6 +51,8 @@ model User {
   classes         Class[]
   xpEvents        XpEvent[]
   schoolLessons   SchoolLesson[]
+  conversations   ConversationMember[]
+  sentMessages    ConversationMessage[]
 
   @@index([syncedAt])
 }
@@ -784,6 +786,91 @@ model Term {
 /// `cursor` is a value the SERVER produced (the highest syncedAt a pull
 /// delivered), never a local clock reading, which is the entire reason the
 /// cursor survives a device whose clock is wrong.
+/// A conversation between people on this deployment.
+///
+/// SERVER-ONLY, deliberately. These models are absent from lib/sync/identity.ts
+/// and from APPLY_ORDER, so the sync engine never touches them. That engine
+/// merges rows by last-writer-wins with per-field rules, which is right for a
+/// study timetable and wrong for an ordered conversation between two people -
+/// a merge that "wins" would silently rewrite what somebody said. Chat is
+/// online-only on both the web and the desktop, and says so when it is not.
+model Conversation {
+  id   String @id @default(cuid())
+  /// "DIRECT" (exactly two people) or "GROUP".
+  kind String @default("DIRECT")
+
+  /// Group name. Null for a direct chat, which is named by whoever you are
+  /// talking to and so has no name of its own.
+  title String?
+
+  createdById String
+
+  /// The two member ids, sorted and joined, for a direct chat.
+  ///
+  /// Unique, and that is the whole point: without it, two people who open a
+  /// chat with each other at the same moment end up with two threads and each
+  /// sees half the conversation.
+  pairKey String? @unique
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
+
+  members  ConversationMember[]
+  messages ConversationMessage[]
+
+  @@index([updatedAt])
+}
+
+model ConversationMember {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  joinedAt DateTime @default(now())
+
+  /// How the unread count is worked out: anything newer than this that they
+  /// did not send themselves. Cheaper and less fragile than a per-message
+  /// read receipt, which needs a row per person per message.
+  lastReadAt DateTime?
+
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model ConversationMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  body String
+
+  /// "TIMETABLE" or "NOTE" when this message carries something shareable.
+  shareKind String?
+  /// What the receiver sees on the card before deciding to import.
+  shareTitle String?
+  /// The shared thing as JSON, FROZEN AT SEND TIME.
+  ///
+  /// A snapshot rather than a pointer, on purpose. If it referenced the
+  /// sender's live timetable, editing their week next month would silently
+  /// change what they appear to have sent you, and importing it would give you
+  /// something nobody ever offered.
+  sharePayload String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
+
+  @@index([conversationId, createdAt])
+}
+
 model SyncState {
   id       String @id @default(cuid())
   userId   String

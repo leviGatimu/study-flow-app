@@ -14,6 +14,7 @@ import {
   Layers,
   LayoutGrid,
   Library,
+  MessageSquare,
   Settings,
   Sparkles,
   StickyNote,
@@ -106,6 +107,16 @@ export const NAV: NavSection[] = [
       { name: "Calculator", href: "/calculator", icon: Calculator, keywords: "maths compute" },
       { name: "Bible", href: "/bible", icon: Book, keywords: "verse scripture" },
     ],
+  },
+  // A seventh destination, against the "six, not twenty-seven" rule above, and
+  // deliberately: chat is not a study tool and does not belong underneath one.
+  // Burying people inside Study or Progress would make the only social feature
+  // in the app the hardest thing in it to find.
+  {
+    name: "Chat",
+    href: "/chat",
+    icon: MessageSquare,
+    keywords: "message people friends group share timetable notes dm",
   },
   {
     name: "Settings",

@@ -100,6 +100,19 @@ describe('no call site quietly goes back to hard deleting', () => {
       'lib/soft-delete.ts',
       { count: 1, why: 'purgeTombstones is the thing that does the real deleting.' },
     ],
+    [
+      'lib/admin-actions.ts',
+      {
+        count: 2,
+        why: 'deleteUserAccount is the one place a deletion is meant to be ' +
+          'total. Tombstoning would leave the account and every row it owns ' +
+          'in the database, which is the opposite of what the button promises ' +
+          'and of what someone asking to be removed is owed. Nothing can ' +
+          'resurrect it either: a device still holding those rows authenticates ' +
+          'as that user, and there is no longer a user to authenticate as. The ' +
+          'second delete is SyncState, which has no deletedAt column at all.',
+      },
+    ],
   ]);
 
   test('every raw .delete()/.deleteMany() is accounted for', async () => {
