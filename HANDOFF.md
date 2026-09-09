@@ -9,8 +9,12 @@ WHAT REMAINS IS VERIFICATION ON A REAL DESKTOP INSTALL, which needs Levi:
   1. npm run build:desktop, then npm run pack in desktop-app/, and install it.
   2. Settings -> Sync with the website -> address, username, password ->
      Connect this device. It pairs, then immediately pulls.
-  3. Create something on the desktop, press Sync now, check the website.
-  4. Pull the network cable and confirm the app still opens and works.
+  3. Add an assignment on the desktop and DO NOT press anything. It should be on
+     the website within a couple of seconds.
+  4. Change something on the website; the desktop should notice within 20s,
+     refresh itself and say so.
+  5. Pull the network cable, keep working, plug it back in - the backlog should
+     go up on its own.
 Nothing has been through those four steps. Everything else IS verified - see
 "how it was proven" below.
 
@@ -95,6 +99,35 @@ Then against the live database, through the real HTTP route:
   - A row pushed with John's token while claiming Levi's userId landed under
     JOHN. That probe row was removed afterwards.
 
+### Automatic sync (ccbb81e)
+
+Levi: "i dont want sync to be manual it has to be automatic ... things should
+sync every time something changes ... plus it should send notification".
+
+  lib/sync/scheduler.ts   every local change pushes itself, debounced 1.5s.
+                   Plus once ~8s after launch, a 5-minute safety-net timer, and
+                   a nudge on focus/`online`. One sync at a time (all entry
+                   points share one promise); the interval doubles to an hour
+                   while failing and snaps back on success; nothing throws.
+  lib/sync/notify.ts      a one-listener registry, and it exists ONLY to break a
+                   cycle: lib/prisma.ts imports the stamp extension, so the
+                   extension cannot import the scheduler, which imports
+                   lib/prisma.ts.
+  components/SyncWatcher.tsx  mounted in AppShell. A background push is
+                   invisible to the window, so this polls a cheap pulse, calls
+                   router.refresh() when rows actually arrived, and raises a
+                   toast plus a desktop notification (only when the window is
+                   NOT in front). Errors reported once per distinct problem, not
+                   once per poll. Stops polling entirely on the web build and on
+                   an unpaired install.
+
+THE INVARIANT THAT MAKES IT SAFE, and the thing to check first if the desktop
+ever gets hot and busy: APPLYING A PULL MUST NOT COUNT AS A LOCAL CHANGE. The
+stamp extension treats a write carrying an explicit syncedAt as the engine's own
+and stays silent. If that regresses, every sync schedules the next one and the
+app syncs in a tight loop forever while looking perfectly healthy. Six tests in
+test/sync/scheduler.test.mjs cover exactly that line.
+
 ### What is NOT done
 
   FILE SYNC IS HALF A FEATURE, and it cannot be finished from here. The web has
@@ -106,10 +139,7 @@ Then against the live database, through the real HTTP route:
   synced row already carries. Enable the bucket, then reconcile the two naming
   schemes.
 
-  SYNC IS MANUAL: a button in Settings, no timer and no sync-on-launch.
-  Deliberate for a first release, because automatic sync makes every bug happen
-  when nobody is looking. Add both once a real install has been through the four
-  steps at the top.
+  (Sync being manual WAS listed here. It is not any more - see below.)
 
   focusSessions and totalFocusMinutes still merge as max(), not as a sum. They
   are bare counters with no ledger. xpEvent shows the right answer - an
@@ -1943,6 +1973,7 @@ Scoping map for Phase 1:
 - Windows: prisma generate throws EPERM while the dev server is running.
 
 ## Recently Completed
+- Automatic sync on every change, with notifications (2026-09-09)
 - Phase 9 stages 2-5: the sync engine, desktop and web (2026-09-09)
 - Account audit: logout-on-slow-DB, John's seeded account, hardcoded prompts (2026-09-09)
 - Phase 9 Stage 1: every delete leaves a tombstone (2026-09-09)
