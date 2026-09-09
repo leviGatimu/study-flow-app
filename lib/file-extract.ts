@@ -1,18 +1,39 @@
 'use client';
 
 import * as mammoth from 'mammoth';
-import * as pdfjsLib from 'pdfjs-dist';
 
-// PDF.js worker setup (mirrors app/ai/AIChatInterface.tsx).
-if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs',
-    import.meta.url
-  ).toString();
+/**
+ * pdf.js is loaded on demand, in the browser, and never at module scope.
+ *
+ * 'use client' does not mean "client only": Next still evaluates this module
+ * on the server to render the component that imports it. pdf.js builds a
+ * `new DOMMatrix()` while it is being imported, and Node has no such global,
+ * so a static import threw
+ *
+ *   ReferenceError: DOMMatrix is not defined
+ *
+ * on the server for every page that reached this file - /exams among them,
+ * which is why that page arrived with an empty body and had to re-render on
+ * the client to show anything. Loading it inside the function keeps it out of
+ * the server pass entirely.
+ */
+type PdfJs = typeof import('pdfjs-dist');
+let pdfjsPromise: Promise<PdfJs> | null = null;
+
+function loadPdfjs(): Promise<PdfJs> {
+  pdfjsPromise ??= import('pdfjs-dist').then((pdfjsLib) => {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/build/pdf.worker.min.mjs',
+      import.meta.url
+    ).toString();
+    return pdfjsLib;
+  });
+  return pdfjsPromise;
 }
 
 /** Extract all text from a PDF file using pdfjs-dist. */
 export async function extractTextFromPdf(file: File): Promise<string> {
+  const pdfjsLib = await loadPdfjs();
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   let fullText = '';

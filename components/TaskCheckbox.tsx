@@ -5,11 +5,16 @@ import { toggleTaskDone, toggleTaskMissed } from '@/lib/actions';
 import { Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ValidationModal } from './ValidationModal';
+import { useArchiveReason } from '@/components/ArchiveContext';
 import { toast } from 'sonner';
 
 export function TaskCheckbox({ taskId, isDone, isMissed, hasProof }: { taskId: string; isDone: boolean; isMissed: boolean; hasProof: boolean }) {
   const [isPending, startTransition] = useTransition();
   const [showValidation, setShowValidation] = useState(false);
+  // In a finished year these two stay visible but inert: they are the record
+  // of what was done, not just a control.
+  const archiveReason = useArchiveReason();
+  const locked = isPending || archiveReason !== null;
 
   const handleToggleDone = () => {
     if (!isDone && !hasProof) {
@@ -44,7 +49,9 @@ export function TaskCheckbox({ taskId, isDone, isMissed, hasProof }: { taskId: s
           e.preventDefault();
           handleToggleDone();
         }}
-        disabled={isPending}
+        aria-label={isDone ? 'Mark as not done' : 'Mark as done'}
+        title={archiveReason ?? undefined}
+        disabled={locked}
         className={cn(
           "w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all",
           isDone 
@@ -61,7 +68,9 @@ export function TaskCheckbox({ taskId, isDone, isMissed, hasProof }: { taskId: s
           e.preventDefault();
           handleToggleMissed();
         }}
-        disabled={isPending}
+        aria-label={isMissed ? 'Unmark as missed' : 'Mark as missed'}
+        title={archiveReason ?? undefined}
+        disabled={locked}
         className={cn(
           "w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all",
           isMissed 

@@ -3,13 +3,14 @@
 import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { getViewScope, byClass, requireClassStamp, assertWritableScope } from '@/lib/scope';
 
 export async function getProjects() {
   const userId = await getUserId();
   if (!userId) return [];
 
   return prisma.project.findMany({
-    where: { userId },
+    where: { userId, ...byClass(await getViewScope(userId)) },
     include: { docs: true },
     orderBy: { updatedAt: 'desc' }
   });
@@ -30,7 +31,7 @@ export async function createProject(data: { title: string, description?: string 
   if (!userId) throw new Error("Unauthorized");
 
   const project = await prisma.project.create({
-    data: { ...data, userId }
+    data: { ...data, userId, ...(await requireClassStamp(userId)) }
   });
 
   revalidatePath('/projects');
@@ -40,6 +41,11 @@ export async function createProject(data: { title: string, description?: string 
 export async function updateProjectProgress(id: string, progress: number) {
   const userId = await getUserId();
   if (!userId) return;
+
+  // A finished year is a record, not a workspace. The UI hides these
+  // controls inside an archive; this is the guarantee behind that, because
+  // hidden is not the same as prevented.
+  await assertWritableScope(userId);
 
   await prisma.project.updateMany({
     where: { id, userId },
@@ -53,6 +59,8 @@ export async function updateProjectProgress(id: string, progress: number) {
 export async function deleteProject(id: string) {
   const userId = await getUserId();
   if (!userId) return;
+
+  await assertWritableScope(userId);
 
   await prisma.project.deleteMany({ where: { id, userId } });
 

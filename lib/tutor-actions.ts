@@ -9,7 +9,15 @@ import { grantXp } from './gamification';
 import { randomUUID } from 'node:crypto';
 import mammoth from 'mammoth';
 import { parseJsonLoose, sanitizeQuestions, asString, asNumber } from '@/lib/ai-parse';
-import { getScheduleState, activeScope } from '@/lib/term';
+import { getScheduleState } from '@/lib/term';
+import {
+  getViewScope,
+  byClass,
+  requireClassStamp,
+  assertWritableScope,
+  isViewingArchive,
+  ARCHIVE_WRITE_ERROR,
+} from '@/lib/scope';
 
 // Canonical description of every question shape the quiz engine understands.
 const QUESTION_TYPE_SPEC = `Every question object has "id", "type", and "question". Per type, also include:
@@ -107,12 +115,12 @@ Rules: make options/distractors plausible; for MATCHING the "definitions" array 
 
     // Stamp the year this belongs to, so finishing a class leaves its
     // revision behind instead of carrying it into the next one.
-    const { classId } = await activeScope(userId);
+    const stamp = await requireClassStamp(userId);
 
     const module = await prisma.tutorModule.create({
       data: {
         userId,
-        classId,
+        ...stamp,
         subject,
         title: asString(data.title, 300) ?? subject,
         questions: JSON.stringify(questions),
@@ -137,7 +145,7 @@ export async function getTutorModules() {
   if (!userId) return [];
 
   return prisma.tutorModule.findMany({
-    where: { userId },
+    where: { userId, ...byClass(await getViewScope(userId)) },
     orderBy: { createdAt: 'desc' }
   });
 }
@@ -193,6 +201,11 @@ export async function updateTutorModuleScore(id: string, score: number, understa
   const userId = await getUserId();
   if (!userId) return;
 
+  // A finished year is a record, not a workspace. The UI hides these
+  // controls inside an archive; this is the guarantee behind that, because
+  // hidden is not the same as prevented.
+  await assertWritableScope(userId);
+
   // Spaced Repetition Logic: Calculate gap based on score
   let daysGap = 1;
   if (score >= 90) daysGap = 7;
@@ -226,6 +239,8 @@ export async function updateTutorModuleScore(id: string, score: number, understa
 export async function deleteTutorModule(id: string) {
   const userId = await getUserId();
   if (!userId) return;
+
+  await assertWritableScope(userId);
 
   await prisma.tutorModule.deleteMany({
     where: { id, userId }
@@ -268,6 +283,10 @@ export async function generateMoreQuestions(moduleId: string) {
   });
 
   if (!module) return { error: "Module not found" };
+
+  // Before the model call as well as before the write: a refused edit should
+  // not spend the student's AI quota.
+  if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
   const existingQuestions = JSON.parse(module.questions);
   const existingQuestionsText = existingQuestions.map((q: any) => q.question).join("\n");
@@ -327,6 +346,12 @@ export async function gradeQuizAttempt(moduleId: string, studentAnswers: { id: s
   });
 
   if (!module) return { error: "Module not found" };
+
+  // Grading writes a QuizAttempt and then updates the module's score. Without
+  // this the attempt row was created, the guarded score update threw, and the
+  // catch below reported "Failed to grade the quiz" - a half-write behind a
+  // misleading message.
+  if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
   let questions = [];
   try {
@@ -399,6 +424,10 @@ Do not include markdown blocks.`;
     await prisma.quizAttempt.create({
       data: {
         moduleId: module.id,
+        // An attempt belongs to whichever year its module does. Taken from the
+        // module rather than re-resolved, so re-sitting a quiz cannot move the
+        // attempt into a different year from the questions it answered.
+        classId: module.classId,
         score: overallScore,
         feedback: JSON.stringify(augmentedFeedback)
       }
@@ -423,6 +452,8 @@ export async function generateFlashcardsForModule(moduleId: string) {
   });
 
   if (!module) return { error: "Module not found" };
+
+  if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
   let contextInfo = "";
   try {
@@ -495,14 +526,21 @@ export async function updateFlashcardsReview(moduleId: string, flashcardsJson: s
   const userId = await getUserId();
   if (!userId) return { error: "Unauthorized" };
 
+  if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
+
   try {
-    await prisma.tutorModule.update({
-      where: { id: moduleId },
+    // Scoped by userId as well as id: this used to update on the id alone, so
+    // any signed-in user could overwrite someone else's flashcards by guessing
+    // one. updateMany takes the compound filter that update() will not.
+    const updated = await prisma.tutorModule.updateMany({
+      where: { id: moduleId, userId },
       data: {
         flashcards: flashcardsJson,
         lastReviewedAt: new Date()
       }
     });
+
+    if (updated.count === 0) return { error: "Module not found" };
 
     if (xpEarned > 0) {
       await grantXp(userId, xpEarned, 'QUIZ', `flashcards:${randomUUID()}`);

@@ -4,9 +4,13 @@ import { useTransition } from 'react';
 import { Trash2 } from 'lucide-react';
 import { deleteResource } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
+import { useIsArchived } from '@/components/ArchiveContext';
 
 export function DeleteResourceButton({ id, subject }: { id: string, subject: string }) {
   const [isPending, startTransition] = useTransition();
+  const archived = useIsArchived();
+
+  if (archived) return null;
 
   return (
     <Button

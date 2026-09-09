@@ -164,30 +164,87 @@ async function setupDatabase() {
 }
 
 /**
+ * Everything the app knows about updates, mirrored into the renderer so
+ * Settings can both show the state and drive it.
+ *
+ * `phase` is the single source of truth for the button in Settings:
+ *   unsupported - not a packaged build, there is no update feed to talk to
+ *   idle        - nothing checked yet this session
+ *   checking    - a check is in flight
+ *   up-to-date  - the feed says this is the newest build
+ *   available   - a newer build exists and the download has started
+ *   downloading - bytes are arriving (percent is meaningful)
+ *   downloaded  - staged on disk; only a restart is left
+ *   error       - the last check or download failed (message says why)
+ */
+let updateState = {
+  phase: 'idle',
+  version: null,
+  percent: 0,
+  message: null,
+  currentVersion: app.getVersion(),
+  supported: false,
+  lastCheckedAt: null,
+};
+
+function setUpdateState(patch) {
+  updateState = { ...updateState, ...patch };
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) {
+      win.webContents.send('updates:status', updateState);
+    }
+  }
+}
+
+/**
  * Check GitHub Releases for a newer build.
  *
  * Updates download in the background and are installed when the user agrees to
  * restart - never mid-session, which would kill a focus timer.
  *
- * Only runs in a packaged app: in development there is no update feed and
- * electron-updater throws.
+ * Only wired up in a packaged app: in development there is no update feed and
+ * electron-updater throws. Settings says so rather than showing a button that
+ * cannot work.
  */
 function setupAutoUpdates() {
   if (!isPackaged) {
     log('Dev build: skipping update check.');
+    setUpdateState({ phase: 'unsupported', supported: false });
     return;
   }
+
+  setUpdateState({ supported: true });
 
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.logger = { info: log, warn: log, error: log, debug: () => {} };
 
-  autoUpdater.on('update-available', (info) => log(`Update available: ${info.version}`));
-  autoUpdater.on('update-not-available', () => log('Already up to date.'));
-  autoUpdater.on('error', (err) => log(`Update check failed: ${err && err.message}`));
+  autoUpdater.on('checking-for-update', () => setUpdateState({ phase: 'checking', message: null }));
+
+  autoUpdater.on('update-available', (info) => {
+    log(`Update available: ${info.version}`);
+    setUpdateState({ phase: 'available', version: info.version, percent: 0, message: null });
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    log('Already up to date.');
+    setUpdateState({ phase: 'up-to-date', version: null, message: null, lastCheckedAt: Date.now() });
+  });
+
+  autoUpdater.on('download-progress', (p) => {
+    setUpdateState({ phase: 'downloading', percent: Math.round(p.percent || 0) });
+  });
+
+  autoUpdater.on('error', (err) => {
+    const message = (err && err.message) || 'Unknown error';
+    log(`Update check failed: ${message}`);
+    setUpdateState({ phase: 'error', message });
+  });
 
   autoUpdater.on('update-downloaded', async (info) => {
     log(`Update ${info.version} downloaded.`);
+    setUpdateState({ phase: 'downloaded', version: info.version, percent: 100, message: null });
+
     const { response } = await dialog.showMessageBox(mainWindow, {
       type: 'info',
       buttons: ['Restart now', 'Later'],
@@ -197,7 +254,8 @@ function setupAutoUpdates() {
       message: `Study Flow ${info.version} is ready to install.`,
       detail: 'Your work is saved. The app will reopen where you left off.',
     });
-    // "Later" still installs on quit, so the update is never lost.
+    // "Later" still installs on quit, so the update is never lost - and the
+    // button in Settings stays on "Restart and update" until it does.
     if (response === 0) autoUpdater.quitAndInstall();
   });
 
@@ -208,6 +266,35 @@ function setupAutoUpdates() {
   }, 6 * 60 * 60 * 1000);
 }
 
+/**
+ * The manual path: the "Check for updates" button in Settings.
+ *
+ * Registered once at module scope rather than inside createWindow, so a second
+ * window can never double-register the handler.
+ */
+ipcMain.handle('updates:status', () => updateState);
+
+ipcMain.handle('updates:check', async () => {
+  if (!isPackaged) {
+    setUpdateState({ phase: 'unsupported', supported: false });
+    return updateState;
+  }
+  try {
+    setUpdateState({ phase: 'checking', message: null });
+    await autoUpdater.checkForUpdates();
+  } catch (e) {
+    setUpdateState({ phase: 'error', message: (e && e.message) || 'Could not reach the update server' });
+  }
+  return updateState;
+});
+
+ipcMain.handle('updates:install', () => {
+  if (updateState.phase !== 'downloaded') return updateState;
+  // Let the IPC reply leave before the app tears itself down.
+  setImmediate(() => autoUpdater.quitAndInstall());
+  return updateState;
+});
+
 async function createWindow() {
   Menu.setApplicationMenu(null);
   await setupDatabase();
@@ -216,6 +303,13 @@ async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1300,
     height: 900,
+    // The app's layout has one breakpoint that matters: below md (768px) the
+    // sidebar is replaced by the header's mobile menu. A desktop window can be
+    // dragged to any size, so without a floor a user can quietly resize into
+    // the phone layout on a 27" monitor. 960 keeps the rail and the dashboard's
+    // two-column grid intact.
+    minWidth: 960,
+    minHeight: 640,
     backgroundColor: '#050505',
     show: false,
     icon: path.join(__dirname, 'icon.ico'),

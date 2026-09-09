@@ -1,9 +1,333 @@
 # HANDOFF
 
 ## Current Task
-Closing out every loose end left by Phases 0-8 (2026-09-06). Phase 9 is the
-only phase not started, deliberately - Levi chose "loose ends first, then
-decide" rather than starting the sync engine.
+SHIP 1.0.2 TO THE DESKTOP UPDATE CHANNEL - DONE (2026-09-08). Levi: "push
+changes and ensure i can get new changes on the desktop app". The branch was
+already on GitHub; what was missing was the version-bump commit (672f171) and
+the release itself. v1.0.2 is now published with both assets - see "UPDATE
+CHANNEL" below. Next step is Levi's, not mine: open the installed app,
+Settings -> Desktop app -> Check for updates, and confirm it downloads and
+restarts into 1.0.2.
+
+OPEN QUESTION, NOT YET DECIDED. Levi, right after the build: "The issue i have
+with desktop app it aint like same as web one if i create assignment i cant see
+it on web one, so what i think we can do is just have desktop app fetch its data
+from supabase like the web one sadly". That is Phase 9's problem arriving early.
+Three shapes, unpicked:
+  a) desktop points DATABASE_URL at Supabase. Smallest diff, but it ships a
+     Postgres credential inside a public installer - every user would hold
+     read/write on EVERYONE's data, and the app dies without internet at
+     ~150-200ms per query from Kigali to fra1. Do not do this as-is.
+  b) desktop stops running its own Next server and talks to the deployed web
+     app over HTTP with the user's session cookie. One source of truth, no
+     credential shipped, still online-only.
+  c) Phase 9 sync, the local-first answer that was always the destination.
+     Stage 0 (identity map + hazard tests) is already done.
+
+ALSO STILL PENDING from the Supabase -> desktop import: the four new classId
+columns are NULL on every imported desktop row, so those rows vanish from both
+years until a repair pass runs on the desktop database. The previous session's
+throwaway repair script is gone with its scratchpad; scripts/backfill-class-scope.mjs
+is the same logic and only needs pointing at the SQLite client.
+
+## Previously (same day)
+ACADEMIC YEAR SCOPING (2026-09-08). Levi: "i hate that we still got some year 1
+data yet i said when new class started it starts fresh, same as the school
+portal". He listed milestones, homework, resources, progress, history, marks,
+goals, summaries, daily summaries, AI tutor, AI notes and sticky notes.
+
+THE DIAGNOSIS, and it was not what it looked like: Year 2 had not inherited
+anything. ~116 queries across 14 models, of which about 5 filtered by year at
+all - so every page had ALWAYS shown lifetime data, and starting a new class
+was never going to change that. An audit of the live database found every one
+of the 17 already-scoped models had a correct classId/termId on every row:
+the data was right, the queries never asked.
+
+Done in four lanes (schema, lib queries, UI, write guards - see the sections
+below), then verified end to end in a browser against the real database:
+  Year 2  -> /exams has no Completed Milestones, /marks has no Year 1 standing
+  Year 1  -> banner "Viewing Year 1 - a finished year. Everything here is
+             read-only", 27 milestones, Term 3 at 90.1% First Class Honors
+  Back to Year 2 -> clean slate again
+Counts per year for levi are in "THE LAST FOUR UNSCOPED MODELS" below.
+
+TWO SECURITY HOLES FOUND ON THE WAY, both pre-existing, both fixed:
+  - updateSubjectGrade / deleteSubjectGrade used `where: { id }` with no owner
+    check: any signed-in user could rewrite or delete anyone's marks.
+  - updateFlashcardsReview did the same on tutorModule. Now an updateMany
+    filtered by { id, userId }.
+
+ALSO FIXED: every /exams request threw `ReferenceError: DOMMatrix is not
+defined` server-side. 'use client' does not mean client-only - Next evaluates
+the module on the server to render it, and pdf.js builds a DOMMatrix at import
+time. lib/file-extract.ts now imports pdf.js lazily inside the function.
+
+STILL OPEN, needs Levi's call:
+  - Subject / SubjectGoal / StudioNote are unique on (userId, name), a
+    constraint predating academic years, so a subject can exist only ONCE per
+    account ever. Adding "Physics" in Year 2 hits "already exists" against an
+    empty-looking list. Current behaviour: the row is ADOPTED into the writing
+    year, which unblocks the user but removes it from the archive's list. The
+    real fix is widening those constraints to (userId, classId, name) plus an
+    update to lib/sync/identity.ts, which treats them as natural keys.
+  - User.currentTerm is a legacy free-text field: /marks still says "Term 3"
+    in Year 2. Cosmetic, unscoped by design, but wrong-looking.
+  - /focus and FocusSessionUI are the known un-gated write surface in an
+    archive (FocusSessionUI is off-limits per docs/ui-contract.md).
+
+Before that, same day: desktop packaging pass (2026-09-08), on Levi's ask: "package this and put into
+desktop ... ensure that UI is fine ... ensure the app is fine in production
+mode ready for all users ... also receiving updates, user can click button to
+update the app."
+
+Shipped in this pass:
+  - Status card shrunk twice on request, ending at `lg:min-h-[19rem]` (304px,
+    verified against the live DOM). Sidebar rebuilt as a hover/pin-expanding
+    rail and verified: 64px collapsed, 240px overlay on hover with the aside
+    still 64 so the page does not shift, sub-pages inline, pin persisted.
+  - An in-app update control: `desktop-app/main.js` tracks a real update phase
+    and pushes it to the renderer, `preload.js` exposes electron.updates on the
+    existing allow-list, and `components/DesktopUpdater.tsx` renders in
+    Settings -> Desktop app (Check for updates -> Downloading N% -> Restart and
+    update). It only renders inside the Electron shell.
+  - Window floor of 960x640 (below md the app silently switches to its phone
+    layout, and a desktop window can be dragged to any size); desktop.css
+    scrollbars restored from width:0 to thin; the global desktop-only
+    button:active scale(0.97) removed.
+
+THREE PACKAGING BUGS FOUND AND FIXED - all of them shipped in 1.0.0:
+  1. `.next/standalone` was 3.8 GB. outputFileTracingRoot is the repo root, so
+     Next traced `desktop-app/dist` - the PREVIOUS packaged build, which
+     contains a copy of a previous standalone server. Every build nested the
+     last one inside itself (2.9 GB of the 3.8). Fixed with
+     outputFileTracingExcludes in next.config.ts; standalone is now 78 MB.
+  2. The installer shipped Levi's private data: `public/uploads` (71 MB of his
+     own PDFs, audio and proof-of-work images) and `prisma/dev.db` plus two
+     .bak copies. Neither is read at runtime - uploads live in userData via
+     UPLOADS_DIR, and a user's database is built by the migrations on first
+     boot. Both now filtered out of extraResources.
+  3. The 1.0.0 installer in desktop-app/dist was BROKEN: a 208 KB
+     StudyTrackerSetup.exe beside a 2.16 GB .nsis.7z, i.e. the run died before
+     embedding the payload. Anyone who ran that setup got nothing.
+
+DESKTOP DB UPGRADE BUG - FOUND AND FIXED (this is the big one). The packaged
+app booted to its 503 page and every query died with
+  P2022: The column `main.User.isAdmin` does not exist in the current database.
+Cause: lib/sqlite-migrate.ts skips a statement whose object "already exists" -
+right in itself, the table IS there - but on a database predating the migration
+ledger that left every such table at its old shape while still recording the
+migration as applied. A real install had 20 tables missing 64 columns. New
+installs were fine, which is why it survived: only upgraders were broken.
+Fixed by a reconcileColumns() pass that runs after the migrations on every
+boot, diffing the CREATE TABLE / ADD COLUMN statements against PRAGMA
+table_info and adding what is missing - nullable-plus-backfill for the two
+shapes SQLite refuses in ALTER TABLE ADD COLUMN (CURRENT_TIMESTAMP defaults,
+and NOT NULL with no default). Proven on a copy AND on Levi's live database:
+64 columns, no drift left, 2 users and 241 tasks intact. Backup kept at
+%APPDATA%/study-tracker-desktop/backups/database-before-column-repair.db.
+
+UPDATE CHANNEL - LIVE, TWO RELEASES DEEP. v1.0.2 is published at
+https://github.com/leviGatimu/Study-Flow/releases/tag/v1.0.2 with both assets
+(StudyTrackerSetup.exe 103,494,164 bytes + latest.yml), not a draft, not a
+pre-release, marked Latest - so a 1.0.1 install finally has something higher to
+find. It carries all of the academic-year scoping work. v1.0.1 is still up.
+setup/ holds a byte-identical copy of the published exe (sha512 verified
+against latest.yml before upload). WATCH OUT: the code repo is
+leviGatimu/study-flow-app but every shipped build is compiled to check
+leviGatimu/Study-Flow - `gh release create` without --repo goes to the wrong one
+and reaches nobody. Documented in setup/README.txt. `gh` on this machine IS
+authenticated now (account leviGatimu, scopes repo/workflow) - an older note in
+this file saying "Bad credentials" is stale.
+
+ONE-OFF SUPABASE -> DESKTOP IMPORT (2026-09-08). Levi hit "desktop doesn't
+have Year 2" and chose a one-off import over building Phase 9 now. The two
+databases had never been connected: web = Supabase Postgres, desktop = its own
+SQLite in userData, seeded empty on first launch. Every model was dumped with
+the app's own Prisma client and inserted into the desktop database wholesale -
+27 non-empty models, 365 tasks, 5 users, 36 subjects, 5 classes including
+Year 2 - after wiping the desktop's own rows (241 tasks, 2 users), which is
+sound only because those rows had never been anyone's source of truth.
+_local_migrations was deliberately left alone; it describes the schema, not
+the data. public/uploads (56 files, 71 MB) was copied to
+%APPDATA%/study-tracker-desktop/uploads so the imported rows' PDF and audio
+links resolve. Backup: backups/database-before-supabase-import.db.
+Scripts kept in the session scratchpad (export-supabase.mjs,
+import-to-sqlite.py) - they are one-off tools, not a sync engine.
+
+THIS IS A SNAPSHOT, NOT SYNC. The two databases drift apart again on the next
+edit to either side. Phase 9 remains the real fix, and its Stage 0 (identity
+map + hazard tests) is already done.
+
+STILL UNVERIFIED: the dashboard and Settings UI inside the packaged app (needs
+a login, which Claude does not do), and an actual download-and-restart. The
+second release now exists, so the restart path is finally testable: Settings ->
+Desktop app -> Check for updates on the installed 1.0.1.
+
+PREVIOUS OPEN ITEM, now closed: `leviGatimu/Study-Flow` is public but has ZERO
+releases, so `releases/latest` 404s and every update check fails no matter how
+good the client code is. `gh` on this machine is not authenticated ("Bad
+credentials"), and Levi chose "you publish, I prep everything". Desktop version
+bumped to 1.0.1 so anyone on 1.0.0 sees an update once the release exists.
+
+Before that, same day: the status card's two SCHOOL states (the ones timetable
+sync switches on) brought onto the same look AND the same footprint as the
+break state - Levi screenshotted school-in-session and asked for it to look
+like "the non timetable sync one", then for both to be the same size.
+
+Before that, same day: remodelled the break/empty state, on Levi's request -
+it looked "too basic" and had no way to act on it.
+
+Before that: closing out every loose end left by Phases 0-8 (2026-09-06).
+Phase 9 is the only phase not started, deliberately - Levi chose "loose ends
+first, then decide" rather than starting the sync engine.
+
+## THE LAST FOUR UNSCOPED MODELS - DONE (2026-09-08)
+
+Phase 2 scoped 17 models but left four with no scope column at all, so they
+could not be filtered by year even once the queries were fixed. They now have
+one, backfilled and verified against production.
+
+  prisma/schema.prisma
+      + nullable classId + Class relation + @@index([classId]) on SubjectGrade,
+        QuizAttempt, ChatSession and StickyNote, and the four inverse relations
+        on Class. FK is ON DELETE CASCADE, matching every other classId FK.
+      ChatMessage deliberately gets NOTHING: it hangs off ChatSession and is
+      scoped through it. Do not "fix" that by adding a column.
+  prisma/migrations/20260908000000_scope_remaining_models_to_class/
+      ADD COLUMN IF NOT EXISTS + CREATE INDEX IF NOT EXISTS + guarded FKs, plus
+      a down.sql. APPLIED to production with `prisma migrate deploy`; 5
+      migrations, "Database schema is up to date!".
+  prisma/migrations-sqlite/20260908000000_scope_remaining_models_to_class/
+      HAND-WRITTEN, not `prisma migrate diff` output. The generated SQLite diff
+      for an added FK column is a RedefineTables block (CREATE new_X, INSERT
+      SELECT, DROP X, RENAME). That is wrong here twice: lib/sqlite-migrate.ts
+      runs statements one at a time with no surrounding transaction, so a
+      failure mid-dance destroys the table it is copying, and reconcileColumns()
+      only understands CREATE TABLE / ALTER TABLE ADD COLUMN, so a redefine
+      leaves a database that skipped the migration unable to heal itself.
+      SQLite accepts REFERENCES in ADD COLUMN when the column defaults to NULL,
+      which it does here, so nothing is lost by staying additive. Proven on a
+      scratch database built from all four SQLite migrations: 30 tables, the FKs
+      register in PRAGMA foreign_key_list, enforce, and cascade.
+      `npm run db:sqlite:migration` now prints "This is an empty migration." -
+      the SQLite history and the schema agree, no drift.
+  scripts/backfill-class-scope.mjs   (--dry-run to preview)
+      SubjectGrade takes reportCard.termRef.classId; QuizAttempt inherits
+      module.classId; ChatSession and StickyNote use the date rule (the class
+      whose [startedAt, completedAt) window holds createdAt, falling back to the
+      user's FIRST class for anything older than it). Idempotent: reads and
+      writes both filter on classId IS NULL, so a re-run is a no-op and a
+      hand-corrected row is never overwritten.
+
+RESULT, all 76 rows on levi's "Year 1" (the expected answer - the Class rows
+were minted 2026-08-28/29 but the data goes back to May, so everything predates
+the first class): SubjectGrade 42, ChatSession 26, QuizAttempt 7, StickyNote 1.
+Zero NULLs left in all four tables; zero rows scoped to another user's class;
+zero grades disagreeing with their report card's term class. Re-ran the script
+to prove the no-op. `npm run test:sync` still 54/54.
+
+NOTE for whoever adds the next user-facing feature: user "Briann" has NO Class
+row at all (the other four users do). Nothing in these four models belongs to
+him, so the backfill was unaffected, but any code that assumes every user has a
+class will break on him.
+
+  EPERM TRAP, worked around, worth knowing: `npm run db:postgres` failed with
+  the documented EPERM on query_engine-windows.dll.node because the dev server
+  was up, and it dies BEFORE writing any client files - so the client was left
+  stale, not broken. The engine binary it could not rename was byte IDENTICAL
+  (same Prisma version, same provider), i.e. the only thing the lock blocks is a
+  no-op copy. Worked around by generating to a scratch output path and copying
+  everything except the .node file over client-custom-v8, then rewriting the
+  embedded output-path string back. Shared client verified afterwards:
+  activeProvider postgresql, new fields present, a real production query
+  returns. THE RUNNING DEV SERVER STILL HOLDS THE OLD CLIENT IN MEMORY -
+  restart it to pick up the new fields.
+
+## READ-ONLY YEAR ARCHIVE - UI (2026-09-08)
+
+Levi: "classify it as year 1 data, and when we click open year 1 it opens same
+interface just year 1 information loaded into, then go back to Year & terms then
+back to year 2 ... when a new class starts it starts fresh, same as the school
+portal". He chose a READ-ONLY archive: browsing a finished year shows
+everything and changes nothing.
+
+This is the UI half. lib/scope.ts owns which year every query reads from; that
+work and the four new classId columns are in their own sections.
+
+### How it works
+  app/archive-actions.ts    NEW. openArchivedYear(formData) validates the class
+      is the user's own, sets the viewingClassId cookie (httpOnly, 30d, same
+      options as the session cookie) and redirects to the dashboard.
+      exitArchive() clears it. Both are <form action> submits, not transitions:
+      the cookie changes what EVERY page reads, so the whole app has to
+      re-render. Choosing the ACTIVE class DELETES the cookie rather than
+      pinning its id - pinning would silently become an archive as soon as the
+      next year starts.
+  components/ArchiveContext.tsx   NEW. ArchiveProvider / useArchive /
+      useIsArchived / useArchiveReason / <ArchiveGate>. Any client component
+      can ask "am I in an archive" without another round trip.
+  components/ArchiveBanner.tsx    NEW. The bar under the header. Rendered in
+      AppShell OUTSIDE <main>, so it survives navigation and never scrolls
+      away. Always offers a way out - "Back to Year 2", or "Leave archive" when
+      there is no active year, which is a real state (finish a year, do not
+      start the next one) and would otherwise strand the user.
+  app/layout.tsx    computes the scope once and passes it into AppShell. The
+      ACTIVE year's label costs a second query, so it is only fetched when an
+      archive is actually open.
+
+### Page-level queries scoped (the ones that bypass lib/)
+  app/subjects/page.tsx    Resource, SubjectGoal, TutorModule, StudioNote by
+                           class; Homework, ReportCard by term.
+  app/streak/page.tsx      the activity calendar's Task query, by term.
+  app/timetable/page.tsx   this week's Task query, by term.
+  app/school/page.tsx      left alone - it only reads User.
+
+### The switcher
+Year & Terms: each finished year now has "Open <label>" (primary) beside a
+"Report" toggle, which is the old inline summary renamed. The year you are
+inside is badged "Open now" and its button becomes "Close <label>". While an
+archive is open the ACTIVE year's controls on that page are hidden too - they
+write to a year you are not looking at.
+
+### Write affordances gated
+Gated inside the shared component wherever possible, so one edit covers every
+call site: QuickAddForm (sidebar, header, calendar, dashboard, manage),
+UploadTimetableDialog, ManageForm, EditTemplateForm, AddResourceForm,
+AddMasteryForm, ExamsClient + DeleteExamButton, ExamCountdown, ExamPlanner,
+MasteryList, DeleteTask/Template/Resource/SubjectButton, TaskCheckbox,
+TaskList's attach-proof, CalendarGrid (mark day, last day, per-session edit and
+delete), StickyNotesContainer (including DRAG, which persists a position),
+StudioWorkspace (autosave, Ctrl+S and the save button all funnel through
+doSave, which is guarded once), TutorSetupForm + TutorClient, AiNotesInterface,
+SubjectsClient (including the notes autosave effect), MarksClient, GoalsClient,
+HomeworkList/HomeworkCard, projects.
+
+Two deliberate exceptions, both because they carry information as well as an
+action: TaskCheckbox and MasteryList's checkbox stay VISIBLE but disabled - the
+tick is the record of what was done. Everything else is hidden, since the
+banner already says why. The sidebar's "Add a task" is replaced by an
+explained, aria-disabled "Read-only year" button rather than vanishing, because
+an empty primary slot reads as a bug.
+
+### NOT gated - known, deliberate
+  - /focus and FocusSessionUI. Starting a session on an archived task would
+    write to it. FocusSessionUI is off limits in the UI contract and focus is
+    reached from a task row, so it needs its own pass.
+  - The AI chat surfaces (app/ai, StudioWorkspace's panel, SubjectsClient's
+    chat tab, ProjectInterface). askAIBuddy grants XP and can write ChatMessage
+    rows. XP is lifetime rather than year-scoped, so this is arguable; it was
+    left alone rather than removing the ability to ask questions about work you
+    are reading.
+  - app/settings. Account-level, not year-scoped. Correct as is.
+
+### Verified / not verified
+  npx tsc --noEmit clean. NOT run in a browser - the flow that still needs
+  eyeballing is: Year & Terms -> Open Year 1 -> banner appears -> dashboard,
+  exams, subjects and marks all show Year 1 -> Back to Year 2.
+
+  While fixing a build break: StickyNotesContainer's optimistic new-note object
+  literal did not have the classId the schema agent had just added. It now
+  passes classId: null (the server fills the real one).
 
 ## Status
 Phases 0-7 COMPLETE. Phase 8 code COMPLETE, still not enabled (needs Levi's
@@ -46,6 +370,12 @@ Items marked DONE were fixed the same day.
       askAnthropic/askGroq are unreachable dead code. Wire them up or delete.
 
 ### Correctness / cost
+- [x] A desktop build left the WEB app permanently broken: both targets generate
+      the Prisma client to node_modules/.prisma/client-custom-v8, so after
+      `npm run build:desktop` every web query died with "the URL must start with
+      the protocol `file:`". FIXED 2026-09-08 - scripts/build-desktop.mjs always
+      restores Postgres, and packaging now reads its own SQLite snapshot. Full
+      write-up in "The shared-Prisma-client clash" below.
 - [x] No Range support, so audio seeking was broken. FIXED: the uploads route
       now parses Range, answers 206 with Content-Range, advertises
       Accept-Ranges, and 416s an unsatisfiable range. 10 tests cover the
@@ -617,6 +947,112 @@ never loaded on the desktop build.
   key to test against. Upload one file after enabling it and confirm the public
   URL loads before trusting it with anything.
 
+## The shared-Prisma-client clash - CLOSED 2026-09-08
+
+Levi hit it for real: the web app was throwing on every request with
+
+    Invalid `prisma.user.findUnique()` invocation:
+    error: Error validating datasource `db`: the URL must start with the
+    protocol `file:`.
+
+because a desktop build had been run earlier that day.
+
+### Root cause
+lib/prisma.ts imports the generated client from ONE fixed path,
+node_modules/.prisma/client-custom-v8. The web build generates a POSTGRES client
+there; the desktop build generates a SQLITE one over it. Whichever ran last
+wins, so `npm run build:desktop` silently left the dev environment running a
+SQLite client against a Postgres DATABASE_URL. The only cure was remembering
+`npm run db:postgres` by hand, and nothing enforced it.
+
+### Two approaches were considered
+
+A. Give the desktop build its own client output path (like the `--test` mode
+   already does for the sync harness) and point packaging at it.
+   REJECTED. lib/prisma.ts has a STATIC import of the shared path, so a separate
+   desktop path only works if `next build` is taught to resolve that specifier
+   elsewhere - a Turbopack/webpack resolve alias keyed on a build-time env var.
+   That changes how the app resolves its database client at runtime, and the
+   only way to prove it is a full `next build` + `pack` + launch. It buys a
+   cleaner separation in exchange for putting risk into the one path that is
+   hardest to verify. Not worth it.
+
+B. Keep the shared path, restore Postgres when the desktop build finishes.
+   CHOSEN, but NOT in its naive form - restoring alone would have shipped a
+   BROKEN INSTALLER. desktop-app/package.json's build.extraResources copied
+   ../node_modules/.prisma/client-custom-v8 into the installer, i.e. packaging
+   read the same MUTABLE dev path. Restore Postgres, then `npm run pack`, and
+   the desktop app would have shipped a POSTGRES client - trading a loud
+   dev-time failure for a silent user-facing one. (This was not hypothetical:
+   at the moment the fix was written, .next/standalone held a SQLite client
+   while node_modules held the freshly restored Postgres one.)
+
+### What actually shipped
+  scripts/build-desktop.mjs   NEW. `npm run build:desktop` now runs this:
+      1. generate the SQLite client at the shared path (so `next build` traces
+         the right one into .next/standalone),
+      2. SNAPSHOT it to node_modules/.prisma/client-sqlite-desktop,
+      3. `next build`,
+      4. in a `finally`: regenerate the Postgres client - even if the build
+         failed, and with a loud message if the restore itself fails.
+      Steps 2 and 4 assert the provider by reading it back out of the generated
+      schema.prisma, so a half-written client cannot pass silently.
+      Also deletes the orphaned query_engine-*.node.tmpNNNN files an EPERM'd
+      generate leaves behind - there were TEN of them at 19 MB each, and they
+      were being traced into the installer. ~193 MB of pure garbage.
+      `--no-build` (npm run build:desktop:client) does 1, 2 and 4 only.
+
+  desktop-app/package.json    build.extraResources now copies
+      ../node_modules/.prisma/client-sqlite-desktop -> the same destination.
+      DO NOT point this back at client-custom-v8: that path holds a Postgres
+      client at all times except mid-desktop-build.
+      CAVEAT, checked in app-builder-lib/out/fileMatcher.js copyFiles(): a
+      missing extraResources `from` is only a log.warn ("file source doesn't
+      exist"), NOT an error. So packing without having run build:desktop first
+      would skip this entry silently. It is not fatal - .next/standalone already
+      carries a traced copy of the same SQLite client, and this entry is the
+      belt to that braces (Next's tracing has historically missed the .node
+      engine binary) - but if you ever see that warning in a pack log, the
+      installer was built from a tree that never ran build:desktop.
+      (An explanatory "_comment" key was tried and removed: app-builder-lib's
+      FileSet schema is additionalProperties:false and would have rejected it.)
+
+  scripts/prisma-sqlite.mjs   comment + runtime warning only. db:sqlite is now
+      documented as a primitive that must not be called directly.
+
+### Verified 2026-09-08 (commands and what came back)
+  - `npm run db:postgres` after killing the dev server. The FIRST attempt with
+    the server up failed exactly as documented:
+      EPERM: operation not permitted, rename '...query_engine-windows.dll.node
+      .tmp36872' -> '...query_engine-windows.dll.node'
+  - generated client's datasource: provider "postgresql"; activeProvider in
+    index.js: "postgresql".
+  - a real query through that client against production Supabase:
+      user.findUnique(levi) -> {"username":"levi","currentTerm":"Term 3"}
+      select version() -> PostgreSQL 17.6
+      counts -> users 5, tasks 365, templates 37
+  - `npm run build:desktop:client` twice: sqlite generated + snapshotted +
+    verified, then Postgres restored + verified. Both invariants hold at once -
+    snapshot = sqlite, shared path = postgresql.
+  - the SNAPSHOT client (the exact directory the installer copies) was pointed
+    at a scratch SQLite file built from all three prisma/migrations-sqlite
+    migrations (30 tables) and did real work: User/Class/Term/Template/Task
+    creates, a nested Class->terms->tasks read, and a groupBy. It works.
+  - `npm run test:sync` - 54 tests, 0 fail. The sync harness still generates to
+    its own client-sqlite-test path and is unaffected.
+  - dev server restarted on :3001, ready in 5.2s. Authenticated GET /time -> 200
+    in 12.4s cold / 2.2s warm, GET / -> 200 in 2.4s, HTML carries levi's real
+    Africa/Kigali timezone and his real subjects. Zero Prisma errors in the log.
+    (The 122s page load that prompted the last handoff note was this bug.)
+
+### NOT verified on this machine
+  - `next build` inside build-desktop.mjs was NOT run (Levi was running the
+    production build himself). The build STEP is unproven; the generate,
+    snapshot, verify and restore steps around it all ran for real.
+  - electron-builder was NOT run. The new extraResources config was validated
+    against app-builder-lib's own JSON schema (valid: true) and the source
+    directory exists, but no installer was produced or launched.
+
 ## Phases 6 + 7 - desktop SQLite build and auto-updates (2026-08-29)
 
 ### Dual-provider Prisma
@@ -624,12 +1060,16 @@ never loaded on the desktop build.
   scripts/prisma-sqlite.mjs  rewrites the datasource block of the canonical
     Postgres schema and writes prisma/schema.sqlite.prisma. GENERATED FILE -
     never edit it; edit prisma/schema.prisma and re-run.
-  npm run db:sqlite      derive + generate a SQLite client
-  npm run build:desktop  db:sqlite + next build
-  npm run db:postgres    generate the Postgres client again
-  !! Both targets generate to the SAME output path, so lib/prisma.ts needs no
-     changes - but a desktop build leaves the client pointing at SQLite. ALWAYS
-     run `npm run db:postgres` afterwards or `npm run dev` will fail.
+  npm run build:desktop  THE ONLY ENTRY POINT. scripts/build-desktop.mjs:
+                         sqlite generate -> snapshot -> next build -> ALWAYS
+                         restore Postgres. See "The shared-Prisma-client clash".
+  npm run build:desktop:client   same, without `next build` (fast check)
+  npm run db:sqlite      PRIMITIVE - leaves the shared client on SQLite and
+                         breaks `npm run dev`. Do not call it directly.
+  npm run db:postgres    generate the Postgres client again (manual recovery)
+  !! Both targets still generate to the SAME output path, so lib/prisma.ts needs
+     no changes. Since 2026-09-08 you no longer have to remember db:postgres -
+     build:desktop does it for you, and packaging reads a separate snapshot.
 
 ### SQLite migration history
 prisma/migrations-sqlite/0_init/migration.sql, generated with migrate diff.
@@ -1041,12 +1481,32 @@ cause looks like the address, not the network:
     curl http://[::1]:3000/login       ->  200
 
 `next dev` binds `::` (IPv6 any) and Windows does not map 127.0.0.1 onto it
-here. USE localhost OR [::1], NOT 127.0.0.1. If a future session wants to
-verify the UI, that is the unblock - though it still needs Levi to be logged
-in, and note that `npm run dev` points at PRODUCTION Supabase, so do not create
-test accounts to get past the login screen.
+here, so from the shell USE localhost OR [::1], NOT 127.0.0.1.
+
+WORKAROUND THAT ACTUALLY WORKS (2026-09-08): publish the component's markup
+as an Artifact (Tailwind play CDN + the real tokens from app/globals.css +
+Outfit/Nunito from Google Fonts) and screenshot THAT. It is an https URL, so
+Chrome loads it fine. This is how the break card's wash-out bug was finally
+found after two rounds of shipping blind. file:// is refused by the browser
+tool, so a local HTML file will not do.
+
+CORRECTION (2026-09-08): the IPv6 note unblocks curl, NOT Chrome. Retested every form -
+Chrome lands on a network error page for http://localhost:3000,
+http://127.0.0.1:3000 and http://[::1]:3000 alike, while curl gets 307/200 from
+the same URLs in the same moment. It is not the address. Ruled out the same
+day: no Windows proxy (ProxyEnable 0, no AutoConfigURL), no Chrome enterprise
+policy (neither Policies\Google\Chrome key exists), and Chrome is a normal
+desktop install at C:\Program Files (not a Store/AppContainer build, which
+would explain it via loopback isolation). The extension itself is fine -
+example.com screenshots normally in the same tab.
+
+So: DO NOT burn rounds re-testing loopback addresses. Visual verification needs
+Levi to open the page himself, or to fix Chrome's loopback access. And note
+that `npm run dev` points at PRODUCTION Supabase, so do not create test
+accounts to get past the login screen.
 
 ## A trap I walked into: build:desktop breaks a running dev server
+## FIXED 2026-09-08 - see "The shared-Prisma-client clash" above
 
 `npm run build:desktop` regenerates the Prisma client for SQLite. On Windows it
 then dies with EPERM because the running dev server holds the query-engine DLL
@@ -1062,6 +1522,12 @@ DEV SERVER RESTART, because Node has the old client module cached in memory.
 So: stop the dev server BEFORE building the desktop target. The existing
 warning in this file said db:postgres was needed "afterwards"; the real point
 is that the two cannot overlap at all.
+
+STILL TRUE, and still the reason to stop the dev server first. What CHANGED on
+2026-09-08 is that a build which finishes no longer leaves the client on SQLite:
+build:desktop now restores Postgres in a `finally`, and verifies the provider it
+restored. The EPERM half-write is still possible if you build with the dev
+server up - build:desktop now fails fast and tells you to stop it.
 
 ## Loose-end pass (2026-09-06) - seven real bugs, six found by RUNNING things
 
@@ -1329,6 +1795,72 @@ Scoping map for Phase 1:
 - Windows: prisma generate throws EPERM while the dev server is running.
 
 ## Recently Completed
+- Sidebar: 64px icon rail that opens to 240px on hover, on keyboard focus, or
+  permanently once pinned (2026-09-08). Unpinned the open panel is absolutely
+  positioned OVER the page and the aside keeps reserving 64px - widening in
+  flow would shove the page sideways every time the pointer crossed the rail;
+  pinned, the aside reserves the full 240px so nothing overlaps. The hover
+  flyouts are gone: sub-pages now list inline under whichever section the
+  pointer or focus is on, defaulting to the section you are in, which keeps the
+  flyout's one virtue (any sub-page reachable without navigating into its
+  section) without its dead zones. Pin state lives in localStorage under
+  `sidebarPinned`, read through useSyncExternalStore - the eslint config errors
+  on setState-in-effect, so the LiveFocusCard pattern would not have passed.
+  NOT yet verified in a browser; see Current Task.
+- Status card: all five states now share one shell (`CARD_SHELL`) and one
+  content row (`CARD_ROW`), with `lg:min-h-[23rem]` so every state has the same
+  footprint (2026-09-08). Before this the break card was ~345px and
+  school-in-session ~414px, so the page jumped when school ended.
+  Then scaled down a notch on Levi's "make the card a bit smaller": padding
+  p-6/md:p-8, hero headlines and headlineSize() tiers each one step down,
+  blurb text-base, countdowns text-6xl/7xl with text-3xl/4xl seconds, chips
+  px-4 py-2.5, tighter footer and column gaps, min-height 28rem -> 23rem.
+  The tallest state now measures ~342px, so the min-height still governs and
+  all five stay identical.
+- School-in-session + school-break cards matched to the break card
+  (2026-09-08). Levi screenshotted school-in-session and asked for it to look
+  like the non-sync card. Three things set it apart, all gone now:
+  (1) bg-blue-600 / bg-indigo-500 - a second and third blue sitting beside the
+  app's own blue, which reads as a mistake rather than a status colour, so both
+  are bg-primary like every sibling; (2) the "School Timetable Sync Active"
+  chip repeated the footer line directly under it, next to the sync toggle
+  itself - that slot now carries what the break card's carries, the next lesson
+  ("Then English (Extra hour) at 15:40", or "Last lesson of the school day");
+  (3) "Stay focused and take good notes!" said nothing actionable - the blurb
+  now names when the school day releases you.
+  Also fixed the crowding in Levi's screenshot: school subjects run to 60+
+  chars ("Maintain Professional Conversation in Upper Technical English"), and
+  at text-6xl that wrapped across into the countdown column. `headlineSize()`
+  steps the hero down at 20 and 34 chars; the headline is capped at max-w-2xl,
+  the left column got min-w-0, and both chips truncate inside max-w-xl.
+  Verified live at localhost:3001 in both the short- and long-subject cases.
+- Break card rebuilt onto the SAME SHELL as its siblings (2026-09-08), on
+  Levi's instruction - he screenshotted school-in-session and said "this is how
+  i want it to look generally". rounded-[40px], p-8 md:p-10, shadow-2xl, the
+  glow orb, the uppercase pill + dot + clock meta row, text-5xl/6xl font-black
+  headline, the w-fit chip, the split h:m:s countdown in the min-w-[300px]
+  right column, the white uppercase button, and `cardControls` as the footer.
+  When the day is over that countdown slot shows `3/3` in the same type, so the
+  composition holds with no timer to run.
+
+  ROOT CAUSE of three rounds of "looks basic / horrible": the break card was
+  the ONLY state anyone had rebuilt against docs/ui-contract.md - quiet type,
+  rounded-2xl, sentence case - while every sibling state in the same component
+  kept the loud treatment. They render into the same slot one after another, so
+  it read as unfinished rather than restrained. Note that ui-contract.md lists
+  components/LiveFocusCard.tsx under "Off limits", so that earlier convergence
+  should never have happened; this file is deliberately outside the contract.
+
+  Two real bugs fixed on the way: (1) `to-primary/85` is ALPHA, not a darker
+  blue, so the old gradient ground faded to near-white over the light page,
+  exactly where the countdown sat - white text on white; (2) tomorrowTasks was
+  unsorted, so "up next" was whichever row came back first, and a tomorrow
+  block rendered identically to one an hour away (now labelled).
+
+  REJECTED, do not reinstate: "Start a free session" / "Edit your timetable"
+  buttons in the empty state, and a DayTimeline strip drawing the day to scale.
+  Preview of all three states (markup/tokens/fonts mirrored from the component):
+  https://claude.ai/code/artifact/8739ffe9-3f5a-441d-9eaa-3630909c201f
 - Loose-end pass: migration histories repaired, migrate-on-launch fixed,
   search made case-insensitive, tour re-anchored, reminders shipped, subject
   deletes-on-read removed, desktop uploads moved out of the install dir

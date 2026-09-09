@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { startOfWeek, endOfWeek, addDays, format, isSameDay } from 'date-fns';
 import { getUserId } from "@/lib/auth";
+import { byTerm, getViewScope } from '@/lib/scope';
 import { redirect } from "next/navigation";
 import { TimetableClient } from './TimetableClient';
 
@@ -15,9 +16,15 @@ export default async function TimetablePage() {
   const start = startOfWeek(today, { weekStartsOn: 1 }); // Monday
   const end = endOfWeek(today, { weekStartsOn: 1 });   // Sunday
 
+  // Tasks belong to a term, so this week is this week OF THE YEAR YOU HAVE
+  // OPEN. In a finished year that is usually empty, which is correct: those
+  // dates are in the past and its blocks live under their own dates.
+  const scope = await getViewScope(userId);
+
   const weekTasks = await prisma.task.findMany({
     where: {
       userId,
+      ...byTerm(scope),
       date: { gte: start, lte: end },
       isDeleted: false
     },

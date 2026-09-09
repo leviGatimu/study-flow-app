@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { useArchiveReason } from '@/components/ArchiveContext';
 
 type MasteryItem = {
   id: string;
@@ -17,6 +18,8 @@ type MasteryItem = {
 export function MasteryList({ items, subject }: { items: MasteryItem[], subject: string }) {
   const [isPending, startTransition] = useTransition();
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const archiveReason = useArchiveReason();
+  const archived = archiveReason !== null;
 
   return (
     <div className="space-y-3">
@@ -36,7 +39,8 @@ export function MasteryList({ items, subject }: { items: MasteryItem[], subject:
             <div className="flex items-center gap-4">
               <Checkbox 
                 checked={item.isCompleted}
-                disabled={isPending}
+                title={archiveReason ?? undefined}
+                disabled={isPending || archived}
                 onCheckedChange={(checked) => {
                   startTransition(async () => {
                     await toggleMasteryItem(item.id, checked === true, subject);
@@ -52,16 +56,18 @@ export function MasteryList({ items, subject }: { items: MasteryItem[], subject:
               </span>
             </div>
             
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Delete topic"
-              disabled={isPending}
-              onClick={() => setItemToDelete(item.id)}
-              className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
+            {!archived && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Delete topic"
+                disabled={isPending}
+                onClick={() => setItemToDelete(item.id)}
+                className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
           </div>
         ))
       )}

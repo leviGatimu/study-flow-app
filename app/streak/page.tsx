@@ -1,6 +1,7 @@
 import { syncStreak } from '@/lib/actions';
 import { getUserId } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { byTerm, getViewScope } from '@/lib/scope';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Flame, Trophy, ChevronLeft, Zap, BarChart3 } from 'lucide-react';
@@ -16,10 +17,16 @@ export default async function StreakPage() {
 
   const userProgress = await syncStreak();
   
-  // Get activity history (days with completed tasks)
+  // Get activity history (days with completed tasks). Scoped to the year on
+  // screen, so the calendar shows that year's activity rather than every year
+  // stacked on top of each other. The streak counters themselves already live
+  // on the Class, so they follow the same year.
+  const scope = await getViewScope(userId);
+
   const completedTasks = await prisma.task.findMany({
     where: {
       userId,
+      ...byTerm(scope),
       isDone: true,
       isDeleted: false,
     },

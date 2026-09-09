@@ -6,13 +6,20 @@ import { revalidatePath } from 'next/cache';
 import { startOfDay } from 'date-fns';
 import { saveUpload, deleteUpload } from '@/lib/upload';
 import { grantXp } from './gamification';
+import {
+  getViewScope,
+  byTerm,
+  requireTermStamp,
+  isViewingArchive,
+  ARCHIVE_WRITE_ERROR,
+} from '@/lib/scope';
 
 export async function getHomeworks() {
   const userId = await getUserId();
   if (!userId) return [];
 
   return prisma.homework.findMany({
-    where: { userId },
+    where: { userId, ...byTerm(await getViewScope(userId)) },
     orderBy: [
       { isCompleted: 'asc' },
       { dueDate: 'asc' }
@@ -40,6 +47,7 @@ export async function createHomework(formData: FormData) {
       title,
       description,
       dueDate: new Date(dueDateStr),
+      ...(await requireTermStamp(userId)),
     }
   });
 
@@ -50,6 +58,10 @@ export async function createHomework(formData: FormData) {
 export async function planHomework(homeworkId: string, plannedDate: Date) {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
+
+  // A finished year is a record, not a workspace. This action reports failure
+  // by returning it, so the refusal is returned rather than thrown.
+  if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
   await prisma.homework.updateMany({
     where: { id: homeworkId, userId },
@@ -63,6 +75,9 @@ export async function planHomework(homeworkId: string, plannedDate: Date) {
 export async function completeHomework(formData: FormData) {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
+
+  // Before the upload, so a refused completion does not leave an orphan file.
+  if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
   const homeworkId = formData.get('homeworkId') as string;
   const file = formData.get('file') as File;
@@ -100,6 +115,8 @@ export async function completeHomework(formData: FormData) {
 export async function deleteHomework(homeworkId: string) {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
+
+  if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
   const homework = await prisma.homework.findFirst({
     where: { id: homeworkId, userId }

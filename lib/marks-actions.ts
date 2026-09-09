@@ -6,6 +6,15 @@ import { askAIBuddy } from './ai-actions';
 import { revalidatePath } from 'next/cache';
 import mammoth from 'mammoth';
 import { parseJsonLoose, sanitizeGrades, asString, asNumber } from '@/lib/ai-parse';
+import {
+  getViewScope,
+  byTerm,
+  requireTermStamp,
+  requireClassStamp,
+  assertWritableScope,
+  isViewingArchive,
+  ARCHIVE_WRITE_ERROR,
+} from '@/lib/scope';
 
 export async function uploadReportCard(formData: FormData) {
   const userId = await getUserId();
@@ -86,11 +95,13 @@ Return ONLY the JSON object. Do not include markdown code blocks.`;
         overallAverage: asNumber(data.overallAverage, 0, 100),
         aiSummary: asString(data.aiSummary, 8000) ?? '',
         fileUrl: file.name,
+        ...(await requireTermStamp(userId)),
       }
     });
 
+    const gradeStamp = await requireClassStamp(userId);
     await prisma.subjectGrade.createMany({
-      data: grades.map((g) => ({ reportCardId: reportCard.id, ...g })),
+      data: grades.map((g) => ({ reportCardId: reportCard.id, ...gradeStamp, ...g })),
     });
 
     revalidatePath('/marks');
@@ -107,8 +118,10 @@ export async function getReportCards() {
   const userId = await getUserId();
   if (!userId) return [];
 
+  // Marks belong to the year they were earned in. This filtered on userId
+  // alone, so Year 2 opened showing Year 1's whole academic record.
   return prisma.reportCard.findMany({
-    where: { userId },
+    where: { userId, ...byTerm(await getViewScope(userId)) },
     include: { grades: true },
     orderBy: { createdAt: 'desc' }
   });
@@ -117,6 +130,10 @@ export async function getReportCards() {
 export async function deleteReportCard(id: string) {
   const userId = await getUserId();
   if (!userId) return { error: "Unauthorized" };
+
+  // A finished year is a record, not a workspace. This action reports failure
+  // by returning it, so the refusal is returned rather than thrown.
+  if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
   try {
     await prisma.reportCard.deleteMany({
@@ -133,8 +150,11 @@ export async function createManualReportCard(term: string) {
   const userId = await getUserId();
   if (!userId) throw new Error("Unauthorized");
 
+  // "Term 1" exists in every academic year, so the duplicate check has to be
+  // per year - otherwise Year 2 can never have a Term 1 report card.
+  const stamp = await requireTermStamp(userId);
   const existing = await prisma.reportCard.findFirst({
-    where: { userId, term }
+    where: { userId, term, ...byTerm(await getViewScope(userId)) }
   });
   if (existing) {
     return { error: "A report card for this term already exists." };
@@ -146,7 +166,8 @@ export async function createManualReportCard(term: string) {
       term,
       overallAverage: 0,
       aiSummary: "Manual Entry Report Card. Add subject grades below.",
-      fileUrl: "Manual Entry"
+      fileUrl: "Manual Entry",
+      ...stamp,
     }
   });
 
@@ -158,9 +179,24 @@ export async function addSubjectGrade(reportCardId: string, data: { subject: str
   const userId = await getUserId();
   if (!userId) throw new Error("Unauthorized");
 
+  // SubjectGrade.classId is denormalised from the card's term, so it is taken
+  // FROM THE CARD rather than re-resolved: a grade must never end up filed
+  // under a different year from the report card it is printed on.
+  const card = await prisma.reportCard.findFirst({
+    where: { id: reportCardId, userId },
+    select: { id: true, termRef: { select: { classId: true } } },
+  });
+  if (!card) throw new Error('Report card not found');
+
+  // A finished year is a record, not a workspace. The UI hides these
+  // controls inside an archive; this is the guarantee behind that, because
+  // hidden is not the same as prevented.
+  await assertWritableScope(userId);
+
   const grade = await prisma.subjectGrade.create({
     data: {
       reportCardId,
+      classId: card.termRef?.classId ?? null,
       subject: data.subject,
       grade: data.grade,
       status: data.status,
@@ -191,6 +227,16 @@ export async function addSubjectGrade(reportCardId: string, data: { subject: str
 export async function updateSubjectGrade(id: string, data: { subject: string; grade: string; status: string; aiFeedback: string }) {
   const userId = await getUserId();
   if (!userId) throw new Error("Unauthorized");
+
+  // Ownership check. This used to update by id alone, so any signed-in user
+  // could rewrite another user's grade by guessing one.
+  const owned = await prisma.subjectGrade.findFirst({
+    where: { id, reportCard: { userId } },
+    select: { id: true },
+  });
+  if (!owned) throw new Error('Grade not found');
+
+  await assertWritableScope(userId);
 
   const updated = await prisma.subjectGrade.update({
     where: { id },
@@ -226,6 +272,15 @@ export async function updateSubjectGrade(id: string, data: { subject: string; gr
 export async function deleteSubjectGrade(id: string) {
   const userId = await getUserId();
   if (!userId) throw new Error("Unauthorized");
+
+  // Same ownership check as updateSubjectGrade, for the same reason.
+  const owned = await prisma.subjectGrade.findFirst({
+    where: { id, reportCard: { userId } },
+    select: { id: true },
+  });
+  if (!owned) throw new Error('Grade not found');
+
+  await assertWritableScope(userId);
 
   const deleted = await prisma.subjectGrade.delete({
     where: { id }

@@ -46,6 +46,7 @@ import {
   generateAiNoteFromText 
 } from '@/lib/ai-actions';
 import { createStickyNote, createQuickTask } from '@/lib/actions';
+import { useIsArchived } from '@/components/ArchiveContext';
 import { cn } from '@/lib/utils';
 
 // Set up PDF.js worker
@@ -99,6 +100,7 @@ const PRESETS = [
 
 export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
   const [notes, setNotes] = useState<Note[]>(initialNotes);
+  const archived = useIsArchived();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   
@@ -373,7 +375,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                 onClick={() => { setSelectedNote(null); setIsCreateMode(true); }}
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 rounded-xl hover:bg-primary/10 hover:text-primary transition-all"
+                className={cn("h-9 w-9 rounded-xl hover:bg-primary/10 hover:text-primary transition-all", archived && "hidden")}
                 aria-label="Generate new note"
                 title="Generate New Note"
               >
@@ -459,6 +461,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                           size="icon"
                           aria-label={`Delete note "${note.title}"`}
                           className={cn(
+                            archived && "hidden",
                             "h-8 w-8 rounded-lg shrink-0 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-1/2 -translate-y-1/2 hover:bg-destructive/10 hover:text-destructive",
                             isSelected ? "text-primary-foreground/80 hover:bg-white/10 hover:text-white" : "text-muted-foreground"
                           )}
@@ -792,7 +795,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                         onClick={() => setIsEditMode(true)}
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground border border-border/40 transition-all"
+                        className={cn("h-9 w-9 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground border border-border/40 transition-all", archived && "hidden")}
                         aria-label="Edit markdown notes"
                         title="Edit Markdown Notes"
                       >
@@ -825,7 +828,7 @@ export function AiNotesInterface({ initialNotes }: { initialNotes: Note[] }) {
                         onClick={() => handleDeleteNote(selectedNote.id)}
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive text-muted-foreground border border-border/40 transition-all"
+                        className={cn("h-9 w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive text-muted-foreground border border-border/40 transition-all", archived && "hidden")}
                         aria-label="Delete notes"
                         title="Delete Notes"
                       >

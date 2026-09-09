@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/lib/auth';
-import { getScheduleState } from '@/lib/term';
+import { getViewScope, byClass, byTerm } from '@/lib/scope';
 
 /** Strip "(revision)" / apostrophes so "Math (revision)" and "Math" collapse together. */
 function normalizeSubject(subject: string) {
@@ -101,19 +101,22 @@ export async function getInsightsData(
   const userId = await getUserId();
   if (!userId) return null;
 
-  // Task is TERM-scoped, not class-scoped, so it reaches its year through the
-  // term it belongs to.
-  const { classId } = await getScheduleState(userId);
+  // Follows the year being VIEWED, so opening an archived year shows that
+  // year's insights rather than the active one's.
   const lifetime = scope === 'lifetime';
+  const viewed = lifetime ? null : await getViewScope(userId);
 
-  // A class filter that is simply absent for the lifetime view, rather than
-  // two parallel sets of queries that could drift apart.
-  const inClass = lifetime || !classId ? {} : { classId };
-  const taskInClass = lifetime || !classId ? {} : { termRef: { classId } };
+  // Filters that are simply absent in the lifetime view, rather than two
+  // parallel sets of queries that could drift apart. Task, ReportCard and
+  // ExamEvent are TERM-scoped and reach their year through the term.
+  const inClass = byClass(viewed);
+  const inTerm = byTerm(viewed);
 
   const [tasks, attempts, mastery, reportCards, goals, progress, exams, subjectRecords] =
     await Promise.all([
-      prisma.task.findMany({ where: { userId, isDeleted: false, ...taskInClass } }),
+      prisma.task.findMany({ where: { userId, isDeleted: false, ...inTerm } }),
+      // Scoped through the module rather than QuizAttempt's own classId: an
+      // attempt belongs to whichever year its module does, by construction.
       prisma.quizAttempt.findMany({
         where: { module: { userId, ...inClass } },
         include: { module: { select: { subject: true } } },
@@ -121,13 +124,13 @@ export async function getInsightsData(
       }),
       prisma.masteryItem.findMany({ where: { userId, ...inClass } }),
       prisma.reportCard.findMany({
-        where: { userId },
+        where: { userId, ...inTerm },
         include: { grades: true },
         orderBy: { createdAt: 'asc' },
       }),
       prisma.subjectGoal.findMany({ where: { userId, ...inClass } }),
       prisma.userProgress.findUnique({ where: { userId } }),
-      prisma.examEvent.findMany({ where: { userId } }),
+      prisma.examEvent.findMany({ where: { userId, ...inTerm } }),
       prisma.subject.findMany({ where: { userId, ...inClass } }),
     ]);
 

@@ -2,6 +2,7 @@ import { getUserId } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getSubjects } from "@/lib/subject-actions";
 import { prisma } from "@/lib/prisma";
+import { byClass, byTerm, getViewScope } from "@/lib/scope";
 import { SubjectsClient } from "./SubjectsClient";
 
 export const dynamic = 'force-dynamic';
@@ -11,18 +12,23 @@ export default async function SubjectsPage() {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
+  // This page queries Prisma itself instead of going through lib/, so it has
+  // to apply the academic-year scope itself. Without it, a new year opened
+  // showing the previous year's resources, homework, goals and report cards.
+  const scope = await getViewScope(userId);
+
   const [subjects, resources, homeworks, goals, reportCards, tutorModules, studioNotes] = await Promise.all([
     getSubjects(),
-    prisma.resource.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }),
-    prisma.homework.findMany({ where: { userId }, orderBy: { dueDate: 'asc' } }),
-    prisma.subjectGoal.findMany({ where: { userId } }),
+    prisma.resource.findMany({ where: { userId, ...byClass(scope) }, orderBy: { createdAt: 'desc' } }),
+    prisma.homework.findMany({ where: { userId, ...byTerm(scope) }, orderBy: { dueDate: 'asc' } }),
+    prisma.subjectGoal.findMany({ where: { userId, ...byClass(scope) } }),
     prisma.reportCard.findMany({
-      where: { userId },
+      where: { userId, ...byTerm(scope) },
       include: { grades: true },
       orderBy: { createdAt: 'asc' } // Ascending so chart runs chronologically
     }),
-    prisma.tutorModule.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }),
-    prisma.studioNote.findMany({ where: { userId } }),
+    prisma.tutorModule.findMany({ where: { userId, ...byClass(scope) }, orderBy: { createdAt: 'desc' } }),
+    prisma.studioNote.findMany({ where: { userId, ...byClass(scope) } }),
   ]);
 
   return (

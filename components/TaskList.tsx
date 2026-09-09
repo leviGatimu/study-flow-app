@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { useFocus } from '@/lib/FocusContext';
 import { motion } from 'framer-motion';
 import { DeleteTaskButton } from '@/components/DeleteTaskButton';
+import { useIsArchived } from '@/components/ArchiveContext';
 
 type TaskType = {
   id: string;
@@ -59,6 +60,7 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
   const [description, setDescription] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const archived = useIsArchived();
   const router = useRouter();
 
   const handleOpenEdit = (task: TaskType) => {
@@ -232,7 +234,7 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
                 )}
 
                 {/* Proof of Work Button */}
-                {!task.isMissed && !isActiveSession && (
+                {!task.isMissed && !isActiveSession && !archived && (
                   <Button 
                     variant="ghost" 
                     size="sm" 

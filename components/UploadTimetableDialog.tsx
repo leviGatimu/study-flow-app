@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { analyzeTimetable, commitTimetablePlan, type TimetablePlan } from '@/lib/ai-actions';
 import { readTimetableFile } from '@/lib/file-extract';
 import { cn } from '@/lib/utils';
+import { useIsArchived } from '@/components/ArchiveContext';
 import { format } from 'date-fns';
 
 type Step = 'idle' | 'analyzing' | 'preview' | 'committing';
@@ -39,6 +40,7 @@ export function UploadTimetableDialog() {
   const [fileName, setFileName] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const archived = useIsArchived();
 
   const reset = () => {
     setStep('idle');
@@ -130,6 +132,10 @@ export function UploadTimetableDialog() {
     (acc[key] ||= []).push(i);
     return acc;
   }, {});
+
+  // Importing a timetable writes exams and study blocks into the active
+  // year; there is nothing to import INTO while a finished year is open.
+  if (archived) return null;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

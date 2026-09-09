@@ -92,3 +92,6 @@ desktop-app/err.txt
 
 # derived schema for the sync harness (regenerate with npm run test:sync:setup)
 prisma/schema.sqlite-test.prisma
+
+# one-off packaging archives (the installer itself is covered by *.exe)
+/setup.zip

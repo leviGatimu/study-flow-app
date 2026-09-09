@@ -16,6 +16,11 @@
  * and on Windows the generate then dies with EPERM half-finished, leaving the
  * app broken with "the URL must start with the protocol file:". --test writes
  * to a private path instead, so the harness never touches the app's client.
+ *
+ * DO NOT CALL THE DESKTOP MODE DIRECTLY. `npm run db:sqlite` is a primitive: it
+ * leaves the shared client pointing at SQLite, which breaks `npm run dev`. Use
+ * `npm run build:desktop` (scripts/build-desktop.mjs), which snapshots the
+ * SQLite client for the installer and then always restores the Postgres one.
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -68,3 +73,12 @@ writeFileSync(OUT, banner + schema, "utf8");
 const models = (schema.match(/^model /gm) || []).length;
 const rel = OUT.slice(root.length + 1).replace(/\\/g, "/");
 console.log(`wrote ${rel} (${models} models)`);
+
+if (!isTest) {
+  console.log(
+    "note: the generate that follows overwrites the SHARED Prisma client with a\n" +
+      "      SQLite one, which breaks `npm run dev`. `npm run build:desktop`\n" +
+      "      restores Postgres afterwards; if you ran `npm run db:sqlite` by\n" +
+      "      hand, run `npm run db:postgres` when you are done."
+  );
+}

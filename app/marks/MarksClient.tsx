@@ -38,6 +38,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useIsArchived } from "@/components/ArchiveContext";
 import {
   uploadReportCard,
   deleteReportCard,
@@ -84,6 +85,7 @@ export function MarksClient({
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   // Manual actions states
+  const archived = useIsArchived();
   const [isCreateTermOpen, setIsCreateTermOpen] = useState(false);
   const [newTermName, setNewTermName] = useState("");
   const [isCreatingTerm, setIsCreatingTerm] = useState(false);
@@ -389,11 +391,13 @@ export function MarksClient({
           </Select>
 
           <Dialog open={isCreateTermOpen} onOpenChange={setIsCreateTermOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="h-11 rounded-xl font-semibold gap-2 hover:border-primary/45 transition-colors">
-                <PlusCircle className="w-4 h-4 text-primary" /> Create Term
-              </Button>
-            </DialogTrigger>
+            {!archived && (
+              <DialogTrigger asChild>
+                <Button variant="outline" className="h-11 rounded-xl font-semibold gap-2 hover:border-primary/45 transition-colors">
+                  <PlusCircle className="w-4 h-4 text-primary" /> Create term
+                </Button>
+              </DialogTrigger>
+            )}
             <DialogContent className="sm:max-w-[400px] rounded-2xl border-border bg-card p-6 shadow-xl">
               <DialogHeader>
                 <DialogTitle className="text-xl font-heading font-bold tracking-tight">New study term</DialogTitle>
@@ -434,24 +438,28 @@ export function MarksClient({
                 <Download className="w-4 h-4" /> Export Report Card
               </Button>
 
-              <Button
-                variant="ghost"
-                onClick={() => handleDelete(activeReportCard.id)}
-                className="h-11 px-4 rounded-xl font-semibold gap-2 text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4" /> Delete Term
-              </Button>
+              {!archived && (
+                <Button
+                  variant="ghost"
+                  onClick={() => handleDelete(activeReportCard.id)}
+                  className="h-11 px-4 rounded-xl font-semibold gap-2 text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete term
+                </Button>
+              )}
             </>
           )}
 
-          <div className="h-6 w-px bg-border/60 mx-1 hidden md:block" />
+          <div className={cn("h-6 w-px bg-border/60 mx-1 hidden md:block", archived && "md:hidden")} />
 
           <Dialog open={isUploadModalOpen} onOpenChange={setIsUploadModalOpen}>
-            <DialogTrigger asChild>
-              <Button className="h-11 px-5 rounded-xl font-semibold gap-2 shadow-sm cursor-pointer">
-                <Upload className="w-4 h-4" /> Scan Transcript File
-              </Button>
-            </DialogTrigger>
+            {!archived && (
+              <DialogTrigger asChild>
+                <Button className="h-11 px-5 rounded-xl font-semibold gap-2 shadow-sm cursor-pointer">
+                  <Upload className="w-4 h-4" /> Scan transcript file
+                </Button>
+              </DialogTrigger>
+            )}
             <DialogContent className="sm:max-w-[440px] rounded-2xl border-border bg-card p-8 shadow-2xl">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-heading font-bold tracking-tight text-center">Scan transcript document</DialogTitle>
@@ -542,7 +550,7 @@ export function MarksClient({
            <p className="text-muted-foreground mt-2 max-w-sm leading-relaxed text-sm">
              Initialize this term by scanning a report card document or creating manual subjects.
            </p>
-           <div className="flex gap-4 mt-8">
+           <div className={cn("flex gap-4 mt-8", archived && "hidden")}>
              <Button
                variant="outline"
                onClick={() => setIsUploadModalOpen(true)}
@@ -730,11 +738,13 @@ export function MarksClient({
                 </div>
 
                 <Dialog open={isAddingGrade} onOpenChange={setIsAddingGrade}>
-                  <DialogTrigger asChild>
-                    <Button className="h-9 rounded-xl font-semibold gap-1.5 cursor-pointer shadow-sm text-xs">
-                      <Plus className="w-3.5 h-3.5" /> Add Subject
-                    </Button>
-                  </DialogTrigger>
+                  {!archived && (
+                    <DialogTrigger asChild>
+                      <Button className="h-9 rounded-xl font-semibold gap-1.5 cursor-pointer shadow-sm text-xs">
+                        <Plus className="w-3.5 h-3.5" /> Add subject
+                      </Button>
+                    </DialogTrigger>
+                  )}
                   <DialogContent className="sm:max-w-[460px] rounded-2xl border-border bg-card p-6 shadow-xl">
                     <DialogHeader>
                       <DialogTitle className="text-xl font-heading font-bold tracking-tight">Add subject grade</DialogTitle>
@@ -1050,7 +1060,10 @@ export function MarksClient({
                                 </div>
                               </div>
 
-                              <div className="flex gap-3 pt-5 border-t border-border/40">
+                              <div className={cn(
+                                "flex gap-3 pt-5 border-t border-border/40",
+                                archived && "hidden"
+                              )}>
                                 <Button
                                   onClick={() => handleStartEdit(grade)}
                                   variant="outline"

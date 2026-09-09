@@ -10,6 +10,7 @@ import { createStickyNote, deleteStickyNote, clearAllStickyNotes, toggleStickyNo
 import { organizeStickyNotes } from "@/lib/ai-actions";
 import { cn } from "@/lib/utils";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { useIsArchived } from "@/components/ArchiveContext";
 import { StickyNote } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 
@@ -24,6 +25,7 @@ const COLORS = [
 
 export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNote[] }) {
   const [notes, setNotes] = useState(initialNotes);
+  const archived = useIsArchived();
   const [isAdding, setIsAdding] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
@@ -83,6 +85,7 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
+      classId: null, // filled in by the server; this row is optimistic only
       userId: "", // Placeholder
     };
 
@@ -247,8 +250,10 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
             ))}
           </div>
 
-          <div className="h-8 w-px bg-border/60 hidden sm:block mx-1" />
+          <div className={cn("h-8 w-px bg-border/60 hidden sm:block mx-1", archived && "sm:hidden")} />
 
+          {!archived && (
+          <>
           <Button 
             onClick={handleMagicOrganize}
             variant="secondary"
@@ -266,6 +271,8 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
             <Plus className="w-5 h-5" />
             Add Note
           </Button>
+          </>
+          )}
         </div>
       </div>
 
@@ -281,9 +288,9 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
             return (
               <motion.div
                 key={note.id}
-                drag={!isEditing}
+                drag={!isEditing && !archived}
                 dragMomentum={false}
-                onDragEnd={(e, info) => handleDragEnd(note.id, info)}
+                onDragEnd={archived ? undefined : (e, info) => handleDragEnd(note.id, info)}
                 initial={{ x: note.x, y: note.y, scale: 0.8, opacity: 0 }}
                 animate={{ x: note.x, y: note.y, scale: 1, opacity: 1 }}
                 exit={{ scale: 0.5, opacity: 0 }}
@@ -299,7 +306,8 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
                   touchAction: "none"
                 }}
                 className={cn(
-                  "group p-6 shadow-xl rounded-sm flex flex-col cursor-grab active:cursor-grabbing overflow-hidden border border-black/5 transition-colors duration-500",
+                  "group p-6 shadow-xl rounded-sm flex flex-col overflow-hidden border border-black/5 transition-colors duration-500",
+                  archived ? "cursor-default" : "cursor-grab active:cursor-grabbing",
                   note.isDone && "opacity-80 grayscale-[0.3]"
                 )}
               >
@@ -340,7 +348,10 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
                         )}>
                           {note.title}
                         </h3>
-                        <div className="flex flex-wrap items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                        <div className={cn(
+                          "flex flex-wrap items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0",
+                          archived && "hidden"
+                        )}>
                           <button
                             onClick={(e) => { e.stopPropagation(); handlePromoteToTask(note); }}
                             className="p-1.5 rounded-full hover:bg-black/10 transition-all text-blue-600"
@@ -420,7 +431,7 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
         )}
       </div>
 
-      <div className="flex justify-end pt-2">
+      <div className={cn("flex justify-end pt-2", archived && "hidden")}>
          <Button
             variant="ghost"
             onClick={() => setIsDeletingAll(true)}

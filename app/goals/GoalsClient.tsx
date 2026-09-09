@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { saveGoal, deleteGoal } from '@/lib/goal-actions';
+import { useIsArchived } from '@/components/ArchiveContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -57,6 +58,7 @@ interface GoalsClientProps {
 export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects }: GoalsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const archived = useIsArchived();
 
   // Form states
   const [selectedSubject, setSelectedSubject] = useState<string>('');
@@ -335,8 +337,9 @@ export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects }
         {/* Dashboard Panels Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* Left Pane: Add/Edit Goal Form */}
-          <div className="lg:col-span-4">
+          {/* Left Pane: Add/Edit Goal Form. Hidden in a finished year - the
+              targets are a record by then, not something to set. */}
+          <div className={cn("lg:col-span-4", archived && "hidden")}>
             <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-6 space-y-6">
               <div>
                 <h3 className="font-heading font-bold text-lg text-foreground">
@@ -486,7 +489,7 @@ export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects }
           </div>
 
           {/* Right Pane: Subject Comparison Cards Grid */}
-          <div className="lg:col-span-8 space-y-6">
+          <div className={cn("space-y-6", archived ? "lg:col-span-12" : "lg:col-span-8")}>
             <div className="flex items-center justify-between border-b border-border/40 pb-4">
               <h3 className="font-heading font-bold text-lg text-foreground">Subject goals &amp; performance gaps</h3>
               <span className="text-xs font-medium text-muted-foreground bg-muted px-3 py-1 rounded-full border border-border/40">
@@ -527,7 +530,10 @@ export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects }
                             {goal.subject}
                           </h4>
 
-                          <div className="flex items-center gap-1 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
+                          <div className={cn(
+                            "flex items-center gap-1 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity",
+                            archived && "hidden"
+                          )}>
                             <Button
                               variant="ghost"
                               size="icon"

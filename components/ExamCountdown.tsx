@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { createEvent, deleteEvent } from '@/lib/actions';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { useIsArchived } from '@/components/ArchiveContext';
 import Link from 'next/link';
 
 type ExamEvent = {
@@ -23,6 +24,7 @@ export function ExamCountdown({ events }: { events: ExamEvent[] }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [formData, setFormData] = useState({ title: '', date: '', priority: 'NORMAL' });
+  const archived = useIsArchived();
   const [eventToDelete, setEventToDelete] = useState<string | null>(null);
 
   const upcomingEvents = events
@@ -61,11 +63,13 @@ export function ExamCountdown({ events }: { events: ExamEvent[] }) {
           </h3>
         </Link>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Add exam event" title="Add exam event" className="h-8 w-8 rounded-full hover:bg-primary/10">
-              <Plus className="w-4 h-4" />
-            </Button>
-          </DialogTrigger>
+          {!archived && (
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Add exam event" title="Add exam event" className="h-8 w-8 rounded-full hover:bg-primary/10">
+                <Plus className="w-4 h-4" />
+              </Button>
+            </DialogTrigger>
+          )}
           <DialogContent className="rounded-2xl">
             <DialogHeader>
               <DialogTitle className="text-2xl font-heading font-bold">Add major event</DialogTitle>

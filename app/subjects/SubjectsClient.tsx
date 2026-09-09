@@ -58,6 +58,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn, normalizeSubject, isSubjectSimilar } from "@/lib/utils";
+import { useIsArchived } from "@/components/ArchiveContext";
 import {
   addSubject,
   renameSubject,
@@ -176,6 +177,7 @@ export function SubjectsClient({
   initialNotes,
 }: SubjectsClientProps) {
   const router = useRouter();
+  const archived = useIsArchived();
   const [isMounted, setIsMounted] = useState(false);
   const [isRepairing, setIsRepairing] = useState(false);
   const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
@@ -321,6 +323,9 @@ export function SubjectsClient({
   // Debounced notes autosave
   useEffect(() => {
     if (!selectedSubject) return;
+    // A finished year's notes are a record. Autosave is the one write here
+    // with no control to hide, so it is stopped at the source.
+    if (archived) return;
 
     // Compare with current local notes copy to prevent redundant saves
     const match = notes.find((n) => isSubjectSimilar(n.subject, selectedSubject.name));
@@ -633,7 +638,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                 Total courses: <span className="text-primary font-semibold">{subjects.length}</span>
               </span>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className={cn("flex items-center gap-2 shrink-0", archived && "hidden")}>
               {/* Tidying up used to happen invisibly on every page that listed
                   subjects. It is a deliberate action now, and only here. */}
               <Button
@@ -662,9 +667,11 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
               <BookOpenText className="w-10 h-10 text-muted-foreground/40 mx-auto mb-4" />
               <p className="text-foreground font-semibold">No subjects yet</p>
               <p className="mt-1">Add your first course to start tracking resources, grades, and goals.</p>
-              <Button onClick={() => setIsAddOpen(true)} className="rounded-xl font-bold mt-4">
-                Add a subject
-              </Button>
+              {!archived && (
+                <Button onClick={() => setIsAddOpen(true)} className="rounded-xl font-bold mt-4">
+                  Add a subject
+                </Button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -714,7 +721,10 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                         <div className="p-3 bg-primary/10 text-primary rounded-xl shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-200">
                           <BookOpen className="w-5 h-5" />
                         </div>
-                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
+                        <div className={cn(
+                          "flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200",
+                          archived && "hidden"
+                        )}>
                           <button
                             type="button"
                             onClick={(e) => {
@@ -802,7 +812,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                 {selectedSubject?.name}
               </h2>
             </div>
-            <div className="flex gap-2 shrink-0 md:mt-2">
+            <div className={cn("flex gap-2 shrink-0 md:mt-2", archived && "hidden")}>
               <Button
                 variant="outline"
                 onClick={() => {
@@ -973,16 +983,18 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                   )}
                 </div>
 
-                <Button
-                  onClick={() => {
-                    setTargetGoalGrade(subjectGoal ? String(subjectGoal.targetGrade) : "");
-                    setIsGoalOpen(true);
-                  }}
-                  variant={subjectGoal ? "outline" : "default"}
-                  className="w-full rounded-xl font-bold text-xs h-10"
-                >
-                  {subjectGoal ? "Modify Grade Goal" : "Set Target Goal"}
-                </Button>
+                {!archived && (
+                  <Button
+                    onClick={() => {
+                      setTargetGoalGrade(subjectGoal ? String(subjectGoal.targetGrade) : "");
+                      setIsGoalOpen(true);
+                    }}
+                    variant={subjectGoal ? "outline" : "default"}
+                    className="w-full rounded-xl font-bold text-xs h-10"
+                  >
+                    {subjectGoal ? "Modify Grade Goal" : "Set Target Goal"}
+                  </Button>
+                )}
               </Card>
 
               {/* 3. Homework Assignments Tracker List */}
@@ -1116,11 +1128,12 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                 {activeWorkspaceTab === "notes" && (
                   <div className="flex-1 flex flex-col min-h-0 space-y-4">
                     <div className="flex items-center justify-between text-xs font-bold text-muted-foreground border-b border-border/20 pb-2">
-                      <span>Live Note Editor (Auto-Saves)</span>
+                      <span>{archived ? "Course notes (read-only)" : "Live Note Editor (Auto-Saves)"}</span>
                       <span>Words: {noteContent.trim().split(/\s+/).filter(Boolean).length}</span>
                     </div>
                     <textarea
                       value={noteContent}
+                      readOnly={archived}
                       onChange={(e) => setNoteContent(e.target.value)}
                       placeholder="Type your course syllabus details, key formulas, lecture definitions, and exam reminders here. The AI Study Buddy will automatically parse these notes and use them as instant reference context..."
                       className="w-full flex-1 bg-muted/10 border border-border/40 rounded-xl p-4 font-mono text-sm leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary overflow-y-auto"
@@ -1135,7 +1148,10 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                 {activeWorkspaceTab === "resources" && (
                   <div className="flex-1 flex flex-col min-h-0 space-y-5">
                     {/* Inline add resource asset form */}
-                    <form onSubmit={handleAddResourceSubmit} className="bg-muted/20 border border-border/40 p-4 rounded-2xl space-y-3.5">
+                    <form onSubmit={handleAddResourceSubmit} className={cn(
+                      "bg-muted/20 border border-border/40 p-4 rounded-2xl space-y-3.5",
+                      archived && "hidden"
+                    )}>
                       <p className="text-xs font-medium text-muted-foreground">Quick add assets</p>
                       
                       <div className="grid grid-cols-2 gap-3">
@@ -1254,14 +1270,17 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                                     <ExternalLink className="w-3.5 h-3.5" />
                                   </Button>
                                 </a>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleDeleteResource(res.id)}
-                                  className="w-8 h-8 rounded-lg text-muted-foreground hover:text-destructive"
-                                >
-                                  <Trash className="w-3.5 h-3.5" />
-                                </Button>
+                                {!archived && (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    aria-label="Delete resource"
+                                    onClick={() => handleDeleteResource(res.id)}
+                                    className="w-8 h-8 rounded-lg text-muted-foreground hover:text-destructive"
+                                  >
+                                    <Trash className="w-3.5 h-3.5" />
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           ))

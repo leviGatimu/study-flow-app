@@ -5,9 +5,13 @@ import { Trash2 } from 'lucide-react';
 import { deleteSubject } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { useIsArchived } from '@/components/ArchiveContext';
 
 export function DeleteSubjectButton({ subject }: { subject: string }) {
   const [isPending, startTransition] = useTransition();
+  const archived = useIsArchived();
+
+  if (archived) return null;
 
   return (
     <Button

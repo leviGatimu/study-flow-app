@@ -13,7 +13,19 @@ import { getZonedNow, getTimeZoneOffsetMinutes, DEFAULT_TIMEZONE } from './utils
 import { grantXp } from './gamification';
 import { randomUUID } from 'node:crypto';
 import { computeWeeklyPerformance, computeDailyPerformance, type WeeklyPerformance } from './grading';
-import { getScheduleState, ensureDefaultClass, activeScope } from './term';
+import { getScheduleState, ensureDefaultClass } from './term';
+import {
+  getViewScope,
+  getActiveScope,
+  byClass,
+  byTerm,
+  requireClassStamp,
+  requireTermStamp,
+  requireWritableScope,
+  isViewingArchive,
+  assertWritableScope,
+  ARCHIVE_WRITE_ERROR,
+} from './scope';
 
 /**
  * Resolve the IANA timezone the given user has chosen, falling back to the
@@ -168,9 +180,11 @@ const getTemplatesForUser = cache(async function getTemplatesForUser(userId: str
   // timetable by design - last year's Monday 8pm Networking is not this year's
   // schedule. Without this, every read ignored the class and Year 2 silently
   // inherited, and kept generating, Year 1's blocks.
-  const { classId } = await activeScope(userId);
+  // Generation follows the ACTIVE year, never the archive being browsed:
+  // opening last year must not start manufacturing tasks from its timetable.
+  const scope = await getActiveScope(userId);
   return prisma.scheduleTemplate.findMany({
-    where: { userId, ...(classId ? { classId } : {}) },
+    where: { userId, ...byClass(scope) },
   });
 });
 
@@ -191,6 +205,11 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
   const start = startOfDay(startDate);
   const end = endOfDay(endDate);
 
+  // Deliberately NOT year-scoped. This is the dedupe key for generation, and
+  // its only job is "has a task already been made from this template on this
+  // day". A task whose termId was never set - a one-off from before the scope
+  // columns were populated - must still block a duplicate, so narrowing this
+  // could only ever manufacture the double timetable it exists to prevent.
   const existingTasks = await prisma.task.findMany({
     where: {
       userId,
@@ -257,11 +276,17 @@ export async function checkAndMarkMissedTasks(userId: string) {
 
   const tz = await getUserTimezone(userId);
   const now = getZonedNow(tz);
-  
+
+  // Scoped to the ACTIVE year, like the generation gate above it. A finished
+  // year's leftovers are history and must not start being marked missed
+  // because the user opened the app in a new one.
+  const scope = await getActiveScope(userId);
+
   // Find all active tasks of today or earlier that are not done, not missed, have no proof, and are not deleted
   const activeTasks = await prisma.task.findMany({
     where: {
       userId,
+      ...byTerm(scope),
       isDone: false,
       isMissed: false,
       isDeleted: false,
@@ -312,12 +337,14 @@ export async function getTodayTasks() {
 
   const start = startOfDay(today);
   const end = endOfDay(today);
+  const scope = await getViewScope(userId);
 
   const tasks = await prisma.task.findMany({
-    where: { 
+    where: {
       userId,
+      ...byTerm(scope),
       date: { gte: start, lte: end },
-      isDeleted: false 
+      isDeleted: false
     },
     include: { template: true },
     orderBy: { startTime: 'asc' }
@@ -326,6 +353,7 @@ export async function getTodayTasks() {
   const upcomingExams = await prisma.examEvent.findMany({
     where: {
       userId,
+      ...byTerm(scope),
       date: { gte: start, lte: addDays(start, 7) }
     }
   });
@@ -361,10 +389,11 @@ export async function getTomorrowTasks() {
   const end = endOfDay(tomorrow);
 
   return prisma.task.findMany({
-    where: { 
+    where: {
       userId,
+      ...byTerm(await getViewScope(userId)),
       date: { gte: start, lte: end },
-      isDeleted: false 
+      isDeleted: false
     },
     include: { template: true },
     orderBy: { startTime: 'asc' }
@@ -384,8 +413,9 @@ export async function getYesterdayTasks() {
   const end = endOfDay(yesterday);
 
   return prisma.task.findMany({
-    where: { 
+    where: {
       userId,
+      ...byTerm(await getViewScope(userId)),
       date: { gte: start, lte: end },
       isDeleted: false,
       isDone: true
@@ -409,7 +439,7 @@ export async function getAllTasks() {
   await checkAndMarkMissedTasks(userId);
 
   return prisma.task.findMany({
-    where: { userId, isDeleted: false }, 
+    where: { userId, ...byTerm(await getViewScope(userId)), isDeleted: false },
     include: { template: true },
     orderBy: { startTime: 'asc' }
   });
@@ -421,6 +451,11 @@ export async function getAllTasks() {
 export async function toggleTaskDone(taskId: string, isDone: boolean) {
   const userId = await getUserId();
   if (!userId) return;
+
+  // A finished year is a record, not a workspace. The UI hides these
+  // controls inside an archive; this is the guarantee behind that, because
+  // hidden is not the same as prevented.
+  await assertWritableScope(userId);
 
   await prisma.task.updateMany({
     where: { id: taskId, userId },
@@ -449,6 +484,8 @@ export async function toggleTaskMissed(taskId: string, isMissed: boolean) {
   const userId = await getUserId();
   if (!userId) return;
 
+  await assertWritableScope(userId);
+
   await prisma.task.updateMany({
     where: { id: taskId, userId },
     data: { 
@@ -465,6 +502,10 @@ export async function toggleTaskMissed(taskId: string, isMissed: boolean) {
 export async function updateTaskProof(formData: FormData) {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
+
+  // A finished year is a record, not a workspace. This action reports failure
+  // by returning it, so the refusal is returned rather than thrown.
+  if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
   const taskId = formData.get('taskId') as string;
   const description = formData.get('description') as string;
@@ -499,8 +540,9 @@ export async function getSubjectStats(subject: string) {
 
   const normalized = normalizeSubject(subject);
   const tasks = await prisma.task.findMany({
-    where: { 
-      userId, 
+    where: {
+      userId,
+      ...byTerm(await getViewScope(userId)),
       subject: { contains: normalized },
       isDeleted: false
     }
@@ -534,6 +576,12 @@ export async function deleteTask(taskId: string) {
   const userId = await getUserId();
   if (!userId) return { success: false };
 
+  // Outside the try, so the refusal reaches the caller as itself rather than
+  // being flattened into the generic { success: false } below.
+  if (await isViewingArchive(userId)) {
+    return { success: false, error: ARCHIVE_WRITE_ERROR };
+  }
+
   try {
     await prisma.task.updateMany({
       where: { id: taskId, userId },
@@ -559,6 +607,7 @@ export async function getHistoryTasks() {
   return prisma.task.findMany({
     where: {
       userId,
+      ...byTerm(await getViewScope(userId)),
       isDeleted: false,
       OR: [ { isDone: true }, { isMissed: true } ]
     },
@@ -574,9 +623,10 @@ export async function getTemplates() {
   const userId = await getUserId();
   if (!userId) return [];
 
-  const { classId } = await activeScope(userId);
+  // The timetable of the year being VIEWED, so an archived year still shows
+  // the schedule it was actually run on.
   return prisma.scheduleTemplate.findMany({
-    where: { userId, ...(classId ? { classId } : {}) },
+    where: { userId, ...byClass(await getViewScope(userId)) },
     orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
   });
 }
@@ -620,6 +670,8 @@ export async function deleteTemplate(id: string) {
   const userId = await getUserId();
   if (!userId) return;
 
+  await assertWritableScope(userId);
+
   await prisma.task.updateMany({
     where: {
       templateId: id,
@@ -654,9 +706,8 @@ export async function createTemplate(data: {
   const userId = await getUserId();
   if (!userId) return;
 
-  const { classId } = await activeScope(userId);
   await prisma.scheduleTemplate.create({
-    data: { ...data, userId, classId }
+    data: { ...data, userId, ...byClass(await requireWritableScope(userId)) }
   });
   revalidatePath('/manage');
 }
@@ -676,6 +727,8 @@ export async function updateTask(taskId: string, data: { date?: Date, startTime?
 
   if (!existing) return;
 
+  await assertWritableScope(userId);
+
   if (data.date) {
     data.date = startOfDay(data.date);
 
@@ -688,6 +741,9 @@ export async function updateTask(taskId: string, data: { date?: Date, startTime?
       await prisma.task.create({
         data: {
           userId,
+          // Moving a block keeps the year it belonged to; it is the same piece
+          // of work on a different day, not new work in the current year.
+          termId: existing.termId,
           templateId: existing.templateId,
           subject: existing.subject,
           type: existing.type,
@@ -722,7 +778,9 @@ export async function getMarkedDays() {
   const userId = await getUserId();
   if (!userId) return [];
 
-  const marked = await prisma.markedDay.findMany({ where: { userId } });
+  const marked = await prisma.markedDay.findMany({
+    where: { userId, ...byTerm(await getViewScope(userId)) },
+  });
   return marked.map(m => m.date);
 }
 
@@ -735,10 +793,14 @@ export async function toggleMarkedDay(date: Date, isMarked: boolean) {
 
   const normalizedDate = startOfDay(date);
   if (isMarked) {
+    // The (userId, date) unique key predates academic years, so a day can only
+    // ever belong to one of them - which is true anyway, since two years never
+    // cover the same calendar day.
+    const stamp = await requireTermStamp(userId);
     await prisma.markedDay.upsert({
       where: { userId_date: { userId, date: normalizedDate } },
       update: {},
-      create: { userId, date: normalizedDate }
+      create: { userId, date: normalizedDate, ...stamp }
     });
   } else {
     await prisma.markedDay.deleteMany({ where: { userId, date: normalizedDate } });
@@ -892,6 +954,8 @@ const syncStreakFor = cache(async function syncStreakFor(userId: string) {
       const yesterdayTasks = await prisma.task.findMany({
         where: {
           userId,
+          // The streak belongs to this class, so the day it reports on does too.
+          ...byTerm(await getActiveScope(userId)),
           date: { gte: startOfDay(yesterday), lte: endOfDay(yesterday) },
           isDeleted: false
         }
@@ -1113,6 +1177,8 @@ export async function updateTemplate(id: string, data: {
   const userId = await getUserId();
   if (!userId) return;
 
+  await assertWritableScope(userId);
+
   await prisma.scheduleTemplate.updateMany({ 
     where: { id, userId }, 
     data 
@@ -1127,21 +1193,23 @@ export async function getUniqueSubjects() {
   const userId = await getUserId();
   if (!userId) return [];
 
+  const scope = await getViewScope(userId);
+
   const [templates, resources, mastery, grades] = await Promise.all([
     prisma.scheduleTemplate.findMany({
-      where: { userId },
+      where: { userId, ...byClass(scope) },
       select: { subject: true }
     }),
     prisma.resource.findMany({
-      where: { userId },
+      where: { userId, ...byClass(scope) },
       select: { subject: true }
     }),
     prisma.masteryItem.findMany({
-      where: { userId },
+      where: { userId, ...byClass(scope) },
       select: { subject: true }
     }),
     prisma.subjectGrade.findMany({
-      where: { reportCard: { userId } },
+      where: { reportCard: { userId, ...byTerm(scope) } },
       select: { subject: true }
     })
   ]);
@@ -1164,10 +1232,13 @@ export async function deleteSubject(subject: string) {
   if (!userId) return;
 
   const normalized = normalizeSubject(subject);
-  
+  // Only this year's materials. Clearing a subject in Year 2 must not reach
+  // back and delete the files and checklists from Year 1.
+  const scoped = byClass(await requireWritableScope(userId));
+
   // 1. Delete all resources (and files)
   const resources = await prisma.resource.findMany({
-    where: { userId, subject: normalized }
+    where: { userId, ...scoped, subject: normalized }
   });
 
   for (const res of resources) {
@@ -1177,12 +1248,12 @@ export async function deleteSubject(subject: string) {
   }
 
   await prisma.resource.deleteMany({
-    where: { userId, subject: normalized }
+    where: { userId, ...scoped, subject: normalized }
   });
 
   // 2. Delete all mastery items
   await prisma.masteryItem.deleteMany({
-    where: { userId, subject: normalized }
+    where: { userId, ...scoped, subject: normalized }
   });
 
   revalidatePath('/resources');
@@ -1198,7 +1269,7 @@ export async function getResources(subject: string) {
 
   const normalized = normalizeSubject(subject);
   return prisma.resource.findMany({
-    where: { userId, subject: normalized },
+    where: { userId, ...byClass(await getViewScope(userId)), subject: normalized },
     orderBy: { createdAt: 'desc' }
   });
 }
@@ -1224,9 +1295,8 @@ export async function addResource(formData: FormData) {
     url = await saveUpload(file, 'resource');
   }
 
-  const { classId } = await activeScope(userId);
   await prisma.resource.create({
-    data: { userId, subject, title, type, url, classId }
+    data: { userId, subject, title, type, url, ...(await requireClassStamp(userId)) }
   });
   
   revalidatePath('/resources');
@@ -1240,6 +1310,10 @@ export async function addResource(formData: FormData) {
 export async function deleteResource(id: string, subject: string) {
   const userId = await getUserId();
   if (!userId) return;
+
+  // Before deleteUpload(): refusing after it would leave the row pointing at a
+  // file that no longer exists.
+  await assertWritableScope(userId);
 
   const normalized = normalizeSubject(subject);
   const resource = await prisma.resource.findFirst({ where: { id, userId } });
@@ -1291,7 +1365,7 @@ export async function getEvents() {
   if (!userId) return [];
 
   return prisma.examEvent.findMany({
-    where: { userId },
+    where: { userId, ...byTerm(await getViewScope(userId)) },
     include: { subject: { select: { id: true, name: true } } },
     orderBy: { date: 'asc' }
   });
@@ -1323,6 +1397,7 @@ export async function getSubjectSessions(subject: string) {
   return prisma.task.findMany({
     where: {
       userId,
+      ...byTerm(await getViewScope(userId)),
       subject: { contains: normalized },
       isDeleted: false,
     },
@@ -1338,8 +1413,13 @@ export async function createEvent(data: { title: string, date: Date, priority: s
   const userId = await getUserId();
   if (!userId) return;
 
-  await prisma.examEvent.create({ 
-    data: { ...data, userId, date: startOfDay(data.date) } 
+  await prisma.examEvent.create({
+    data: {
+      ...data,
+      userId,
+      date: startOfDay(data.date),
+      ...(await requireTermStamp(userId)),
+    }
   });
   revalidatePath('/');
 }
@@ -1350,6 +1430,8 @@ export async function createEvent(data: { title: string, date: Date, priority: s
 export async function deleteEvent(id: string) {
   const userId = await getUserId();
   if (!userId) return;
+
+  await assertWritableScope(userId);
 
   await prisma.examEvent.deleteMany({ where: { id, userId } });
   revalidatePath('/');
@@ -1380,16 +1462,17 @@ export async function createQuickTask(data: { subject: string, startTime: string
   }
 
   await prisma.task.create({
-    data: { 
-      userId, 
-      subject: data.subject, 
-      startTime: adjustedStartTime, 
-      endTime: data.endTime, 
-      type: data.type, 
-      date, 
-      isDone: false, 
-      isMissed: false, 
-      isDeleted: false 
+    data: {
+      userId,
+      subject: data.subject,
+      startTime: adjustedStartTime,
+      endTime: data.endTime,
+      type: data.type,
+      date,
+      isDone: false,
+      isMissed: false,
+      isDeleted: false,
+      ...(await requireTermStamp(userId))
     }
   });
   revalidatePath('/');
@@ -1558,8 +1641,13 @@ export async function getWeeklySummaries(): Promise<EnrichedWeeklySummary[]> {
   // Auto-sync persisted summaries for the last few weeks (for PDF/history).
   await syncWeeklySummaries();
 
+  const scope = await getViewScope(userId);
+
   const [summaries, progress] = await Promise.all([
-    prisma.weeklySummary.findMany({ where: { userId }, orderBy: { startDate: 'desc' } }),
+    prisma.weeklySummary.findMany({
+      where: { userId, ...byTerm(scope) },
+      orderBy: { startDate: 'desc' },
+    }),
     prisma.userProgress.findUnique({ where: { userId } }),
   ]);
 
@@ -1569,7 +1657,7 @@ export async function getWeeklySummaries(): Promise<EnrichedWeeklySummary[]> {
   const earliest = summaries[summaries.length - 1].startDate;
   const latest = summaries[0].endDate;
   const tasks = await prisma.task.findMany({
-    where: { userId, date: { gte: earliest, lte: latest }, isDeleted: false },
+    where: { userId, ...byTerm(scope), date: { gte: earliest, lte: latest }, isDeleted: false },
     select: { date: true, startTime: true, endTime: true, subject: true, isDone: true },
   });
 
@@ -1633,6 +1721,12 @@ export async function syncWeeklySummaries() {
   const userId = await getUserId();
   if (!userId) return;
 
+  // Generating a summary WRITES, and it is triggered by simply opening the
+  // page. Reading a finished year must not write to it, so this is a no-op
+  // while an archive is open - the snapshots taken when the term ended are
+  // what that year shows.
+  if (await isViewingArchive(userId)) return;
+
   const tz = await getUserTimezone(userId);
   const now = getZonedNow(tz);
   const currentMonday = startOfDay(addDays(now, -(now.getDay() === 0 ? 6 : now.getDay() - 1)));
@@ -1651,8 +1745,12 @@ export async function generateWeeklySummary(mondayDate: Date) {
   const start = startOfDay(mondayDate);
   const end = endOfDay(addDays(start, 6));
 
+  // A summary is generated for the year you are in, from that year's tasks.
+  const stamp = await requireTermStamp(userId);
+  const scope = await getActiveScope(userId);
+
   const weekTasks = await prisma.task.findMany({
-    where: { userId, date: { gte: start, lte: end }, isDeleted: false },
+    where: { userId, ...byTerm(scope), date: { gte: start, lte: end }, isDeleted: false },
     select: { date: true, startTime: true, endTime: true, subject: true, isDone: true },
   });
   if (weekTasks.length === 0) return null;
@@ -1661,7 +1759,7 @@ export async function generateWeeklySummary(mondayDate: Date) {
   const prevStart = startOfDay(addDays(start, -7));
   const prevEnd = endOfDay(addDays(prevStart, 6));
   const prevTasks = await prisma.task.findMany({
-    where: { userId, date: { gte: prevStart, lte: prevEnd }, isDeleted: false },
+    where: { userId, ...byTerm(scope), date: { gte: prevStart, lte: prevEnd }, isDeleted: false },
     select: { startTime: true, endTime: true },
   });
   const prevScheduledMinutes = prevTasks.length > 0
@@ -1673,7 +1771,7 @@ export async function generateWeeklySummary(mondayDate: Date) {
   return prisma.weeklySummary.upsert({
     where: { userId_startDate_endDate: { userId, startDate: start, endDate: end } },
     update: { grade: m.performance.grade, totalMinutes: m.scheduledMinutes, subjectBreakdown: JSON.stringify(m.breakdown) },
-    create: { userId, startDate: start, endDate: end, grade: m.performance.grade, totalMinutes: m.scheduledMinutes, subjectBreakdown: JSON.stringify(m.breakdown) },
+    create: { userId, startDate: start, endDate: end, grade: m.performance.grade, totalMinutes: m.scheduledMinutes, subjectBreakdown: JSON.stringify(m.breakdown), ...stamp },
   });
 }
 
@@ -1744,8 +1842,14 @@ export async function getDailySummaries(): Promise<EnrichedDailySummary[]> {
 
   await syncDailySummaries();
 
+  const scope = await getViewScope(userId);
+
   const [summaries, progress] = await Promise.all([
-    prisma.dailySummary.findMany({ where: { userId }, orderBy: { date: 'desc' }, take: 14 }),
+    prisma.dailySummary.findMany({
+      where: { userId, ...byTerm(scope) },
+      orderBy: { date: 'desc' },
+      take: 14,
+    }),
     prisma.userProgress.findUnique({ where: { userId } }),
   ]);
 
@@ -1756,7 +1860,7 @@ export async function getDailySummaries(): Promise<EnrichedDailySummary[]> {
   const earliest = summaries[summaries.length - 1].date;
   const latest = summaries[0].date;
   const tasks = await prisma.task.findMany({
-    where: { userId, date: { gte: startOfDay(earliest), lte: endOfDay(latest) }, isDeleted: false },
+    where: { userId, ...byTerm(scope), date: { gte: startOfDay(earliest), lte: endOfDay(latest) }, isDeleted: false },
     select: { date: true, startTime: true, endTime: true, subject: true, isDone: true },
     orderBy: { startTime: 'asc' },
   });
@@ -1814,6 +1918,9 @@ export async function syncDailySummaries() {
   const userId = await getUserId();
   if (!userId) return;
 
+  // Same reason as syncWeeklySummaries: this is a write on a read path.
+  if (await isViewingArchive(userId)) return;
+
   const progress = await prisma.userProgress.findUnique({ where: { userId }, select: { dailySummaryTime: true, timezone: true } });
   const summaryTime = progress?.dailySummaryTime || "21:00";
   const [sh, sm] = summaryTime.split(':').map(Number);
@@ -1837,13 +1944,16 @@ export async function generateDailySummary(date: Date) {
   const start = startOfDay(date);
   const end = endOfDay(start);
 
+  const stamp = await requireTermStamp(userId);
+  const scope = await getActiveScope(userId);
+
   const [dayTasks, prevTasks, progress] = await Promise.all([
     prisma.task.findMany({
-      where: { userId, date: { gte: start, lte: end }, isDeleted: false },
+      where: { userId, ...byTerm(scope), date: { gte: start, lte: end }, isDeleted: false },
       select: { startTime: true, endTime: true, subject: true, isDone: true },
     }),
     prisma.task.findMany({
-      where: { userId, date: { gte: startOfDay(addDays(start, -1)), lte: endOfDay(addDays(start, -1)) }, isDeleted: false },
+      where: { userId, ...byTerm(scope), date: { gte: startOfDay(addDays(start, -1)), lte: endOfDay(addDays(start, -1)) }, isDeleted: false },
       select: { startTime: true, endTime: true },
     }),
     prisma.userProgress.findUnique({ where: { userId }, select: { currentStreak: true } }),
@@ -1856,7 +1966,7 @@ export async function generateDailySummary(date: Date) {
   return prisma.dailySummary.upsert({
     where: { userId_date: { userId, date: start } },
     update: { grade: m.performance.grade, totalMinutes: m.scheduledMinutes, completedMinutes: m.completedMinutes, subjectBreakdown: JSON.stringify(m.breakdown) },
-    create: { userId, date: start, grade: m.performance.grade, totalMinutes: m.scheduledMinutes, completedMinutes: m.completedMinutes, subjectBreakdown: JSON.stringify(m.breakdown) },
+    create: { userId, date: start, grade: m.performance.grade, totalMinutes: m.scheduledMinutes, completedMinutes: m.completedMinutes, subjectBreakdown: JSON.stringify(m.breakdown), ...stamp },
   });
 }
 
@@ -1907,6 +2017,11 @@ export async function getOverallSummary(): Promise<OverallSummary | null> {
   const userId = await getUserId();
   if (!userId) return null;
 
+  // DELIBERATELY NOT YEAR-SCOPED. This is the lifetime view - "everything you
+  // have ever tracked", spanning every academic year - and it is the companion
+  // to the per-year term and class summaries in lib/summary.ts. Scoping it
+  // would leave the app with two identical per-year summaries and no all-time
+  // one. See also getInsightsData's 'lifetime' scope.
   const [tasks, progress] = await Promise.all([
     prisma.task.findMany({
       where: { userId, isDeleted: false },
@@ -1980,7 +2095,7 @@ export async function getMasteryItems(subject: string) {
 
   const normalized = normalizeSubject(subject);
   return prisma.masteryItem.findMany({
-    where: { userId, subject: normalized },
+    where: { userId, ...byClass(await getViewScope(userId)), subject: normalized },
     orderBy: { createdAt: 'asc' }
   });
 }
@@ -1993,11 +2108,10 @@ export async function addMasteryItem(subject: string, title: string) {
   if (!userId) return;
 
   const normalized = normalizeSubject(subject);
-  const { classId } = await activeScope(userId);
   await prisma.masteryItem.create({
     data: {
       userId,
-      classId,
+      ...(await requireClassStamp(userId)),
       subject: normalized,
       title,
       isCompleted: false
@@ -2015,6 +2129,8 @@ export async function toggleMasteryItem(id: string, isCompleted: boolean, subjec
   const userId = await getUserId();
   if (!userId) return;
 
+  await assertWritableScope(userId);
+
   const normalized = normalizeSubject(subject);
   await prisma.masteryItem.updateMany({
     where: { id, userId },
@@ -2031,6 +2147,8 @@ export async function toggleMasteryItem(id: string, isCompleted: boolean, subjec
 export async function deleteMasteryItem(id: string, subject: string) {
   const userId = await getUserId();
   if (!userId) return;
+
+  await assertWritableScope(userId);
 
   const normalized = normalizeSubject(subject);
   await prisma.masteryItem.deleteMany({ where: { id, userId } });
@@ -2077,7 +2195,10 @@ export async function clearAllTasks() {
   const userId = await getUserId();
   if (!userId) return;
 
-  await prisma.task.deleteMany({ where: { userId } });
+  // "Clear all tasks" means this year's, not every year you have ever studied.
+  await prisma.task.deleteMany({
+    where: { userId, ...byTerm(await requireWritableScope(userId)) },
+  });
   revalidatePath('/');
   revalidatePath('/calendar');
 }
@@ -2123,7 +2244,7 @@ export async function getStickyNotes() {
   if (!userId) return [];
 
   return prisma.stickyNote.findMany({
-    where: { userId },
+    where: { userId, ...byClass(await getViewScope(userId)) },
     orderBy: { createdAt: 'desc' }
   });
 }
@@ -2133,7 +2254,7 @@ export async function createStickyNote(title: string, content: string, color: st
   if (!userId) return null;
 
   const note = await prisma.stickyNote.create({
-    data: { userId, title, content, color }
+    data: { userId, title, content, color, ...(await requireClassStamp(userId)) }
   });
   revalidatePath('/notes');
   return note;
@@ -2142,6 +2263,8 @@ export async function createStickyNote(title: string, content: string, color: st
 export async function updateStickyNote(id: string, data: { title?: string, content?: string, color?: string, isDone?: boolean }) {
   const userId = await getUserId();
   if (!userId) return;
+
+  await assertWritableScope(userId);
 
   await prisma.stickyNote.updateMany({
     where: { id, userId },
@@ -2154,6 +2277,8 @@ export async function toggleStickyNoteDone(id: string, isDone: boolean) {
   const userId = await getUserId();
   if (!userId) return;
 
+  await assertWritableScope(userId);
+
   await prisma.stickyNote.updateMany({
     where: { id, userId },
     data: { isDone }
@@ -2164,6 +2289,9 @@ export async function toggleStickyNoteDone(id: string, isDone: boolean) {
 export async function updateStickyNotePosition(id: string, x: number, y: number) {
   const userId = await getUserId();
   if (!userId) return;
+
+  // Dragging a note persists its position, so it is an edit like any other.
+  await assertWritableScope(userId);
 
   await prisma.stickyNote.updateMany({
     where: { id, userId },
@@ -2177,6 +2305,8 @@ export async function deleteStickyNote(id: string) {
   const userId = await getUserId();
   if (!userId) return;
 
+  await assertWritableScope(userId);
+
   await prisma.stickyNote.deleteMany({
     where: { id, userId }
   });
@@ -2187,8 +2317,9 @@ export async function clearAllStickyNotes() {
   const userId = await getUserId();
   if (!userId) return;
 
+  // This year's board only - the same reasoning as clearAllTasks.
   await prisma.stickyNote.deleteMany({
-    where: { userId }
+    where: { userId, ...byClass(await requireWritableScope(userId)) }
   });
   revalidatePath('/notes');
 }
@@ -2214,18 +2345,25 @@ export async function universalSearch(query: string) {
 
   const like = containsInsensitive(query);
 
+  // Search covers the year you are looking at. Offering a result from a
+  // finished year would link to a page that, correctly, no longer shows it.
+  const scope = await getViewScope(userId);
+  const inClass = byClass(scope);
+  const inTerm = byTerm(scope);
+
   const [
     tasks, stickyNotes, tutorModules, projects, homeworks,
     subjects, exams, resources, notes, marks,
   ] = await Promise.all([
     prisma.task.findMany({
-      where: { userId, isDeleted: false, deletedAt: null, subject: like },
+      where: { userId, ...inTerm, isDeleted: false, deletedAt: null, subject: like },
       orderBy: { date: 'desc' },
       take: 5
     }),
     prisma.stickyNote.findMany({
       where: {
         userId,
+        ...inClass,
         OR: [{ title: like }, { content: like }]
       },
       take: 5
@@ -2233,30 +2371,33 @@ export async function universalSearch(query: string) {
     prisma.tutorModule.findMany({
       where: {
         userId,
+        ...inClass,
         deletedAt: null,
         OR: [{ title: like }, { subject: like }, { notes: like }]
       },
       take: 5
     }),
     prisma.project.findMany({
-      where: { userId, deletedAt: null, title: like },
+      where: { userId, ...inClass, deletedAt: null, title: like },
       take: 5
     }),
     prisma.homework.findMany({
       where: {
         userId,
+        ...inTerm,
         deletedAt: null,
         OR: [{ title: like }, { subject: like }]
       },
       take: 5
     }),
     prisma.subject.findMany({
-      where: { userId, deletedAt: null, name: like },
+      where: { userId, ...inClass, deletedAt: null, name: like },
       take: 5
     }),
     prisma.examEvent.findMany({
       where: {
         userId,
+        ...inTerm,
         deletedAt: null,
         OR: [{ title: like }, { notes: like }, { subject: { name: like } }]
       },
@@ -2267,6 +2408,7 @@ export async function universalSearch(query: string) {
     prisma.resource.findMany({
       where: {
         userId,
+        ...inClass,
         deletedAt: null,
         OR: [{ title: like }, { subject: like }]
       },
@@ -2275,17 +2417,19 @@ export async function universalSearch(query: string) {
     prisma.studioNote.findMany({
       where: {
         userId,
+        ...inClass,
         deletedAt: null,
         OR: [{ subject: like }, { content: like }]
       },
       take: 5
     }),
     // Marks live on the report card's grades, so match the grade rows and
-    // carry the card back for the link target.
+    // carry the card back for the link target. SubjectGrade has no term of its
+    // own - it reaches the year through the card it is printed on.
     prisma.subjectGrade.findMany({
       where: {
         deletedAt: null,
-        reportCard: { userId, deletedAt: null },
+        reportCard: { userId, ...inTerm, deletedAt: null },
         OR: [{ subject: like }, { grade: like }, { status: like }]
       },
       include: { reportCard: { select: { id: true, term: true } } },
@@ -2441,6 +2585,13 @@ export async function importUserData(importData: any) {
       projects
     } = importData;
 
+    // The export format has no concept of academic years - it predates them -
+    // so a restore lands in the year you are in now. Without stamping, every
+    // restored row would carry no class or term and be invisible to every
+    // scoped read in the app: the import would appear to do nothing.
+    const classStamp = await requireClassStamp(userId);
+    const termStamp = await requireTermStamp(userId);
+
     await prisma.$transaction(async (tx) => {
       // 1. Update user settings
       if (currentTerm) {
@@ -2490,7 +2641,8 @@ export async function importUserData(importData: any) {
               startTime: t.startTime,
               endTime: t.endTime,
               deadlineDay: t.deadlineDay,
-              type: t.type
+              type: t.type,
+              ...classStamp
             }
           });
         }
@@ -2512,7 +2664,8 @@ export async function importUserData(importData: any) {
               isDeleted: t.isDeleted || false,
               type: t.type,
               workDescription: t.workDescription || null,
-              proofPdfUrl: t.proofPdfUrl || null
+              proofPdfUrl: t.proofPdfUrl || null,
+              ...termStamp
             }
           });
         }
@@ -2528,7 +2681,8 @@ export async function importUserData(importData: any) {
               subject: r.subject,
               title: r.title,
               type: r.type,
-              url: r.url
+              url: r.url,
+              ...classStamp
             }
           });
         }
@@ -2543,7 +2697,8 @@ export async function importUserData(importData: any) {
               userId,
               title: e.title,
               date: new Date(e.date),
-              priority: e.priority || "NORMAL"
+              priority: e.priority || "NORMAL",
+              ...termStamp
             }
           });
         }
@@ -2556,7 +2711,8 @@ export async function importUserData(importData: any) {
           await tx.markedDay.create({
             data: {
               userId,
-              date: new Date(m.date)
+              date: new Date(m.date),
+              ...termStamp
             }
           });
         }
@@ -2574,7 +2730,8 @@ export async function importUserData(importData: any) {
               color: s.color,
               isDone: s.isDone || false,
               x: s.x || 0,
-              y: s.y || 0
+              y: s.y || 0,
+              ...classStamp
             }
           });
         }
@@ -2588,7 +2745,8 @@ export async function importUserData(importData: any) {
             data: {
               userId,
               subject: n.subject,
-              content: n.content
+              content: n.content,
+              ...classStamp
             }
           });
         }
@@ -2608,7 +2766,8 @@ export async function importUserData(importData: any) {
               plannedDate: h.plannedDate ? new Date(h.plannedDate) : null,
               isCompleted: h.isCompleted || false,
               completedAt: h.completedAt ? new Date(h.completedAt) : null,
-              proofUrl: h.proofUrl || null
+              proofUrl: h.proofUrl || null,
+              ...termStamp
             }
           });
         }
@@ -2624,7 +2783,8 @@ export async function importUserData(importData: any) {
               title: p.title,
               description: p.description || null,
               status: p.status || "ACTIVE",
-              progress: p.progress || 0
+              progress: p.progress || 0,
+              ...classStamp
             }
           });
         }

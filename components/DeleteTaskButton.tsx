@@ -5,6 +5,7 @@ import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { deleteTask } from '@/lib/actions';
+import { useIsArchived } from '@/components/ArchiveContext';
 import { cn } from '@/lib/utils';
 
 interface DeleteTaskButtonProps {
@@ -16,6 +17,7 @@ interface DeleteTaskButtonProps {
 export function DeleteTaskButton({ taskId, variant = "ghost", className }: DeleteTaskButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const archived = useIsArchived();
 
   const handleDelete = async () => {
     setIsPending(true);
@@ -27,6 +29,10 @@ export function DeleteTaskButton({ taskId, variant = "ghost", className }: Delet
       alert("Failed to delete task.");
     }
   };
+
+  // A finished year is a record: deleting from it is refused server-side,
+  // so the control is not offered.
+  if (archived) return null;
 
   return (
     <>
