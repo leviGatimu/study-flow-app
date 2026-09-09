@@ -1,178 +1,128 @@
 # HANDOFF
 
 ## Current Task
-PHASE 9 - TWO-WAY SYNC. Levi, 2026-09-09: "it was working on the sync with
-desktop app using sqlite fetching from supabase but still usable offline, so
-both web and desktop are on sync". That settles the open question from
-2026-09-08: option (c), the local-first sync engine, not "point the desktop at
-Supabase".
+PHASE 9 IS BUILT. Stages 0-5 are done and committed (18c2787). The desktop app
+and the website now hold the same data, and the desktop still works with no
+network. Levi asked for this on 2026-09-09: "both web and desktop are on sync".
 
-  Stage 0  identity map + two-device harness            DONE (2026-09-06)
-  Stage 1  soft deletes, so a deletion can travel       DONE (2026-09-09)
-  Stage 2  /api/sync push+pull, cursor on SERVER time   NEXT
-  Stage 3  merge rules (LWW, natural keys, deletions)
-  Stage 4  offline auth - the desktop must open on a plane
-  Stage 5  file sync
+WHAT REMAINS IS VERIFICATION ON A REAL DESKTOP INSTALL, which needs Levi:
+  1. npm run build:desktop, then npm run pack in desktop-app/, and install it.
+  2. Settings -> Sync with the website -> address, username, password ->
+     Connect this device. It pairs, then immediately pulls.
+  3. Create something on the desktop, press Sync now, check the website.
+  4. Pull the network cable and confirm the app still opens and works.
+Nothing has been through those four steps. Everything else IS verified - see
+"how it was proven" below.
 
-STAGE 1 IS DONE AND COMMITTED (edba20c, on top of 9069bbe). Every model already
-had a deletedAt column and 42 queries already filtered on it, but nothing ever
-WROTE one - all 45 delete call sites removed the row outright, which is fine for
-one database and fatal for two: a row that simply vanishes is indistinguishable
-from a row the other device has not seen yet, so syncing would resurrect
-everything you deleted.
+### The shape of it, in one screen
 
-  lib/soft-delete.ts    softDeleteExtension() filters every READ centrally
-                        (a hundred-odd read sites across ten files, none of
-                        which can be trusted to remember); softDelete() is an
-                        explicit helper for WRITES, so a delete that means
-                        something else cannot hide; SOFT_DELETE_CASCADES
-                        reproduces the 49 ON DELETE CASCADE relations by hand,
-                        because the database has no idea a soft delete happened;
-                        purgeTombstones() + TOMBSTONE_RETENTION_DAYS = 90.
-  INCLUDE_DELETED       the one load-bearing opt-out: ensureTasksGenerated must
-                        SEE deleted tasks or every block you removed comes back
-                        tomorrow.
-  instrumentation.ts    desktop sweeps expired tombstones on launch.
-  scripts/purge-tombstones.mjs  the web side, run deliberately (--dry-run,
-                        --days N). Vercel cannot sweep from a startup hook: it
-                        runs per serverless instance.
-  test/sync/soft-delete.test.mjs  including a drift test that fails if a raw
-                        .delete()/.deleteMany() appears outside the allow-list.
+  syncedAt         a new column on all 18 synced models. ON THE SERVER it is the
+                   write time and the pull cursor orders by it. ON A DEVICE null
+                   means "this row has local changes the server has not seen".
+                   Two meanings on purpose: a device never has to compare its
+                   clock with the server's, which is the one comparison clock
+                   skew silently gets wrong.
+  lib/sync/stamp.ts    maintains that column on both sides, as a client
+                   extension in lib/prisma.ts, next to the tombstone filter.
+                   One forgotten stamp on the server is a row nobody ever pulls;
+                   one forgotten clear on a device is an edit that never leaves.
+  lib/sync/merge.ts    THE ONLY FILE THAT DECIDES WHO WINS, and it runs
+                   unchanged on both sides. Match by id or natural key; a
+                   tombstone beats a live row whatever the clocks say; isDone
+                   never goes backwards; monotonic/accumulated take max(); the
+                   rest is LWW with a device-id tiebreak so both sides reach the
+                   SAME answer rather than each preferring itself forever.
+                   APPLY_ORDER is explicit - identity.ts lists task before
+                   examEvent, and Task.examId references ExamEvent.
+  lib/sync/protocol.ts cursor is (syncedAt, id). The id is not optional: many
+                   rows share a millisecond, and a bare timestamp cursor either
+                   repeats the tie forever or steps over it and loses rows.
+  app/api/sync         GET pulls a page, POST pushes. Every query scoped to the
+                   signed-in user; a pushed userId is OVERWRITTEN, not checked.
+  app/api/sync/session POST username+password -> bearer token. THE ONLY STEP
+                   THAT MUST BE ONLINE. Everything after it is local.
+  lib/sync/client.ts   the device half. Push, adopt remaps, pull in pages, then
+                   files. Push BEFORE pull, always: pulling first applies the
+                   server's version locally and pushes it straight back, which
+                   looks like it worked and discards the local edit.
+  lib/sync/files.ts    uploads, lazily and never fatally.
+  components/SyncPanel.tsx  Settings. Leads with "N changes still only on this
+                   device", because that is the question people actually have.
 
-TWO THINGS THE CONVERSION TURNED UP, both fixed:
-  - Nested includes are OUT OF THE EXTENSION'S REACH - it can only narrow a
-    top-level where. /subjects was still showing grades from deleted report
-    cards. If you add an `include`, filter it yourself.
-  - The drift test's regex said `deleteMany?`, which matches "deleteMan" and let
-    every single-row .delete() through. Now `delete(?:Many)?`.
+### Three bugs the two-device harness caught. Do not reintroduce them.
 
-KNOWN AND ACCEPTED: importUserData still hard-deletes (9 sites, allow-listed).
-Restoring a backup means "replace what is here", and tombstoning a whole
-account's history on every restore would keep every generation forever. The cost
-is that a restore is invisible to sync - the server never learns those rows went
-away - so A RESTORE MUST BE FOLLOWED BY A FULL RE-SYNC, NOT A DELTA ONE. Handle
-this in Stage 2 or 3.
+  MARKING A ROW SYNCED COUNTED AS EDITING IT. updatedAt is @updatedAt, so the
+  bookkeeping write after a push moved the pusher's row into the future; the
+  next pull then found the server's newer content "older" and rejected it. Two
+  devices synced cleanly, reported no errors, and permanently disagreed. Fixed
+  by markSynced(), which writes the row's existing updatedAt back explicitly.
+  Prisma honours an explicit value on an @updatedAt field - the engine depends
+  on that, and the tests fail loudly if it ever stops being true.
 
-STAGE 2 STARTS HERE. The transport is decided (see "PHASE 9" below): outbox,
-push+pull against /api/sync, cursor on SERVER time because client clocks lie.
-Everything it needs now exists - identity map, harness, tombstones.
+  A RE-KEYED PARENT ORPHANED ITS CHILDREN MID-BATCH. B pushes its own duplicate
+  "Maths" template plus the completed task under it; the server folds the
+  template into one it already had, and the task that follows still points at an
+  id the server has never heard of. The foreign key rejects it and the work
+  never arrives. Fixed by FK_TO_PARENT plus a remap table carried through the
+  batch.
 
-### The one thing Stage 2 has to decide first (found 2026-09-09)
+  APPLY ORDER IS NOT DECLARATION ORDER. A test re-derives the constraint from
+  the client's relation metadata now.
 
-"LWW on updatedAt, cursor on SERVER time" needs TWO different timestamps, and
-the schema only has one.
+### The backfill migration, and why it is Postgres-only
 
-  updatedAt is written by whichever CLIENT made the edit (Prisma's @updatedAt
-  uses the writing process's clock). That is the right value to resolve a
-  conflict with - it is when the user actually made the change.
+20260909130000_sync_cursor_backfill exists because the first pull against the
+REAL database returned zero rows while looking perfectly healthy. syncedAt
+started NULL everywhere, and a NULL row has no position in the cursor's order,
+so a device pairing with three years of work would have received nothing.
 
-  The pull cursor cannot use it. A device that has been offline since Tuesday
-  asks "what changed since my cursor", and a row edited on another device with a
-  slow clock would carry an updatedAt BEHIND that cursor and never be sent. The
-  cursor has to be a value the SERVER assigns, monotonically, on arrival.
+IT MUST NEVER BE RUN ON A DESKTOP DATABASE. There NULL means "not yet sent", so
+backfilling would mark every local row as already synced and that device would
+never push anything again. There is deliberately no SQLite twin.
 
-Three shapes, and the first looks right:
+### How it was proven
 
-  a) Add `syncedAt DateTime?` to the 17 synced models, indexed, set by the
-     server: on the web build a Prisma extension stamps it on every create and
-     update, and /api/sync stamps it on every row it accepts from a device. Pull
-     is then `where syncedAt > cursor order by syncedAt`. One migration on each
-     provider, additive, and it leaves updatedAt free to mean what it means.
-  b) Overwrite updatedAt with server time when the server accepts a row. No new
-     column, but it destroys the edit time, so LWW then compares ARRIVAL order:
-     a device that edited at 10:00 and synced at 18:00 beats one that edited at
-     12:00 and synced at 12:01. Wrong, and unrecoverably so.
-  c) A server-side SyncLog(seq, model, rowId) appended on accept. Cheap for
-     pushed rows, but web writes go straight to Postgres through lib/actions.ts,
-     so it needs the same client extension as (a) - and then it is (a) plus an
-     extra table.
+78 tests (npm run test:sync), including a server and two devices diverging
+offline and reconnecting: a deletion that stays deleted, a completed task a
+stale device cannot untick, both devices inventing "Physics" separately and
+ending with one, and a duplicate template reconciled without destroying the
+completed work under it.
 
-Whichever is chosen, note that a restore from backup hard-deletes (see the
-allow-list above) and is therefore INVISIBLE to a delta pull. Stage 2 needs a
-"full re-sync" path, or importUserData needs to bump a per-user epoch that
-forces one.
+Then against the live database, through the real HTTP route:
+  - Levi's pull: 584 rows over two pages, cursor advances, zero overlap,
+    hasMore goes false and it terminates.
+  - John's pull: 44 rows, one owner id in the whole payload.
+  - A row pushed with John's token while claiming Levi's userId landed under
+    JOHN. That probe row was removed afterwards.
 
-STILL PENDING from the 2026-09-08 Supabase -> desktop import: the four classId
-columns are NULL on every imported desktop row, so those rows vanish from both
-years until a repair pass runs on the DESKTOP database.
-scripts/backfill-class-scope.mjs is the right logic and only needs pointing at
-the SQLite client.
+### What is NOT done
 
-## ACCOUNT AUDIT (2026-09-09) - three causes, all fixed
+  FILE SYNC IS HALF A FEATURE, and it cannot be finished from here. The web has
+  no durable file store until SUPABASE_STORAGE_BUCKET plus the two keys are set
+  on Vercel and the bucket exists (phase 8, written 2026-08-29, still not
+  enabled). So device-to-server upload works and server-to-device finds nothing
+  to fetch, and /api/sync/file refuses with 501 when remote storage IS
+  configured - phase 8 mints its own filenames and would break the URL the
+  synced row already carries. Enable the bucket, then reconcile the two naming
+  schemes.
 
-Levi: "other users ... fail to get access to different pages they should have
-full access and have their own data not my data for Levi duplicated in different
-accounts". Audited the whole account system against the LIVE database. Three
-separate causes, none of them a leaky query.
+  SYNC IS MANUAL: a button in Settings, no timer and no sync-on-launch.
+  Deliberate for a first release, because automatic sync makes every bug happen
+  when nobody is looking. Add both once a real install has been through the four
+  steps at the top.
 
-### 1. Users were being logged out by a slow database
+  focusSessions and totalFocusMinutes still merge as max(), not as a sum. They
+  are bare counters with no ledger. xpEvent shows the right answer - an
+  append-only row per grant, summed - and they need the same treatment.
 
-lib/auth.ts getUserId() wrapped BOTH the token check and the "does this user
-still exist" lookup in one try/catch returning null. All 28 pages redirect to
-/welcome on null, so a database that was briefly unreachable read as "not signed
-in" and dropped the user out of the whole app. It bites other users harder than
-Levi: the deployed app runs Kigali -> Frankfurt through a pooler capped at five
-connections, and a page fires seven queries. Reproduced live during this session
-- every account 307'd to /welcome for several minutes while the pooler was
-unreachable, with "Can't reach database server" in the dev log.
+  A RESTORE FROM BACKUP IS STILL INVISIBLE TO SYNC. importUserData hard-deletes
+  (allow-listed in the soft-delete drift test), so the server never learns those
+  rows went away and a later pull brings the pre-import data back. Either give
+  importUserData a per-user epoch that forces a full re-sync, or tombstone.
 
-FIXED by separating the two failure modes. An invalid/expired/foreign token is a
-definite no. A lookup that could not COMPLETE honours the token and logs it -
-nothing leaks, because if the database is down the page's own queries fail too.
-
-### 2. John's whole account was Levi's timetable
-
-Registration used to seed each new account with a copy of the owner's weekly
-timetable. Removed 2026-06-25; John registered THAT DAY and kept the rows. All
-17 templates and 11 subjects carried his signup second, his 12 tasks were all
-generated from them and none were done - he had made nothing of his own and had
-been looking at Levi's coursework on /, /subjects, /manage, /timetable,
-/calendar, /marks, /exams and /school-timetable for three months.
-
-An earlier session recorded "John now gets his own 17 blocks, not Levi's 20" -
-that was WRONG. Those 17 blocks were Levi's, seeded.
-
-  scripts/clear-seeded-timetable.mjs --user <name> [--dry-run]
-      Removes only rows matching the retired seed exactly. THREE GUARDS, all
-      earned: a template with completed work / a written description / a
-      proof-of-work upload under it is kept and reported; a subject anything
-      else still refers to is kept; and an ADMIN account is refused outright,
-      because the first dry run against Levi's offered to remove 11 subjects and
-      76 tasks - on the account the seed came FROM, every row looks seeded while
-      being genuine. isDone, never isMissed: a missed task is the app marking a
-      block the user never touched.
-      RUN AGAINST JOHN, production: 17 templates + 11 subjects + 12 tasks gone.
-      kenny, Brian, Briann, Neymar were already clean.
-      STILL TO DO: run it on the DESKTOP database too - the 2026-09-08 import
-      copied all five users' rows there.
-
-  prisma/seed.ts was the loaded gun and now needs --user. It used to write this
-  data into `prisma.user.findFirst()` - whichever account came back first - and
-  minted an isAdmin 'demo' user if there were none.
-
-### 3. Hardcoded personal data in the UI
-
-SCHOOL_DATA (fixed, below) and the AI chat's starter prompts, which named Levi's
-actual modules so every account was invited to summarise Networking Fundamentals
-and Basic Database Design. Now subject-agnostic.
-
-### What the audit CLEARED
-
-  - Every route returns 200 for all six accounts (22 routes x 6 users). The one
-    real hard block was /school's isAdmin gate, removed with that page.
-  - No page renders another user's subject names, re-checked after the cleanup.
-  - Every Prisma write taking a client-supplied id verifies ownership first
-    (scanned all of lib/ and app/; the reads that look unscoped all derive their
-    classId/termId/reportCardId from an already-owned row).
-  - No custom middleware, so there is no second place access could be gated.
-
-### The school timetable went into the wrong year, fixed
-
-The 2026-09-09 seed put Levi's 44 lessons into his ACTIVE class, which is Year 2
-- a new academic year is supposed to start blank. They describe Year 1 and now
-live there, including the two Wednesday rows Levi deleted by hand while trying
-to clear Year 2. Verified: Year 2 shows "No school timetable yet"; Year 1 shows
-the week, read-only. scripts/seed-school-lessons.mjs now REQUIRES --class.
+  THE DESKTOP DATABASE STILL NEEDS scripts/clear-seeded-timetable.mjs --user John
+  and scripts/backfill-class-scope.mjs, both pointed at the SQLite file. Sync
+  will happily carry the un-repaired rows in either direction.
 
 ## Also done 2026-09-09: the school timetable is per-user now
 
@@ -1993,6 +1943,7 @@ Scoping map for Phase 1:
 - Windows: prisma generate throws EPERM while the dev server is running.
 
 ## Recently Completed
+- Phase 9 stages 2-5: the sync engine, desktop and web (2026-09-09)
 - Account audit: logout-on-slow-DB, John's seeded account, hardcoded prompts (2026-09-09)
 - Phase 9 Stage 1: every delete leaves a tombstone (2026-09-09)
 - School timetable is per-user, uploaded from a photo; /school -> /school-timetable (2026-09-09)
