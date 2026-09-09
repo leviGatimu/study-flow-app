@@ -7,8 +7,14 @@
  * deployment saw them. They are one student's real timetable, and this puts
  * them where they belong: rows owned by that student, in their active class.
  *
- *   node scripts/seed-school-lessons.mjs --user levi --dry-run
- *   node scripts/seed-school-lessons.mjs --user levi
+ *   node scripts/seed-school-lessons.mjs --user levi --class "Year 1" --dry-run
+ *   node scripts/seed-school-lessons.mjs --user levi --class "Year 1"
+ *
+ * --class IS REQUIRED, and it is required because the first run of this script
+ * did not have it: it defaulted to the user's ACTIVE class and put a Year 1
+ * timetable into Year 2, where a new academic year is supposed to start blank.
+ * A school timetable belongs to a specific year, so naming that year is the
+ * caller's job, not a guess.
  *
  * ONE-OFF. Nobody else should ever be seeded with these; every other account
  * starts with an empty school timetable and fills it in from /school.
@@ -21,11 +27,17 @@
 import { PrismaClient } from '../node_modules/.prisma/client-custom-v8/index.js';
 
 const DRY = process.argv.includes('--dry-run') || process.argv.includes('--dry');
-const userFlag = process.argv.indexOf('--user');
-const username = userFlag === -1 ? null : process.argv[userFlag + 1];
+const flag = (name) => {
+  const at = process.argv.indexOf(name);
+  return at === -1 ? null : process.argv[at + 1] ?? null;
+};
+const username = flag('--user');
+const classLabel = flag('--class');
 
-if (!username) {
-  console.error('Usage: node scripts/seed-school-lessons.mjs --user <username> [--dry-run]');
+if (!username || !classLabel) {
+  console.error(
+    'Usage: node scripts/seed-school-lessons.mjs --user <username> --class "<year label>" [--dry-run]'
+  );
   process.exit(1);
 }
 
@@ -89,16 +101,24 @@ try {
     process.exit(1);
   }
 
-  // The active class, the same one /school writes into. A user with no class
-  // at all gets classId null, which is what every other scope column does.
-  const activeClass = await prisma.class.findFirst({
-    where: { userId: user.id, status: 'ACTIVE', deletedAt: null },
-    orderBy: { startedAt: 'desc' },
+  const target = await prisma.class.findFirst({
+    where: { userId: user.id, label: classLabel, deletedAt: null },
     select: { id: true, label: true },
   });
+  if (!target) {
+    const available = await prisma.class.findMany({
+      where: { userId: user.id, deletedAt: null },
+      select: { label: true },
+    });
+    console.error(
+      `${username} has no class labelled "${classLabel}". They have: ` +
+        (available.map((c) => c.label).join(', ') || '(none)')
+    );
+    process.exit(1);
+  }
 
   const existing = await prisma.schoolLesson.findMany({
-    where: { userId: user.id, classId: activeClass?.id ?? null, deletedAt: null },
+    where: { userId: user.id, classId: target.id, deletedAt: null },
     select: { dayOfWeek: true, startTime: true },
   });
   const taken = new Set(existing.map((l) => `${l.dayOfWeek}|${l.startTime}`));
@@ -106,7 +126,7 @@ try {
   const missing = LESSONS.filter((l) => !taken.has(`${l.dayOfWeek}|${l.startTime}`));
 
   console.log(
-    `${user.username} / ${activeClass?.label ?? 'no class'}: ` +
+    `${user.username} / ${target.label}: ` +
       `${existing.length} lesson(s) already there, ${missing.length} to add.`
   );
 
@@ -116,7 +136,7 @@ try {
     for (const l of missing) console.log(`  would add ${l.startTime}-${l.endTime} ${l.subject}`);
   } else {
     await prisma.schoolLesson.createMany({
-      data: missing.map((l) => ({ ...l, userId: user.id, classId: activeClass?.id ?? null })),
+      data: missing.map((l) => ({ ...l, userId: user.id, classId: target.id })),
     });
     console.log(`Added ${missing.length} lesson(s).`);
   }

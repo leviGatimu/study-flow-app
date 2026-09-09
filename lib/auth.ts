@@ -48,19 +48,44 @@ export const getUserId = cache(async function getUserId(): Promise<string | null
   const session = cookieStore.get('session')?.value;
   if (!session) return null;
 
+  let userId: string;
   try {
     const { payload } = await jwtVerify(session, SECRET);
-    const userId = payload.userId as string;
+    userId = payload.userId as string;
+    if (!userId) return null;
+  } catch {
+    // The token is missing, expired, tampered with or signed by another
+    // deployment. That is a definite "not signed in".
+    return null;
+  }
 
-    // Verify user still exists in the database
+  // Verify the user still exists. THE TWO WAYS THIS CAN FAIL ARE NOT THE SAME
+  // THING, and treating them alike is what made signed-in users bounce to the
+  // welcome screen at random.
+  //
+  // The whole function used to sit inside one try/catch returning null, so a
+  // database that was merely slow or briefly unreachable - Kigali to Frankfurt,
+  // through a pooler capped at five connections, on pages that fire seven
+  // queries each - read as "this person is not logged in". Every page calls
+  // this and redirects on null, so one failed lookup logged the user out of the
+  // whole app.
+  try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true }
+      select: { id: true },
     });
 
+    // A definite answer: the account is gone or deactivated. Reject it.
     if (!user) return null;
     return userId;
-  } catch {
-    return null;
+  } catch (error) {
+    // No answer at all. The token itself is cryptographically valid, so the
+    // session is honoured for this request and the incident is logged. Nothing
+    // is leaked by doing so: if the database cannot be reached, the queries
+    // behind every page will fail too, and the user sees an error rather than
+    // someone else's data. Logging them out instead would be a lie about the
+    // one thing we actually know.
+    console.error('[auth] could not verify the session user; honouring the token:', error);
+    return userId;
   }
 });

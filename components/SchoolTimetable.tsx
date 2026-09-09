@@ -529,7 +529,7 @@ function LessonDialog({
             <Input
               id="lesson-subject"
               value={form.subject}
-              placeholder="Networking Fundamentals"
+              placeholder="e.g. Mathematics"
               onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
             />
           </div>

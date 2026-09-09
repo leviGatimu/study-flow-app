@@ -45,11 +45,19 @@ import ReactMarkdown from 'react-markdown';
 import { toggleTaskDone } from "@/lib/actions";
 import { extractTextFromPdf, extractTextFromDocx } from "@/lib/file-extract";
 
+/**
+ * Starter prompts, deliberately subject-agnostic.
+ *
+ * These used to name one particular student's actual modules - Networking
+ * Fundamentals, Basic Database Design - so every account was invited to
+ * summarise someone else's coursework. A starter prompt should describe the
+ * SHAPE of the question and leave the subject to the person typing.
+ */
 const PRESET_PROMPTS = [
-  { icon: Zap, label: "Deep Focus Study", text: "Create a 2-hour study schedule for Calculus with 5-minute breaks." },
-  { icon: BookOpen, label: "Summarize Material", text: "Summarize the key concepts of Networking Fundamentals." },
-  { icon: Sparkles, label: "Explain Simply", text: "Explain how a CPU cache works using simple analogies." },
-  { icon: Trophy, label: "Quiz Me", text: "Generate 5 multiple-choice questions on Basic Database Design." },
+  { icon: Zap, label: "Plan a session", text: "Create a 2-hour study schedule for my next topic, with 5-minute breaks." },
+  { icon: BookOpen, label: "Summarise material", text: "Summarise the key concepts of the topic I am studying right now." },
+  { icon: Sparkles, label: "Explain simply", text: "Explain the concept I am stuck on using simple analogies." },
+  { icon: Trophy, label: "Quiz me", text: "Generate 5 multiple-choice questions on what I studied this week." },
 ];
 
 const PERSONAS = [
