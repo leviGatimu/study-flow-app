@@ -119,7 +119,7 @@ export const NAV_LEAVES: NavLeaf[] = NAV.flatMap((section) =>
 );
 
 /** Routes that render without app chrome (no header, no sidebar). */
-export const BARE_ROUTES = ["/login", "/register", "/welcome"];
+export const BARE_ROUTES = ["/login", "/register", "/welcome", "/setup"];
 
 export function isBareRoute(pathname: string | null): boolean {
   if (!pathname) return false;

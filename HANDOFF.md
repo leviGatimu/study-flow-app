@@ -1,182 +1,108 @@
 # HANDOFF
 
 ## Current Task
-PHASE 9 IS BUILT. Stages 0-5 are done and committed (18c2787). The desktop app
-and the website now hold the same data, and the desktop still works with no
-network. Levi asked for this on 2026-09-09: "both web and desktop are on sync".
+ONBOARDING FOR NEW USERS. Levi, 2026-09-09: "when a new user makes an account
+we have issue where it just creates the account... doesnt ask what class you are
+in, doesnt ask when term starts or ends, doesnt ask for timetable, doesnt tell u
+to input gemini api... for me since i made this i know, but other people they
+wouldnt know". Two halves, both built: a setup wizard at /setup, and a guided
+tour that was rewritten from scratch.
 
-WHAT REMAINS IS VERIFICATION ON A REAL DESKTOP INSTALL, which needs Levi:
+## Status
+BUILT AND VERIFIED against the running app. Not committed. Nothing here has been
+seen in a browser by a human - every check below was curl against a dev server
+with a minted session cookie (see [[browser-verification-blocked]]).
+
+## Progress
+- [x] `UserProgress.setupCompletedAt`, migrations for Postgres AND SQLite, both
+      backfilled. Postgres migration IS APPLIED to Supabase.
+- [x] /setup - eight-screen wizard. Registration now lands here, not on /.
+- [x] Dashboard checklist for whatever was skipped, dismissable for good.
+- [x] The tour walks real pages now: 18 steps, 8 chapters, 7 routes.
+- [x] Settings -> Account -> "Getting started": re-open setup, replay the tour.
+- [x] `/settings?tab=ai` deep-links a settings tab. Nothing could before.
+- [ ] Nobody has clicked through it. The wizard WRITES on every step and only
+      its reads were exercised - saveSetupProfile, saveSetupYear, the AI key box
+      and the block builder have never run against a real click.
+
+## Working Notes
+
+WHAT WAS ACTUALLY WRONG. Registration created a user, a UserProgress, and a
+silent "Year 1 / Term 1" nobody chose - then `router.push('/')`. Everything the
+app runs on was left for the user to discover: the year is theirs to name, the
+whole schedule is generated from a recurring week they have to define, subjects
+come first because homework/exams/marks all hang off them, and every AI feature
+is inert until a key is saved. Nothing anywhere said so.
+
+THE ONE DESIGN DECISION WORTH KEEPING. Onboarding stores exactly one piece of
+state: `setupCompletedAt`, meaning "the checklist has been dismissed for good",
+written ONLY by the checklist's X. Leaving the wizard writes nothing at all -
+neither skipping out of it nor finishing it - because whatever was skipped has
+to keep being offered, and the checklist is where. It removes itself once
+nothing is outstanding, so a user who answers everything never meets it.
+Whether any individual step is DONE is derived from the data it would have
+created - a subject row, a template row, a saved key. So the checklist cannot congratulate you for a
+subject you later deleted, and someone who skips the wizard and does the work by
+hand ends up in the identical state. The corollary: items whose absence cannot
+be PROVEN are not on the checklist at all. "Year 1" is both the default nobody
+chose and a correct answer for a first-year, and no query separates those - so
+the year name is a wizard step and never a checklist nag. One false item and the
+user stops believing all of them.
+
+THE WIZARD WRITES THROUGH THE ORDINARY ACTIONS. addSubject, createTemplate,
+saveAIKey, replaceSchoolTimetable, and the same Class/Term updates /year makes.
+lib/setup-actions.ts only adds validation and the two composite writes
+(saveSetupProfile, saveSetupYear). Do not give it storage of its own.
+
+TWO TRAPS FOUND WHILE BUILDING, both still live:
+  - A future term start date stops the schedule dead (getScheduleState ->
+    TERM_NOT_STARTED) and the dashboard goes empty with no explanation. The
+    wizard returns a `warning` (not an error) when you type one. Anywhere else
+    that sets a start date has the same hole.
+  - `next dev` REFUSES a second instance in the same directory in Next 16, and
+    "Study Tracker.exe" (the packaged desktop app) sits on 127.0.0.1:3000. So a
+    schema change means restarting Levi's dev server - the running one keeps the
+    old Prisma client in memory and every page 500s on the unknown column. Ask
+    first; it was asked this time.
+
+THE TOUR, AND WHY IT WAS REBUILT RATHER THAN EDITED. The old one was a single
+overlay pinned to the dashboard that TALKED about the weekly timetable, the
+year, marks and the AI without going to any of them - a user finished it having
+seen one screen and been told about six. Now each step in
+components/onboarding/tour-steps.ts names a route, and the engine navigates
+there, waits for the anchor to actually exist, then spotlights it.
+
+  The waiting is the hard part. A route change renders on the server, so the
+  anchor is hundreds of ms away; and /history renders a skeleton until
+  `mounted` flips, so its anchor does not exist in the SSR HTML at all. The
+  engine polls every 120ms for up to 4s, shows "Opening /manage..." meanwhile,
+  and degrades to a centred card with a dev-only console warning. That warning
+  is the only thing that will ever tell you an anchor has rotted - a missing
+  one looks deliberate.
+
+  `measured` is tagged with the step id on purpose. Untagged, there is a frame
+  where the new step's card sits over the old step's spotlight. It also keeps
+  every setState out of an effect body, which the eslint config errors on.
+
+NEXT STEP ON RESUME: click through /setup end to end in a browser as a brand-new
+account, then let the tour run to the last step. The writes are what have not
+been exercised. After that, commit.
+
+## STILL OUTSTANDING FROM THE PREVIOUS TASK (sync, Phase 9)
+Phase 9 is built and committed (18c2787); 1.0.3 is published at
+https://github.com/leviGatimu/Study-Flow/releases/tag/v1.0.3. What was never
+done is VERIFICATION ON A REAL DESKTOP INSTALL, which needs Levi:
   1. npm run build:desktop, then npm run pack in desktop-app/, and install it.
   2. Settings -> Sync with the website -> address, username, password ->
      Connect this device. It pairs, then immediately pulls.
-  3. Add an assignment on the desktop and DO NOT press anything. It should be on
-     the website within a couple of seconds.
-  4. Change something on the website; the desktop should notice within 20s,
-     refresh itself and say so.
+  3. Add an assignment on the desktop and press nothing. It should reach the
+     website within a couple of seconds.
+  4. Change something on the website; the desktop should notice within 20s.
   5. Pull the network cable, keep working, plug it back in - the backlog should
-     go up on its own.
-Nothing has been through those four steps. Everything else IS verified - see
-"how it was proven" below.
-
-### 1.0.3 IS PUBLISHED (2026-09-09)
-
-https://github.com/leviGatimu/Study-Flow/releases/tag/v1.0.3 - normal release,
-marked Latest, both assets, 103,575,388 bytes with a sha512 matching its
-latest.yml. setup/ holds a byte-identical copy. A 1.0.2 install will find it.
-
-THE PACKAGING BUG CAME BACK, AND IT SHIPS PRIVATE FILES. The first 1.0.3 build
-produced a 950 MB .next/standalone holding desktop-app/dist (473 MB - the
-previous installer nesting itself), setup/ (the published exe) and
-public/uploads (71 MB of Levi's PDFs, audio and proof-of-work photographs).
-Every one of those was already listed in next.config.ts under
-outputFileTracingExcludes - that config is a HINT and it silently stopped
-working. scripts/build-desktop.mjs now deletes them after the build and FAILS
-if any survive, with a 250 MB ceiling on the whole directory. 950 MB -> 75 MB.
-Do not "fix" a future failure by raising the limit.
-
-TWO TRAPS HIT WHILE PACKAGING, both cost time:
-  - `next build` failed on a stale generated types file. Wipe .next between a
-    web build and a desktop one.
-  - A `next dev` was running. It holds the Prisma query engine, so the Postgres
-    restore died with EPERM and left the tree with a SQLite client against a
-    Postgres URL - the web app broken until `npm run db:postgres` was re-run
-    with the server stopped. STOP THE DEV SERVER BEFORE PACKAGING.
-
-### The shape of it, in one screen
-
-  syncedAt         a new column on all 18 synced models. ON THE SERVER it is the
-                   write time and the pull cursor orders by it. ON A DEVICE null
-                   means "this row has local changes the server has not seen".
-                   Two meanings on purpose: a device never has to compare its
-                   clock with the server's, which is the one comparison clock
-                   skew silently gets wrong.
-  lib/sync/stamp.ts    maintains that column on both sides, as a client
-                   extension in lib/prisma.ts, next to the tombstone filter.
-                   One forgotten stamp on the server is a row nobody ever pulls;
-                   one forgotten clear on a device is an edit that never leaves.
-  lib/sync/merge.ts    THE ONLY FILE THAT DECIDES WHO WINS, and it runs
-                   unchanged on both sides. Match by id or natural key; a
-                   tombstone beats a live row whatever the clocks say; isDone
-                   never goes backwards; monotonic/accumulated take max(); the
-                   rest is LWW with a device-id tiebreak so both sides reach the
-                   SAME answer rather than each preferring itself forever.
-                   APPLY_ORDER is explicit - identity.ts lists task before
-                   examEvent, and Task.examId references ExamEvent.
-  lib/sync/protocol.ts cursor is (syncedAt, id). The id is not optional: many
-                   rows share a millisecond, and a bare timestamp cursor either
-                   repeats the tie forever or steps over it and loses rows.
-  app/api/sync         GET pulls a page, POST pushes. Every query scoped to the
-                   signed-in user; a pushed userId is OVERWRITTEN, not checked.
-  app/api/sync/session POST username+password -> bearer token. THE ONLY STEP
-                   THAT MUST BE ONLINE. Everything after it is local.
-  lib/sync/client.ts   the device half. Push, adopt remaps, pull in pages, then
-                   files. Push BEFORE pull, always: pulling first applies the
-                   server's version locally and pushes it straight back, which
-                   looks like it worked and discards the local edit.
-  lib/sync/files.ts    uploads, lazily and never fatally.
-  components/SyncPanel.tsx  Settings. Leads with "N changes still only on this
-                   device", because that is the question people actually have.
-
-### Three bugs the two-device harness caught. Do not reintroduce them.
-
-  MARKING A ROW SYNCED COUNTED AS EDITING IT. updatedAt is @updatedAt, so the
-  bookkeeping write after a push moved the pusher's row into the future; the
-  next pull then found the server's newer content "older" and rejected it. Two
-  devices synced cleanly, reported no errors, and permanently disagreed. Fixed
-  by markSynced(), which writes the row's existing updatedAt back explicitly.
-  Prisma honours an explicit value on an @updatedAt field - the engine depends
-  on that, and the tests fail loudly if it ever stops being true.
-
-  A RE-KEYED PARENT ORPHANED ITS CHILDREN MID-BATCH. B pushes its own duplicate
-  "Maths" template plus the completed task under it; the server folds the
-  template into one it already had, and the task that follows still points at an
-  id the server has never heard of. The foreign key rejects it and the work
-  never arrives. Fixed by FK_TO_PARENT plus a remap table carried through the
-  batch.
-
-  APPLY ORDER IS NOT DECLARATION ORDER. A test re-derives the constraint from
-  the client's relation metadata now.
-
-### The backfill migration, and why it is Postgres-only
-
-20260909130000_sync_cursor_backfill exists because the first pull against the
-REAL database returned zero rows while looking perfectly healthy. syncedAt
-started NULL everywhere, and a NULL row has no position in the cursor's order,
-so a device pairing with three years of work would have received nothing.
-
-IT MUST NEVER BE RUN ON A DESKTOP DATABASE. There NULL means "not yet sent", so
-backfilling would mark every local row as already synced and that device would
-never push anything again. There is deliberately no SQLite twin.
-
-### How it was proven
-
-78 tests (npm run test:sync), including a server and two devices diverging
-offline and reconnecting: a deletion that stays deleted, a completed task a
-stale device cannot untick, both devices inventing "Physics" separately and
-ending with one, and a duplicate template reconciled without destroying the
-completed work under it.
-
-Then against the live database, through the real HTTP route:
-  - Levi's pull: 584 rows over two pages, cursor advances, zero overlap,
-    hasMore goes false and it terminates.
-  - John's pull: 44 rows, one owner id in the whole payload.
-  - A row pushed with John's token while claiming Levi's userId landed under
-    JOHN. That probe row was removed afterwards.
-
-### Automatic sync (ccbb81e)
-
-Levi: "i dont want sync to be manual it has to be automatic ... things should
-sync every time something changes ... plus it should send notification".
-
-  lib/sync/scheduler.ts   every local change pushes itself, debounced 1.5s.
-                   Plus once ~8s after launch, a 5-minute safety-net timer, and
-                   a nudge on focus/`online`. One sync at a time (all entry
-                   points share one promise); the interval doubles to an hour
-                   while failing and snaps back on success; nothing throws.
-  lib/sync/notify.ts      a one-listener registry, and it exists ONLY to break a
-                   cycle: lib/prisma.ts imports the stamp extension, so the
-                   extension cannot import the scheduler, which imports
-                   lib/prisma.ts.
-  components/SyncWatcher.tsx  mounted in AppShell. A background push is
-                   invisible to the window, so this polls a cheap pulse, calls
-                   router.refresh() when rows actually arrived, and raises a
-                   toast plus a desktop notification (only when the window is
-                   NOT in front). Errors reported once per distinct problem, not
-                   once per poll. Stops polling entirely on the web build and on
-                   an unpaired install.
-
-THE INVARIANT THAT MAKES IT SAFE, and the thing to check first if the desktop
-ever gets hot and busy: APPLYING A PULL MUST NOT COUNT AS A LOCAL CHANGE. The
-stamp extension treats a write carrying an explicit syncedAt as the engine's own
-and stays silent. If that regresses, every sync schedules the next one and the
-app syncs in a tight loop forever while looking perfectly healthy. Six tests in
-test/sync/scheduler.test.mjs cover exactly that line.
-
-### What is NOT done
-
-  FILE SYNC IS HALF A FEATURE, and it cannot be finished from here. The web has
-  no durable file store until SUPABASE_STORAGE_BUCKET plus the two keys are set
-  on Vercel and the bucket exists (phase 8, written 2026-08-29, still not
-  enabled). So device-to-server upload works and server-to-device finds nothing
-  to fetch, and /api/sync/file refuses with 501 when remote storage IS
-  configured - phase 8 mints its own filenames and would break the URL the
-  synced row already carries. Enable the bucket, then reconcile the two naming
-  schemes.
-
-  (Sync being manual WAS listed here. It is not any more - see below.)
-
-  focusSessions and totalFocusMinutes still merge as max(), not as a sum. They
-  are bare counters with no ledger. xpEvent shows the right answer - an
-  append-only row per grant, summed - and they need the same treatment.
-
-  A RESTORE FROM BACKUP IS STILL INVISIBLE TO SYNC. importUserData hard-deletes
-  (allow-listed in the soft-delete drift test), so the server never learns those
-  rows went away and a later pull brings the pre-import data back. Either give
-  importUserData a per-user epoch that forces a full re-sync, or tombstone.
-
-  THE DESKTOP DATABASE STILL NEEDS scripts/clear-seeded-timetable.mjs --user John
-  and scripts/backfill-class-scope.mjs, both pointed at the SQLite file. Sync
-  will happily carry the un-repaired rows in either direction.
+     drain on its own.
+Everything else about the sync engine IS verified; the detail is below and in
+the git history. STOP THE DEV SERVER BEFORE PACKAGING (it holds the Prisma query
+engine), and wipe .next between a web build and a desktop one.
 
 ## Also done 2026-09-09: the school timetable is per-user now
 

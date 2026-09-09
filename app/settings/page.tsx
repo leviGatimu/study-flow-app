@@ -1,3 +1,5 @@
+import { Suspense } from 'react';
+
 import { getSettingsData } from '@/lib/actions';
 import SettingsInterface from './SettingsInterface';
 import { getUserId } from "@/lib/auth";
@@ -13,5 +15,10 @@ export default async function SettingsPage() {
   const settingsData = await getSettingsData();
   if (!settingsData) redirect('/welcome');
 
-  return <SettingsInterface initialData={settingsData} />;
+  // ?tab= opens a specific section, and useSearchParams needs a boundary.
+  return (
+    <Suspense fallback={null}>
+      <SettingsInterface initialData={settingsData} />
+    </Suspense>
+  );
 }

@@ -36,10 +36,13 @@ export function RegisterClient() {
           description: result.error
         });
       } else {
-        toast.success("Workspace Created!", {
-          description: "Welcome to StudyFlow. Initializing your dashboard..."
+        toast.success("Workspace created", {
+          description: "Let's get it set up for you."
         });
-        router.push('/');
+        // Straight into setup rather than onto a dashboard with nothing on it.
+        // A brand-new account has no subjects, no timetable and no AI key, and
+        // the dashboard cannot explain any of that; /setup exists to ask.
+        router.push('/setup');
         router.refresh();
       }
     });

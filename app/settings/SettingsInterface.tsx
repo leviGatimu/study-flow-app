@@ -31,6 +31,8 @@ import {
   Database,
   Info,
   Key,
+  Rocket,
+  Compass,
   Eye,
   EyeOff,
   Trophy,
@@ -49,7 +51,8 @@ import {
   Globe,
   Zap
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { PWAInstaller } from '@/components/PWAInstaller';
 import { DesktopUpdater, useIsDesktopApp } from '@/components/DesktopUpdater';
 import { SyncPanel } from '@/components/SyncPanel';
@@ -177,6 +180,9 @@ function NavItem({ label, icon: Icon, active, onClick, count }: { label: string;
   );
 }
 
+/** Valid values for ?tab=, so a bad one falls back instead of blanking the page. */
+const TAB_IDS = ['account', 'appearance', 'focus', 'ai', 'data', 'about'];
+
 export default function SettingsInterface({ initialData }: SettingsInterfaceProps) {
   const router = useRouter();
   const { theme, setTheme, accent, setAccent } = useTheme();
@@ -184,7 +190,14 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
   // the update section at all.
   const isDesktopApp = useIsDesktopApp();
   
-  const [activeTab, setActiveTab] = useState('account');
+  // Deep-linkable. The dashboard setup checklist and the guided tour both need
+  // to land somebody ON the AI section, not on the settings page with a note
+  // saying "now click AI" - that instruction is exactly the kind a new user
+  // reads and still does not follow.
+  const requestedTab = useSearchParams().get('tab');
+  const [activeTab, setActiveTab] = useState(
+    requestedTab && TAB_IDS.includes(requestedTab) ? requestedTab : 'account'
+  );
 
   // Updating locks
   const [isUpdating, setIsUpdating] = useState(false);
@@ -723,6 +736,39 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                 </form>
               </SettingsSection>
 
+              {/* The way back into onboarding.
+                  Both of these can be dismissed for good from the dashboard, so
+                  without a permanent door somewhere a user who skipped setup on
+                  day one would have no way of ever finding it again - which is
+                  the original complaint, moved rather than fixed. */}
+              <SettingsSection
+                title="Getting started"
+                description="Re-run the setup questions, or take the guided tour again"
+              >
+                <SettingsRow
+                  label="Set up your year"
+                  description="Your class, term dates, subjects, AI key and study week - all in one pass"
+                  icon={Rocket}
+                >
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/setup">Open setup</Link>
+                  </Button>
+                </SettingsRow>
+                <SettingsRow
+                  label="Replay the guided tour"
+                  description="Walks you through the app page by page. About three minutes"
+                  icon={Compass}
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push('/?tour=1')}
+                  >
+                    Start tour
+                  </Button>
+                </SettingsRow>
+              </SettingsSection>
+
               {/* Session */}
               <SettingsSection title="Session">
                 <SettingsRow label="Log out" description="End your current session" icon={LogOut}>
@@ -1002,6 +1048,9 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                 </div>
               </SettingsSection>
 
+              {/* data-tour: where the guided tour explains that every AI
+                  feature is inert until something here is filled in. */}
+              <div data-tour="settings-ai">
               <SettingsSection title="AI Providers & Keys" description="Configure cloud keys (Gemini/OpenAI) and a local offline model (Ollama). The app uses your cloud key when online and automatically falls back to Ollama when offline.">
                 <div className="px-4 py-4 space-y-6">
                   {/* Primary Selector */}
@@ -1247,6 +1296,7 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                   </div>
                 </div>
               </SettingsSection>
+              </div>
             </div>
           )}
 

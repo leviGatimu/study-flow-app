@@ -20,6 +20,9 @@ import { CalendarDays, History, CheckCircle2, Clock } from 'lucide-react';
 import { TaskWithTemplate, ExamEvent } from '@/lib/types';
 import { DashboardClient } from './DashboardClient';
 import { TermStatusBanner, PauseScheduleButton } from '@/components/TermStatusBanner';
+import { SetupChecklist } from '@/components/onboarding/SetupChecklist';
+import { getSetupSnapshot } from '@/lib/setup-actions';
+import { buildChecklist } from '@/lib/setup';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -29,7 +32,7 @@ export default async function Dashboard() {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
-  const [todayTasks, tomorrowTasks, yesterdayTasks, streakData, events, dueModules, subjects, schedule, schoolLessons] = await Promise.all([
+  const [todayTasks, tomorrowTasks, yesterdayTasks, streakData, events, dueModules, subjects, schedule, schoolLessons, setup] = await Promise.all([
     getTodayTasks(),
     getTomorrowTasks(),
     getYesterdayTasks(),
@@ -38,8 +41,16 @@ export default async function Dashboard() {
     getDueTutorModules(),
     listSubjects(),
     getCurrentScheduleState(),
-    getSchoolLessons()
+    getSchoolLessons(),
+    getSetupSnapshot()
   ]);
+
+  // Only for an account that has never finished (or dismissed) setup. Every
+  // account that existed before the wizard was backfilled as done, so this is
+  // silent for them - being handed a checklist after a year of use would be an
+  // insult, not a help.
+  const setupItems =
+    setup && setup.setupCompletedAt === null ? buildChecklist(setup) : [];
   
   const totalTasks = todayTasks.length;
   const completedTasks = todayTasks.filter((t) => t.isDone).length;
@@ -97,6 +108,11 @@ export default async function Dashboard() {
       </section>
 
       <div className="px-4 md:px-8 space-y-8">
+        {/* Everything a new account still needs. Above the fold, above even the
+            term banner: on a raw account it is the only thing on this page with
+            anything to say. */}
+        {setupItems.length > 0 && <SetupChecklist items={setupItems} />}
+
         {/* Pause, end-of-term prompt, start next term, new year. Silent while a
             term is simply running. */}
         <TermStatusBanner state={schedule} />
