@@ -18,6 +18,30 @@ WHAT REMAINS IS VERIFICATION ON A REAL DESKTOP INSTALL, which needs Levi:
 Nothing has been through those four steps. Everything else IS verified - see
 "how it was proven" below.
 
+### 1.0.3 IS PUBLISHED (2026-09-09)
+
+https://github.com/leviGatimu/Study-Flow/releases/tag/v1.0.3 - normal release,
+marked Latest, both assets, 103,575,388 bytes with a sha512 matching its
+latest.yml. setup/ holds a byte-identical copy. A 1.0.2 install will find it.
+
+THE PACKAGING BUG CAME BACK, AND IT SHIPS PRIVATE FILES. The first 1.0.3 build
+produced a 950 MB .next/standalone holding desktop-app/dist (473 MB - the
+previous installer nesting itself), setup/ (the published exe) and
+public/uploads (71 MB of Levi's PDFs, audio and proof-of-work photographs).
+Every one of those was already listed in next.config.ts under
+outputFileTracingExcludes - that config is a HINT and it silently stopped
+working. scripts/build-desktop.mjs now deletes them after the build and FAILS
+if any survive, with a 250 MB ceiling on the whole directory. 950 MB -> 75 MB.
+Do not "fix" a future failure by raising the limit.
+
+TWO TRAPS HIT WHILE PACKAGING, both cost time:
+  - `next build` failed on a stale generated types file. Wipe .next between a
+    web build and a desktop one.
+  - A `next dev` was running. It holds the Prisma query engine, so the Postgres
+    restore died with EPERM and left the tree with a SQLite client against a
+    Postgres URL - the web app broken until `npm run db:postgres` was re-run
+    with the server stopped. STOP THE DEV SERVER BEFORE PACKAGING.
+
 ### The shape of it, in one screen
 
   syncedAt         a new column on all 18 synced models. ON THE SERVER it is the
@@ -1973,6 +1997,7 @@ Scoping map for Phase 1:
 - Windows: prisma generate throws EPERM while the dev server is running.
 
 ## Recently Completed
+- Desktop 1.0.3 published; installer stopped shipping private uploads (2026-09-09)
 - Automatic sync on every change, with notifications (2026-09-09)
 - Phase 9 stages 2-5: the sync engine, desktop and web (2026-09-09)
 - Account audit: logout-on-slow-DB, John's seeded account, hardcoded prompts (2026-09-09)
