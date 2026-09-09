@@ -1,91 +1,85 @@
 # HANDOFF
 
 ## Current Task
-TWO THINGS, BOTH FROM LEVI ON 2026-09-09.
+AI STUDY IS A GENERATOR NOW. Levi, 2026-09-09, after seeing the chat version and
+disliking it: "remove all features for ai study lets make the quiz/exam mock/
+flash card/ anything generator throw in a pdf or word etc.. then put how many
+questions you want whether multiple choice etc.. then nice UI nice workflow
+showing question by question this is the best one we can start with".
 
-ONE: fold /ai, /tutor and /notes-ai into a single "AI Study" that actually knows
-what the student is studying. His words: "One AI that understands what I'm
-studying, what I've already written, my schedule, my weak areas, and what I need
-to do next. Not 'here are three random AI tools.'"
-
-TWO: an admin account and dashboard - "where i can view all users, etc... alot
-of info i need to see as an admin".
+Upload a document -> choose count and style -> AI writes the questions -> answer
+them one at a time -> scored, saved, retakeable. Plus flashcards with SM-2.
 
 ## Status
-BOTH BUILT AND PUSHED. AI Study is PHASE 1 of a larger design (see below for
-what is deliberately not built yet). The admin console is complete.
+BUILT, PUSHED (8e04776), NOT EXERCISED WITH A LIVE KEY. Rendering, the library,
+the insights wiring and the data layer are all verified. The actual
+document -> questions round trip is not.
 
 ## Progress
-- [x] lib/ai-context.ts - the context layer. THIS is the feature.
-- [x] /ai rebuilt: greeting, computed recommendation, one input, five modes,
-      context indicator, recent sessions.
-- [x] ChatSession gained `mode` and `subject`; migrations both dialects, applied
-      to Supabase.
-- [x] /tutor and /notes-ai redirect. ~4,900 lines of old AI UI deleted.
-- [x] Levi's old AI data wiped at his instruction (26 chats, 98 messages, 12
-      modules, 7 quiz attempts, 15 AI notes). NO OTHER ACCOUNT HAD ANY - checked
-      before and re-checked inside the delete script.
-- [x] Admin console at /admin + /admin/users/[id], gated, verified against a
-      real non-admin account.
-- [x] scripts/make-admin.mjs for the bootstrap problem.
-- [ ] PHASE 2 of AI Study: structured Learn / Practice / Mock exam / Review.
-      Right now those modes are the same chat with different instructions.
-- [ ] Nobody has sent a real message through AI Study. Rendering is verified;
-      an actual round trip to Gemini is not.
+- [x] /ai is only the generator. The five modes, the chat, the recommendation
+      and the context rail are deleted, along with lib/ai-context.ts,
+      lib/ai-study.ts and lib/ai-study-actions.ts.
+- [x] lib/study-actions.ts - generation, local marking, AI marking, flashcards.
+- [x] app/ai/{StudyGenerator,QuestionRunner,FlashcardRunner}.tsx - eight question
+      types with a widget each, practice vs exam, results.
+- [x] lib/file-extract.ts gained readStudyDocument (+ the .doc fix).
+- [x] lib/ai-parse.ts sanitizeQuestions extended to eight types, with tests.
+- [x] askAIBuddy gained { tools, xp } - see the hazard below.
+- [x] THE QUIZ SIGNAL IS ALIVE AGAIN. Verified with a seeded 45% attempt:
+      /insights reported "low quiz scores". Probe data removed afterwards.
+- [ ] Nobody has generated a real set. Needs a key and a PDF.
+- [ ] The exam timer and the flashcard grading loop have not been seen in a
+      browser.
 
 ## Working Notes
 
-WHAT WAS ACTUALLY WRONG WITH THE AI. The entire system instruction was "You are
-a helpful study buddy... Today's date is X." That is all the model was ever
-told. So the one question a study assistant exists for - what should I do right
-now - could only be answered by asking the student to describe their own
-timetable back to it. Three pages made it worse by making them choose a product
-first. lib/ai-context.ts is the fix and everything else is packaging.
+TWO HAZARDS FOUND IN askAIBuddy, BOTH FIXED, BOTH WORTH REMEMBERING:
+  - FUNCTION_TOOLS was attached to EVERY provider call unconditionally, and
+    executeTool really calls createQuickTask. A study document containing
+    "revision Monday 17:00-18:30" was a plausible trigger for the model to
+    write a task into the student's timetable while it was supposed to be
+    writing questions.
+  - Every successful call granted 20 XP. Batched generation would have minted
+    100 XP before the student answered anything.
+  askAIBuddy now takes { tools, xp }, both defaulting to the old behaviour so no
+  existing caller changed. ANY call whose job is to return JSON must pass false
+  for both.
 
-THREE RULES IN ai-context.ts, DO NOT BREAK THEM:
-  - Scoped to the caller's own userId AND current class/term, through the same
-    scope helpers as the rest of the app. Two students on one deployment must
-    never see a trace of each other.
-  - NOTE TITLES, NEVER BODIES. A term of notes would blow the context window and
-    cost real money per message. The model is told what exists and asks for one
-    by name.
-  - Weak areas come from getInsightsData, not a second calculation. Two answers
-    to "which subject am I behind on" would eventually disagree and the student
-    would have no way to tell which was lying.
+WHY THE OLD TABLES WERE REUSED RATHER THAN REPLACED. TutorModule and QuizAttempt
+had zero rows and zero writers, and they are LOCAL_ONLY in the sync registry -
+so unlike ChatSession there was nothing to strand on a desktop install, and
+nothing in the four DMMF-derived sync tests to disturb. New models would have
+meant edits to SYNC_RULES, SOFT_DELETE_CASCADES, the class backfill list, the
+desktop sanitiser, universalSearch, exportUserData and insights-actions. The
+names are wrong and the comments say so; a rename is a separate cleanup.
 
-THE RECOMMENDATION IS COMPUTED, NOT GENERATED, and that is deliberate: instant,
-free, and it works for a student with no API key - who is exactly the student
-most in need of being told where to start. Rules are ordered by what a miss
-costs: exam inside a week > homework inside two days > weak subject they have
-been avoiding > whatever is already on today.
+The payoff: insights-actions reads QuizAttempt for a per-subject quiz average,
+and 100 minus it is the second-heaviest signal in attentionScore. That had been
+null for every user since the tutor was deleted. Reusing the table restored it
+with no change to insights at all.
 
-MODE INSTRUCTIONS ARE WRITTEN AS CONSTRAINTS. "Be a good tutor" produces a wall
-of text; "explain ONE idea, ask ONE question, then STOP" produces a lesson. The
-negative instructions are the ones doing the work. EXAM mode is the strict one -
-no hints, no encouragement, no telling them whether an answer was right until
-the paper is marked.
+MARKING IS SPLIT ON PURPOSE. Objective types are marked in code - instant, free,
+and a set can be taken with NO API KEY. Only written answers go to the model, in
+one batched call. Two things the obvious version gets wrong: matching and
+ordering earn PARTIAL credit, and a fill-in-the-blank that misses locally is
+sent to the model as UNCERTAIN rather than marked wrong, because synonyms are
+real and wrongly marking a correct answer is unrecoverable.
 
-KNOWN GAP, WRITTEN DOWN SO IT IS NOT REDISCOVERED AS A BUG: deleting the tutor
-took the only writer of QuizAttempt with it, so the quiz component of the weak
-area signal is dark. Completion rate, mastery and grades still feed it. Phase 2's
-Practice mode must record attempts again.
+GENERATION BATCHES AT TEN. askAIBuddy times out at 60s and one call for forty
+questions exceeds it. Later batches are told which stems already exist or they
+repeat themselves. A short result is kept and reported ("asked for 20, got 17").
 
-THE ADMIN CONSOLE'S ONE RULE: every function in lib/admin-actions.ts calls
-requireAdmin() ITSELF. Not the page, not a layout - each function, every time. A
-server action is an HTTP endpoint anyone can call with any arguments; guarding
-the route and trusting the actions would let any signed-in student read every
-other student's notes by calling getAdminUser with a guessed id. This was
-verified with a second real account, not by reading the code: kenny gets a
-not-found page with zero user data and no admin link anywhere in his UI.
+SQLITE CANNOT ALTER A COLUMN DEFAULT, so the four legacy NOT NULL columns on
+TutorModule are supplied explicitly on insert ('' and '[]'). Postgres has real
+defaults; both databases end up identical.
 
-Levi chose FULL content access for admins over metadata-only, knowing what it
-means. The page says whose account is open, and content loads only when a tab is
-clicked rather than silently on arrival. Admin cannot self-demote or self-delete
-- that is how a deployment ends up with no administrator.
+ChatSession.mode / .subject are now unused. Left in place deliberately - see
+lib/sqlite-migrate.ts, whose reconcile pass re-adds any column any migration
+ever declared, which makes a column DROP the risky operation on the desktop.
 
-NEXT STEP ON RESUME: send a real message through AI Study with a live key and
-confirm the context block lands (the indicator on the page shows exactly what is
-sent). Then Phase 2.
+NEXT STEP ON RESUME: generate a set from a real PDF with a live key. Then sit a
+mock exam end to end and check the timer and the score. Those are the two things
+that have never run.
 
 
 ## STILL OUTSTANDING FROM THE PREVIOUS TASK (sync, Phase 9)
@@ -1923,6 +1917,12 @@ Scoping map for Phase 1:
 - Windows: prisma generate throws EPERM while the dev server is running.
 
 ## Recently Completed
+- AI Study rebuilt twice in one day: context-aware chat, then scrapped for the
+  document generator Levi actually wanted (2026-09-09)
+- Admin console at /admin, gated in every action, verified with a real
+  non-admin account (2026-09-09)
+- Chat built and withdrawn the same day at Levi's request; tables dropped
+  (2026-09-09)
 - Onboarding: /setup wizard, dashboard checklist, rewritten multi-page tour;
   desktop 1.0.4 built and pushed (2026-09-09)
 - Desktop 1.0.3 published; installer stopped shipping private uploads (2026-09-09)
