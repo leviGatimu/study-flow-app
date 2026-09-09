@@ -98,6 +98,82 @@ years until a repair pass runs on the DESKTOP database.
 scripts/backfill-class-scope.mjs is the right logic and only needs pointing at
 the SQLite client.
 
+## ACCOUNT AUDIT (2026-09-09) - three causes, all fixed
+
+Levi: "other users ... fail to get access to different pages they should have
+full access and have their own data not my data for Levi duplicated in different
+accounts". Audited the whole account system against the LIVE database. Three
+separate causes, none of them a leaky query.
+
+### 1. Users were being logged out by a slow database
+
+lib/auth.ts getUserId() wrapped BOTH the token check and the "does this user
+still exist" lookup in one try/catch returning null. All 28 pages redirect to
+/welcome on null, so a database that was briefly unreachable read as "not signed
+in" and dropped the user out of the whole app. It bites other users harder than
+Levi: the deployed app runs Kigali -> Frankfurt through a pooler capped at five
+connections, and a page fires seven queries. Reproduced live during this session
+- every account 307'd to /welcome for several minutes while the pooler was
+unreachable, with "Can't reach database server" in the dev log.
+
+FIXED by separating the two failure modes. An invalid/expired/foreign token is a
+definite no. A lookup that could not COMPLETE honours the token and logs it -
+nothing leaks, because if the database is down the page's own queries fail too.
+
+### 2. John's whole account was Levi's timetable
+
+Registration used to seed each new account with a copy of the owner's weekly
+timetable. Removed 2026-06-25; John registered THAT DAY and kept the rows. All
+17 templates and 11 subjects carried his signup second, his 12 tasks were all
+generated from them and none were done - he had made nothing of his own and had
+been looking at Levi's coursework on /, /subjects, /manage, /timetable,
+/calendar, /marks, /exams and /school-timetable for three months.
+
+An earlier session recorded "John now gets his own 17 blocks, not Levi's 20" -
+that was WRONG. Those 17 blocks were Levi's, seeded.
+
+  scripts/clear-seeded-timetable.mjs --user <name> [--dry-run]
+      Removes only rows matching the retired seed exactly. THREE GUARDS, all
+      earned: a template with completed work / a written description / a
+      proof-of-work upload under it is kept and reported; a subject anything
+      else still refers to is kept; and an ADMIN account is refused outright,
+      because the first dry run against Levi's offered to remove 11 subjects and
+      76 tasks - on the account the seed came FROM, every row looks seeded while
+      being genuine. isDone, never isMissed: a missed task is the app marking a
+      block the user never touched.
+      RUN AGAINST JOHN, production: 17 templates + 11 subjects + 12 tasks gone.
+      kenny, Brian, Briann, Neymar were already clean.
+      STILL TO DO: run it on the DESKTOP database too - the 2026-09-08 import
+      copied all five users' rows there.
+
+  prisma/seed.ts was the loaded gun and now needs --user. It used to write this
+  data into `prisma.user.findFirst()` - whichever account came back first - and
+  minted an isAdmin 'demo' user if there were none.
+
+### 3. Hardcoded personal data in the UI
+
+SCHOOL_DATA (fixed, below) and the AI chat's starter prompts, which named Levi's
+actual modules so every account was invited to summarise Networking Fundamentals
+and Basic Database Design. Now subject-agnostic.
+
+### What the audit CLEARED
+
+  - Every route returns 200 for all six accounts (22 routes x 6 users). The one
+    real hard block was /school's isAdmin gate, removed with that page.
+  - No page renders another user's subject names, re-checked after the cleanup.
+  - Every Prisma write taking a client-supplied id verifies ownership first
+    (scanned all of lib/ and app/; the reads that look unscoped all derive their
+    classId/termId/reportCardId from an already-owned row).
+  - No custom middleware, so there is no second place access could be gated.
+
+### The school timetable went into the wrong year, fixed
+
+The 2026-09-09 seed put Levi's 44 lessons into his ACTIVE class, which is Year 2
+- a new academic year is supposed to start blank. They describe Year 1 and now
+live there, including the two Wednesday rows Levi deleted by hand while trying
+to clear Year 2. Verified: Year 2 shows "No school timetable yet"; Year 1 shows
+the week, read-only. scripts/seed-school-lessons.mjs now REQUIRES --class.
+
 ## Also done 2026-09-09: the school timetable is per-user now
 
 Levi: "clear school portal data on everyone page they are getting same school
@@ -1917,6 +1993,7 @@ Scoping map for Phase 1:
 - Windows: prisma generate throws EPERM while the dev server is running.
 
 ## Recently Completed
+- Account audit: logout-on-slow-DB, John's seeded account, hardcoded prompts (2026-09-09)
 - Phase 9 Stage 1: every delete leaves a tombstone (2026-09-09)
 - School timetable is per-user, uploaded from a photo; /school -> /school-timetable (2026-09-09)
 - Sidebar: 64px icon rail that opens to 240px on hover, on keyboard focus, or
