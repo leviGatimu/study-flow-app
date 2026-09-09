@@ -292,7 +292,8 @@ async function askOllama(
   prompt: string,
   history: PersistedMessage[],
   file?: { data: string; mimeType: string },
-  systemInstruction: string = SYSTEM_INSTRUCTION
+  systemInstruction: string = SYSTEM_INSTRUCTION,
+  allowTools: boolean = true
 ) {
   const url = normalizeOllamaUrl(baseUrl);
   const stripDataUri = (data: string) => data.split(',')[1] || data;
@@ -322,7 +323,9 @@ async function askOllama(
   const MAX_ITERATIONS = 5;
 
   // Not every local model supports tool-calling; drop tools and retry if so.
-  let useTools = true;
+  // Starts from the caller's wish: a JSON-generation call passes false and must
+  // never turn them back on.
+  let useTools = allowTools;
 
   while (iterations < MAX_ITERATIONS) {
     iterations++;
@@ -494,7 +497,8 @@ async function askGemini(
   prompt: string,
   history: PersistedMessage[],
   file?: { data: string; mimeType: string },
-  systemInstruction: string = SYSTEM_INSTRUCTION
+  systemInstruction: string = SYSTEM_INSTRUCTION,
+  useTools: boolean = true
 ) {
   const genAI = new GoogleGenerativeAI(apiKey);
   const geminiTools = [
@@ -527,7 +531,7 @@ async function askGemini(
   });
 
   const chat = genAI
-    .getGenerativeModel({ model, tools: geminiTools as any })
+    .getGenerativeModel(useTools ? { model, tools: geminiTools as any } : { model })
     .startChat({
       history: [
         { role: 'user', parts: [{ text: `System Instruction: ${systemInstruction}` }] },
@@ -577,7 +581,8 @@ async function askOpenAI(
   prompt: string,
   history: PersistedMessage[],
   file?: string,
-  systemInstruction: string = SYSTEM_INSTRUCTION
+  systemInstruction: string = SYSTEM_INSTRUCTION,
+  useTools: boolean = true
 ) {
   const inputList: any[] = [];
 
@@ -624,14 +629,18 @@ async function askOpenAI(
           { role: 'system', content: systemInstruction },
           ...inputList
         ],
-        tools: FUNCTION_TOOLS.map((tool) => ({
-          type: 'function',
-          function: {
-            name: tool.name,
-            description: tool.description,
-            parameters: tool.inputSchema,
-          }
-        })),
+        ...(useTools
+          ? {
+              tools: FUNCTION_TOOLS.map((tool) => ({
+                type: 'function',
+                function: {
+                  name: tool.name,
+                  description: tool.description,
+                  parameters: tool.inputSchema,
+                },
+              })),
+            }
+          : {}),
       }),
       cache: 'no-store',
     }, AI_GENERATION_TIMEOUT_MS);
@@ -667,7 +676,8 @@ async function askAnthropic(
   prompt: string,
   history: PersistedMessage[],
   file?: string,
-  systemInstruction: string = SYSTEM_INSTRUCTION
+  systemInstruction: string = SYSTEM_INSTRUCTION,
+  useTools: boolean = true
 ) {
   const messages: any[] = [];
 
@@ -721,11 +731,15 @@ async function askAnthropic(
         model,
         max_tokens: 2048,
         system: systemInstruction,
-        tools: FUNCTION_TOOLS.map((tool) => ({
-          name: tool.name,
-          description: tool.description,
-          input_schema: tool.inputSchema,
-        })),
+        ...(useTools
+          ? {
+              tools: FUNCTION_TOOLS.map((tool) => ({
+                name: tool.name,
+                description: tool.description,
+                input_schema: tool.inputSchema,
+              })),
+            }
+          : {}),
         messages,
       }),
       cache: 'no-store',
@@ -1033,7 +1047,28 @@ type AskAIResult = {
   xpInfo?: Awaited<ReturnType<typeof grantXp>>;
 };
 
-export async function askAIBuddy(prompt: string, history: HistoryMessage[], sessionId?: string, file?: { data: string; mimeType: string }, systemInstructionOverride?: string): Promise<AskAIResult> {
+/**
+ * Options for a call that is generating DATA rather than holding a conversation.
+ *
+ * Both default to the conversational behaviour, so every existing caller is
+ * unchanged.
+ *
+ * `tools` matters more than it looks. FUNCTION_TOOLS is attached to every
+ * provider unconditionally, and executeTool really does call createQuickTask -
+ * it writes a row into the student's timetable. A study document that happens to
+ * contain "revision session Monday 17:00-18:30" is a perfectly plausible trigger
+ * for a model to emit scheduleTask while it is supposed to be writing quiz
+ * questions. Any call whose job is to return JSON must pass `tools: false`.
+ *
+ * `xp` matters because generation is batched: five calls to build a forty
+ * question set would mint 100 XP before the student answered anything. The
+ * feature grants its own XP for the attempt, keyed on a row.
+ */
+export type AskOptions = { tools?: boolean; xp?: boolean };
+
+export async function askAIBuddy(prompt: string, history: HistoryMessage[], sessionId?: string, file?: { data: string; mimeType: string }, systemInstructionOverride?: string, options?: AskOptions): Promise<AskAIResult> {
+  const useTools = options?.tools !== false;
+  const awardXp = options?.xp !== false;
   const userId = await getUserId();
   if (!userId) throw new Error('Unauthorized');
 
@@ -1112,8 +1147,9 @@ export async function askAIBuddy(prompt: string, history: HistoryMessage[], sess
         data: { updatedAt: new Date() },
       });
     }
-    // Each assistant reply is a distinct event with no row to key on.
-    const xpInfo = await grantXp(userId, 20, 'AI', `ai:${randomUUID()}`);
+    // Each assistant reply is a distinct event with no row to key on. Skipped
+    // for data-generation calls, which grant their own XP against a real row.
+    const xpInfo = awardXp ? await grantXp(userId, 20, 'AI', `ai:${randomUUID()}`) : null;
     return { text, provider: providerLabel, model, xpInfo };
   };
 
@@ -1141,8 +1177,8 @@ export async function askAIBuddy(prompt: string, history: HistoryMessage[], sess
           try {
             const result =
               detected.provider === 'gemini'
-                ? await askGemini(key, modelToUse, prompt, plainHistory, file, systemInstructionOverride)
-                : await askOpenAI(key, modelToUse, prompt, plainHistory, file?.data, systemInstructionOverride);
+                ? await askGemini(key, modelToUse, prompt, plainHistory, file, systemInstructionOverride, useTools)
+                : await askOpenAI(key, modelToUse, prompt, plainHistory, file?.data, systemInstructionOverride, useTools);
             return await finalize(result.text, detected.label, modelToUse);
           } catch (error: any) {
             lastError = error.message || String(error);
@@ -1162,7 +1198,7 @@ export async function askAIBuddy(prompt: string, history: HistoryMessage[], sess
     if (!ollamaConfig) return null;
     try {
       const model = file && ollamaConfig.visionModel ? ollamaConfig.visionModel : ollamaConfig.model;
-      const result = await askOllama(ollamaConfig.baseUrl, model, prompt, plainHistory, file, systemInstructionOverride);
+      const result = await askOllama(ollamaConfig.baseUrl, model, prompt, plainHistory, file, systemInstructionOverride, useTools);
       return await finalize(result.text, 'Ollama (offline)', model);
     } catch (error: any) {
       lastError = error.message || String(error);

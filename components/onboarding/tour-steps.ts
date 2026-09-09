@@ -214,8 +214,8 @@ export const TOUR_STEPS: TourStep[] = [
     chapter: 'The AI, and your school day',
     route: '/school-timetable',
     selector: '[data-tour="nav-study"]',
-    title: 'What the AI is actually for',
-    body: 'Ask it a question, turn a PDF into notes, or generate a quiz and flashcards from your own material and let it mark you. It reads what you uploaded, not the internet, so the answers are about your syllabus.',
+    title: 'Get tested on your own material',
+    body: 'Drop a PDF, a Word file or a photo of your notes into AI Study, say how many questions you want and what kind, and it writes them. Then answer them one at a time, or sit the whole thing as a timed mock exam.',
     placement: 'right',
   },
 

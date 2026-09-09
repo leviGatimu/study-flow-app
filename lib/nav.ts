@@ -99,7 +99,7 @@ export const NAV: NavSection[] = [
         name: "AI Study",
         href: "/ai",
         icon: BrainCircuit,
-        keywords: "ask chat tutor teach quiz flashcards mock exam notes summarise revision assistant",
+        keywords: "quiz flashcards mock exam generate questions pdf word document revision test me",
       },
       { name: "Sticky Notes", href: "/notes", icon: StickyNote, keywords: "scratch reminders" },
       { name: "Projects", href: "/projects", icon: FolderOpen, keywords: "coursework docs" },

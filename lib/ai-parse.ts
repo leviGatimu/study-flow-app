@@ -113,12 +113,49 @@ export function sanitizeGrades(raw: unknown): { grades: ParsedGrade[]; dropped: 
 export type ParsedQuestion = {
   question: string;
   type: string;
+  /** Choices for the selection types; empty for everything else. */
   options: string[];
+  /**
+   * The correct answer, always as text.
+   *
+   * Text rather than an index, on purpose: an index only means anything for
+   * MULTIPLE_CHOICE, and shuffling or dropping an option silently invalidates
+   * it. Comparing text survives both, and it is the only representation that
+   * works for TRUE_FALSE, FILL_IN_THE_BLANK, MATCHING and ORDERING alike.
+   */
   answer: string;
   explanation: string;
+  /** MATCHING: the left-hand column. ORDERING: the shuffled items. */
+  items: string[];
 };
 
-const QUESTION_TYPES = new Set(['MULTIPLE_CHOICE', 'SHORT_ANSWER', 'TRUE_FALSE', 'ESSAY']);
+/**
+ * The question types the generator can produce and the runner can render.
+ *
+ * Inherited from the deleted AI Tutor, which had worked out a good set. Anything
+ * added here needs a widget in QuestionRunner and a branch in the local marker,
+ * or it will be generated and then be unanswerable.
+ */
+export const QUESTION_TYPES = new Set([
+  'MULTIPLE_CHOICE',
+  'MULTIPLE_SELECT',
+  'TRUE_FALSE',
+  'FILL_IN_THE_BLANK',
+  'SHORT_ANSWER',
+  'OPEN_ENDED',
+  'MATCHING',
+  'ORDERING',
+]);
+
+/** Types a student answers by choosing, not by writing. Marked locally. */
+export const OBJECTIVE_TYPES = new Set([
+  'MULTIPLE_CHOICE',
+  'MULTIPLE_SELECT',
+  'TRUE_FALSE',
+  'FILL_IN_THE_BLANK',
+  'MATCHING',
+  'ORDERING',
+]);
 
 /**
  * Keep only questions the quiz UI can actually render.
@@ -148,14 +185,35 @@ export function sanitizeQuestions(raw: unknown): { questions: ParsedQuestion[]; 
     }
 
     const rawType = asString(row.type, 50)?.toUpperCase().replace(/[\s-]/g, '_') ?? '';
-    const type = QUESTION_TYPES.has(rawType) ? rawType : 'SHORT_ANSWER';
+    // ESSAY was the old name for the same thing, and models offer it unprompted.
+    const normalised = rawType === 'ESSAY' ? 'OPEN_ENDED' : rawType;
+    const type = QUESTION_TYPES.has(normalised) ? normalised : 'SHORT_ANSWER';
 
-    const options = Array.isArray(row.options)
-      ? row.options.map((o) => asString(o, 500)).filter((o): o is string => o !== null)
-      : [];
+    const strings = (value: unknown) =>
+      Array.isArray(value)
+        ? value.map((o) => asString(o, 500)).filter((o): o is string => o !== null)
+        : [];
 
-    // A multiple-choice question needs something to choose between.
-    if (type === 'MULTIPLE_CHOICE' && options.length < 2) {
+    // MATCHING sends terms/definitions and ORDERING sends items; both land in
+    // the same two arrays so the runner has one shape to render.
+    const options = strings(row.options).length
+      ? strings(row.options)
+      : strings((row as Record<string, unknown>).definitions);
+    const items = strings((row as Record<string, unknown>).items).length
+      ? strings((row as Record<string, unknown>).items)
+      : strings((row as Record<string, unknown>).terms);
+
+    const answer = asString(row.answer, 2000) ?? asString((row as Record<string, unknown>).expectedAnswer, 2000) ?? '';
+
+    // Drop anything the runner could render but nobody could answer.
+    const unanswerable =
+      ((type === 'MULTIPLE_CHOICE' || type === 'MULTIPLE_SELECT') && options.length < 2) ||
+      (type === 'MATCHING' && (items.length < 2 || options.length !== items.length)) ||
+      (type === 'ORDERING' && items.length < 2) ||
+      // An objective question with no correct answer cannot be marked at all.
+      (OBJECTIVE_TYPES.has(type) && !answer);
+
+    if (unanswerable) {
       dropped++;
       continue;
     }
@@ -164,7 +222,8 @@ export function sanitizeQuestions(raw: unknown): { questions: ParsedQuestion[]; 
       question,
       type,
       options,
-      answer: asString(row.answer, 2000) ?? '',
+      items,
+      answer,
       explanation: asString(row.explanation, 4000) ?? '',
     });
   }

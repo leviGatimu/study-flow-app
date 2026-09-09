@@ -1,0 +1,9 @@
+-- Reverses 20260910020000_study_set_generator.
+
+ALTER TABLE "QuizAttempt" DROP COLUMN IF EXISTS "mode";
+ALTER TABLE "TutorModule" DROP COLUMN IF EXISTS "config";
+ALTER TABLE "TutorModule" DROP COLUMN IF EXISTS "sourceText";
+ALTER TABLE "TutorModule" ALTER COLUMN "flashcards" DROP DEFAULT;
+ALTER TABLE "TutorModule" ALTER COLUMN "exercises" DROP DEFAULT;
+ALTER TABLE "TutorModule" ALTER COLUMN "videos" DROP DEFAULT;
+ALTER TABLE "TutorModule" ALTER COLUMN "notes" DROP DEFAULT;

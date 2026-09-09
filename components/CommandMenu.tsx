@@ -173,7 +173,7 @@ export function CommandMenu() {
         )}
 
         {results.tutorModules.length > 0 && (
-          <CommandGroup heading="Tutor Modules">
+          <CommandGroup heading="Study sets">
             {results.tutorModules.map((m) => (
               <CommandItem
                 key={m.id}

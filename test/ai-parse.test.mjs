@@ -118,6 +118,49 @@ describe('sanitizeQuestions', () => {
     assert.equal(dropped, 2);
   });
 
+  test('keeps a MATCHING question only when the columns line up', () => {
+    // A matching question whose two columns differ in length cannot be
+    // rendered as pairs, and the student would be asked to match three terms
+    // against two definitions.
+    const { questions, dropped } = sanitizeQuestions([
+      {
+        question: 'Match them',
+        type: 'MATCHING',
+        terms: ['a', 'b'],
+        definitions: ['1', '2'],
+        expectedAnswer: 'a: 1; b: 2',
+      },
+      { question: 'Match them', type: 'MATCHING', terms: ['a', 'b', 'c'], definitions: ['1', '2'] },
+    ]);
+    assert.equal(questions.length, 1);
+    assert.equal(dropped, 1);
+    assert.deepEqual(questions[0].items, ['a', 'b']);
+    assert.deepEqual(questions[0].options, ['1', '2']);
+  });
+
+  test('drops an objective question with no correct answer', () => {
+    // Nothing can mark it, so it would count against the student whatever they
+    // pressed.
+    const { questions, dropped } = sanitizeQuestions([
+      { question: 'True or false?', type: 'TRUE_FALSE' },
+      { question: 'True or false?', type: 'TRUE_FALSE', answer: 'True' },
+    ]);
+    assert.equal(questions.length, 1);
+    assert.equal(dropped, 1);
+  });
+
+  test('accepts expectedAnswer, the name the generator prompt uses', () => {
+    const { questions } = sanitizeQuestions([
+      { question: 'Fill it in: 2 + 2 = ____', type: 'FILL_IN_THE_BLANK', expectedAnswer: '4' },
+    ]);
+    assert.equal(questions[0].answer, '4');
+  });
+
+  test('ESSAY is the old name for OPEN_ENDED', () => {
+    const { questions } = sanitizeQuestions([{ question: 'Discuss', type: 'ESSAY' }]);
+    assert.equal(questions[0].type, 'OPEN_ENDED');
+  });
+
   test('normalises the type and falls back to SHORT_ANSWER', () => {
     const { questions } = sanitizeQuestions([
       { question: 'Explain', type: 'short answer' },

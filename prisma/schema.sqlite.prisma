@@ -210,18 +210,42 @@ model StudioNote {
   @@index([syncedAt])
 }
 
+/// A generated study set: questions and flashcards made from a document.
+///
+/// THE TABLE KEEPS ITS OLD NAME, and that is a deliberate trade. It was built
+/// for the AI Tutor, which was deleted; this is its second life as the store
+/// behind AI Study's generator. Renaming it would mean touching three schema
+/// files, SYNC_RULES, SOFT_DELETE_CASCADES, the class backfill list, the
+/// desktop sanitiser, universalSearch and exportUserData - and four sync tests
+/// re-derive their constants from the Prisma DMMF and fail on anything missed.
+/// All of that to change a word nobody outside this file ever reads.
+///
+/// It is LOCAL_ONLY in the sync registry: a set is regenerable from its source
+/// text, so it is not worth carrying between devices.
 model TutorModule {
   id             String        @id @default(cuid())
   userId         String
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   subject        String
   title          String
+
+  /// The NAME of the file this was generated from. Never a stored file - the
+  /// document is read in the browser and thrown away.
   sourcePdfUrl   String?
-  notes          String // Markdown (Legacy/Optional)
-  videos         String // JSON array (Legacy/Optional)
-  flashcards     String // JSON array (Legacy/Optional)
-  exercises      String // JSON array (Legacy/Optional)
-  questions      String        @default("[]") // JSON array: { id, question, expectedAnswer }
+
+  /// The extracted text, capped, so more questions can be generated later
+  /// without asking the student to find and upload the same PDF again.
+  sourceText     String?
+
+  /// JSON: what was asked for - question count, chosen types, focus notes.
+  /// Kept so "10 more like these" can repeat the request exactly.
+  config         String?
+
+  notes          String        @default("") // Markdown (Legacy/Optional)
+  videos         String        @default("") // JSON array (Legacy/Optional)
+  flashcards     String        @default("[]") // JSON array of cards with SM-2 fields
+  exercises      String        @default("") // JSON array (Legacy/Optional)
+  questions      String        @default("[]") // JSON array of generated items
   score          Int?
   understanding  String? // "Beginner", "Intermediate", "Master"
   lastReviewedAt DateTime?
@@ -236,10 +260,24 @@ model TutorModule {
   @@index([classId])
 }
 
+/// One run through a study set.
+///
+/// This is the row lib/insights-actions.ts reads to work out a per-subject quiz
+/// average, and 100 - that average is the second-heaviest signal in the
+/// attentionScore that drives weak-area detection across the app. Nothing has
+/// written one since the tutor was removed, so that signal has been null for
+/// every user; the generator is what brings it back.
 model QuizAttempt {
   id        String      @id @default(cuid())
   moduleId  String
   module    TutorModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  /// "PRACTICE" (marked as you go) or "EXAM" (timed, silent until the end).
+  /// The results screen and the history read differently for each.
+  mode      String      @default("PRACTICE")
+
+  /// 0-100. Insights averages this, so it must stay a percentage even when the
+  /// set has an awkward number of questions.
   score     Int
   feedback  String // JSON array: { questionId, studentAnswer, isCorrect, aiFeedback }
   createdAt DateTime    @default(now())
