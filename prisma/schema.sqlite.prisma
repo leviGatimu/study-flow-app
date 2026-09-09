@@ -443,9 +443,43 @@ model UserProgress {
   level             Int       @default(1)
   dailySummaryTime  String    @default("21:00") // "HH:MM" local time-of-day to auto-generate the daily summary
   timezone          String    @default("Africa/Kigali") // IANA timezone used for "today" math, the clock, and greetings
-  updatedAt         DateTime  @default(now()) @updatedAt
-  deletedAt         DateTime?
-  syncedAt          DateTime?
+
+  /// When this account finished (or skipped) the welcome tour.
+  ///
+  /// On the ACCOUNT, not in localStorage, and that is the whole point. The flag
+  /// used to live in the browser, which meant the desktop app forgot it every
+  /// time it started on a different port - desktop-app/main.js takes the first
+  /// free port from 3000, and localhost:3000 and localhost:3001 are different
+  /// origins with different storage. So the tour reappeared on almost every
+  /// launch, for an account that had seen it a dozen times.
+  ///
+  /// Nullable, and null means "never seen it". Existing accounts are backfilled
+  /// to their creation date by the migration: they have been using the app for
+  /// months and being handed a tour would be the same bug pointing the other
+  /// way.
+  onboardedAt DateTime?
+
+  /// When this account finished the setup wizard, or dismissed it for good.
+  ///
+  /// Separate from `onboardedAt` because they answer different questions.
+  /// `onboardedAt` is "has this person been shown around"; this is "has this
+  /// person been ASKED for the things the app cannot work without" - their year,
+  /// their term, their subjects, an AI key. An account can have seen the tour
+  /// and still have nothing configured, and before this column that was the
+  /// normal state of every new account.
+  ///
+  /// Deliberately the ONLY setup state stored. Which individual steps are done
+  /// is derived from the real data (does a subject exist? is a key set?) rather
+  /// than recorded, so a checklist can never claim a step is finished after the
+  /// thing it created was deleted. This column only records "stop asking me",
+  /// which nothing else can tell us.
+  ///
+  /// Backfilled for existing accounts: they configured themselves by hand long
+  /// before a wizard existed, and being sent through one now would be noise.
+  setupCompletedAt DateTime?
+  updatedAt   DateTime  @default(now()) @updatedAt
+  deletedAt   DateTime?
+  syncedAt    DateTime?
 
   @@index([syncedAt])
 }

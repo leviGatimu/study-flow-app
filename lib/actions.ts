@@ -857,6 +857,11 @@ const PROGRESS_WITHOUT_KEYS = {
   level: true,
   dailySummaryTime: true,
   timezone: true,
+  // Not a secret and needed by the chrome: AppShell decides whether to open the
+  // welcome tour from it, so it has to reach the client.
+  onboardedAt: true,
+  // Same reason: whether first-run setup is still outstanding.
+  setupCompletedAt: true,
   updatedAt: true,
   deletedAt: true,
 } as const;
@@ -1140,6 +1145,33 @@ export async function updateCurrentTerm(term: string) {
  * Update the user's timezone. Validated against the runtime's known IANA zones
  * so "today" math, the clock, and greetings all line up with where they study.
  */
+/**
+ * Record that this account has been shown the welcome tour.
+ *
+ * On the ACCOUNT, deliberately. The flag used to be a localStorage key, and the
+ * desktop app binds the first free port from 3000 - so an install that started
+ * on :3000 and later on :3001 was a different origin with different storage,
+ * and the tour introduced itself again to somebody who had dismissed it a dozen
+ * times. An account-level timestamp survives that, survives a new browser, and
+ * travels to the user's other devices through sync.
+ *
+ * Called when the tour is finished AND when it is skipped, because from the
+ * user's side those are the same statement: I have seen this.
+ *
+ * Idempotent, and the first answer wins - re-running the tour from the "Take a
+ * tour" button must not rewrite the date the user actually first saw it.
+ */
+export async function markOnboarded() {
+  const userId = await getUserId();
+  if (!userId) return { error: 'Unauthorized' };
+
+  await prisma.userProgress.updateMany({
+    where: { userId, onboardedAt: null },
+    data: { onboardedAt: new Date() },
+  });
+  return { success: true };
+}
+
 export async function updateTimezone(timezone: string) {
   const userId = await getUserId();
   if (!userId) return { error: "Unauthorized" };
