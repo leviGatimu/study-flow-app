@@ -17,7 +17,7 @@ export default async function SubjectsPage() {
   // showing the previous year's resources, homework, goals and report cards.
   const scope = await getViewScope(userId);
 
-  const [subjects, resources, homeworks, goals, reportCards, tutorModules, studioNotes] = await Promise.all([
+  const [subjects, resources, homeworks, goals, reportCards, studioNotes] = await Promise.all([
     getSubjects(),
     prisma.resource.findMany({ where: { userId, ...byClass(scope) }, orderBy: { createdAt: 'desc' } }),
     prisma.homework.findMany({ where: { userId, ...byTerm(scope) }, orderBy: { dueDate: 'asc' } }),
@@ -28,7 +28,6 @@ export default async function SubjectsPage() {
       include: { grades: { where: { deletedAt: null } } },
       orderBy: { createdAt: 'asc' } // Ascending so chart runs chronologically
     }),
-    prisma.tutorModule.findMany({ where: { userId, ...byClass(scope) }, orderBy: { createdAt: 'desc' } }),
     prisma.studioNote.findMany({ where: { userId, ...byClass(scope) } }),
   ]);
 
@@ -53,7 +52,6 @@ export default async function SubjectsPage() {
           initialHomeworks={homeworks}
           initialGoals={goals}
           initialReportCards={reportCards as any}
-          initialTutorModules={tutorModules}
           initialNotes={studioNotes}
         />
       </div>

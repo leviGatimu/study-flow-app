@@ -283,6 +283,21 @@ model ChatSession {
   userId    String
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String        @default("New Chat")
+
+  /// Which of AI Study's modes this session is running in: ASK, LEARN,
+  /// PRACTICE, EXAM or REVIEW.
+  ///
+  /// The table kept its name on purpose. It is no longer only chat - a mock
+  /// exam is a session too - but the sync engine keys devices on model names,
+  /// and renaming it would strand every 1.0.x desktop install mid-conversation
+  /// for a cosmetic gain. The name is a historical fact; the column is what
+  /// the app reads.
+  mode      String        @default("ASK")
+
+  /// The subject the session is about, when the student named one. Null for an
+  /// open-ended question, which is most of them.
+  subject   String?
+
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   messages  ChatMessage[]

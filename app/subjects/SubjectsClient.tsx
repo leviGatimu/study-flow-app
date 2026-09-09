@@ -119,13 +119,6 @@ interface ReportCard {
   grades: SubjectGrade[];
 }
 
-interface TutorModule {
-  id: string;
-  subject: string;
-  title: string;
-  understanding: string | null;
-}
-
 interface StudioNote {
   id: string;
   userId: string;
@@ -141,7 +134,6 @@ interface SubjectsClientProps {
   initialHomeworks: Homework[];
   initialGoals: SubjectGoal[];
   initialReportCards: ReportCard[];
-  initialTutorModules: TutorModule[];
   initialNotes: StudioNote[];
 }
 
@@ -173,7 +165,6 @@ export function SubjectsClient({
   initialHomeworks,
   initialGoals,
   initialReportCards,
-  initialTutorModules,
   initialNotes,
 }: SubjectsClientProps) {
   const router = useRouter();
@@ -255,13 +246,6 @@ export function SubjectsClient({
     if (!selectedSubject) return null;
     return goals.find((g) => isSubjectSimilar(g.subject, selectedSubject.name)) || null;
   }, [goals, selectedSubject]);
-
-  const subjectTutorModules = useMemo(() => {
-    if (!selectedSubject) return [];
-    return initialTutorModules.filter(
-      (t) => isSubjectSimilar(t.subject, selectedSubject.name)
-    );
-  }, [initialTutorModules, selectedSubject]);
 
   // Extract Growth Chart Data
   const chartData = useMemo(() => {

@@ -1,44 +1,25 @@
-import { checkAIAvailability, getChatSessions } from '@/lib/ai-actions';
-import { syncStreak, getTodayTasks } from '@/lib/actions';
-import { AIChatInterface } from './AIChatInterface';
-import { AIKeyPrompt } from './AIKeyPrompt';
-import { ChatSession } from '@/lib/types';
-import { getUserId } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { redirect } from 'next/navigation';
+
+import { getUserId } from '@/lib/auth';
+import { getStudyHome } from '@/lib/ai-study-actions';
+import { AiStudy } from './AiStudy';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-export default async function AIPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ prompt?: string }>;
-}) {
+/**
+ * AI Study — the only AI destination.
+ *
+ * /tutor and /notes-ai now redirect here. They were never three products; they
+ * were one assistant behind three doors, none of which knew anything about the
+ * student standing in front of it.
+ */
+export default async function AiStudyPage() {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
-  const [awaitedSearchParams, { available }, userProgress, initialSessions, todayTasks] = await Promise.all([
-    searchParams,
-    checkAIAvailability(),
-    syncStreak(),
-    getChatSessions(),
-    getTodayTasks()
-  ]);
+  const home = await getStudyHome();
+  if (!home) redirect('/welcome');
 
-  const initialPrompt = awaitedSearchParams.prompt || "";
-
-  return (
-    <div className="flex h-screen flex-col bg-background relative">
-      {available ? (
-        <AIChatInterface 
-          userName={userProgress?.name || 'Student'} 
-          userProgress={userProgress}
-          initialSessions={initialSessions as ChatSession[]}
-          initialTasks={todayTasks}
-          initialPrompt={initialPrompt}
-        />
-      ) : (
-        <AIKeyPrompt />
-      )}
-    </div>
-  );
+  return <AiStudy home={home} />;
 }

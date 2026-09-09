@@ -1,6 +1,5 @@
 import { getTodayTasks, syncStreak, getEvents, getTomorrowTasks, getYesterdayTasks } from '@/lib/actions';
 import { getCurrentScheduleState } from '@/lib/term-actions';
-import { getDueTutorModules } from '@/lib/tutor-actions';
 import { getUserId } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -8,7 +7,6 @@ import { TaskList } from '@/components/TaskList';
 import { listSubjects } from '@/lib/subject-actions';
 import { getSchoolLessons } from '@/lib/school-actions';
 import { ProgressWidget } from '@/components/ProgressWidget';
-import { MemoryGuard } from '@/components/MemoryGuard';
 import { LiveFocusCard } from '@/components/LiveFocusCard';
 import { DailyQuote } from '@/components/DailyQuote';
 import { DynamicGreeting } from '@/components/DynamicGreeting';
@@ -32,13 +30,12 @@ export default async function Dashboard() {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
-  const [todayTasks, tomorrowTasks, yesterdayTasks, streakData, events, dueModules, subjects, schedule, schoolLessons, setup] = await Promise.all([
+  const [todayTasks, tomorrowTasks, yesterdayTasks, streakData, events, subjects, schedule, schoolLessons, setup] = await Promise.all([
     getTodayTasks(),
     getTomorrowTasks(),
     getYesterdayTasks(),
     syncStreak(),
     getEvents(),
-    getDueTutorModules(),
     listSubjects(),
     getCurrentScheduleState(),
     getSchoolLessons(),
@@ -230,8 +227,6 @@ export default async function Dashboard() {
           {/* Right Column: Quick Overview & Events & Yesterday */}
           <div className="lg:col-span-4 space-y-6">
             
-            <MemoryGuard dueModules={dueModules as any} />
-
             <ProgressWidget 
               percentage={progressPercentage} 
               completed={completedTasks} 

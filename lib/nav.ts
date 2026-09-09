@@ -1,7 +1,6 @@
 import {
   Activity,
   BookOpen,
-  Brain,
   BrainCircuit,
   Book,
   Calculator,
@@ -93,9 +92,15 @@ export const NAV: NavSection[] = [
     href: "/ai",
     icon: Sparkles,
     children: [
-      { name: "AI Buddy", href: "/ai", icon: BrainCircuit, keywords: "chat assistant ask" },
-      { name: "AI Tutor", href: "/tutor", icon: Brain, keywords: "quiz flashcards modules revision" },
-      { name: "AI Notes", href: "/notes-ai", icon: Sparkles, keywords: "generate summarise pdf" },
+      // One AI, not three. "AI Buddy", "AI Tutor" and "AI Notes" read as three
+      // separate products a student had to choose between before they had even
+      // asked their question; they were one assistant with three front doors.
+      {
+        name: "AI Study",
+        href: "/ai",
+        icon: BrainCircuit,
+        keywords: "ask chat tutor teach quiz flashcards mock exam notes summarise revision assistant",
+      },
       { name: "Sticky Notes", href: "/notes", icon: StickyNote, keywords: "scratch reminders" },
       { name: "Projects", href: "/projects", icon: FolderOpen, keywords: "coursework docs" },
       { name: "Calculator", href: "/calculator", icon: Calculator, keywords: "maths compute" },
