@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { softDelete } from '@/lib/soft-delete';
 import { getUserId } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { getViewScope, byClass, requireClassStamp, assertWritableScope } from '@/lib/scope';
@@ -65,12 +66,7 @@ export async function deleteGoal(id: string) {
   // hidden is not the same as prevented.
   await assertWritableScope(userId);
 
-  await prisma.subjectGoal.deleteMany({
-    where: {
-      id,
-      userId,
-    },
-  });
+  await softDelete(prisma, 'subjectGoal', { id, userId });
 
   revalidatePath('/goals');
   revalidatePath('/marks');

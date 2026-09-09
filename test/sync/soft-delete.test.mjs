@@ -64,6 +64,72 @@ describe('the cascade map', () => {
   });
 });
 
+describe('no call site quietly goes back to hard deleting', () => {
+  // The read half of soft delete is enforced by the extension and cannot be
+  // forgotten. The write half is a helper you have to remember to call, and a
+  // forgotten one is invisible: the app behaves correctly and the deletion
+  // simply never reaches the other device. So it is checked here instead.
+  //
+  // To add an entry to the allow-list, say why in the code AND here.
+  const ALLOWED = new Map([
+    [
+      'lib/actions.ts',
+      {
+        count: 9,
+        why: 'importUserData replaces an account wholesale from a backup file; ' +
+          'tombstoning every row on every restore would keep every generation forever.',
+      },
+    ],
+    [
+      'lib/soft-delete.ts',
+      { count: 1, why: 'purgeTombstones is the thing that does the real deleting.' },
+    ],
+  ]);
+
+  test('every raw .delete()/.deleteMany() is accounted for', async () => {
+    const { readdirSync, readFileSync, statSync } = await import('node:fs');
+
+    const files = [];
+    const walk = (dir) => {
+      for (const entry of readdirSync(dir)) {
+        if (entry === 'node_modules' || entry.startsWith('.')) continue;
+        const full = join(dir, entry);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (entry.endsWith('.ts') || entry.endsWith('.tsx')) files.push(full);
+      }
+    };
+    walk(join(ROOT, 'lib'));
+    walk(join(ROOT, 'app'));
+
+    const offenders = [];
+    for (const file of files) {
+      const rel = file.slice(ROOT.length + 1).replaceAll('\\', '/');
+      // `prisma.x.delete(` or `tx.x.deleteMany(` - a Prisma model delete, not
+      // cookieStore.delete() or a Map/Set delete. `delete(?:Many)?` and not
+      // `deleteMany?` - the second reads the same and matches "deleteMan",
+      // which let every single-row .delete() through unseen.
+      const hits = [...readFileSync(file, 'utf8').matchAll(/\b(?:prisma|tx)\.\w+\.delete(?:Many)?\(/g)];
+      if (hits.length === 0) continue;
+
+      const allowed = ALLOWED.get(rel);
+      if (!allowed) {
+        offenders.push(`${rel}: ${hits.length} raw delete(s), none allowed`);
+      } else if (hits.length !== allowed.count) {
+        offenders.push(
+          `${rel}: ${hits.length} raw delete(s), allow-list says ${allowed.count}`
+        );
+      }
+    }
+
+    assert.deepEqual(
+      offenders,
+      [],
+      'a raw delete cannot sync - use softDelete() from lib/soft-delete.ts, ' +
+        'or add a justified entry to ALLOWED above'
+    );
+  });
+});
+
 describe('soft delete against a real database', () => {
   let fleet;
   let db;

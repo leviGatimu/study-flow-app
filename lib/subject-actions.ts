@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { softDelete } from '@/lib/soft-delete';
 import { getUserId } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { normalizeSubject } from '@/lib/utils';
@@ -110,17 +111,15 @@ export async function repairSubjects() {
   // Four spellings rather than one case-insensitive match because `contains`
   // is case-SENSITIVE on Postgres. Behaviour is unchanged from when this ran
   // on every read.
-  const removedRevision = await prisma.subject.deleteMany({
-    where: {
-      userId,
-      ...scoped,
-      OR: [
-        { name: { contains: '(revision)' } },
-        { name: { contains: '(Revision)' } },
-        { name: { contains: 'revision' } },
-        { name: { contains: 'Revision' } }
-      ]
-    }
+  const removedRevision = await softDelete(prisma, 'subject', {
+    userId,
+    ...scoped,
+    OR: [
+      { name: { contains: '(revision)' } },
+      { name: { contains: '(Revision)' } },
+      { name: { contains: 'revision' } },
+      { name: { contains: 'Revision' } }
+    ]
   });
 
   const existingSubjects = await prisma.subject.findMany({ where: { userId, ...scoped } });
@@ -137,17 +136,13 @@ export async function repairSubjects() {
   }
 
   if (duplicateIds.length > 0) {
-    await prisma.subject.deleteMany({
-      where: {
-        id: { in: duplicateIds }
-      }
-    });
+    await softDelete(prisma, 'subject', { id: { in: duplicateIds } });
   }
 
   revalidatePath('/subjects');
   return {
     success: true,
-    removedRevision: removedRevision.count,
+    removedRevision,
     removedDuplicates: duplicateIds.length,
   };
 }
@@ -441,9 +436,7 @@ export async function deleteSubject(id: string, cleanRelatedData: boolean = fals
   const subjectName = subject.name;
 
   // Delete the master entry
-  await prisma.subject.delete({
-    where: { id }
-  });
+  await softDelete(prisma, 'subject', { id });
 
   if (cleanRelatedData) {
     // Clean up all related items, THIS YEAR ONLY. Unscoped, dropping a subject
@@ -451,33 +444,15 @@ export async function deleteSubject(id: string, cleanRelatedData: boolean = fals
     // every previous year that ever studied a subject by the same name.
     const { inClass, inTerm } = cascadeScopes(scope);
     await Promise.all([
-      prisma.scheduleTemplate.deleteMany({
-        where: { userId, ...inClass, subject: subjectName }
-      }),
-      prisma.task.deleteMany({
-        where: { userId, ...inTerm, subject: subjectName }
-      }),
-      prisma.subjectGrade.deleteMany({
-        where: { reportCard: { userId, ...inTerm }, subject: subjectName }
-      }),
-      prisma.resource.deleteMany({
-        where: { userId, ...inClass, subject: subjectName }
-      }),
-      prisma.masteryItem.deleteMany({
-        where: { userId, ...inClass, subject: subjectName }
-      }),
-      prisma.homework.deleteMany({
-        where: { userId, ...inTerm, subject: subjectName }
-      }),
-      prisma.tutorModule.deleteMany({
-        where: { userId, ...inClass, subject: subjectName }
-      }),
-      prisma.subjectGoal.deleteMany({
-        where: { userId, ...inClass, subject: subjectName }
-      }),
-      prisma.studioNote.deleteMany({
-        where: { userId, ...inClass, subject: subjectName }
-      })
+      softDelete(prisma, 'scheduleTemplate', { userId, ...inClass, subject: subjectName }),
+      softDelete(prisma, 'task', { userId, ...inTerm, subject: subjectName }),
+      softDelete(prisma, 'subjectGrade', { reportCard: { userId, ...inTerm }, subject: subjectName }),
+      softDelete(prisma, 'resource', { userId, ...inClass, subject: subjectName }),
+      softDelete(prisma, 'masteryItem', { userId, ...inClass, subject: subjectName }),
+      softDelete(prisma, 'homework', { userId, ...inTerm, subject: subjectName }),
+      softDelete(prisma, 'tutorModule', { userId, ...inClass, subject: subjectName }),
+      softDelete(prisma, 'subjectGoal', { userId, ...inClass, subject: subjectName }),
+      softDelete(prisma, 'studioNote', { userId, ...inClass, subject: subjectName })
     ]);
   }
 

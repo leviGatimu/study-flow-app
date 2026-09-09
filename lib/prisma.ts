@@ -1,4 +1,4 @@
-import { PrismaClient } from '../node_modules/.prisma/client-custom-v8';
+import { PrismaClient, Prisma } from '../node_modules/.prisma/client-custom-v8';
 import { softDeleteExtension } from './soft-delete';
 
 /**
@@ -65,3 +65,16 @@ export function containsInsensitive(value: string) {
     ? { contains: value }
     : { contains: value, mode: 'insensitive' as const };
 }
+
+/**
+ * Every model in the schema, named the way you would reach it on the client
+ * (`prisma.scheduleTemplate`), read off the client's own metadata.
+ *
+ * This module is the only place allowed to know where the generated client
+ * lives - its path is relative to lib/, so importing it from anywhere else
+ * silently resolves somewhere outside the repo. Callers that need to walk every
+ * model (the tombstone purge) take the list from here instead.
+ */
+export const PRISMA_MODELS: string[] = Prisma.dmmf.datamodel.models.map(
+  (m) => m.name.charAt(0).toLowerCase() + m.name.slice(1)
+);

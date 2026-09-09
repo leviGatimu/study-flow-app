@@ -24,7 +24,8 @@ export default async function SubjectsPage() {
     prisma.subjectGoal.findMany({ where: { userId, ...byClass(scope) } }),
     prisma.reportCard.findMany({
       where: { userId, ...byTerm(scope) },
-      include: { grades: true },
+      // Nested includes are out of the tombstone extension's reach.
+      include: { grades: { where: { deletedAt: null } } },
       orderBy: { createdAt: 'asc' } // Ascending so chart runs chronologically
     }),
     prisma.tutorModule.findMany({ where: { userId, ...byClass(scope) }, orderBy: { createdAt: 'desc' } }),

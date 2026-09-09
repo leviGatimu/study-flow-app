@@ -3,6 +3,7 @@
 import { addDays, startOfDay, endOfDay } from 'date-fns';
 
 import { prisma } from '@/lib/prisma';
+import { softDelete } from '@/lib/soft-delete';
 import { getUserId } from '@/lib/auth';
 import {
   getViewScope,
@@ -210,7 +211,7 @@ export async function planRevision(
   const keep = existing.filter((t) => t.isDone).length;
   const removable = existing.filter((t) => !t.isDone).map((t) => t.id);
   if (removable.length > 0) {
-    await prisma.task.deleteMany({ where: { id: { in: removable } } });
+    await softDelete(prisma, 'task', { id: { in: removable } });
   }
 
   const subjectName = exam.subject?.name ?? exam.title;
@@ -292,8 +293,8 @@ export async function clearRevisionPlan(examId: string) {
 
   if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
-  const { count } = await prisma.task.deleteMany({
-    where: { userId, examId, isDone: false, isDeleted: false },
+  const count = await softDelete(prisma, 'task', {
+    userId, examId, isDone: false, isDeleted: false,
   });
   refresh();
   return { success: true, removed: count };

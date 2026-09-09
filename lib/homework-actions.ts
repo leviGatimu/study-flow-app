@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { softDelete } from '@/lib/soft-delete';
 import { getUserId } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { startOfDay } from 'date-fns';
@@ -126,9 +127,7 @@ export async function deleteHomework(homeworkId: string) {
     await deleteUpload(homework.proofUrl);
   }
 
-  await prisma.homework.deleteMany({
-    where: { id: homeworkId, userId }
-  });
+  await softDelete(prisma, 'homework', { id: homeworkId, userId });
 
   revalidatePath('/homeworks');
   return { success: true };

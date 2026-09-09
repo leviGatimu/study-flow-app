@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { softDelete } from '@/lib/soft-delete';
 import { getUserId } from '@/lib/auth';
 import { askAIBuddy } from './ai-actions';
 import { revalidatePath } from 'next/cache';
@@ -242,9 +243,7 @@ export async function deleteTutorModule(id: string) {
 
   await assertWritableScope(userId);
 
-  await prisma.tutorModule.deleteMany({
-    where: { id, userId }
-  });
+  await softDelete(prisma, 'tutorModule', { id, userId });
   
   revalidatePath('/tutor');
   redirect('/tutor');

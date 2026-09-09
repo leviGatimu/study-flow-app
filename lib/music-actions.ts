@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { softDelete } from '@/lib/soft-delete';
 import { getUserId } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { saveUpload, deleteUpload, MAX_AUDIO_UPLOAD_BYTES } from '@/lib/upload';
@@ -111,7 +112,7 @@ export async function deleteSong(songId: string) {
   const song = await prisma.song.findFirst({ where: { id: songId, userId } });
   if (!song) return { error: 'Song not found.' };
 
-  await prisma.song.delete({ where: { id: songId } });
+  await softDelete(prisma, 'song', { id: songId, userId });
   await deleteUpload(song.audioUrl);
   await deleteUpload(song.coverUrl);
 
@@ -207,8 +208,8 @@ export async function deletePlaylist(playlistId: string) {
   if (!userId) return { error: 'Unauthorized' };
 
   // Deleting a playlist only removes the grouping — the songs stay in the library.
-  const result = await prisma.playlist.deleteMany({ where: { id: playlistId, userId } });
-  if (result.count === 0) return { error: 'Playlist not found.' };
+  const removed = await softDelete(prisma, 'playlist', { id: playlistId, userId });
+  if (removed === 0) return { error: 'Playlist not found.' };
 
   revalidatePath('/focus');
   return { success: true };

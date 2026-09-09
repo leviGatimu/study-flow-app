@@ -2,6 +2,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '@/lib/prisma';
+import { softDelete } from '@/lib/soft-delete';
 import { getUserId } from '@/lib/auth';
 import { createQuickTask, getAllTasks, getEvents, syncStreak } from '@/lib/actions';
 import { revalidatePath } from 'next/cache';
@@ -1019,7 +1020,7 @@ export async function deleteChatSession(sessionId: string) {
   // hidden is not the same as prevented.
   await assertWritableScope(userId);
 
-  await prisma.chatSession.deleteMany({ where: { id: sessionId, userId } });
+  await softDelete(prisma, 'chatSession', { id: sessionId, userId });
   revalidatePath('/ai');
 }
 
@@ -1254,9 +1255,7 @@ export async function deleteAiNote(id: string) {
 
   await assertWritableScope(userId);
 
-  await prisma.aiNote.deleteMany({
-    where: { id, userId },
-  });
+  await softDelete(prisma, 'aiNote', { id, userId });
 
   revalidatePath('/notes-ai');
   return { success: true };

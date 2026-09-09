@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { softDelete } from '@/lib/soft-delete';
 import { getUserId } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { getViewScope, byClass, requireClassStamp, assertWritableScope } from '@/lib/scope';
@@ -11,7 +12,8 @@ export async function getProjects() {
 
   return prisma.project.findMany({
     where: { userId, ...byClass(await getViewScope(userId)) },
-    include: { docs: true },
+    // A nested include is out of the extension's reach, so it filters itself.
+    include: { docs: { where: { deletedAt: null } } },
     orderBy: { updatedAt: 'desc' }
   });
 }
@@ -62,7 +64,7 @@ export async function deleteProject(id: string) {
 
   await assertWritableScope(userId);
 
-  await prisma.project.deleteMany({ where: { id, userId } });
+  await softDelete(prisma, 'project', { id, userId });
 
   revalidatePath('/projects');
 }
@@ -108,7 +110,7 @@ export async function deleteProjectDoc(id: string, projectId: string) {
   });
   if (!doc) return;
 
-  await prisma.projectDoc.delete({ where: { id } });
+  await softDelete(prisma, 'projectDoc', { id });
 
   revalidatePath(`/projects/${projectId}`);
 }

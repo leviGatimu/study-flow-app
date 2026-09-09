@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { softDelete } from '@/lib/soft-delete';
 import { getUserId } from '@/lib/auth';
 import { askAIBuddy } from './ai-actions';
 import { revalidatePath } from 'next/cache';
@@ -136,9 +137,7 @@ export async function deleteReportCard(id: string) {
   if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
   try {
-    await prisma.reportCard.deleteMany({
-      where: { id, userId }
-    });
+    await softDelete(prisma, 'reportCard', { id, userId });
     revalidatePath('/marks');
     return { success: true };
   } catch (error) {
@@ -274,19 +273,20 @@ export async function deleteSubjectGrade(id: string) {
   if (!userId) throw new Error("Unauthorized");
 
   // Same ownership check as updateSubjectGrade, for the same reason.
+  // reportCardId is read up front now: a soft delete reports how many rows it
+  // tombstoned, not which row it was, and the average below has to be
+  // recomputed for the card this grade belonged to.
   const owned = await prisma.subjectGrade.findFirst({
     where: { id, reportCard: { userId } },
-    select: { id: true },
+    select: { id: true, reportCardId: true },
   });
   if (!owned) throw new Error('Grade not found');
 
   await assertWritableScope(userId);
 
-  const deleted = await prisma.subjectGrade.delete({
-    where: { id }
-  });
+  await softDelete(prisma, 'subjectGrade', { id });
 
-  const reportCardId = deleted.reportCardId;
+  const reportCardId = owned.reportCardId;
   const allGrades = await prisma.subjectGrade.findMany({
     where: { reportCardId }
   });

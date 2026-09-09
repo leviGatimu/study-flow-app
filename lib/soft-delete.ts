@@ -104,6 +104,24 @@ export const SOFT_DELETE_CASCADES: Record<string, { model: string; fk: string }[
 };
 
 /**
+ * Opt one query out of the tombstone filter.
+ *
+ * Spread it into a `where` to say "I mean all of them, deleted included":
+ *
+ *   where: { userId, ...INCLUDE_DELETED, date: { gte: start } }
+ *
+ * The extension leaves any query alone that mentions `deletedAt` itself, and an
+ * explicit `undefined` counts as mentioning it while Prisma treats it as no
+ * filter at all. Written as a named constant rather than an inline
+ * `deletedAt: undefined` because that reads like a mistake, and because this is
+ * the thing you want to be able to grep for.
+ *
+ * Deliberately rare. The one load-bearing use is task generation, which has to
+ * see deleted tasks so that a block you removed does not come back tomorrow.
+ */
+export const INCLUDE_DELETED = { deletedAt: undefined } as const;
+
+/**
  * The read operations that take a `where` we can narrow.
  *
  * findUnique is deliberately absent: its `where` only accepts unique fields, so
@@ -257,3 +275,63 @@ async function cascade(db: Db, model: string, ids: string[], when: Date): Promis
  * trade every replicated system makes here.
  */
 export const TOMBSTONE_RETENTION_DAYS = 90;
+
+/**
+ * Drop tombstones nobody needs any more.
+ *
+ * A tombstone exists to tell the other device "this is gone". Once every device
+ * has had a fair chance to hear that, the row is dead weight, and without this
+ * the database only ever grows: soft delete never frees a byte.
+ *
+ * The model list is passed in rather than discovered here so this file can stay
+ * free of runtime imports (see the note at the top). Callers read it off
+ * `Prisma.dmmf.datamodel.models`, which is where the truth lives anyway.
+ *
+ * Returns what it removed, per model, so a caller can log it. Models are purged
+ * children-first via the cascade graph, so a parent is never removed while a
+ * row still points at it.
+ */
+export async function purgeTombstones(
+  db: Db,
+  models: string[],
+  olderThanDays: number = TOMBSTONE_RETENTION_DAYS
+): Promise<Record<string, number>> {
+  const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
+  const removed: Record<string, number> = {};
+
+  for (const model of purgeOrder(models)) {
+    const { count } = await db[model].deleteMany({
+      where: { deletedAt: { lt: cutoff } },
+    });
+    if (count > 0) removed[model] = count;
+  }
+
+  return removed;
+}
+
+/**
+ * Children before parents.
+ *
+ * Purging is a real delete, so the foreign keys are live again. Removing a
+ * Class before its Terms would either cascade rows away that are not old enough
+ * to go yet, or fail outright - so anything that appears as a child in the
+ * cascade graph is purged before anything that appears as its parent.
+ */
+function purgeOrder(models: string[]): string[] {
+  const depth = new Map<string, number>();
+
+  const measure = (model: string, seen: Set<string>): number => {
+    if (depth.has(model)) return depth.get(model)!;
+    if (seen.has(model)) return 0;
+    seen.add(model);
+    const children = SOFT_DELETE_CASCADES[model] ?? [];
+    const value = children.length
+      ? 1 + Math.max(...children.map((c) => measure(c.model, seen)))
+      : 0;
+    depth.set(model, value);
+    return value;
+  };
+
+  for (const model of models) measure(model, new Set());
+  return [...models].sort((a, b) => (depth.get(a) ?? 0) - (depth.get(b) ?? 0));
+}

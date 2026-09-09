@@ -3,6 +3,7 @@
 import { cache } from 'react';
 
 import { prisma, containsInsensitive } from '@/lib/prisma';
+import { softDelete, INCLUDE_DELETED } from '@/lib/soft-delete';
 import { startOfDay, endOfDay, addDays, isSameDay, differenceInDays, format } from 'date-fns';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -210,9 +211,13 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
   // day". A task whose termId was never set - a one-off from before the scope
   // columns were populated - must still block a duplicate, so narrowing this
   // could only ever manufacture the double timetable it exists to prevent.
+  // INCLUDE_DELETED because a task you deleted must keep blocking its slot. Let
+  // the tombstone filter apply here and tomorrow's generation cheerfully
+  // recreates every block the user removed.
   const existingTasks = await prisma.task.findMany({
     where: {
       userId,
+      ...INCLUDE_DELETED,
       date: { gte: start, lte: end }
     },
     select: { templateId: true, date: true }
@@ -685,7 +690,7 @@ export async function deleteTemplate(id: string) {
     data: { templateId: null },
   });
 
-  await prisma.scheduleTemplate.deleteMany({ where: { id, userId } });
+  await softDelete(prisma, 'scheduleTemplate', { id, userId });
 
   revalidatePath('/manage');
   revalidatePath('/history');
@@ -803,7 +808,7 @@ export async function toggleMarkedDay(date: Date, isMarked: boolean) {
       create: { userId, date: normalizedDate, ...stamp }
     });
   } else {
-    await prisma.markedDay.deleteMany({ where: { userId, date: normalizedDate } });
+    await softDelete(prisma, 'markedDay', { userId, date: normalizedDate });
   }
   revalidatePath('/calendar');
 }
@@ -1247,14 +1252,10 @@ export async function deleteSubject(subject: string) {
     }
   }
 
-  await prisma.resource.deleteMany({
-    where: { userId, ...scoped, subject: normalized }
-  });
+  await softDelete(prisma, 'resource', { userId, ...scoped, subject: normalized });
 
   // 2. Delete all mastery items
-  await prisma.masteryItem.deleteMany({
-    where: { userId, ...scoped, subject: normalized }
-  });
+  await softDelete(prisma, 'masteryItem', { userId, ...scoped, subject: normalized });
 
   revalidatePath('/resources');
   revalidatePath(`/resources/${encodeURIComponent(normalized)}`);
@@ -1320,7 +1321,7 @@ export async function deleteResource(id: string, subject: string) {
   if (resource && resource.type === 'FILE') {
     await deleteUpload(resource.url);
   }
-  await prisma.resource.deleteMany({ where: { id, userId } });
+  await softDelete(prisma, 'resource', { id, userId });
   revalidatePath('/resources');
   revalidatePath(`/resources/${encodeURIComponent(normalized)}`);
   revalidatePath(`/focus`);
@@ -1433,7 +1434,7 @@ export async function deleteEvent(id: string) {
 
   await assertWritableScope(userId);
 
-  await prisma.examEvent.deleteMany({ where: { id, userId } });
+  await softDelete(prisma, 'examEvent', { id, userId });
   revalidatePath('/');
 }
 
@@ -2151,7 +2152,7 @@ export async function deleteMasteryItem(id: string, subject: string) {
   await assertWritableScope(userId);
 
   const normalized = normalizeSubject(subject);
-  await prisma.masteryItem.deleteMany({ where: { id, userId } });
+  await softDelete(prisma, 'masteryItem', { id, userId });
   revalidatePath('/resources');
   revalidatePath(`/resources/${encodeURIComponent(normalized)}`);
   revalidatePath('/exams/[examId]', 'page');
@@ -2196,9 +2197,7 @@ export async function clearAllTasks() {
   if (!userId) return;
 
   // "Clear all tasks" means this year's, not every year you have ever studied.
-  await prisma.task.deleteMany({
-    where: { userId, ...byTerm(await requireWritableScope(userId)) },
-  });
+  await softDelete(prisma, 'task', { userId, ...byTerm(await requireWritableScope(userId)) });
   revalidatePath('/');
   revalidatePath('/calendar');
 }
@@ -2307,9 +2306,7 @@ export async function deleteStickyNote(id: string) {
 
   await assertWritableScope(userId);
 
-  await prisma.stickyNote.deleteMany({
-    where: { id, userId }
-  });
+  await softDelete(prisma, 'stickyNote', { id, userId });
   revalidatePath('/notes');
 }
 
@@ -2318,9 +2315,7 @@ export async function clearAllStickyNotes() {
   if (!userId) return;
 
   // This year's board only - the same reasoning as clearAllTasks.
-  await prisma.stickyNote.deleteMany({
-    where: { userId, ...byClass(await requireWritableScope(userId)) }
-  });
+  await softDelete(prisma, 'stickyNote', { userId, ...byClass(await requireWritableScope(userId)) });
   revalidatePath('/notes');
 }
 
@@ -2592,6 +2587,17 @@ export async function importUserData(importData: any) {
     const classStamp = await requireClassStamp(userId);
     const termStamp = await requireTermStamp(userId);
 
+    // The deletes below are the one place left in the app that removes rows
+    // outright instead of tombstoning them (lib/soft-delete.ts explains the
+    // difference). Restoring a backup means "replace what is here with what is
+    // in this file", and tombstoning a whole account's history on every restore
+    // would leave the database carrying every generation of every import
+    // forever.
+    //
+    // The cost is that a restore is invisible to sync: the server never learns
+    // these rows went away, so a later pull brings the pre-import data back.
+    // Restoring a backup should be followed by a full re-sync, not a delta one.
+    // Noted in HANDOFF.md rather than solved here.
     await prisma.$transaction(async (tx) => {
       // 1. Update user settings
       if (currentTerm) {
