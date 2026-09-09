@@ -22,12 +22,15 @@ export function AppShell({
   userProgress,
   subjects,
   archive = null,
+  isAdmin = false,
 }: {
   children: React.ReactNode;
   userProgress: UserProgress | null;
   subjects: { id: string; name: string }[];
   /** Set while a finished year is open; null in the normal case. */
   archive?: ArchiveView;
+  /** Shows the admin console in the sidebar. Nobody else learns it exists. */
+  isAdmin?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -46,7 +49,7 @@ export function AppShell({
             the page under you and says so. Does nothing on the web build. */}
         <SyncWatcher />
 
-        <Sidebar userProgress={userProgress} subjects={subjects} />
+        <Sidebar userProgress={userProgress} subjects={subjects} isAdmin={isAdmin} />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader userProgress={userProgress} subjects={subjects} />

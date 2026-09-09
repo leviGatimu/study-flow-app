@@ -1,92 +1,92 @@
 # HANDOFF
 
 ## Current Task
-ONBOARDING FOR NEW USERS. Levi, 2026-09-09: "when a new user makes an account
-we have issue where it just creates the account... doesnt ask what class you are
-in, doesnt ask when term starts or ends, doesnt ask for timetable, doesnt tell u
-to input gemini api... for me since i made this i know, but other people they
-wouldnt know". Two halves, both built: a setup wizard at /setup, and a guided
-tour that was rewritten from scratch.
+TWO THINGS, BOTH FROM LEVI ON 2026-09-09.
+
+ONE: fold /ai, /tutor and /notes-ai into a single "AI Study" that actually knows
+what the student is studying. His words: "One AI that understands what I'm
+studying, what I've already written, my schedule, my weak areas, and what I need
+to do next. Not 'here are three random AI tools.'"
+
+TWO: an admin account and dashboard - "where i can view all users, etc... alot
+of info i need to see as an admin".
 
 ## Status
-BUILT AND VERIFIED against the running app. Not committed. Nothing here has been
-seen in a browser by a human - every check below was curl against a dev server
-with a minted session cookie (see [[browser-verification-blocked]]).
+BOTH BUILT AND PUSHED. AI Study is PHASE 1 of a larger design (see below for
+what is deliberately not built yet). The admin console is complete.
 
 ## Progress
-- [x] `UserProgress.setupCompletedAt`, migrations for Postgres AND SQLite, both
-      backfilled. Postgres migration IS APPLIED to Supabase.
-- [x] /setup - eight-screen wizard. Registration now lands here, not on /.
-- [x] Dashboard checklist for whatever was skipped, dismissable for good.
-- [x] The tour walks real pages now: 18 steps, 8 chapters, 7 routes.
-- [x] Settings -> Account -> "Getting started": re-open setup, replay the tour.
-- [x] `/settings?tab=ai` deep-links a settings tab. Nothing could before.
-- [ ] Nobody has clicked through it. The wizard WRITES on every step and only
-      its reads were exercised - saveSetupProfile, saveSetupYear, the AI key box
-      and the block builder have never run against a real click.
+- [x] lib/ai-context.ts - the context layer. THIS is the feature.
+- [x] /ai rebuilt: greeting, computed recommendation, one input, five modes,
+      context indicator, recent sessions.
+- [x] ChatSession gained `mode` and `subject`; migrations both dialects, applied
+      to Supabase.
+- [x] /tutor and /notes-ai redirect. ~4,900 lines of old AI UI deleted.
+- [x] Levi's old AI data wiped at his instruction (26 chats, 98 messages, 12
+      modules, 7 quiz attempts, 15 AI notes). NO OTHER ACCOUNT HAD ANY - checked
+      before and re-checked inside the delete script.
+- [x] Admin console at /admin + /admin/users/[id], gated, verified against a
+      real non-admin account.
+- [x] scripts/make-admin.mjs for the bootstrap problem.
+- [ ] PHASE 2 of AI Study: structured Learn / Practice / Mock exam / Review.
+      Right now those modes are the same chat with different instructions.
+- [ ] Nobody has sent a real message through AI Study. Rendering is verified;
+      an actual round trip to Gemini is not.
 
 ## Working Notes
 
-WHAT WAS ACTUALLY WRONG. Registration created a user, a UserProgress, and a
-silent "Year 1 / Term 1" nobody chose - then `router.push('/')`. Everything the
-app runs on was left for the user to discover: the year is theirs to name, the
-whole schedule is generated from a recurring week they have to define, subjects
-come first because homework/exams/marks all hang off them, and every AI feature
-is inert until a key is saved. Nothing anywhere said so.
+WHAT WAS ACTUALLY WRONG WITH THE AI. The entire system instruction was "You are
+a helpful study buddy... Today's date is X." That is all the model was ever
+told. So the one question a study assistant exists for - what should I do right
+now - could only be answered by asking the student to describe their own
+timetable back to it. Three pages made it worse by making them choose a product
+first. lib/ai-context.ts is the fix and everything else is packaging.
 
-THE ONE DESIGN DECISION WORTH KEEPING. Onboarding stores exactly one piece of
-state: `setupCompletedAt`, meaning "the checklist has been dismissed for good",
-written ONLY by the checklist's X. Leaving the wizard writes nothing at all -
-neither skipping out of it nor finishing it - because whatever was skipped has
-to keep being offered, and the checklist is where. It removes itself once
-nothing is outstanding, so a user who answers everything never meets it.
-Whether any individual step is DONE is derived from the data it would have
-created - a subject row, a template row, a saved key. So the checklist cannot congratulate you for a
-subject you later deleted, and someone who skips the wizard and does the work by
-hand ends up in the identical state. The corollary: items whose absence cannot
-be PROVEN are not on the checklist at all. "Year 1" is both the default nobody
-chose and a correct answer for a first-year, and no query separates those - so
-the year name is a wizard step and never a checklist nag. One false item and the
-user stops believing all of them.
+THREE RULES IN ai-context.ts, DO NOT BREAK THEM:
+  - Scoped to the caller's own userId AND current class/term, through the same
+    scope helpers as the rest of the app. Two students on one deployment must
+    never see a trace of each other.
+  - NOTE TITLES, NEVER BODIES. A term of notes would blow the context window and
+    cost real money per message. The model is told what exists and asks for one
+    by name.
+  - Weak areas come from getInsightsData, not a second calculation. Two answers
+    to "which subject am I behind on" would eventually disagree and the student
+    would have no way to tell which was lying.
 
-THE WIZARD WRITES THROUGH THE ORDINARY ACTIONS. addSubject, createTemplate,
-saveAIKey, replaceSchoolTimetable, and the same Class/Term updates /year makes.
-lib/setup-actions.ts only adds validation and the two composite writes
-(saveSetupProfile, saveSetupYear). Do not give it storage of its own.
+THE RECOMMENDATION IS COMPUTED, NOT GENERATED, and that is deliberate: instant,
+free, and it works for a student with no API key - who is exactly the student
+most in need of being told where to start. Rules are ordered by what a miss
+costs: exam inside a week > homework inside two days > weak subject they have
+been avoiding > whatever is already on today.
 
-TWO TRAPS FOUND WHILE BUILDING, both still live:
-  - A future term start date stops the schedule dead (getScheduleState ->
-    TERM_NOT_STARTED) and the dashboard goes empty with no explanation. The
-    wizard returns a `warning` (not an error) when you type one. Anywhere else
-    that sets a start date has the same hole.
-  - `next dev` REFUSES a second instance in the same directory in Next 16, and
-    "Study Tracker.exe" (the packaged desktop app) sits on 127.0.0.1:3000. So a
-    schema change means restarting Levi's dev server - the running one keeps the
-    old Prisma client in memory and every page 500s on the unknown column. Ask
-    first; it was asked this time.
+MODE INSTRUCTIONS ARE WRITTEN AS CONSTRAINTS. "Be a good tutor" produces a wall
+of text; "explain ONE idea, ask ONE question, then STOP" produces a lesson. The
+negative instructions are the ones doing the work. EXAM mode is the strict one -
+no hints, no encouragement, no telling them whether an answer was right until
+the paper is marked.
 
-THE TOUR, AND WHY IT WAS REBUILT RATHER THAN EDITED. The old one was a single
-overlay pinned to the dashboard that TALKED about the weekly timetable, the
-year, marks and the AI without going to any of them - a user finished it having
-seen one screen and been told about six. Now each step in
-components/onboarding/tour-steps.ts names a route, and the engine navigates
-there, waits for the anchor to actually exist, then spotlights it.
+KNOWN GAP, WRITTEN DOWN SO IT IS NOT REDISCOVERED AS A BUG: deleting the tutor
+took the only writer of QuizAttempt with it, so the quiz component of the weak
+area signal is dark. Completion rate, mastery and grades still feed it. Phase 2's
+Practice mode must record attempts again.
 
-  The waiting is the hard part. A route change renders on the server, so the
-  anchor is hundreds of ms away; and /history renders a skeleton until
-  `mounted` flips, so its anchor does not exist in the SSR HTML at all. The
-  engine polls every 120ms for up to 4s, shows "Opening /manage..." meanwhile,
-  and degrades to a centred card with a dev-only console warning. That warning
-  is the only thing that will ever tell you an anchor has rotted - a missing
-  one looks deliberate.
+THE ADMIN CONSOLE'S ONE RULE: every function in lib/admin-actions.ts calls
+requireAdmin() ITSELF. Not the page, not a layout - each function, every time. A
+server action is an HTTP endpoint anyone can call with any arguments; guarding
+the route and trusting the actions would let any signed-in student read every
+other student's notes by calling getAdminUser with a guessed id. This was
+verified with a second real account, not by reading the code: kenny gets a
+not-found page with zero user data and no admin link anywhere in his UI.
 
-  `measured` is tagged with the step id on purpose. Untagged, there is a frame
-  where the new step's card sits over the old step's spotlight. It also keeps
-  every setState out of an effect body, which the eslint config errors on.
+Levi chose FULL content access for admins over metadata-only, knowing what it
+means. The page says whose account is open, and content loads only when a tab is
+clicked rather than silently on arrival. Admin cannot self-demote or self-delete
+- that is how a deployment ends up with no administrator.
 
-NEXT STEP ON RESUME: click through /setup end to end in a browser as a brand-new
-account, then let the tour run to the last step. The writes are what have not
-been exercised. After that, commit.
+NEXT STEP ON RESUME: send a real message through AI Study with a live key and
+confirm the context block lands (the indicator on the page shows exactly what is
+sent). Then Phase 2.
+
 
 ## STILL OUTSTANDING FROM THE PREVIOUS TASK (sync, Phase 9)
 Phase 9 is built and committed (18c2787); 1.0.3 is published at
@@ -1923,6 +1923,8 @@ Scoping map for Phase 1:
 - Windows: prisma generate throws EPERM while the dev server is running.
 
 ## Recently Completed
+- Onboarding: /setup wizard, dashboard checklist, rewritten multi-page tour;
+  desktop 1.0.4 built and pushed (2026-09-09)
 - Desktop 1.0.3 published; installer stopped shipping private uploads (2026-09-09)
 - Automatic sync on every change, with notifications (2026-09-09)
 - Phase 9 stages 2-5: the sync engine, desktop and web (2026-09-09)

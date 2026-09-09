@@ -3,7 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Lock, PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react";
+import { Lock, PanelLeftClose, PanelLeftOpen, Plus, ShieldCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { NAV, NavSection, resolveNav } from "@/lib/nav";
@@ -46,12 +46,29 @@ const pinOnServer = () => false;
  * real virtue - any sub-page is reachable without first navigating into its
  * section - without the flyout's dead zones between rail and panel.
  */
+/**
+ * The admin console's rail entry.
+ *
+ * Deliberately NOT in lib/nav.ts. That list feeds the command palette, which
+ * every account can open, and a route only admins can use should not announce
+ * itself to everyone who types "ad". The page 404s for a non-admin regardless -
+ * this just keeps it out of sight as well as out of reach.
+ */
+const ADMIN_SECTION: NavSection = {
+  name: "Admin",
+  href: "/admin",
+  icon: ShieldCheck,
+};
+
 export function Sidebar({
   userProgress,
   subjects,
+  isAdmin = false,
 }: {
   userProgress: UserProgress | null;
   subjects: { id: string; name: string }[];
+  /** Adds the admin console to the rail. Everyone else never sees it exists. */
+  isAdmin?: boolean;
 }) {
   const pathname = usePathname();
   const activeSection = resolveNav(pathname)?.section;
@@ -195,6 +212,19 @@ export function Sidebar({
               onPoint={() => setPointedSection(section.name)}
             />
           ))}
+
+          {/* Not part of NAV: the command palette indexes that list, and an
+              admin route should not be discoverable by everyone typing "a". */}
+          {isAdmin && (
+            <RailItem
+              section={ADMIN_SECTION}
+              pathname={pathname}
+              expanded={expanded}
+              isActive={pathname?.startsWith("/admin") ?? false}
+              showChildren={false}
+              onPoint={() => setPointedSection(null)}
+            />
+          )}
         </nav>
 
         {userProgress && (

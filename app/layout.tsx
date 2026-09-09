@@ -9,6 +9,7 @@ import { syncStreak } from "@/lib/actions";
 import { listSubjects } from "@/lib/subject-actions";
 import { getActiveScope, getViewScope } from "@/lib/scope";
 import type { ArchiveView } from "@/components/ArchiveContext";
+import { isCurrentUserAdmin } from "@/lib/admin-actions";
 import { FocusProvider } from "@/lib/FocusContext";
 import { Toaster } from "sonner";
 
@@ -23,9 +24,14 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const userId = await getUserId();
-  const [userProgress, subjects, viewScope] = userId
-    ? await Promise.all([syncStreak(), listSubjects(), getViewScope(userId)])
-    : [null, [], null];
+  const [userProgress, subjects, viewScope, isAdmin] = userId
+    ? await Promise.all([
+        syncStreak(),
+        listSubjects(),
+        getViewScope(userId),
+        isCurrentUserAdmin(),
+      ])
+    : [null, [], null, false];
 
   // The active year's label is only needed for the way out of an archive, and
   // costs a second query - so it is only fetched when an archive is actually
@@ -74,6 +80,7 @@ export default async function RootLayout({
               userProgress={userProgress}
               subjects={subjects}
               archive={archive}
+              isAdmin={isAdmin}
             >
               {children}
             </AppShell>
