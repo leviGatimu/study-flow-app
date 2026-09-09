@@ -25,7 +25,7 @@ export default async function SchoolTimetablePage() {
   return (
     <div className="space-y-10 max-w-[1600px] mx-auto px-4 md:px-8 pb-16">
       <div className="pt-6 pb-2 border-b border-border/40 flex items-center justify-between gap-6">
-        <div>
+        <div data-tour="school-timetable-intro">
           <h1 className="text-3xl font-heading font-semibold tracking-tight text-foreground">
             School Timetable
           </h1>

@@ -36,7 +36,7 @@ export default async function SubjectsPage() {
     <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto animate-in fade-in duration-500 pb-16">
       {/* Hero */}
       <section className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-8 pt-10 pb-6 border-b border-border/40">
-        <div>
+        <div data-tour="subjects-hero">
           <h1 className="text-4xl font-heading font-bold tracking-tight text-foreground">
             Subjects Hub <span className="text-primary font-bold text-2xl opacity-80">({subjects.length})</span>
           </h1>

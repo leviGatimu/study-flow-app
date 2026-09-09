@@ -116,13 +116,13 @@ export function ManageClient({ initialTemplates, subjects }: ManageClientProps) 
     <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto animate-in fade-in duration-500 pb-16 px-4 md:px-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-10">
-        <div>
+        <div data-tour="manage-intro">
           <h1 className="text-2xl font-heading font-bold tracking-tight text-foreground">Manage Schedule</h1>
           <p className="text-sm text-muted-foreground mt-2 max-w-xl">
             Define and coordinate your recurring classes, homework sessions, and revision blocks.
           </p>
         </div>
-        <div className="shrink-0">
+        <div className="shrink-0" data-tour="manage-add">
           <ManageForm subjects={subjects} />
         </div>
       </div>

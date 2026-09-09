@@ -93,6 +93,8 @@ export function YearClient({
       />
 
       <div className="space-y-8">
+        {/* data-tour: the guided tour stops here to explain years and terms. */}
+        <div data-tour="year-active">
         {active ? (
           <ActiveYear
             cls={active}
@@ -104,6 +106,7 @@ export function YearClient({
         ) : (
           <NewYear isPending={isPending} run={run} readOnly={archive !== null} />
         )}
+        </div>
 
         <Section
           title="Finished years"

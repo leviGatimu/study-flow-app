@@ -40,7 +40,7 @@ export function AppShell({
   return (
     <ArchiveProvider value={archive}>
       <div className="flex h-full w-full">
-        <OnboardingTour />
+        <OnboardingTour hasOnboarded={!!userProgress?.onboardedAt} />
         <CommandMenu />
         {/* Headless. Watches for work arriving from another device, refreshes
             the page under you and says so. Does nothing on the web build. */}

@@ -279,7 +279,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
 
       {/* Page Header */}
       <div className="pt-6 pb-2 border-b border-border/40 flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-1">
+        <div className="space-y-1" data-tour="history-intro">
           <h1 className="text-2xl font-heading font-bold tracking-tight text-foreground">Activity Analytics</h1>
           <p className="text-sm text-muted-foreground">
             Evaluate your study trends, filters, and logs of completed work.
