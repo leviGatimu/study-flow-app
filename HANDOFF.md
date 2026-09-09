@@ -1,34 +1,121 @@
 # HANDOFF
 
 ## Current Task
-SHIP 1.0.2 TO THE DESKTOP UPDATE CHANNEL - DONE (2026-09-08). Levi: "push
-changes and ensure i can get new changes on the desktop app". The branch was
-already on GitHub; what was missing was the version-bump commit (672f171) and
-the release itself. v1.0.2 is now published with both assets - see "UPDATE
-CHANNEL" below. Next step is Levi's, not mine: open the installed app,
-Settings -> Desktop app -> Check for updates, and confirm it downloads and
-restarts into 1.0.2.
+PHASE 9 - TWO-WAY SYNC. Levi, 2026-09-09: "it was working on the sync with
+desktop app using sqlite fetching from supabase but still usable offline, so
+both web and desktop are on sync". That settles the open question from
+2026-09-08: option (c), the local-first sync engine, not "point the desktop at
+Supabase".
 
-OPEN QUESTION, NOT YET DECIDED. Levi, right after the build: "The issue i have
-with desktop app it aint like same as web one if i create assignment i cant see
-it on web one, so what i think we can do is just have desktop app fetch its data
-from supabase like the web one sadly". That is Phase 9's problem arriving early.
-Three shapes, unpicked:
-  a) desktop points DATABASE_URL at Supabase. Smallest diff, but it ships a
-     Postgres credential inside a public installer - every user would hold
-     read/write on EVERYONE's data, and the app dies without internet at
-     ~150-200ms per query from Kigali to fra1. Do not do this as-is.
-  b) desktop stops running its own Next server and talks to the deployed web
-     app over HTTP with the user's session cookie. One source of truth, no
-     credential shipped, still online-only.
-  c) Phase 9 sync, the local-first answer that was always the destination.
-     Stage 0 (identity map + hazard tests) is already done.
+  Stage 0  identity map + two-device harness            DONE (2026-09-06)
+  Stage 1  soft deletes, so a deletion can travel       DONE (2026-09-09)
+  Stage 2  /api/sync push+pull, cursor on SERVER time   NEXT
+  Stage 3  merge rules (LWW, natural keys, deletions)
+  Stage 4  offline auth - the desktop must open on a plane
+  Stage 5  file sync
 
-ALSO STILL PENDING from the Supabase -> desktop import: the four new classId
+STAGE 1 IS DONE AND COMMITTED (edba20c, on top of 9069bbe). Every model already
+had a deletedAt column and 42 queries already filtered on it, but nothing ever
+WROTE one - all 45 delete call sites removed the row outright, which is fine for
+one database and fatal for two: a row that simply vanishes is indistinguishable
+from a row the other device has not seen yet, so syncing would resurrect
+everything you deleted.
+
+  lib/soft-delete.ts    softDeleteExtension() filters every READ centrally
+                        (a hundred-odd read sites across ten files, none of
+                        which can be trusted to remember); softDelete() is an
+                        explicit helper for WRITES, so a delete that means
+                        something else cannot hide; SOFT_DELETE_CASCADES
+                        reproduces the 49 ON DELETE CASCADE relations by hand,
+                        because the database has no idea a soft delete happened;
+                        purgeTombstones() + TOMBSTONE_RETENTION_DAYS = 90.
+  INCLUDE_DELETED       the one load-bearing opt-out: ensureTasksGenerated must
+                        SEE deleted tasks or every block you removed comes back
+                        tomorrow.
+  instrumentation.ts    desktop sweeps expired tombstones on launch.
+  scripts/purge-tombstones.mjs  the web side, run deliberately (--dry-run,
+                        --days N). Vercel cannot sweep from a startup hook: it
+                        runs per serverless instance.
+  test/sync/soft-delete.test.mjs  including a drift test that fails if a raw
+                        .delete()/.deleteMany() appears outside the allow-list.
+
+TWO THINGS THE CONVERSION TURNED UP, both fixed:
+  - Nested includes are OUT OF THE EXTENSION'S REACH - it can only narrow a
+    top-level where. /subjects was still showing grades from deleted report
+    cards. If you add an `include`, filter it yourself.
+  - The drift test's regex said `deleteMany?`, which matches "deleteMan" and let
+    every single-row .delete() through. Now `delete(?:Many)?`.
+
+KNOWN AND ACCEPTED: importUserData still hard-deletes (9 sites, allow-listed).
+Restoring a backup means "replace what is here", and tombstoning a whole
+account's history on every restore would keep every generation forever. The cost
+is that a restore is invisible to sync - the server never learns those rows went
+away - so A RESTORE MUST BE FOLLOWED BY A FULL RE-SYNC, NOT A DELTA ONE. Handle
+this in Stage 2 or 3.
+
+STAGE 2 STARTS HERE. The transport is decided (see "PHASE 9" below): outbox,
+push+pull against /api/sync, cursor on SERVER time because client clocks lie.
+Everything it needs now exists - identity map, harness, tombstones.
+
+STILL PENDING from the 2026-09-08 Supabase -> desktop import: the four classId
 columns are NULL on every imported desktop row, so those rows vanish from both
-years until a repair pass runs on the desktop database. The previous session's
-throwaway repair script is gone with its scratchpad; scripts/backfill-class-scope.mjs
-is the same logic and only needs pointing at the SQLite client.
+years until a repair pass runs on the DESKTOP database.
+scripts/backfill-class-scope.mjs is the right logic and only needs pointing at
+the SQLite client.
+
+## Also done 2026-09-09: the school timetable is per-user now
+
+Levi: "clear school portal data on everyone page they are getting same school
+portal data for some reason". The cause was not a query bug. `SCHOOL_DATA` in
+components/SchoolTimetable.tsx was a hardcoded array - Levi's real school week -
+imported directly by the dashboard status card, the lesson notifier and
+/timetable. Every account saw it, and only a code change could alter it.
+
+  prisma  SchoolLesson: userId + nullable classId (both ON DELETE CASCADE),
+          dayOfWeek 0=Sunday like ScheduleTemplate, startTime/endTime "HH:MM",
+          subject, isBreak, plus createdAt/updatedAt/deletedAt.
+          20260909000000_school_lesson APPLIED TO PRODUCTION. The SQLite twin is
+          hand-written (additive CREATE TABLE, no RedefineTables - same rule the
+          rest of that history follows); `db:sqlite:migration` prints "This is an
+          empty migration", so there is no drift.
+  lib/school.ts         lessonAt / nextLessonAfter / schoolDayBounds /
+                        lessonsOn / toMinutes. "Which lesson is on now" existed
+                        in three copies; intervals are half-open so two lessons
+                        cannot both light up at a changeover.
+  lib/school-actions.ts CRUD + replaceSchoolTimetable + extractSchoolTimetable.
+                        updateSchoolLesson uses updateMany filtered by userId -
+                        `where: { id }` alone is the exact hole found on subject
+                        grades and flashcard reviews. Times are validated
+                        against /^([01]\d|2[0-3]):[0-5]\d$/ at the boundary
+                        because every consumer compares these strings rather
+                        than parsing them, so "9:00" would sort wrong silently.
+  /school -> /school-timetable, and NO LONGER ADMIN-ONLY. There is nothing to
+          restrict once the page shows you your own week. Upload a photo (or
+          PDF/DOCX) -> the model reads it -> an EDITABLE review list -> nothing
+          is written until you press the button. Unreadable rows are dropped AND
+          COUNTED, so the screen says "3 rows could not be read" rather than
+          showing a lesson at the wrong time.
+  components/useTimetableSync.ts   the lesson-tracking flag was two localStorage
+          effects that could disagree about what "unset" means; now one
+          useSyncExternalStore hook, the same pattern as the sidebar pin.
+  /timetable  the "School Hours" band was two constants (07:30-17:20 Mon-Fri,
+          08:00-14:00 Sat) drawn on everyone's week. It is now the span of the
+          user's own first and last lesson, and a day with none draws nothing.
+  NotificationManager  was comparing wall-clock time while the card beside it
+          used the user's configured timezone. Now getRwandaTime for both. NOTE
+          it is still not mounted anywhere - same standing question as
+          ReminderManager: wire it up or delete it.
+
+VERIFIED AGAINST THE LIVE DATABASE: levi has 44 lessons in Year 2; kenny, John,
+Brian, Briann and Neymar have none, so their dashboards, week views and portals
+show nothing. /school-timetable renders levi's week with the upload and add
+controls, /timetable draws one derived band and no 08:00 Saturday, and /school
+is a 404. NOT VISUALLY CONFIRMED - see the loopback note below; Levi has to look
+at it himself.
+
+scripts/seed-school-lessons.mjs moved Levi's hardcoded 44 lessons into his own
+account. ONE-OFF and idempotent. Nobody else should ever be seeded with it. Run
+it against the desktop database too, with DATABASE_URL pointing at the file.
 
 ## Previously (same day)
 ACADEMIC YEAR SCOPING (2026-09-08). Levi: "i hate that we still got some year 1
@@ -1795,6 +1882,8 @@ Scoping map for Phase 1:
 - Windows: prisma generate throws EPERM while the dev server is running.
 
 ## Recently Completed
+- Phase 9 Stage 1: every delete leaves a tombstone (2026-09-09)
+- School timetable is per-user, uploaded from a photo; /school -> /school-timetable (2026-09-09)
 - Sidebar: 64px icon rail that opens to 240px on hover, on keyboard focus, or
   permanently once pinned (2026-09-08). Unpinned the open panel is absolutely
   positioned OVER the page and the aside keeps reserving 64px - widening in
