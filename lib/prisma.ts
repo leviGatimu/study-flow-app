@@ -1,4 +1,5 @@
 import { PrismaClient } from '../node_modules/.prisma/client-custom-v8';
+import { softDeleteExtension } from './soft-delete';
 
 /**
  * A single PrismaClient for the whole process.
@@ -17,7 +18,14 @@ import { PrismaClient } from '../node_modules/.prisma/client-custom-v8';
  */
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-export const prisma =
+/**
+ * The connection pool is cached; the extension is not.
+ *
+ * $extends returns a new façade over the SAME pool, so re-applying it on every
+ * module evaluation costs nothing, while the base client underneath stays the
+ * single cached instance the note above is about.
+ */
+const base =
   globalForPrisma.prisma ??
   new PrismaClient(
     process.env.PRISMA_LOG === '1'
@@ -26,8 +34,14 @@ export const prisma =
   );
 
 if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
+  globalForPrisma.prisma = base;
 }
+
+/**
+ * Reads never see tombstoned rows. See lib/soft-delete.ts for why this is
+ * central rather than per call site, and for the write half of the story.
+ */
+export const prisma = base.$extends(softDeleteExtension());
 
 /**
  * True when this build is talking to the desktop's local SQLite file rather
