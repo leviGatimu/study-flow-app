@@ -221,6 +221,16 @@ export function WelcomeClient({
                   {link.label}
                 </a>
               ))}
+              {/* The installer, from the top bar. Someone who came here to get
+                  the app should not have to scroll to the desktop section and
+                  find it under a paragraph. */}
+              <a
+                href={downloadUrl}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 transition-all hover:text-slate-900 dark:hover:text-white"
+              >
+                <Download size={15} />
+                Download
+              </a>
               <Link href="/login" className="text-sm font-medium text-slate-600 dark:text-slate-300 transition-all hover:text-slate-900 dark:hover:text-white">
                 Log in
               </Link>
@@ -253,6 +263,14 @@ export function WelcomeClient({
                   {link.label}
                 </a>
               ))}
+              <a
+                href={downloadUrl}
+                className="inline-flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-slate-50"
+                onClick={() => setMenuOpen(false)}
+              >
+                <Download size={18} />
+                Download for Windows
+              </a>
               <Link href="/login" className="text-lg font-semibold text-slate-900 dark:text-slate-50" onClick={() => setMenuOpen(false)}>
                 Log in
               </Link>

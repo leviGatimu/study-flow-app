@@ -37,7 +37,19 @@ export function SyncPanel() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [serverUrl, setServerUrl] = useState('https://study-flow-app.vercel.app');
+  /**
+   * The address of the website this desktop install syncs with.
+   *
+   * This default was WRONG and it is the whole reason pairing failed with "The
+   * server refused the sign-in (405)". study-flow-app.vercel.app is not this
+   * app - it is some other project on Vercel, which answers 405 to a POST it
+   * has no route for. The deployment is study-tracker-two-tau.vercel.app.
+   *
+   * A 405 here always means this: the address points at something that is not
+   * Study Flow. A wrong password gives 401, an unreachable host gives a network
+   * error, and this build talking to itself gives 400.
+   */
+  const [serverUrl, setServerUrl] = useState('https://study-tracker-two-tau.vercel.app');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 

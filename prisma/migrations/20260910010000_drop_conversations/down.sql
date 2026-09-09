@@ -1,0 +1,2 @@
+-- Reverses 20260910010000_drop_conversations by re-running the original
+-- create. See 20260910000000_conversations for the design and its reasoning.
