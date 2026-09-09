@@ -57,6 +57,41 @@ STAGE 2 STARTS HERE. The transport is decided (see "PHASE 9" below): outbox,
 push+pull against /api/sync, cursor on SERVER time because client clocks lie.
 Everything it needs now exists - identity map, harness, tombstones.
 
+### The one thing Stage 2 has to decide first (found 2026-09-09)
+
+"LWW on updatedAt, cursor on SERVER time" needs TWO different timestamps, and
+the schema only has one.
+
+  updatedAt is written by whichever CLIENT made the edit (Prisma's @updatedAt
+  uses the writing process's clock). That is the right value to resolve a
+  conflict with - it is when the user actually made the change.
+
+  The pull cursor cannot use it. A device that has been offline since Tuesday
+  asks "what changed since my cursor", and a row edited on another device with a
+  slow clock would carry an updatedAt BEHIND that cursor and never be sent. The
+  cursor has to be a value the SERVER assigns, monotonically, on arrival.
+
+Three shapes, and the first looks right:
+
+  a) Add `syncedAt DateTime?` to the 17 synced models, indexed, set by the
+     server: on the web build a Prisma extension stamps it on every create and
+     update, and /api/sync stamps it on every row it accepts from a device. Pull
+     is then `where syncedAt > cursor order by syncedAt`. One migration on each
+     provider, additive, and it leaves updatedAt free to mean what it means.
+  b) Overwrite updatedAt with server time when the server accepts a row. No new
+     column, but it destroys the edit time, so LWW then compares ARRIVAL order:
+     a device that edited at 10:00 and synced at 18:00 beats one that edited at
+     12:00 and synced at 12:01. Wrong, and unrecoverably so.
+  c) A server-side SyncLog(seq, model, rowId) appended on accept. Cheap for
+     pushed rows, but web writes go straight to Postgres through lib/actions.ts,
+     so it needs the same client extension as (a) - and then it is (a) plus an
+     extra table.
+
+Whichever is chosen, note that a restore from backup hard-deletes (see the
+allow-list above) and is therefore INVISIBLE to a delta pull. Stage 2 needs a
+"full re-sync" path, or importUserData needs to bump a per-user epoch that
+forces one.
+
 STILL PENDING from the 2026-09-08 Supabase -> desktop import: the four classId
 columns are NULL on every imported desktop row, so those rows vanish from both
 years until a repair pass runs on the DESKTOP database.
