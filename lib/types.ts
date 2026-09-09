@@ -33,8 +33,15 @@ export type ChatSessionWithMessages = ChatSession & {
  * /history, /ranks, /streak and /exams - none of which ever read them. Type
  * every client-facing prop as this, so re-introducing the leak fails to
  * compile rather than going unnoticed.
+ *
+ * syncedAt is dropped for a different reason: it is sync plumbing, meaningless
+ * to any screen, and selecting it everywhere just to satisfy the type would
+ * spread the engine's bookkeeping across the whole UI.
  */
-export type SafeUserProgress = Omit<UserProgress, 'geminiApiKey' | 'openaiApiKey'>;
+export type SafeUserProgress = Omit<
+  UserProgress,
+  'geminiApiKey' | 'openaiApiKey' | 'syncedAt'
+>;
 
 export {
   type Task,

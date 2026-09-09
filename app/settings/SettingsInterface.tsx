@@ -52,6 +52,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { PWAInstaller } from '@/components/PWAInstaller';
 import { DesktopUpdater, useIsDesktopApp } from '@/components/DesktopUpdater';
+import { SyncPanel } from '@/components/SyncPanel';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/components/ThemeProvider';
 import { format } from 'date-fns';
@@ -873,6 +874,19 @@ export default function SettingsInterface({ initialData }: SettingsInterfaceProp
                   </div>
                 </SettingsSection>
               )}
+
+              {/* Renders nothing on the web build - SyncPanel checks for itself,
+                  rather than being hidden behind isDesktopApp, because the thing
+                  that decides is which DATABASE this server is talking to, and
+                  only the server knows that. */}
+              <SettingsSection
+                title="Sync with the website"
+                description="Work offline here; catch up when you reconnect"
+              >
+                <div className="px-4 py-3">
+                  <SyncPanel />
+                </div>
+              </SettingsSection>
             </div>
           )}
 

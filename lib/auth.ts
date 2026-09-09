@@ -89,3 +89,27 @@ export const getUserId = cache(async function getUserId(): Promise<string | null
     return userId;
   }
 });
+
+/**
+ * The same session, presented as a bearer token instead of a cookie.
+ *
+ * A desktop install syncing to the web app has no browser and therefore no
+ * cookie jar, so /api/sync accepts `Authorization: Bearer <token>` - the very
+ * token /api/sync/session issues, verified by the same secret, meaning the same
+ * thing. Returns null for anything it cannot verify; the caller decides whether
+ * to fall back to the cookie.
+ *
+ * Note what this deliberately does NOT do: check the user still exists. That
+ * check belongs to getUserId, which the route calls next, and duplicating it
+ * here would mean two round trips for one request.
+ */
+export async function userIdFromBearer(header: string | null): Promise<string | null> {
+  if (!header?.startsWith('Bearer ')) return null;
+  try {
+    const { payload } = await jwtVerify(header.slice(7).trim(), SECRET);
+    const userId = payload.userId;
+    return typeof userId === 'string' && userId ? userId : null;
+  } catch {
+    return null;
+  }
+}

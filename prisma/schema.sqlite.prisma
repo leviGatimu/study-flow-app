@@ -42,9 +42,20 @@ model User {
   playlists       Playlist[]
   updatedAt       DateTime           @default(now()) @updatedAt
   deletedAt       DateTime?
+  /// When the SERVER last had this version of the row.
+  ///
+  /// Two meanings, one column, and the difference is the whole engine:
+  ///   on the server it is the write time, and the pull cursor orders by it;
+  ///   on a device it is the server's stamp for the version last exchanged,
+  ///   and NULL means "this row has local changes the server has not seen".
+  /// A device therefore never compares its own clock with the server's - it
+  /// asks "is syncedAt null", which no amount of clock skew can get wrong.
+  syncedAt        DateTime?
   classes         Class[]
   xpEvents        XpEvent[]
   schoolLessons   SchoolLesson[]
+
+  @@index([syncedAt])
 }
 
 /// Every XP grant that has ever happened, append-only.
@@ -81,9 +92,11 @@ model XpEvent {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now()) @updatedAt
   deletedAt DateTime?
+  syncedAt  DateTime?
 
   @@unique([userId, sourceKey])
   @@index([userId, createdAt])
+  @@index([syncedAt])
 }
 
 model Song {
@@ -127,10 +140,12 @@ model ReportCard {
   updatedAt      DateTime       @updatedAt
   grades         SubjectGrade[]
   deletedAt      DateTime?
+  syncedAt       DateTime?
   termId         String?
   termRef        Term?          @relation(fields: [termId], references: [id], onDelete: Cascade)
 
   @@index([termId])
+  @@index([syncedAt])
 }
 
 model SubjectGrade {
@@ -144,12 +159,14 @@ model SubjectGrade {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @default(now()) @updatedAt
   deletedAt    DateTime?
+  syncedAt     DateTime?
   /// Denormalised from reportCard.termRef.classId so a grade can be filtered by
   /// academic year without joining through ReportCard and Term on every read.
   classId      String?
   class        Class?     @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@index([classId])
+  @@index([syncedAt])
 }
 
 model Homework {
@@ -167,10 +184,12 @@ model Homework {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
+  syncedAt    DateTime?
   termId      String?
   termRef     Term?     @relation(fields: [termId], references: [id], onDelete: Cascade)
 
   @@index([termId])
+  @@index([syncedAt])
 }
 
 model StudioNote {
@@ -182,11 +201,13 @@ model StudioNote {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+  syncedAt  DateTime?
   classId   String?
   class     Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@unique([userId, subject])
   @@index([classId])
+  @@index([syncedAt])
 }
 
 model TutorModule {
@@ -301,10 +322,12 @@ model ScheduleTemplate {
   tasks       Task[]
   updatedAt   DateTime  @default(now()) @updatedAt
   deletedAt   DateTime?
+  syncedAt    DateTime?
   classId     String?
   class       Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@index([classId])
+  @@index([syncedAt])
 }
 
 /// One period in the user's SCHOOL day - the lessons they attend, not the study
@@ -339,12 +362,14 @@ model SchoolLesson {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now()) @updatedAt
   deletedAt DateTime?
+  syncedAt  DateTime?
 
   classId String?
   class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@index([userId, dayOfWeek])
   @@index([classId])
+  @@index([syncedAt])
 }
 
 model Task {
@@ -365,6 +390,7 @@ model Task {
   proofPdfUrl     String? // Added for PDF proof of work
   updatedAt       DateTime          @default(now()) @updatedAt
   deletedAt       DateTime?
+  syncedAt        DateTime?
   termId          String?
   termRef         Term?             @relation(fields: [termId], references: [id], onDelete: Cascade)
 
@@ -376,6 +402,7 @@ model Task {
 
   @@index([examId])
   @@index([termId])
+  @@index([syncedAt])
 }
 
 model MarkedDay {
@@ -385,11 +412,13 @@ model MarkedDay {
   date      DateTime
   updatedAt DateTime  @default(now()) @updatedAt
   deletedAt DateTime?
+  syncedAt  DateTime?
   termId    String?
   termRef   Term?     @relation(fields: [termId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@index([termId])
+  @@index([syncedAt])
 }
 
 model UserProgress {
@@ -416,6 +445,9 @@ model UserProgress {
   timezone          String    @default("Africa/Kigali") // IANA timezone used for "today" math, the clock, and greetings
   updatedAt         DateTime  @default(now()) @updatedAt
   deletedAt         DateTime?
+  syncedAt          DateTime?
+
+  @@index([syncedAt])
 }
 
 model Resource {
@@ -429,10 +461,12 @@ model Resource {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now()) @updatedAt
   deletedAt DateTime?
+  syncedAt  DateTime?
   classId   String?
   class     Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@index([classId])
+  @@index([syncedAt])
 }
 
 model ExamEvent {
@@ -469,11 +503,13 @@ model ExamEvent {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now()) @updatedAt
   deletedAt     DateTime?
+  syncedAt      DateTime?
   termId        String?
   termRef       Term?     @relation(fields: [termId], references: [id], onDelete: Cascade)
 
   @@index([subjectId])
   @@index([termId])
+  @@index([syncedAt])
 }
 
 model WeeklySummary {
@@ -524,10 +560,12 @@ model MasteryItem {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @default(now()) @updatedAt
   deletedAt   DateTime?
+  syncedAt    DateTime?
   classId     String?
   class       Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@index([classId])
+  @@index([syncedAt])
 }
 
 model StickyNote {
@@ -575,11 +613,13 @@ model SubjectGoal {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
+  syncedAt    DateTime?
   classId     String?
   class       Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@unique([userId, subject])
   @@index([classId])
+  @@index([syncedAt])
 }
 
 model Subject {
@@ -590,12 +630,14 @@ model Subject {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
   deletedAt DateTime?
+  syncedAt  DateTime?
   classId   String?
   class     Class?      @relation(fields: [classId], references: [id], onDelete: Cascade)
   exams     ExamEvent[]
 
   @@unique([userId, name])
   @@index([classId])
+  @@index([syncedAt])
 }
 
 /// An academic year (what Levi calls a "class"): Year 1, S6, Level 300.
@@ -629,6 +671,7 @@ model Class {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now()) @updatedAt
   deletedAt DateTime?
+  syncedAt  DateTime?
 
   terms             Term[]
   scheduleTemplates ScheduleTemplate[]
@@ -647,6 +690,7 @@ model Class {
   schoolLessons     SchoolLesson[]
 
   @@index([userId, status])
+  @@index([syncedAt])
 }
 
 /// A term within a class. Dates only ever prompt ("Term 2 ends today"); they
@@ -671,6 +715,7 @@ model Term {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now()) @updatedAt
   deletedAt DateTime?
+  syncedAt  DateTime?
 
   tasks           Task[]
   examEvents      ExamEvent[]
@@ -682,4 +727,46 @@ model Term {
 
   @@unique([classId, index])
   @@index([userId, status])
+  @@index([syncedAt])
+}
+
+/// One row per device, holding where that device got to.
+///
+/// LOCAL ONLY - it never syncs, and on the server it stays empty: the server
+/// has no cursor because it is the thing every device is catching up to.
+///
+/// `cursor` is a value the SERVER produced (the highest syncedAt a pull
+/// delivered), never a local clock reading, which is the entire reason the
+/// cursor survives a device whose clock is wrong.
+model SyncState {
+  id       String @id @default(cuid())
+  userId   String
+  /// Stable per install. Minted on first sync and kept in this row.
+  deviceId String
+
+  /// Highest syncedAt this device has pulled through, and the id it stopped
+  /// on - the pair is the cursor, because many rows can share a millisecond.
+  cursor   DateTime?
+  cursorId String?
+
+  /// Where to sync to, and how this device proves who it is.
+  ///
+  /// The token is a long-lived session for the web app, obtained once by
+  /// signing in at /api/sync/session. It is stored in plain text in the local
+  /// database, which sits in the OS user's own profile directory alongside the
+  /// password hashes it already holds - the same trust boundary, not a new one.
+  /// Anyone who can read this file can already read every note and mark in it.
+  serverUrl String?
+  token     String?
+
+  /// For the UI: when the last full exchange finished, and how it went.
+  lastSyncAt DateTime?
+  lastError  String?
+  lastPushed Int       @default(0)
+  lastPulled Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([userId, deviceId])
 }

@@ -140,6 +140,21 @@ const FILTERABLE_READS = [
 ] as const;
 
 /**
+ * Models that have no `deletedAt` column, and so cannot be filtered.
+ *
+ * The extension applies to $allModels because forgetting to list a model is a
+ * silent data leak, while listing an exception is a compile-visible decision.
+ * SyncState is the only one: it is a device's own bookmark, never synced, never
+ * shown to anyone, and deleting it means "forget where I was" - a tombstone
+ * would be a bookmark that remembers being forgotten.
+ *
+ * Narrowing a query on a column that does not exist throws, so this is load
+ * bearing rather than an optimisation. test/sync/soft-delete.test.mjs re-derives
+ * it from the client's metadata and fails if the schema and this list drift.
+ */
+export const MODELS_WITHOUT_TOMBSTONES = new Set(['SyncState']);
+
+/**
  * True when the caller has already said something about tombstones.
  *
  * A query that asks for deleted rows on purpose - the archive views, the purge
@@ -164,14 +179,18 @@ export function softDeleteExtension() {
     query: {
       $allModels: {
         async $allOperations({
+          model,
           operation,
           args,
           query,
         }: {
+          model?: string;
           operation: string;
           args: Record<string, unknown>;
           query: (args: unknown) => Promise<unknown>;
         }) {
+          if (model && MODELS_WITHOUT_TOMBSTONES.has(model)) return query(args);
+
           if ((FILTERABLE_READS as readonly string[]).includes(operation)) {
             const where = (args?.where ?? {}) as Record<string, unknown>;
             if (!mentionsDeletedAt(where)) {

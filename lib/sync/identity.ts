@@ -269,6 +269,15 @@ export const SYNC_RULES: Record<string, SyncRule> = {
 
   // -------------------------------------------------------------- local only
 
+  syncState: {
+    match: 'LOCAL_ONLY',
+    why:
+      'The bookmark a device keeps of where it got to. Syncing it would hand ' +
+      'every other device its cursor and its token, and a shared cursor is a ' +
+      'contradiction in terms: the whole point is that each device tracks its ' +
+      'own position. Empty on the server, which has no cursor to keep.',
+  },
+
   chatSession: { match: 'LOCAL_ONLY', why: 'AI chat scratchpad; no academic continuity.' },
   chatMessage: { match: 'LOCAL_ONLY', why: 'Unbounded prompt/response text - the heaviest table.' },
   song: { match: 'LOCAL_ONLY', why: 'Real audio files up to 60MB behind audioUrl.' },

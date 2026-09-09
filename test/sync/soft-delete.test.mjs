@@ -64,6 +64,22 @@ describe('the cascade map', () => {
   });
 });
 
+describe('the tombstone-exempt list', () => {
+  test('names exactly the models with no deletedAt column', async () => {
+    const { MODELS_WITHOUT_TOMBSTONES } = await import('../../lib/soft-delete.ts');
+    const without = Prisma.dmmf.datamodel.models
+      .filter((m) => !m.fields.some((f) => f.name === 'deletedAt'))
+      .map((m) => m.name);
+
+    assert.deepEqual(
+      [...MODELS_WITHOUT_TOMBSTONES].sort(),
+      without.sort(),
+      'the read filter narrows on deletedAt, and narrowing on a column that ' +
+        'does not exist throws - so this list is load bearing, not an optimisation'
+    );
+  });
+});
+
 describe('no call site quietly goes back to hard deleting', () => {
   // The read half of soft delete is enforced by the extension and cannot be
   // forgotten. The write half is a helper you have to remember to call, and a

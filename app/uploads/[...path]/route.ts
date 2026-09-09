@@ -2,7 +2,7 @@ import { createReadStream } from 'fs';
 import { stat } from 'fs/promises';
 import { Readable } from 'stream';
 
-import { getUserId } from '@/lib/auth';
+import { getUserId, userIdFromBearer } from '@/lib/auth';
 import { resolveUploadPath, readRemoteUpload } from '@/lib/upload';
 
 /**
@@ -86,7 +86,10 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
-  const userId = await getUserId();
+  // A paired desktop install fetches these too, and it has a bearer token
+  // rather than a cookie. Same session, same secret, different envelope.
+  const userId =
+    (await userIdFromBearer(request.headers.get('authorization'))) ?? (await getUserId());
   if (!userId) return new Response('Unauthorized', { status: 401 });
 
   const { path } = await params;

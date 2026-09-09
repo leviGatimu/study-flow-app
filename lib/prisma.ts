@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from '../node_modules/.prisma/client-custom-v8';
 import { softDeleteExtension } from './soft-delete';
+import { syncStampExtension } from './sync/stamp';
 
 /**
  * A single PrismaClient for the whole process.
@@ -38,16 +39,27 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 /**
- * Reads never see tombstoned rows. See lib/soft-delete.ts for why this is
- * central rather than per call site, and for the write half of the story.
- */
-export const prisma = base.$extends(softDeleteExtension());
-
-/**
  * True when this build is talking to the desktop's local SQLite file rather
  * than Postgres. Same test the launcher and the migration runner use.
+ *
+ * Declared before the client because the sync extension needs it: the server
+ * stamps syncedAt with its own clock, a device clears it to mean "not sent
+ * yet", and which of those applies is decided here, once.
  */
 export const IS_SQLITE = (process.env.DATABASE_URL ?? '').startsWith('file:');
+
+/**
+ * Reads never see tombstoned rows, and every write records where the row stands
+ * with the server. See lib/soft-delete.ts and lib/sync/stamp.ts for why both are
+ * central rather than per call site.
+ *
+ * Order matters: the stamp goes on first so the tombstone filter wraps it and
+ * a soft-deleted row is still marked as needing to be sent - a deletion nobody
+ * is told about is the failure the tombstones exist to prevent.
+ */
+export const prisma = base
+  .$extends(syncStampExtension(!IS_SQLITE))
+  .$extends(softDeleteExtension());
 
 /**
  * A case-insensitive "contains" filter that behaves the same on both providers.
