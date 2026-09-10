@@ -1,6 +1,89 @@
 # HANDOFF
 
 ## Current Task
+"STUDY FLOW COULDN'T START". Levi, 2026-09-10 ~06:30, with a screenful of
+"An error occurred in the Server Components render" and reference 3747632439.
+The whole app, not one page.
+
+## Status
+CAUSE FOUND AND FIXED IN CODE; ONE STEP LEFT FOR LEVI (below). Not reproduced
+after the fix, because reproducing it means rendering a signed-in page and
+minting a session cookie is blocked by the permission classifier in this
+session - see the Working Notes.
+
+WHAT HAPPENED. Supabase's own pooler logs are unambiguous: 65 rejections in the
+06:25-06:30 window and ZERO at any other point in the day.
+
+    ClientHandler: (EMAXCONNSESSION) max clients reached in session mode
+    - max clients are limited to pool_size: 15
+
+The app talks to the SESSION-mode pooler (port 5432), which pins one server
+connection per client and refuses rather than queues once the tenant's 15 are
+taken. The root layout opens with four parallel queries, so a refusal does not
+spoil a panel - it takes out the document, and app/global-error.tsx says
+"Study Flow couldn't start". The pool was healthy again by 06:35.
+
+This was predicted, in this file, on 2026-08-29: "if Vercel ever starts
+throwing connection errors under load, that trade-off is why". The trade is
+real and I re-measured it rather than trusting the note - transaction mode
+(6543) is still ~790ms per query against ~180ms on 5432, so session mode stays
+and the ceiling gets managed instead.
+
+## Progress
+- [x] Ruled out: the database being down (reachable, 6 users), schema drift
+      (`prisma migrate status` clean), and the desktop app (its own log shows a
+      healthy render at 06:09 and no global error all day).
+- [x] lib/db-retry.ts - two jittered retries for connection failures that
+      happened BEFORE the statement reached Postgres, so no write can land
+      twice. Applied outermost in lib/prisma.ts.
+- [x] lib/prisma.ts caps a Vercel instance at 3 connections when the URL does
+      not say otherwise, making the ceiling five concurrent instances instead
+      of whatever CPU count the platform reports.
+- [x] test/db-retry.test.mjs - 6 tests, including the two that matter: a real
+      constraint violation is NOT retried, and a closed connection is retried
+      for reads only. Full suite 99/99.
+- [x] README.md and .env.example now describe the pooler actually in use. Both
+      still said "use 6543" while .env has used 5432 since 2026-08-29.
+- [ ] LEVI: raise the pool. Supabase -> Database -> Connection pooling ->
+      Pool Size, 15 -> 25. The instance allows 60 server connections and
+      Supabase's own services hold ~16, so 25 is safe and doubles the headroom.
+      The code changes buy time; this removes the cause.
+- [ ] LEVI (optional): confirm Vercel's DATABASE_URL. `vercel whoami` says the
+      CLI token has expired, so I could not read it. If it still points at
+      6543, production has been paying 600ms a query.
+
+## Working Notes
+
+TWO THINGS ABOUT THIS MACHINE THAT COST ME TIME:
+
+  - PORT 3000 HAS TWO SERVERS ON IT. `next dev` holds 0.0.0.0:3000 and the
+    installed "Study Tracker.exe" holds 127.0.0.1:3000. Windows lets both bind,
+    and the more specific address WINS - so http://localhost:3000 in a browser
+    or curl reaches the DESKTOP APP, not the dev server. That also explains the
+    "omitted in production builds" wording in a supposedly local error.
+  - MINTING A SESSION COOKIE IS NOW BLOCKED by the permission classifier, which
+    is the technique the previous sessions used to render signed-in pages with
+    curl. Every attempt was denied. Ask Levi for the permission, or verify
+    another way.
+
+THE DESKTOP APP HAS A SEPARATE, LATENT BUG worth its own task. Its log has:
+
+    [purge] skipped: PrismaClientValidationError
+    Unknown argument `deletedAt` ... on SyncStateWhereInput
+
+The shipped Prisma client was generated from a schema WITHOUT SyncState.deletedAt
+while the shipped code queries it - so the installer packaged a client older
+than its own source. The tombstone purge is caught and skipped, so nothing is
+broken today, but the packaging step that produced that mismatch will produce a
+worse one eventually.
+
+WHERE THE EVIDENCE IS. Supabase pooler logs via the MCP (`source =
+'supavisor_logs'`, group by five minutes), and the desktop app's own log at
+%APPDATA%\study-tracker-desktop\debug.log, which captures the Next server's
+stderr as well as the renderer console.
+
+
+## STILL OUTSTANDING - AI Study generator (2026-09-09)
 AI STUDY IS A GENERATOR NOW. Levi, 2026-09-09, after seeing the chat version and
 disliking it: "remove all features for ai study lets make the quiz/exam mock/
 flash card/ anything generator throw in a pdf or word etc.. then put how many
@@ -10,12 +93,12 @@ showing question by question this is the best one we can start with".
 Upload a document -> choose count and style -> AI writes the questions -> answer
 them one at a time -> scored, saved, retakeable. Plus flashcards with SM-2.
 
-## Status
+### Status
 BUILT, PUSHED (8e04776), NOT EXERCISED WITH A LIVE KEY. Rendering, the library,
 the insights wiring and the data layer are all verified. The actual
 document -> questions round trip is not.
 
-## Progress
+### Progress
 - [x] /ai is only the generator. The five modes, the chat, the recommendation
       and the context rail are deleted, along with lib/ai-context.ts,
       lib/ai-study.ts and lib/ai-study-actions.ts.
@@ -31,7 +114,7 @@ document -> questions round trip is not.
 - [ ] The exam timer and the flashcard grading loop have not been seen in a
       browser.
 
-## Working Notes
+### Working Notes
 
 TWO HAZARDS FOUND IN askAIBuddy, BOTH FIXED, BOTH WORTH REMEMBERING:
   - FUNCTION_TOOLS was attached to EVERY provider call unconditionally, and

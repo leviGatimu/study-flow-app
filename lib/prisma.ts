@@ -1,6 +1,38 @@
 import { PrismaClient, Prisma } from '../node_modules/.prisma/client-custom-v8';
 import { softDeleteExtension } from './soft-delete';
 import { syncStampExtension } from './sync/stamp';
+import { connectionRetryExtension } from './db-retry';
+
+/**
+ * How many pooler slots one serverless instance is allowed to hold.
+ *
+ * The session-mode pooler this app uses is 15 clients wide for the whole
+ * tenant, and every Vercel instance holds its share for as long as it stays
+ * warm. Left unset, Prisma sizes the pool from the CPU count, which on Vercel
+ * means three to five connections per instance - so four or five simultaneous
+ * instances exhaust the tenant and the next request is refused outright. That
+ * is the 2026-09-10 outage.
+ *
+ * Three is the smallest number that still lets the root layout's four parallel
+ * queries overlap usefully, and it makes the ceiling arithmetic explicit:
+ * 15 / 3 = five concurrent instances, rather than whatever the platform
+ * happened to report. Raise the tenant's pool size before raising this.
+ *
+ * Only applied when nothing is set in the URL, so the environment can still
+ * override it without a deploy.
+ */
+const SERVERLESS_CONNECTION_LIMIT = 3;
+
+function connectionUrl(): string | undefined {
+  const url = process.env.DATABASE_URL;
+
+  // Not serverless, SQLite (the desktop build), or already deliberate: leave
+  // the URL exactly as the environment set it.
+  if (!process.env.VERCEL || !url || url.startsWith('file:')) return undefined;
+  if (/[?&]connection_limit=/.test(url)) return undefined;
+
+  return `${url}${url.includes('?') ? '&' : '?'}connection_limit=${SERVERLESS_CONNECTION_LIMIT}&pool_timeout=20`;
+}
 
 /**
  * A single PrismaClient for the whole process.
@@ -26,13 +58,16 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
  * module evaluation costs nothing, while the base client underneath stays the
  * single cached instance the note above is about.
  */
+const budgetedUrl = connectionUrl();
+
 const base =
   globalForPrisma.prisma ??
-  new PrismaClient(
-    process.env.PRISMA_LOG === '1'
-      ? { log: [{ emit: 'stdout', level: 'query' }] }
-      : undefined
-  );
+  new PrismaClient({
+    ...(process.env.PRISMA_LOG === '1'
+      ? { log: [{ emit: 'stdout' as const, level: 'query' as const }] }
+      : {}),
+    ...(budgetedUrl ? { datasourceUrl: budgetedUrl } : {}),
+  });
 
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = base;
@@ -56,10 +91,15 @@ export const IS_SQLITE = (process.env.DATABASE_URL ?? '').startsWith('file:');
  * Order matters: the stamp goes on first so the tombstone filter wraps it and
  * a soft-deleted row is still marked as needing to be sent - a deletion nobody
  * is told about is the failure the tombstones exist to prevent.
+ *
+ * The retry goes on LAST, which puts it OUTERMOST: a refused connection is
+ * retried as the whole operation, stamping and filtering included, rather than
+ * half of it. See lib/db-retry.ts.
  */
 export const prisma = base
   .$extends(syncStampExtension(!IS_SQLITE))
-  .$extends(softDeleteExtension());
+  .$extends(softDeleteExtension())
+  .$extends(connectionRetryExtension());
 
 /**
  * A case-insensitive "contains" filter that behaves the same on both providers.

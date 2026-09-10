@@ -66,7 +66,7 @@ Open <http://localhost:3000>.
 
 | Variable | Required | Notes |
 |---|---|---|
-| `DATABASE_URL` | yes | Supabase **transaction** pooler, port `6543`, with `?pgbouncer=true`. The session pooler works locally and then exhausts connections under serverless. |
+| `DATABASE_URL` | yes | Supabase **session** pooler, port `5432`, no `pgbouncer=true`. See the note below — this is a deliberate trade of headroom for speed. |
 | `DIRECT_URL` | yes | Supabase **session** pooler, port `5432`. Used by Prisma for migrations. |
 | `JWT_SECRET` | yes | Signs the auth cookie. `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
 | `SUPABASE_URL` | on Vercel | Object storage for uploads |
@@ -76,6 +76,31 @@ Open <http://localhost:3000>.
 Without the three Supabase Storage variables, uploads are written to `public/uploads` on local disk. That
 is correct for local development and for the desktop build, and wrong on Vercel, where the filesystem is
 ephemeral and every uploaded file disappears on the next deploy.
+
+### Why the session pooler, and what it costs
+
+Measured from Kigali against `eu-central-1`, same query, same moment:
+
+| Pooler | Port | Per query |
+|---|---|---|
+| Transaction | `6543` (`pgbouncer=true`) | ~790 ms |
+| Session | `5432` | ~180 ms |
+
+A page runs about ten queries, so transaction mode is the difference between a 2-second page and an
+8-second one. Session mode wins on speed and loses on headroom: it pins one server connection per client,
+and the tenant's pool is **15 clients wide** for everything at once — every warm Vercel instance, the dev
+server, the desktop app's sync, `prisma studio`. Past 15, Supavisor refuses new connections outright
+(`EMAXCONNSESSION`) instead of queueing, which is what took the app down on 2026-09-10.
+
+Two things keep that ceiling out of the user's way, both in `lib/prisma.ts`:
+
+- each serverless instance is capped at **3** connections, so the ceiling is a knowable five concurrent
+  instances rather than whatever CPU count the platform reports;
+- a refused connection is retried twice before it becomes an error (`lib/db-retry.ts`).
+
+If concurrency ever genuinely outgrows that, raise the pool size first (Supabase → Database → Connection
+pooling; the instance allows 60 server connections and Supabase's own services hold ~16). Switching to
+`6543` is the last resort, because it costs every user 600 ms on every query.
 
 ## Desktop app
 
