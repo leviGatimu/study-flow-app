@@ -540,8 +540,18 @@ model Resource {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   subject   String
   title     String
-  type      String // "LINK" or "FILE"
-  url       String // URL or local file path
+  /// "LINK" | "FILE" | "FOLDER". A FOLDER row is how an empty folder exists
+  /// at all - and how one created on the website reaches the desktop, where
+  /// the library reconciler turns it into a real directory.
+  type      String
+  /// LINK: the external URL. FILE: "/uploads/<name>" (flat store) or
+  /// "/library/<year>/<subject>/<folder...>/<name>" (a real file in the
+  /// desktop's library folder). FOLDER: "".
+  url       String
+  /// Where inside the subject this sits: "" for the subject root, otherwise
+  /// "/"-joined folder names ("Chapter 1/Worksheets"). Never begins or ends
+  /// with a slash. For a FOLDER row this is the PARENT; its own name is title.
+  folder    String    @default("")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now()) @updatedAt
   deletedAt DateTime?

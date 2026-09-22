@@ -1,6 +1,6 @@
 {
   "name": "study-tracker-desktop",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "main": "main.js",
   "description": "Desktop wrapper for Study Tracker",
   "author": "User",
@@ -112,7 +112,7 @@
       {
         "provider": "github",
         "owner": "leviGatimu",
-        "repo": "Study-Flow"
+        "repo": "study-flow-app"
       }
     ]
   },

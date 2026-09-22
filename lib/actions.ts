@@ -8,7 +8,13 @@ import { startOfDay, endOfDay, addDays, isSameDay, differenceInDays, format } fr
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getUserId, login, logout } from '@/lib/auth';
-import { saveUpload, deleteUpload } from '@/lib/upload';
+import { saveUpload } from '@/lib/upload';
+import { removeStoredFile, storeResourceFile } from '@/lib/library-store';
+import { deleteResourceItem } from '@/lib/library-actions';
+import { libraryEnabled } from '@/lib/library';
+import { subjectFolderPath } from '@/lib/library-reconcile';
+import { rm } from 'node:fs/promises';
+import { extname } from 'node:path';
 import bcrypt from 'bcryptjs';
 import { getZonedNow, getTimeZoneOffsetMinutes, DEFAULT_TIMEZONE } from './utils';
 import { grantXp } from './gamification';
@@ -1280,11 +1286,19 @@ export async function deleteSubject(subject: string) {
 
   for (const res of resources) {
     if (res.type === 'FILE') {
-      await deleteUpload(res.url);
+      await removeStoredFile(res.url);
     }
   }
 
   await softDelete(prisma, 'resource', { userId, ...scoped, subject: normalized });
+
+  // On the desktop the subject is also a folder. Clearing the subject clears
+  // it, empty sub-folders included; otherwise the reconciler would rebuild
+  // the rows from whatever was left behind on the next visit.
+  if (libraryEnabled()) {
+    const dir = subjectFolderPath(await getViewScope(userId), normalized);
+    if (dir) await rm(dir, { recursive: true, force: true });
+  }
 
   // 2. Delete all mastery items
   await softDelete(prisma, 'masteryItem', { userId, ...scoped, subject: normalized });
@@ -1301,8 +1315,10 @@ export async function getResources(subject: string) {
   if (!userId) return [];
 
   const normalized = normalizeSubject(subject);
+  // Materials only. FOLDER rows are the explorer's structure, not something
+  // the focus page or the studio can open.
   return prisma.resource.findMany({
-    where: { userId, ...byClass(await getViewScope(userId)), subject: normalized },
+    where: { userId, ...byClass(await getViewScope(userId)), subject: normalized, type: { not: 'FOLDER' } },
     orderBy: { createdAt: 'desc' }
   });
 }
@@ -1320,16 +1336,27 @@ export async function addResource(formData: FormData) {
   const type = formData.get('type') as 'LINK' | 'FILE';
   let url = '';
 
+  const scope = await requireWritableScope(userId);
+  let storedTitle = title;
+
   if (type === 'LINK') {
     url = formData.get('url') as string;
   } else {
     const file = formData.get('file') as File;
     if (!file) throw new Error('No file uploaded');
-    url = await saveUpload(file, 'resource');
+    // On the desktop the file is written under its subject's folder, and the
+    // title the user typed becomes its name there - so the folder reads the
+    // way the app does.
+    const named = title.trim()
+      ? new File([file], `${title.trim()}${extname(file.name)}`, { type: file.type })
+      : file;
+    const stored = await storeResourceFile(scope, subject, '', named);
+    url = stored.url;
+    storedTitle = stored.title;
   }
 
   await prisma.resource.create({
-    data: { userId, subject, title, type, url, ...(await requireClassStamp(userId)) }
+    data: { userId, subject, title: storedTitle, type, url, ...byClass(scope) }
   });
   
   revalidatePath('/resources');
@@ -1344,16 +1371,12 @@ export async function deleteResource(id: string, subject: string) {
   const userId = await getUserId();
   if (!userId) return;
 
-  // Before deleteUpload(): refusing after it would leave the row pointing at a
-  // file that no longer exists.
-  await assertWritableScope(userId);
+  // Folders, library files and the flat store are all handled there; this
+  // stays as the older call sites' entry point.
+  const result = await deleteResourceItem(id);
+  if (!result.success) throw new Error(result.error);
 
   const normalized = normalizeSubject(subject);
-  const resource = await prisma.resource.findFirst({ where: { id, userId } });
-  if (resource && resource.type === 'FILE') {
-    await deleteUpload(resource.url);
-  }
-  await softDelete(prisma, 'resource', { id, userId });
   revalidatePath('/resources');
   revalidatePath(`/resources/${encodeURIComponent(normalized)}`);
   revalidatePath(`/focus`);
@@ -2437,6 +2460,7 @@ export async function universalSearch(query: string) {
         userId,
         ...inClass,
         deletedAt: null,
+        type: { not: 'FOLDER' },
         OR: [{ title: like }, { subject: like }]
       },
       take: 5
@@ -2720,6 +2744,7 @@ export async function importUserData(importData: any) {
               title: r.title,
               type: r.type,
               url: r.url,
+              folder: typeof r.folder === 'string' ? r.folder : '',
               ...classStamp
             }
           });

@@ -1,86 +1,176 @@
 # HANDOFF
 
 ## Current Task
-"STUDY FLOW COULDN'T START". Levi, 2026-09-10 ~06:30, with a screenful of
-"An error occurred in the Server Components render" and reference 3747632439.
-The whole app, not one page.
+DESKTOP SYNC "The server returned 500." (Levi, 2026-09-22).
 
 ## Status
-CAUSE FOUND AND FIXED IN CODE; ONE STEP LEFT FOR LEVI (below). Not reproduced
-after the fix, because reproducing it means rendering a signed-in page and
-minting a session cookie is blocked by the permission classifier in this
-session - see the Working Notes.
-
-WHAT HAPPENED. Supabase's own pooler logs are unambiguous: 65 rejections in the
-06:25-06:30 window and ZERO at any other point in the day.
-
-    ClientHandler: (EMAXCONNSESSION) max clients reached in session mode
-    - max clients are limited to pool_size: 15
-
-The app talks to the SESSION-mode pooler (port 5432), which pins one server
-connection per client and refuses rather than queues once the tenant's 15 are
-taken. The root layout opens with four parallel queries, so a refusal does not
-spoil a panel - it takes out the document, and app/global-error.tsx says
-"Study Flow couldn't start". The pool was healthy again by 06:35.
-
-This was predicted, in this file, on 2026-08-29: "if Vercel ever starts
-throwing connection errors under load, that trade-off is why". The trade is
-real and I re-measured it rather than trusting the note - transaction mode
-(6543) is still ~790ms per query against ~180ms on 5432, so session mode stays
-and the ceiling gets managed instead.
+CAUSE FOUND, FIX DEPLOYED BY PUSH - not yet confirmed from the desktop.
+Desktop debug.log (%APPDATA%\study-tracker-desktop\debug.log) showed
+"(EMAXCONNSESSION) max clients reached in session mode - pool_size: 15" from
+production. The fix for exactly that (4503c7e: db-retry + 3-connection cap per
+Vercel instance) had been committed on 2026-09-10 but NEVER PUSHED, so
+production still ran 884c725. Production also lacked Resource.folder, so every
+Resource row pushed by desktop 1.0.5 would fail per-row with "Unknown argument
+folder" once the 500s stopped. Both were pushed on 2026-09-22 (4503c7e + the
+resource-library commit); Vercel auto-deploys main.
 
 ## Progress
-- [x] Ruled out: the database being down (reachable, 6 users), schema drift
-      (`prisma migrate status` clean), and the desktop app (its own log shows a
-      healthy render at 06:09 and no global error all day).
-- [x] lib/db-retry.ts - two jittered retries for connection failures that
-      happened BEFORE the statement reached Postgres, so no write can land
-      twice. Applied outermost in lib/prisma.ts.
-- [x] lib/prisma.ts caps a Vercel instance at 3 connections when the URL does
-      not say otherwise, making the ceiling five concurrent instances instead
-      of whatever CPU count the platform reports.
-- [x] test/db-retry.test.mjs - 6 tests, including the two that matter: a real
-      constraint violation is NOT retried, and a closed connection is retried
-      for reads only. Full suite 99/99.
-- [x] README.md and .env.example now describe the pooler actually in use. Both
-      still said "use 6543" while .env has used 5432 since 2026-08-29.
-- [ ] LEVI: raise the pool. Supabase -> Database -> Connection pooling ->
-      Pool Size, 15 -> 25. The instance allows 60 server connections and
-      Supabase's own services hold ~16, so 25 is safe and doubles the headroom.
-      The code changes buy time; this removes the cause.
-- [ ] LEVI (optional): confirm Vercel's DATABASE_URL. `vercel whoami` says the
-      CLI token has expired, so I could not read it. If it still points at
-      6543, production has been paying 600ms a query.
+- [x] Diagnosed from the desktop log, not guessed.
+- [x] 122/122 node tests, tsc clean, then commit + push.
+- [ ] Levi: press Sync on the desktop once the Vercel deploy is green; the
+      status should clear. If the pool errors return, raise Supabase ->
+      Database -> Connection pooling -> Pool Size from 15 to 25 (only he can).
+- [ ] SEPARATE BUG, NOT FIXED: the startup tombstone purge dies on the first
+      model without deletedAt ("[purge] skipped: ... syncState.deleteMany ...
+      Unknown argument deletedAt" in debug.log). purgeTombstones in
+      lib/soft-delete.ts is handed every model; it should skip models lacking
+      the column. Harmless today, but no tombstone is ever purged.
 
 ## Working Notes
+Everything below this line is the resource-library task, now committed.
 
-TWO THINGS ABOUT THIS MACHINE THAT COST ME TIME:
+## Previous Task (resource library) - context kept for the unverified parts
+### Request
+RESOURCES AS A FILE EXPLORER OVER A REAL FOLDER (desktop). Levi, 2026-09-22:
+"I want Resources page for desktop to be connected to a folder each subject
+has a folder ... organized in other folders ... feel like file explorer ...
+and the individual resource page it can be improved".
 
-  - PORT 3000 HAS TWO SERVERS ON IT. `next dev` holds 0.0.0.0:3000 and the
-    installed "Study Tracker.exe" holds 127.0.0.1:3000. Windows lets both bind,
-    and the more specific address WINS - so http://localhost:3000 in a browser
-    or curl reaches the DESKTOP APP, not the dev server. That also explains the
-    "omitted in production builds" wording in a supposedly local error.
-  - MINTING A SESSION COOKIE IS NOW BLOCKED by the permission classifier, which
-    is the technique the previous sessions used to render signed-in pages with
-    curl. Every attempt was denied. Ask Levi for the permission, or verify
-    another way.
+### Status
+BUILT, TYPE-CLEAN, LINT-CLEAN, 122/122 NODE TESTS PASS (24 new), PACKAGED AS
+1.0.5 AND PUBLISHED. NOT SEEN IN A BROWSER - see Working Notes for exactly
+what is and is not proven. Migration
+20260922000000_resource_folders IS APPLIED TO PRODUCTION (additive column,
+`prisma migrate deploy`, 2026-09-22). Committed and pushed 2026-09-22.
 
-THE DESKTOP APP HAS A SEPARATE, LATENT BUG worth its own task. Its log has:
+WHAT WAS BUILT
+  Data     Resource.folder (String, default "") = path inside the subject,
+           "" = root, "Chapter 1/Worksheets" = nested. Resource.type gains
+           "FOLDER" so empty folders persist and sync. Postgres + SQLite twin
+           migrations; schema.sqlite.prisma regenerated (generated file).
+  Desktop  desktop-app/main.js sets LIBRARY_DIR = Documents\Study Tracker and
+           exposes window.electron.library.{open,reveal} (preload.js), both
+           refusing paths outside the library. Files live at
+           <LIBRARY_DIR>\<Year label>\<Subject>\<folder...>\<name> and rows
+           store url "/library/<encoded path>", served by
+           app/library/[...path]/route.ts (auth'd, Range, no-cache).
+  Reconcile lib/library-reconcile.ts runs on every resources page load:
+           mkdir per subject; rows for files/dirs found on disk; tombstones
+           for rows whose file/dir is gone; web-made FOLDER rows (url "")
+           become directories; legacy /uploads/ FILE rows whose bytes exist
+           locally are MOVED into the subject folder and their url rewritten.
+           Skipped entirely for archived years and off the desktop.
+  Actions  lib/library-actions.ts: getLibraryOverview, getSubjectLibrary,
+           createResourceFolder, renameResource, moveResource,
+           deleteResourceItem, uploadResourceFiles (multi), addResourceLink.
+           lib/library-store.ts holds the disk side (not 'use server' on
+           purpose - it takes a scope). actions.ts addResource/deleteResource/
+           deleteSubject now go through it; getResources, search and the
+           subjects page exclude FOLDER rows.
+  UI       components/resources/*: LibraryOverview (root), SubjectExplorer,
+           ItemDetails rail (image/PDF/audio/video preview), ContextMenu,
+           dialogs (name, link, move-to tree). Breadcrumbs, grid/list
+           (remembered), sort, search-within-subject, right-click + "..." +
+           rail actions, drag items onto folders/crumbs to move, drop OS files
+           to upload, F2/Del/Backspace/Enter, ?path= in the URL. Web build
+           gets the same UI with virtual folders; a /library/ file viewed on
+           the web says "Only on your desktop" instead of a dead link.
+  Shared   lib/serve-file.ts (Range/MIME streaming) now backs BOTH file
+           routes; test/uploads-range.test.mjs imports it instead of a copy.
 
-    [purge] skipped: PrismaClientValidationError
-    Unknown argument `deletedAt` ... on SyncStateWhereInput
+### Progress
+- [x] Schema, both migrations, Postgres migration applied, clients regenerated
+      (web client + private sqlite-test client; NOT the desktop client).
+- [x] Library core, reconciler, store, actions, routes, Electron IPC, UI.
+- [x] test/library.test.mjs (15) - names, paths, url<->path, traversal.
+- [x] test/library-reconcile.test.mjs (9) - real SQLite + temp dir: idempotent
+      indexing, Explorer deletes -> tombstones, web folder rows -> dirs and
+      never resurrected, tombstoned rows never recreated, legacy upload move,
+      tenant isolation.
+- [x] README + .env.example describe LIBRARY_DIR.
+- [ ] SEE IT. Nobody has rendered /resources or /resources/[subject] signed
+      in, on either build. The explorer has never been clicked.
+- [x] PACKAGED AND PUBLISHED: v1.0.5 at
+      https://github.com/leviGatimu/study-flow-app/releases/tag/v1.0.5
+      (installer + latest.yml; the packaged server was checked for the SQLite
+      client with `folder`, the new migration and the /library route).
+      Levi installs it once by hand - 1.0.4 looks for updates in a repo that
+      no longer exists.
+- [x] "Nothing here" first page on the desktop: the launcher's free-port check
+      bound 127.0.0.1:3000 successfully while `next dev` held 0.0.0.0:3000,
+      then connected to THAT server and loaded /login from it before its own
+      engine had started (debug.log: "Engine stabilized" 40ms after
+      "Initializing", Next's banner six seconds later). main.js now probes
+      with a connect + a 0.0.0.0 bind and waits for our engine's "Ready".
+- [x] Update-check 404: github.com/leviGatimu/Study-Flow is gone (not renamed -
+      no redirect). Updater, download links, README and the welcome page now
+      point at study-flow-app.
+- [ ] After installing 1.0.5: open Resources and check the
+      Documents\Study Tracker\<Year> tree appears, a file dropped in from
+      Explorer shows up, "Show in Explorer" opens the right place, and the old
+      AppData uploads were moved in.
+- [x] Committed and pushed 2026-09-22 (to unblock sync).
 
-The shipped Prisma client was generated from a schema WITHOUT SyncState.deletedAt
-while the shipped code queries it - so the installer packaged a client older
-than its own source. The tombstone purge is caught and skipped, so nothing is
-broken today, but the packaging step that produced that mismatch will produce a
-worse one eventually.
+### Working Notes
 
-WHERE THE EVIDENCE IS. Supabase pooler logs via the MCP (`source =
-'supavisor_logs'`, group by five minutes), and the desktop app's own log at
-%APPDATA%\study-tracker-desktop\debug.log, which captures the Next server's
-stderr as well as the renderer console.
+HOW FAR VERIFICATION GOT. tsc clean (a scratch tsconfig excluding .next was
+used - .next/dev/types is rewritten by any running dev server and parses as
+garbage mid-write; only promo/ has pre-existing errors). eslint clean on every
+new/changed file. A dev server on port 3100 with LIBRARY_DIR/UPLOADS_DIR
+pointed at scratch dirs compiled /resources and /resources/[subject] (307 to
+/welcome unauthenticated, no 500). ODDITY: on that server EVERY route handler
+answered 404 with the app's not-found page - /uploads/x.pdf, /library/...,
+even POST /api/sync/session - before any handler code ran. Not investigated;
+it may be a Turbopack dev quirk for this port/config, and it also means the
+/library route has not been exercised over HTTP. The unit tests cover its
+containment logic (resolveLibraryUrl); the streaming half is the same code
+/uploads has shipped with.
+
+PORT 3000 IS NOT THIS APP RIGHT NOW. A Vite dev server (another project)
+holds it. So "next dev is already running" does not apply today; start one on
+another port. Signed-in rendering still needs a session, and that remains the
+blocker noted in the browser-verification memory - ask Levi rather than
+working around it.
+
+DESIGN DECISIONS WORTH KNOWING BEFORE CHANGING ANYTHING
+  - Year folder. Resources are class-scoped everywhere else, so the library is
+    too: <root>\<safeSegment(class label)>\. No class -> root itself.
+    Renaming a class does NOT move the folder; old rows keep resolving by
+    url, new files go under the new name. Documented limit.
+  - Title == file name for library files ("notes.pdf"), so rename in the app
+    renames on disk and the folder reads like the app. displayName() hides
+    the extension in tiles; renameResource re-appends it if dropped.
+  - FOLDER rows: url = the directory's /library/ url once it exists on a
+    desktop, "" otherwise. That distinction IS the resurrect/no-resurrect
+    rule in the reconciler. Do not "normalise" it away.
+  - Reconciler filters deletedAt itself and takes the client as an argument,
+    so it runs under node --test with the sync harness. Keep it free of @/
+    imports.
+  - Implied folders: the client synthesises FOLDER entries ("implied:<path>")
+    for paths that only exist as some row's folder (web-created files whose
+    FOLDER row is missing). They navigate but cannot be renamed/moved.
+  - Sync: lib/sync/files.ts only moves /uploads/ bytes. /library/ rows sync
+    as rows; the bytes stay on the desktop. Not a regression - production has
+    no storage bucket and the file endpoint 501s when one is on - but a
+    follow-up if desktop->web files are ever wanted.
+  - Upload cap 60 MB/file, under next.config's 64 MB action body limit.
+  - Desktop shell suppresses the native context menu at the window; React's
+    handler runs first so the custom one works. Every action is also on the
+    "..." button and the rail because right-click is not discoverable.
+
+NEXT STEP ON RESUME: get a signed-in render of /resources and a subject page
+(web mode is enough to see the explorer; desktop mode needs LIBRARY_DIR set
+when starting `next dev` to exercise the folder). Then package the desktop
+and try the Explorer round trip.
+
+
+## STILL OUTSTANDING - pooler ceiling (2026-09-10)
+Fixed in code (lib/db-retry.ts, 3-connection cap per Vercel instance, 99/99
+tests then). Two things only Levi can do: raise Supabase -> Database ->
+Connection pooling -> Pool Size from 15 to 25; and confirm Vercel's
+DATABASE_URL points at 5432 (session pooler), not 6543 - the CLI token had
+expired so it could not be read. Evidence: Supabase supavisor logs, 06:25-06:30
+that day, "max clients reached in session mode".
 
 
 ## STILL OUTSTANDING - AI Study generator (2026-09-09)

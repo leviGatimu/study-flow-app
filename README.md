@@ -8,7 +8,7 @@
 [![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev)
 [![Prisma](https://img.shields.io/badge/Prisma-5.22-2D3748?logo=prisma&logoColor=white)](https://prisma.io)
 [![Electron](https://img.shields.io/badge/Electron-42-47848F?logo=electron&logoColor=white)](https://electronjs.org)
-[![Download](https://img.shields.io/badge/Download-Windows-0078D4?logo=windows&logoColor=white)](https://github.com/leviGatimu/Study-Flow/releases/latest)
+[![Download](https://img.shields.io/badge/Download-Windows-0078D4?logo=windows&logoColor=white)](https://github.com/leviGatimu/study-flow-app/releases/latest)
 
 </div>
 
@@ -104,7 +104,7 @@ pooling; the instance allows 60 server connections and Supabase's own services h
 
 ## Desktop app
 
-[**Download the latest Windows installer →**](https://github.com/leviGatimu/Study-Flow/releases/latest)
+[**Download the latest Windows installer →**](https://github.com/leviGatimu/study-flow-app/releases/latest)
 
 The desktop build is not a browser wrapper around a hosted site. It ships the Next.js server, runs it on a
 local port, and keeps everything in SQLite under `%APPDATA%\study-tracker-desktop` — so it works with no
@@ -113,6 +113,13 @@ internet at all. It checks for updates on launch and every six hours, and **Sett
 
 Your database, uploads and session live outside the installation directory, so installing a new version
 over an old one keeps all of it.
+
+**Resources are a real folder on the desktop.** `Documents\Study Tracker\<Year>\<Subject>\…` is the
+library; the Resources page is a file explorer over it. Files added in the app land there under their own
+names, and anything you drop into the folder from Windows Explorer (files, sub-folders, even a new subject
+folder) shows up in the app the next time the page loads. Deleting in either place deletes in both. The
+launcher sets `LIBRARY_DIR` to point the server at it; without that variable (the web build, `next dev`)
+the folder structure is virtual and files stay in the flat upload store.
 
 ### Building it yourself
 

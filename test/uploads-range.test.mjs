@@ -1,66 +1,22 @@
 /**
- * The Range parser behind app/uploads/[...path]/route.ts.
+ * The Range parser behind app/uploads/[...path]/route.ts and
+ * app/library/[...path]/route.ts.
  *
  * Without Range support the <audio> element cannot seek: it asks for a byte
  * range, gets a 200 with the whole body instead of a 206, and Chromium marks
  * the track non-seekable. Off-by-one errors here are invisible until a file
  * plays back truncated, so the boundaries are pinned down.
  *
- * Kept as a copy of the route's parser rather than an import, because the
- * route module pulls in server-only auth and Prisma. The guard below fails if
- * the shipped version stops matching.
+ * Imports the shipped parser: lib/serve-file.ts pulls in nothing but Node, so
+ * the test runs against the real thing rather than a copy of it.
  */
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { resolve, dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-
-function parseRange(header, size) {
-  if (!header) return undefined;
-
-  const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
-  if (!match) return undefined;
-
-  const [, rawStart, rawEnd] = match;
-  if (rawStart === '' && rawEnd === '') return undefined;
-
-  let start;
-  let end;
-
-  if (rawStart === '') {
-    const suffix = Number(rawEnd);
-    if (!Number.isFinite(suffix) || suffix <= 0) return null;
-    start = Math.max(0, size - suffix);
-    end = size - 1;
-  } else {
-    start = Number(rawStart);
-    end = rawEnd === '' ? size - 1 : Number(rawEnd);
-  }
-
-  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
-  if (start < 0 || start >= size || end < start) return null;
-
-  return { start, end: Math.min(end, size - 1) };
-}
+import { parseRange } from '../lib/serve-file.ts';
 
 describe('uploads Range parser', () => {
-  test('the shipped route still contains this parser', () => {
-    const shipped = readFileSync(join(ROOT, 'app', 'uploads', '[...path]', 'route.ts'), 'utf8');
-    for (const marker of [
-      'function parseRange(',
-      "/^bytes=(\\d*)-(\\d*)$/",
-      "'Accept-Ranges': 'bytes'",
-      'status: 206',
-      'status: 416',
-    ]) {
-      assert.ok(shipped.includes(marker), `route.ts no longer contains: ${marker}`);
-    }
-  });
-
   const SIZE = 1000;
 
   test('no header means send the whole file', () => {

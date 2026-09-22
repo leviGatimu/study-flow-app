@@ -92,7 +92,7 @@ export function AddResourceForm({ subject: initialSubject, allSubjects = [] }: {
 
           <div className="space-y-2">
             <Label htmlFor="resourceTitle" className="text-xs font-medium text-muted-foreground ml-1">Title</Label>
-            <Input id="resourceTitle" name="title" placeholder="e.g., Chapter 1 Notes" required className="h-12 rounded-xl bg-muted/30 border-border/40 font-bold px-4" />
+            <Input id="resourceTitle" name="title" placeholder={type === 'FILE' ? "Optional - the file's own name is used" : "e.g., Chapter 1 Notes"} required={type === 'LINK'} className="h-12 rounded-xl bg-muted/30 border-border/40 font-bold px-4" />
           </div>
 
           <div className="space-y-2">
@@ -103,7 +103,7 @@ export function AddResourceForm({ subject: initialSubject, allSubjects = [] }: {
               </SelectTrigger>
               <SelectContent className="rounded-xl border-border/40 font-bold">
                 <SelectItem value="LINK" className="rounded-lg">Web link / URL</SelectItem>
-                <SelectItem value="FILE" className="rounded-lg">PDF / document file</SelectItem>
+                <SelectItem value="FILE" className="rounded-lg">File from this computer</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -123,7 +123,7 @@ export function AddResourceForm({ subject: initialSubject, allSubjects = [] }: {
                 <Input id="resourceFile" name="file" type="file" required className="h-24 rounded-xl bg-muted/30 border-2 border-dashed border-border/40 font-bold p-8 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors file:hidden" />
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-muted-foreground group-hover:text-primary transition-colors duration-200">
                   <UploadCloud className="w-6 h-6 mb-2" />
-                  <span className="text-xs font-medium">Select PDF or image</span>
+                  <span className="text-xs font-medium">PDF, Word, PowerPoint, image or audio</span>
                 </div>
               </div>
             </div>

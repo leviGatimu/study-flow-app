@@ -15,6 +15,12 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.send(channel, data);
     }
   },
+  library: {
+    /** Open a folder of the resource library in Explorer. */
+    open: (absolutePath) => ipcRenderer.invoke('library:open', absolutePath),
+    /** Open Explorer with this library file selected. */
+    reveal: (absolutePath) => ipcRenderer.invoke('library:reveal', absolutePath),
+  },
   updates: {
     /** Current state, for the first paint. */
     status: () => ipcRenderer.invoke('updates:status'),

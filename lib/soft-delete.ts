@@ -225,7 +225,7 @@ export function softDeleteExtension() {
  * `tx` handed to $transaction, and with the extended client, and pinning it to
  * one of those buys nothing at these call sites.
  */
-type Db = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+export type Db = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 /**
  * Mark rows deleted, and everything the database would have taken with them.

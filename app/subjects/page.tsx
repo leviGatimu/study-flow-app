@@ -19,7 +19,7 @@ export default async function SubjectsPage() {
 
   const [subjects, resources, homeworks, goals, reportCards, studioNotes] = await Promise.all([
     getSubjects(),
-    prisma.resource.findMany({ where: { userId, ...byClass(scope) }, orderBy: { createdAt: 'desc' } }),
+    prisma.resource.findMany({ where: { userId, ...byClass(scope), type: { not: 'FOLDER' } }, orderBy: { createdAt: 'desc' } }),
     prisma.homework.findMany({ where: { userId, ...byTerm(scope) }, orderBy: { dueDate: 'asc' } }),
     prisma.subjectGoal.findMany({ where: { userId, ...byClass(scope) } }),
     prisma.reportCard.findMany({

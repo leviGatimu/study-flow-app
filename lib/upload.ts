@@ -58,16 +58,24 @@ export const MAX_AUDIO_UPLOAD_BYTES = 60 * 1024 * 1024;
 // Note: SVG is intentionally excluded — it can carry inline scripts and is
 // served from /uploads, which would create a stored-XSS vector.
 const ALLOWED_EXTENSIONS = new Set([
-  'pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'doc', 'docx', 'txt',
+  'pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp',
+  'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'md', 'csv',
   'mp3', 'm4a', 'aac', 'wav', 'ogg', 'oga', 'flac', 'opus',
+  'mp4', 'webm',
 ]);
 
-const ALLOWED_MIME_PREFIXES = ['image/', 'audio/'];
+const ALLOWED_MIME_PREFIXES = ['image/', 'audio/', 'video/'];
 const ALLOWED_MIME_EXACT = new Set([
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'text/plain',
+  'text/markdown',
+  'text/csv',
 ]);
 
 function isAllowedType(file: File): boolean {

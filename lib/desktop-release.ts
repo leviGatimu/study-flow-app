@@ -14,9 +14,9 @@ import { join } from 'node:path';
  * badge on the page cannot drift from what the button actually downloads.
  */
 export const DESKTOP_DOWNLOAD_URL =
-  'https://github.com/leviGatimu/Study-Flow/releases/latest/download/StudyTrackerSetup.exe';
+  'https://github.com/leviGatimu/study-flow-app/releases/latest/download/StudyTrackerSetup.exe';
 
-export const DESKTOP_RELEASES_URL = 'https://github.com/leviGatimu/Study-Flow/releases';
+export const DESKTOP_RELEASES_URL = 'https://github.com/leviGatimu/study-flow-app/releases';
 
 export function desktopVersion(): string {
   try {

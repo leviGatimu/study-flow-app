@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, screen, dialog } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, screen, dialog, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const { spawn } = require('child_process');
@@ -25,6 +25,46 @@ const logPath = path.join(appDataPath, 'debug.log');
 // and audio file the user had uploaded.
 const uploadsPath = path.join(appDataPath, 'uploads');
 const jwtSecretPath = path.join(appDataPath, 'jwt-secret');
+
+// The resource library is the one thing that is deliberately NOT in userData:
+// it is a folder the student opens in Explorer, one sub-folder per subject,
+// and AppData is where things go to be hidden. Documents\Study Tracker is
+// where a person would look. The server creates it on first use.
+const libraryPath = path.join(app.getPath('documents'), 'Study Tracker');
+
+/**
+ * Resolve a path the renderer asked to open, refusing anything outside the
+ * library. The renderer only ever sends paths the server gave it, but the
+ * renderer is a web page and this is the boundary where that stops mattering.
+ */
+function insideLibrary(target) {
+  if (typeof target !== 'string' || !target) return null;
+  const full = path.resolve(target);
+  const root = path.resolve(libraryPath);
+  return full === root || full.startsWith(root + path.sep) ? full : null;
+}
+
+// Open a library folder in Explorer, or reveal a file inside it.
+ipcMain.handle('library:open', async (_event, target) => {
+  const full = insideLibrary(target);
+  if (!full) return { ok: false, error: 'That path is not inside the library.' };
+  if (!fs.existsSync(full)) {
+    try {
+      fs.mkdirSync(full, { recursive: true });
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+  const problem = await shell.openPath(full);
+  return problem ? { ok: false, error: problem } : { ok: true };
+});
+
+ipcMain.handle('library:reveal', (_event, target) => {
+  const full = insideLibrary(target);
+  if (!full || !fs.existsSync(full)) return { ok: false, error: 'That file is not in the library any more.' };
+  shell.showItemInFolder(full);
+  return { ok: true };
+});
 
 /**
  * A signing secret that belongs to THIS INSTALL and nothing else.
@@ -93,17 +133,48 @@ function log(msg) {
 }
 
 // Function to find an available port
-function getFreePort(startPort) {
+/**
+ * Is anything already answering on 127.0.0.1:port?
+ *
+ * A bind test alone is not enough on Windows: binding 127.0.0.1:3000 SUCCEEDS
+ * while another process holds 0.0.0.0:3000 (a `next dev` for this very app,
+ * a Vite server, anything). The app then "found" port 3000 free, connected to
+ * the OTHER server's port, saw it answer, and loaded /login from a stranger -
+ * which is where the "Nothing here" first page came from. A connect probe
+ * catches whatever a bind test misses.
+ */
+function portAnswers(port) {
+  return new Promise((resolve) => {
+    const socket = net.connect({ port, host: '127.0.0.1' });
+    const done = (answered) => {
+      socket.destroy();
+      resolve(answered);
+    };
+    socket.once('connect', () => done(true));
+    socket.once('error', () => done(false));
+    socket.setTimeout(400, () => done(false));
+  });
+}
+
+function canBind(port) {
   return new Promise((resolve) => {
     const server = net.createServer();
-    server.listen(startPort, '127.0.0.1', () => {
-      const port = server.address().port;
-      server.close(() => resolve(port));
-    });
-    server.on('error', () => {
-      resolve(getFreePort(startPort + 1));
-    });
+    server.once('error', () => resolve(false));
+    // 0.0.0.0, not 127.0.0.1: a wildcard bind is what collides with a dev
+    // server holding the port on all interfaces.
+    server.listen(port, '0.0.0.0', () => server.close(() => resolve(true)));
   });
+}
+
+async function getFreePort(startPort) {
+  for (let port = startPort; port < startPort + 50; port++) {
+    if (await portAnswers(port)) {
+      log(`Port ${port} is already answering; trying the next one.`);
+      continue;
+    }
+    if (await canBind(port)) return port;
+  }
+  throw new Error(`No free port between ${startPort} and ${startPort + 49}`);
 }
 
 /**
@@ -393,6 +464,7 @@ async function createWindow() {
       HOSTNAME: hostname,
       DATABASE_URL: `file:${dbPath}`,
       UPLOADS_DIR: uploadsPath,
+      LIBRARY_DIR: libraryPath,
       // Set explicitly so Next's env loader cannot fall back to a bundled
       // .env - it only fills in variables that are not already present.
       JWT_SECRET: getOrCreateJwtSecret(),
@@ -402,7 +474,13 @@ async function createWindow() {
     shell: !isPackaged
   });
 
-  nextProcess.stdout.on('data', (data) => log(`ENGINE: ${data.toString().trim()}`));
+  let engineReady = false;
+  nextProcess.stdout.on('data', (data) => {
+    const text = data.toString().trim();
+    log(`ENGINE: ${text}`);
+    // Next prints "- Local: http://..." once it is listening, then "Ready".
+    if (/Local:\s+http|Ready in/i.test(text)) engineReady = true;
+  });
   nextProcess.stderr.on('data', (data) => log(`SYSTEM: ${data.toString().trim()}`));
 
   const checkServer = () => {
@@ -426,7 +504,10 @@ async function createWindow() {
   let attempts = 0;
 
   const waitForServer = async () => {
-    const isReady = await checkServer();
+    // Both: the port accepts connections AND it is OUR engine that opened it.
+    // The second half is what stops a foreign server on the same port from
+    // being mistaken for ours (see portAnswers above).
+    const isReady = engineReady && (await checkServer());
     if (isReady) {
       log('Engine stabilized. Synchronizing visual layers...');
       

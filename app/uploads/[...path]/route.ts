@@ -1,9 +1,6 @@
-import { createReadStream } from 'fs';
-import { stat } from 'fs/promises';
-import { Readable } from 'stream';
-
 import { getUserId, userIdFromBearer } from '@/lib/auth';
 import { resolveUploadPath, readRemoteUpload } from '@/lib/upload';
+import { mimeFor, serveLocalFile } from '@/lib/serve-file';
 
 /**
  * Serve a locally-stored upload.
@@ -18,69 +15,10 @@ import { resolveUploadPath, readRemoteUpload } from '@/lib/upload';
  * Reads are authenticated: these are the user's own PDFs, proofs of work and
  * report cards, and on the web build the same files would otherwise be
  * enumerable by anyone who guessed a filename.
- */
-
-const MIME: Record<string, string> = {
-  pdf: 'application/pdf',
-  png: 'image/png',
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  gif: 'image/gif',
-  webp: 'image/webp',
-  txt: 'text/plain; charset=utf-8',
-  doc: 'application/msword',
-  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  mp3: 'audio/mpeg',
-  m4a: 'audio/mp4',
-  aac: 'audio/aac',
-  wav: 'audio/wav',
-  ogg: 'audio/ogg',
-  oga: 'audio/ogg',
-  flac: 'audio/flac',
-  opus: 'audio/opus',
-};
-
-function mimeFor(name: string): string {
-  const ext = name.split('.').pop()?.toLowerCase() ?? '';
-  return MIME[ext] ?? 'application/octet-stream';
-}
-
-/**
- * Parse a single-range `Range: bytes=start-end` header against a known size.
  *
- * Returns undefined when there is no range to honour, or null when the range
- * is unsatisfiable (which the caller answers with a 416). Only one range is
- * supported: multipart/byteranges buys nothing for audio seeking or a PDF
- * reader, and every client falls back gracefully to a full response.
+ * Streaming, content types and Range handling live in lib/serve-file.ts,
+ * shared with the library route.
  */
-function parseRange(header: string | null, size: number) {
-  if (!header) return undefined;
-
-  const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
-  if (!match) return undefined;
-
-  const [, rawStart, rawEnd] = match;
-  if (rawStart === '' && rawEnd === '') return undefined;
-
-  let start: number;
-  let end: number;
-
-  if (rawStart === '') {
-    // "bytes=-500" means the LAST 500 bytes.
-    const suffix = Number(rawEnd);
-    if (!Number.isFinite(suffix) || suffix <= 0) return null;
-    start = Math.max(0, size - suffix);
-    end = size - 1;
-  } else {
-    start = Number(rawStart);
-    end = rawEnd === '' ? size - 1 : Number(rawEnd);
-  }
-
-  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
-  if (start < 0 || start >= size || end < start) return null;
-
-  return { start, end: Math.min(end, size - 1) };
-}
 
 export async function GET(
   request: Request,
@@ -114,60 +52,7 @@ export async function GET(
   const full = resolveUploadPath(name);
   if (!full) return new Response('Not found', { status: 404 });
 
-  let size: number;
-  try {
-    const info = await stat(full);
-    if (!info.isFile()) return new Response('Not found', { status: 404 });
-    size = info.size;
-  } catch {
-    return new Response('Not found', { status: 404 });
-  }
-
-  const common = {
-    'Content-Type': mimeFor(full),
-    // The filename carries a timestamp and content never changes in place,
-    // so this is safe to cache hard. Private: it is the user's own file.
-    'Cache-Control': 'private, max-age=31536000, immutable',
-    'Content-Disposition': 'inline',
-    // Never let a stored file be interpreted as something else.
-    'X-Content-Type-Options': 'nosniff',
-    // Advertised on every response, not just partial ones - it is how a client
-    // learns it may range-request at all.
-    'Accept-Ranges': 'bytes',
-  };
-
-  // Without this the <audio> element cannot seek: it issues a ranged request,
-  // gets a 200 with the whole body instead of a 206, and Chromium then treats
-  // the resource as non-seekable. It also lets a PDF reader fetch page by page
-  // rather than pulling the whole file before showing anything.
-  const range = parseRange(request.headers.get('range'), size);
-
-  if (range === null) {
-    return new Response('Range Not Satisfiable', {
-      status: 416,
-      headers: { ...common, 'Content-Range': `bytes */${size}` },
-    });
-  }
-
-  if (range) {
-    const { start, end } = range;
-    const partial = Readable.toWeb(
-      createReadStream(full, { start, end })
-    ) as ReadableStream;
-
-    return new Response(partial, {
-      status: 206,
-      headers: {
-        ...common,
-        'Content-Range': `bytes ${start}-${end}/${size}`,
-        'Content-Length': String(end - start + 1),
-      },
-    });
-  }
-
-  const stream = Readable.toWeb(createReadStream(full)) as ReadableStream;
-
-  return new Response(stream, {
-    headers: { ...common, 'Content-Length': String(size) },
-  });
+  // The filename carries a timestamp and content never changes in place, so
+  // this URL can be cached hard.
+  return serveLocalFile(full, request, { immutable: true });
 }

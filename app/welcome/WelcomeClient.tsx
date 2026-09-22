@@ -38,7 +38,7 @@ import SandText from '@/components/landing/SandText';
 
 const YOUTUBE_URL = 'https://www.youtube.com/channel/UCF19E7DtMFwa0eRv1BNiPbw';
 const INSTAGRAM_URL = 'https://www.instagram.com/studyflowofficiall/';
-const GITHUB_URL = 'https://github.com/leviGatimu/Study-Flow';
+const GITHUB_URL = 'https://github.com/leviGatimu/study-flow-app';
 const DISCORD_URL = 'https://discord.gg/RQQfJAUCy';
 
 const INK_GRAINS = ['#000000', '#070707', '#0d0d0d', '#050505', '#111111', '#030303'];
