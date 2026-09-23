@@ -218,8 +218,8 @@ export function MoveDialog({
   folders,
   itemLabel,
   currentFolder,
-  /** For a folder being moved: its own path, so its subtree is disabled. */
-  ownPath,
+  /** Folders being moved: their own paths, so their subtrees are disabled. */
+  ownPaths = [],
   onClose,
   onSubmit,
 }: {
@@ -227,8 +227,9 @@ export function MoveDialog({
   subject: string;
   folders: string[];
   itemLabel: string;
-  currentFolder: string;
-  ownPath?: string;
+  /** Where the items sit now, or null when they come from several folders. */
+  currentFolder: string | null;
+  ownPaths?: string[];
   onClose: () => void;
   onSubmit: Submit<string>;
 }) {
@@ -238,7 +239,7 @@ export function MoveDialog({
 
   const options = ["", ...[...folders].sort((a, b) => a.localeCompare(b))];
   const disabled = (path: string) =>
-    path === currentFolder || (ownPath !== undefined && isWithinFolder(path, ownPath));
+    path === currentFolder || ownPaths.some((own) => isWithinFolder(path, own));
 
   const submitWith = async (path: string) => {
     if (busy) return;

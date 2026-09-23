@@ -1,33 +1,62 @@
 # HANDOFF
 
 ## Current Task
-DESKTOP SYNC "The server returned 500." (Levi, 2026-09-22).
+SUBJECT RESOURCES PAGE AS A WINDOWS FILE EXPLORER (Levi, 2026-09-23: "i want
+it more exactly like file explorer especially the stand alone page for each
+subject").
 
 ## Status
-CAUSE FOUND, FIX DEPLOYED BY PUSH - not yet confirmed from the desktop.
-Desktop debug.log (%APPDATA%\study-tracker-desktop\debug.log) showed
-"(EMAXCONNSESSION) max clients reached in session mode - pool_size: 15" from
-production. The fix for exactly that (4503c7e: db-retry + 3-connection cap per
-Vercel instance) had been committed on 2026-09-10 but NEVER PUSHED, so
-production still ran 884c725. Production also lacked Resource.folder, so every
-Resource row pushed by desktop 1.0.5 would fail per-row with "Unknown argument
-folder" once the 500s stopped. Both were pushed on 2026-09-22 (4503c7e + the
-resource-library commit); Vercel auto-deploys main.
+BUILT AND DRIVEN IN A REAL BROWSER ENGINE, NOT YET SEEN SIGNED IN. NOT COMMITTED.
+/resources/[subject] is now one Explorer window: tab strip; back/forward/up/
+refresh + editable address bar (click empty space -> Windows path, every ">"
+lists subfolders) + "Search <folder>" (recursive, adds a Folder column);
+command bar (New, Upload, Cut, Paste, Rename, Copy path/link, Delete, Sort,
+View, ..., Details toggle); nav pane (all subjects + folder tree); contents in
+7 views (xl/large/medium/small icons, list, details with resizable columns,
+tiles); details pane; status bar. Stats + syllabus moved below the window.
 
 ## Progress
-- [x] Diagnosed from the desktop log, not guessed.
-- [x] 122/122 node tests, tsc clean, then commit + push.
-- [ ] Levi: press Sync on the desktop once the Vercel deploy is green; the
-      status should clear. If the pool errors return, raise Supabase ->
-      Database -> Connection pooling -> Pool Size from 15 to 25 (only he can).
-- [ ] SEPARATE BUG, NOT FIXED: the startup tombstone purge dies on the first
-      model without deletedAt ("[purge] skipped: ... syncState.deleteMany ...
-      Unknown argument deletedAt" in debug.log). purgeTombstones in
-      lib/soft-delete.ts is handed every model; it should skip models lacking
-      the column. Harmless today, but no tombstone is ever purged.
+- [x] components/resources/explorer-views.tsx (views + in-place RenameBox),
+      explorer-chrome.tsx (NavPane, AddressBar), SubjectExplorer.tsx rewritten
+      (selection, keyboard, drag/drop, rubber band, history, cut/paste).
+- [x] getSubjectLibrary returns `subjects` (nav pane); MoveDialog takes several
+      items (ownPaths, currentFolder null = mixed); use-stored-view.ts is now a
+      generic useStoredPref (overview keeps its "resources:view" key).
+- [x] tsc clean, eslint clean, 122/122 node tests.
+- [x] Driven with Electron against a throwaway signed-out harness route (now
+      deleted): click/Ctrl/Shift select, Ctrl+A, arrows, F2 rename box, context
+      menu, all views, rubber band, open folder, Alt+Up/Left/Right, search,
+      address edit, phone width, light + dark. No console errors.
+- [ ] NOT exercised: any successful write (rename commit, Ctrl+Shift+N then
+      rename, paste/move, drag onto folder, delete, upload) - the harness is
+      signed out, so only the "Not signed in." error path ran. Needs Levi
+      signed in, or permission to mint a session (see browser memory).
+- [ ] Commit + push when Levi has looked at it.
 
 ## Working Notes
-Everything below this line is the resource-library task, now committed.
+DESIGN DECISIONS
+  - No Copy. The server can move/rename but not duplicate; Cut+Paste moves.
+    "Copy as path" (desktop) and "Copy link address" exist instead.
+  - New folder = create "New folder"/"New folder (n)" then rename in place;
+    the row arrives after router.refresh(), so `awaitingRename` holds the path
+    and render picks it up (setState-during-render pattern, not an effect).
+  - Slow second click renames (550ms timer, cancelled by any other click/key).
+  - Arrow keys: along the flow = +-1 in order; across = nearest item by
+    on-screen position (neighbour()). List view flows down columns.
+  - Folder icons use FOLDER_PAINT (fixed #fcd34d/#d97706): a currentColor
+    tint turned muddy on dark.
+  - Prefs in localStorage: resources:explorer-{view,columns,nav,details}.
+HOW IT WAS VERIFIED (reuse this): /welcome/* bypasses proxy.ts auth, so a
+temporary app/welcome/<x>/page.tsx rendering the component with fake data +
+`next dev -p 3100` + desktop-app/node_modules/.bin/electron driving it with
+sendInputEvent works. Electron gotchas: Menu.setApplicationMenu(null) or
+Ctrl+A also selects page text; disableHardwareAcceleration; capturePage lags
+- capture twice; light theme needs webPreferences.offscreen + 'paint' event.
+
+## Recently Completed
+- 2026-09-22 Desktop sync 500: pooler ceiling; the fix (4503c7e) was never
+  pushed. Pushed it + the library work (f3d9ae3). Open: purgeTombstones dies on
+  models without deletedAt (lib/soft-delete.ts) - reported, not fixed.
 
 ## Previous Task (resource library) - context kept for the unverified parts
 ### Request

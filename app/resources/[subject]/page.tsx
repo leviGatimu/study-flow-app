@@ -1,12 +1,11 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ChevronLeft, Clock, GraduationCap, Sparkles, Target } from 'lucide-react';
+import { Clock, GraduationCap, Sparkles, Target } from 'lucide-react';
 
 import { getUserId } from '@/lib/auth';
 import { getMasteryItems, getSubjectStats } from '@/lib/actions';
 import { getSubjectLibrary } from '@/lib/library-actions';
 import { Button } from '@/components/ui/button';
-import { PageHeader } from '@/components/ui/page-header';
 import { Panel } from '@/components/ui/panel';
 import { AddMasteryForm } from '@/components/AddMasteryForm';
 import { MasteryList } from '@/components/MasteryList';
@@ -17,12 +16,10 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 /**
- * One subject's folder.
- *
- * The explorer takes the width; the rail beside it shows whatever is
- * selected, then the subject's numbers and its syllabus checklist. On the
- * desktop the page also reconciles the real folder on disk before rendering,
- * so anything dropped in from Windows Explorer is already here.
+ * One subject's folder, as a File Explorer window, with the subject's numbers
+ * and syllabus checklist beneath it. On the desktop the page reconciles the
+ * real folder on disk before rendering, so anything dropped in from Windows
+ * Explorer is already here.
  */
 export default async function SubjectResourcesPage({
   params,
@@ -46,70 +43,44 @@ export default async function SubjectResourcesPage({
   if (!library) notFound();
 
   const initialPath = (Array.isArray(path) ? path[0] : path) ?? '';
-  const files = library.items.filter((i) => i.type === 'FILE').length;
-  const links = library.items.filter((i) => i.type === 'LINK').length;
-  const folders = library.items.filter((i) => i.type === 'FOLDER').length;
-  const summary = [
-    `${files} ${files === 1 ? 'file' : 'files'}`,
-    `${links} ${links === 1 ? 'link' : 'links'}`,
-    `${folders} ${folders === 1 ? 'folder' : 'folders'}`,
-  ].join(' · ');
 
   return (
-    <div className="mx-auto max-w-[1800px] px-4 pb-16 pt-6 md:px-8 animate-in fade-in duration-300">
-      <Link
-        href="/resources"
-        className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
-      >
-        <ChevronLeft className="size-3.5" /> All subjects
-      </Link>
+    <div className="mx-auto max-w-[1800px] px-4 pb-16 pt-4 md:px-6 animate-in fade-in duration-300">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h1 className="flex min-w-0 items-center gap-2 font-heading text-lg font-semibold">
+          <GraduationCap className="size-5 shrink-0 text-primary" />
+          <span className="truncate">{library.subject}</span>
+        </h1>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/studio/${encodeURIComponent(library.subject)}`}>
+            <Sparkles /> Deep work studio
+          </Link>
+        </Button>
+      </div>
 
-      <PageHeader
-        title={
-          <span className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <GraduationCap className="size-5" />
-            </span>
-            {library.subject}
-          </span>
-        }
-        description={summary}
-        actions={
-          <Button asChild variant="outline">
-            <Link href={`/studio/${encodeURIComponent(library.subject)}`}>
-              <Sparkles /> Deep work studio
-            </Link>
-          </Button>
-        }
-      />
+      <SubjectExplorer library={library} initialPath={initialPath} />
 
-      <SubjectExplorer
-        library={library}
-        initialPath={initialPath}
-        aside={
-          <>
-            {stats && (
-              <Panel className="grid grid-cols-2 gap-3" padded>
-                <Figure icon={<Clock className="size-4 text-primary" />} label="Time spent" value={stats.timeSpent} />
-                <Figure icon={<Target className="size-4 text-success" />} label="Mastery" value={`${stats.completionRate}%`} />
-                <Figure label="Sessions" value={stats.totalSessions} />
-                <Figure
-                  label="Avg. session"
-                  value={stats.totalSessions > 0 ? `${Math.round(stats.totalMinutes / stats.totalSessions)}m` : '0m'}
-                />
-              </Panel>
-            )}
+      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
+        {stats && (
+          <Panel className="grid grid-cols-2 content-start gap-3" padded>
+            <Figure icon={<Clock className="size-4 text-primary" />} label="Time spent" value={stats.timeSpent} />
+            <Figure icon={<Target className="size-4 text-success" />} label="Mastery" value={`${stats.completionRate}%`} />
+            <Figure label="Sessions" value={stats.totalSessions} />
+            <Figure
+              label="Avg. session"
+              value={stats.totalSessions > 0 ? `${Math.round(stats.totalMinutes / stats.totalSessions)}m` : '0m'}
+            />
+          </Panel>
+        )}
 
-            <Panel>
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="font-heading text-sm font-semibold">Syllabus mastery</h2>
-                <AddMasteryForm subject={library.subject} />
-              </div>
-              <MasteryList items={masteryItems as MasteryItem[]} subject={library.subject} />
-            </Panel>
-          </>
-        }
-      />
+        <Panel className={stats ? 'lg:col-span-2' : 'lg:col-span-3'}>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="font-heading text-sm font-semibold">Syllabus mastery</h2>
+            <AddMasteryForm subject={library.subject} />
+          </div>
+          <MasteryList items={masteryItems as MasteryItem[]} subject={library.subject} />
+        </Panel>
+      </div>
     </div>
   );
 }

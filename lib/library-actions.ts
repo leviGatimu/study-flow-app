@@ -67,6 +67,8 @@ export type SubjectLibrary = {
   /** Absolute path of the library root, for turning a url into a file path. */
   libraryDir: string | null;
   archived: boolean;
+  /** Every subject in the year, this one included, for the navigation pane. */
+  subjects: string[];
 };
 
 export type LibrarySubject = {
@@ -214,12 +216,26 @@ export async function getSubjectLibrary(subject: string): Promise<SubjectLibrary
   // Reconciling covers the whole year, not one subject, because a file moved
   // between two subject folders in Explorer has to disappear from one and
   // appear in the other in the same pass.
-  await reconcileLibrary(prisma, userId, scope, [normalized, ...(await knownSubjects(userId, scope))]);
+  const known = await knownSubjects(userId, scope);
+  const onDisk = (await reconcileLibrary(prisma, userId, scope, [normalized, ...known]))?.subjectsOnDisk ?? [];
 
-  const rows = await prisma.resource.findMany({
-    where: { userId, ...byClass(scope), subject: normalized },
-    orderBy: [{ title: 'asc' }],
-  });
+  const [rows, filed] = await Promise.all([
+    prisma.resource.findMany({
+      where: { userId, ...byClass(scope), subject: normalized },
+      orderBy: [{ title: 'asc' }],
+    }),
+    prisma.resource.findMany({
+      where: { userId, ...byClass(scope) },
+      select: { subject: true },
+      distinct: ['subject'],
+    }),
+  ]);
+
+  const subjects = new Map<string, string>();
+  for (const name of [normalized, ...known, ...onDisk, ...filed.map((f) => f.subject)]) {
+    const n = normalizeSubject(name);
+    if (n && !subjects.has(n.toLowerCase())) subjects.set(n.toLowerCase(), n);
+  }
 
   return {
     subject: normalized,
@@ -227,6 +243,7 @@ export async function getSubjectLibrary(subject: string): Promise<SubjectLibrary
     folderPath: subjectFolderPath(scope, normalized),
     libraryDir: LIBRARY_DIR,
     archived: scope?.isArchive ?? false,
+    subjects: Array.from(subjects.values()).sort((a, b) => a.localeCompare(b)),
   };
 }
 

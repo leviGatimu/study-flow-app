@@ -126,6 +126,40 @@ export function KindIcon({
   );
 }
 
+/**
+ * The bare icon, the way Explorer draws it: no chip, sized in pixels so one
+ * component serves 16px detail rows and 96px large-icon tiles alike.
+ */
+export function KindGlyph({
+  item,
+  px,
+  className,
+}: {
+  item: Pick<ResourceItem, "type" | "ext">;
+  px: number;
+  className?: string;
+}) {
+  const kind = kindOf(item);
+  const style = STYLES[kind];
+  const Icon = style.icon;
+  return (
+    <Icon
+      aria-hidden
+      className={cn("shrink-0", style.fg, className)}
+      style={{ width: px, height: px }}
+      strokeWidth={px >= 48 ? 1.25 : 1.75}
+      {...(kind === "folder" ? FOLDER_PAINT : {})}
+    />
+  );
+}
+
+/**
+ * Explorer's folders are solid yellow with a darker edge, and read the same
+ * on light and dark backgrounds. A tint of currentColor turns muddy on dark,
+ * so the two colours are fixed. Spread onto any lucide Folder icon.
+ */
+export const FOLDER_PAINT = { fill: "#fcd34d", stroke: "#d97706" } as const;
+
 /** Display name without the extension; the extension is shown separately. */
 export function displayName(item: Pick<ResourceItem, "title" | "type" | "ext">): string {
   if (item.type !== "FILE" || !item.ext) return item.title;
@@ -161,6 +195,17 @@ export function formatWhen(iso: string, now = Date.now()): string {
   const date = new Date(then);
   const sameYear = date.getFullYear() === new Date(now).getFullYear();
   return date.toLocaleDateString(undefined, { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) });
+}
+
+/** Explorer's "Date modified": an absolute date and time, in the viewer's locale. */
+export function formatStamp(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function hostOf(url: string): string {
