@@ -6,7 +6,9 @@ it more exactly like file explorer especially the stand alone page for each
 subject").
 
 ## Status
-BUILT AND DRIVEN IN A REAL BROWSER ENGINE, NOT YET SEEN SIGNED IN. NOT COMMITTED.
+BUILT, COMMITTED (f521129), DESKTOP 1.0.6 PUBLISHED at
+https://github.com/leviGatimu/study-flow-app/releases/tag/v1.0.6 (tag pushed,
+main NOT pushed - the website still runs f3d9ae3). Not yet seen signed in.
 /resources/[subject] is now one Explorer window: tab strip; back/forward/up/
 refresh + editable address bar (click empty space -> Windows path, every ">"
 lists subfolders) + "Search <folder>" (recursive, adds a Folder column);
@@ -31,7 +33,11 @@ tiles); details pane; status bar. Stats + syllabus moved below the window.
       rename, paste/move, drag onto folder, delete, upload) - the harness is
       signed out, so only the "Not signed in." error path ran. Needs Levi
       signed in, or permission to mint a session (see browser memory).
-- [ ] Commit + push when Levi has looked at it.
+- [x] Desktop 1.0.6 packaged + released (sha512 checked, new code found in the
+      packaged server, latest.yml served from releases/latest).
+- [ ] Push main (deploys the web) once Levi is happy with it on the desktop.
+      Before any desktop build: rm -rf .next/dev if a harness route was used -
+      stale dev types fail `next build`'s type check.
 
 ## Working Notes
 DESIGN DECISIONS
