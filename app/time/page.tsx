@@ -15,9 +15,5 @@ export default async function TimePage() {
     getCurrentUserTimezone(),
   ]);
 
-  return (
-    <main className="bg-background min-h-screen">
-      <TimeClient todayTasks={todayTasks as TaskWithTemplate[]} timezone={timezone} />
-    </main>
-  );
+  return <TimeClient todayTasks={todayTasks as TaskWithTemplate[]} timezone={timezone} />;
 }

@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { getSubjects } from "@/lib/subject-actions";
 import { prisma } from "@/lib/prisma";
 import { byClass, byTerm, getViewScope } from "@/lib/scope";
+import { extensionOf } from "@/lib/library";
+import { Page } from "@/components/ui/page";
 import { SubjectsClient } from "./SubjectsClient";
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +21,11 @@ export default async function SubjectsPage() {
 
   const [subjects, resources, homeworks, goals, reportCards, studioNotes, exams, mastery] = await Promise.all([
     getSubjects(),
-    prisma.resource.findMany({ where: { userId, ...byClass(scope), type: { not: 'FOLDER' } }, orderBy: { createdAt: 'desc' } }),
+    prisma.resource.findMany({
+      where: { userId, ...byClass(scope), type: { not: 'FOLDER' } },
+      select: { id: true, subject: true, title: true, type: true, url: true, folder: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    }),
     prisma.homework.findMany({ where: { userId, ...byTerm(scope) }, orderBy: { dueDate: 'asc' } }),
     prisma.subjectGoal.findMany({ where: { userId, ...byClass(scope) } }),
     prisma.reportCard.findMany({
@@ -28,7 +34,12 @@ export default async function SubjectsPage() {
       include: { grades: { where: { deletedAt: null } } },
       orderBy: { createdAt: 'asc' } // Ascending so chart runs chronologically
     }),
-    prisma.studioNote.findMany({ where: { userId, ...byClass(scope) } }),
+    // Notes are no longer shown or edited on the subject page. Ones written
+    // before are still useful context for the study buddy, so they are read.
+    prisma.studioNote.findMany({
+      where: { userId, ...byClass(scope) },
+      select: { id: true, subject: true, content: true },
+    }),
     prisma.examEvent.findMany({
       where: { userId, ...byTerm(scope) },
       select: { id: true, title: true, date: true, subject: { select: { name: true } } },
@@ -41,21 +52,28 @@ export default async function SubjectsPage() {
     }),
   ]);
 
-  // The title, actions and hub tiles live in SubjectsClient: whether the page
-  // shows the Subjects hub or one subject depends on ?subject=, which changes
-  // on the client without a server round trip.
+  // The file extension is worked out here: the helper reads paths with node's
+  // `path`, which the client bundle does not have.
+  const resourceItems = resources.map((r) => ({
+    ...r,
+    ext: r.type === 'FILE' ? extensionOf(r.url) || extensionOf(r.title) : '',
+  }));
+
+  // The header lives in SubjectsClient: whether the page shows the subject
+  // list or one subject depends on ?subject=, which changes on the client
+  // without a server round trip.
   return (
-    <div className="mx-auto max-w-[1600px] px-4 pb-16 pt-8 md:px-8 animate-in fade-in duration-300">
+    <Page>
       <SubjectsClient
         initialSubjects={subjects}
-        initialResources={resources}
+        initialResources={resourceItems}
         initialHomeworks={homeworks}
         initialGoals={goals}
-        initialReportCards={reportCards as any}
+        initialReportCards={reportCards}
         initialNotes={studioNotes}
         initialExams={exams}
         initialMastery={mastery}
       />
-    </div>
+    </Page>
   );
 }

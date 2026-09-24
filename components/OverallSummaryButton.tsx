@@ -64,11 +64,13 @@ export function OverallSummaryButton() {
     try {
       const result = await getOverallSummary();
       if (!result) {
-        toast.error("No study data yet — complete a few tasks first.");
+        toast.error("No study data yet. Finish a few study blocks first.");
         return;
       }
       setSummary(result);
       setIsOpen(true);
+    } catch {
+      toast.error("The overall report could not be built. Try again.");
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +94,7 @@ export function OverallSummaryButton() {
       pdf.save(`StudyFlow_Overall_Report_${format(new Date(), "yyyy_MM_dd")}.pdf`);
     } catch (e) {
       console.error("PDF generation failed:", e);
-      alert("Failed to generate PDF. Please try again.");
+      toast.error("The PDF could not be created. Try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -103,10 +105,10 @@ export function OverallSummaryButton() {
       <Button
         onClick={handleGenerate}
         disabled={isLoading}
-        className="rounded-xl gap-2 h-11 px-6 text-sm font-semibold shadow-sm"
+        size="lg"
       >
-        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gauge className="w-4 h-4" />}
-        Generate overall summary
+        {isLoading ? <Loader2 className="animate-spin" /> : <Gauge />}
+        {isLoading ? "Building report…" : "Overall report"}
       </Button>
 
       {summary && (
@@ -173,7 +175,7 @@ function OverallReportBody({
 
   return (
     <div className="flex flex-col h-[92vh]">
-      <div className="px-8 py-5 border-b flex items-center justify-between bg-card shrink-0">
+      <div className="px-4 sm:px-8 py-4 sm:py-5 border-b flex items-center justify-between gap-3 bg-card shrink-0">
         <div className="text-left flex-1 space-y-0.5">
           <p className="text-xs font-semibold text-primary">Lifetime performance report</p>
           <DialogTitle className="text-2xl font-heading font-bold tracking-tight">Overall study analytics</DialogTitle>
@@ -195,10 +197,10 @@ function OverallReportBody({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-12 bg-[#e2e8f0] dark:bg-[#030303] flex justify-center">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-6 md:p-12 bg-muted flex justify-center">
         <div className="w-full max-w-[860px] pb-16">
 
-          <div ref={reportRef} className="bg-white text-slate-900 p-8 md:p-12 shadow-2xl rounded-2xl space-y-9 relative overflow-hidden" style={{ fontFamily: "sans-serif" }}>
+          <div ref={reportRef} className="bg-white text-slate-900 p-8 md:p-12 shadow-sm rounded-2xl space-y-9 relative overflow-hidden" style={{ fontFamily: "sans-serif" }}>
 
             <div className="flex justify-between items-start border-b border-slate-200 pb-6">
               <div className="space-y-2.5">
@@ -223,10 +225,10 @@ function OverallReportBody({
               </div>
             </div>
 
-            <div className="rounded-2xl overflow-hidden relative text-white shadow-lg"
-                 style={{ background: `linear-gradient(135deg, ${theme.hex}, ${theme.hex}cc)` }}>
+            <div className="rounded-2xl overflow-hidden relative text-white"
+                 style={{ backgroundColor: theme.hex }}>
               <div className="relative p-7 flex flex-col md:flex-row items-center gap-7">
-                <div className="shrink-0 w-32 h-32 rounded-2xl bg-white/15 backdrop-blur border border-white/25 flex flex-col items-center justify-center">
+                <div className="shrink-0 w-32 h-32 rounded-2xl bg-white/15 border border-white/25 flex flex-col items-center justify-center">
                   {summary.grade === "S" && <Trophy className="w-5 h-5 mb-1 text-amber-200" />}
                   <span className="text-6xl font-black tracking-tighter leading-none">{summary.grade}</span>
                   <span className="text-xs font-semibold mt-1.5 opacity-80">Avg. grade</span>

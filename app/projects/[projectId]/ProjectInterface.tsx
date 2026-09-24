@@ -1,25 +1,50 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import {
-  FileText, BrainCircuit, Plus, Send, X,
-  Trash2, ChevronLeft, Save, Sparkles, Loader2
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
-import { cn } from '@/lib/utils';
-import { ConfirmModal } from '@/components/ConfirmModal';
-import {
-  createProjectDoc, updateProjectDoc, deleteProjectDoc, updateProjectProgress
-} from '@/lib/project-actions';
-import { askAIBuddy } from '@/lib/ai-actions';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
+import { toast } from 'sonner';
+import {
+  ArrowLeft,
+  BrainCircuit,
+  FileText,
+  Gauge,
+  Loader2,
+  Plus,
+  Save,
+  Send,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { Page, PageBody } from '@/components/ui/page';
+import { PageHeader } from '@/components/ui/page-header';
+import { Panel, PanelTitle } from '@/components/ui/panel';
+import { EmptyState } from '@/components/ui/empty-state';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { ConfirmModal } from '@/components/ConfirmModal';
+import { useIsArchived } from '@/components/ArchiveContext';
+import { cn } from '@/lib/utils';
+import {
+  createProjectDoc,
+  deleteProjectDoc,
+  updateProjectDoc,
+  updateProjectProgress,
+} from '@/lib/project-actions';
+import { askAIBuddy } from '@/lib/ai-actions';
 import { ProjectWithDocs } from '@/lib/types';
 
-function Typewriter({ text, speed = 10 }: { text: string, speed?: number }) {
+function Typewriter({ text, speed = 10 }: { text: string; speed?: number }) {
   const [displayedText, setDisplayedText] = useState('');
-  
+
   useEffect(() => {
     const timerId = setTimeout(() => {
       setDisplayedText('');
@@ -35,13 +60,16 @@ function Typewriter({ text, speed = 10 }: { text: string, speed?: number }) {
   }, [text, speed]);
 
   return (
-    <div className="prose prose-sm dark:prose-invert max-w-none">
+    <div className="prose prose-sm max-w-none dark:prose-invert">
       <ReactMarkdown>{displayedText}</ReactMarkdown>
     </div>
   );
 }
 
+type DocLite = { id: string; title: string; content: string };
+
 export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
+  const archived = useIsArchived();
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [aiInput, setAiInput] = useState('');
@@ -50,12 +78,13 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
   const [docContent, setDocContent] = useState('');
   const [docTitle, setDocTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [projectProgress, setProjectProgress] = useState(project.progress);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [docToDelete, setDocToDelete] = useState<string | null>(null);
-  const [pendingDoc, setPendingDoc] = useState<{ id: string; title: string; content: string } | null>(null);
+  const [pendingDoc, setPendingDoc] = useState<DocLite | null>(null);
 
-  // Warn the user before leaving/refreshing the page with unsaved edits.
+  // Warn before leaving or refreshing with unsaved edits.
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
@@ -67,17 +96,17 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
-  const loadDoc = (doc: { id: string; title: string; content: string }) => {
+  const loadDoc = (doc: DocLite) => {
     setActiveDocId(doc.id);
     setDocTitle(doc.title);
     setDocContent(doc.content);
     setHasUnsavedChanges(false);
   };
 
-  const handleSelectDoc = (doc: { id: string; title: string; content: string }) => {
+  const handleSelectDoc = (doc: DocLite) => {
     if (doc.id === activeDocId) return;
     if (hasUnsavedChanges) {
-      // Defer the switch until the user confirms discarding unsaved edits.
+      // Hold the switch until the student confirms discarding their edits.
       setPendingDoc(doc);
       return;
     }
@@ -85,25 +114,41 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
   };
 
   const handleCreateDoc = async () => {
-    const title = 'New Documentation';
-    const content = '';
-    const newDoc = await createProjectDoc(project.id, { title, content });
-    loadDoc({ id: newDoc.id, title, content });
+    const title = 'Untitled doc';
+    setIsCreating(true);
+    try {
+      const newDoc = await createProjectDoc(project.id, { title, content: '' });
+      loadDoc({ id: newDoc.id, title, content: '' });
+    } catch (error) {
+      console.error(error);
+      toast.error('That doc could not be created. Try again.');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleSaveDoc = async () => {
     if (!activeDocId) return;
     setIsSaving(true);
-    await updateProjectDoc(activeDocId, project.id, { title: docTitle, content: docContent });
-    setIsSaving(false);
-    setHasUnsavedChanges(false);
+    try {
+      await updateProjectDoc(activeDocId, project.id, { title: docTitle, content: docContent });
+      setHasUnsavedChanges(false);
+      toast.success('Saved.');
+    } catch (error) {
+      console.error(error);
+      toast.error('Your changes could not be saved. Try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAskAi = async () => {
-    if (!aiInput.trim()) return;
+    if (!aiInput.trim() || isAiLoading) return;
     setIsAiLoading(true);
-    setAiResponse(''); // Clear previous response
-    const context = `Context: I am working on a project titled "${project.title}". ${project.description ? `Description: ${project.description}` : ''}. Existing docs: ${project.docs.map(d => d.title).join(', ')}.`;
+    setAiResponse('');
+    const context = `Context: I am working on a project titled "${project.title}". ${
+      project.description ? `Description: ${project.description}` : ''
+    }. Existing docs: ${project.docs.map((d) => d.title).join(', ')}.`;
     const result = await askAIBuddy(`${context}\n\nUser Question: ${aiInput}`, []);
     setIsAiLoading(false);
     if (result.text) setAiResponse(result.text);
@@ -112,225 +157,221 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
   };
 
   return (
-    <div className="flex flex-1 overflow-hidden">
-      {/* Sidebar: Docs List */}
-      <div className="w-80 max-w-[85vw] border-r bg-muted/20 flex flex-col shrink-0">
-        <div className="p-6 border-b bg-background/50">
-          <Link href="/projects" className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-2 mb-6">
-            <ChevronLeft className="w-3 h-3" /> Back to hub
-          </Link>
-          <h2 className="text-2xl font-heading font-bold truncate">{project.title}</h2>
-
-          <div className="mt-6 space-y-4">
-             <div className="flex justify-between items-end">
-               <span className="text-xs font-medium text-muted-foreground">Overall progress</span>
-               <span className="text-sm font-bold text-primary">{projectProgress}%</span>
-             </div>
-             <Slider 
-               value={[projectProgress]} 
-               onValueChange={(val) => {
-                 setProjectProgress(val[0]);
-                 updateProjectProgress(project.id, val[0]);
-               }}
-               max={100} 
-               step={1} 
-               className="py-2"
-             />
-          </div>
-        </div>
-
-        <div className="p-4 flex-1 overflow-y-auto space-y-1">
-          <div className="flex items-center justify-between px-2 mb-4">
-             <span className="text-xs font-medium text-muted-foreground">Documentation</span>
-             <Button variant="ghost" size="icon" aria-label="Create new document" title="Create new document" className="h-6 w-6 rounded-lg" onClick={handleCreateDoc}>
-               <Plus className="w-4 h-4" />
-             </Button>
-          </div>
-          {project.docs.map(doc => (
-            <button
-              key={doc.id}
-              onClick={() => handleSelectDoc(doc)}
-              className={cn(
-                "w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all group",
-                activeDocId === doc.id ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <div className="flex items-center gap-3 overflow-hidden">
-                <FileText className="w-4 h-4 shrink-0" />
-                <span className="truncate">{doc.title}</span>
-              </div>
-              <span
-                role="button"
-                tabIndex={0}
-                aria-label={`Delete document "${doc.title}"`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDocToDelete(doc.id);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setDocToDelete(doc.id);
-                  }
-                }}
-                className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <button
-          onClick={() => setIsAiOpen(true)}
-          className="m-4 p-6 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center gap-4 hover:bg-primary/20 transition-colors group shadow-sm"
-        >
-           <div className="p-2 bg-primary rounded-xl text-white shadow-lg shadow-primary/20">
-             <BrainCircuit className="w-5 h-5" />
-           </div>
-           <div className="text-left">
-              <p className="text-xs font-medium leading-none mb-1">AI Architect</p>
-              <p className="text-xs font-bold opacity-70">Ask for project suggestions</p>
-           </div>
-        </button>
-      </div>
-
-      {/* Main Editor */}
-      <div className="flex-1 flex flex-col bg-background relative">
-        {activeDocId ? (
+    <Page>
+      <PageHeader
+        title={project.title}
+        description={project.description || 'Plan it in docs and keep track of how far along it is.'}
+        actions={
           <>
-            <div className="h-16 border-b flex items-center justify-between px-8 bg-background/80 backdrop-blur-md sticky top-0 z-10">
-              <input
-                value={docTitle}
-                aria-label="Document title"
-                onChange={(e) => { setDocTitle(e.target.value); setHasUnsavedChanges(true); }}
-                className="bg-transparent border-none font-heading font-bold text-xl focus:ring-0 w-full"
+            <Button asChild variant="outline" size="lg">
+              <Link href="/projects">
+                <ArrowLeft />
+                All projects
+              </Link>
+            </Button>
+            {!archived && (
+              <Button size="lg" onClick={handleCreateDoc} disabled={isCreating}>
+                {isCreating ? <Loader2 className="animate-spin" /> : <Plus />}
+                New doc
+              </Button>
+            )}
+          </>
+        }
+      />
+      <PageBody>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="space-y-6 lg:col-span-4">
+            <Panel>
+              <PanelTitle
+                icon={<Gauge />}
+                action={<span className="text-sm font-bold tabular-nums text-primary">{projectProgress}%</span>}
+              >
+                Progress
+              </PanelTitle>
+              <Slider
+                value={[projectProgress]}
+                onValueChange={(val) => setProjectProgress(val[0])}
+                // Saved once when the thumb is let go, not on every step.
+                onValueCommit={(val) => {
+                  updateProjectProgress(project.id, val[0]).catch(() =>
+                    toast.error('Progress could not be saved. Try again.')
+                  );
+                }}
+                max={100}
+                step={1}
+                disabled={archived}
+                aria-label="Project progress"
+                className="py-2"
               />
-              <div className="flex items-center gap-3 shrink-0">
-                {hasUnsavedChanges && (
-                  <span className="text-xs font-medium text-amber-500 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                    Unsaved changes
-                  </span>
-                )}
-                <Button
-                  onClick={handleSaveDoc}
-                  disabled={isSaving}
-                  className="rounded-xl gap-2 h-10 px-6 font-bold shadow-md shadow-primary/10"
-                >
-                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  {isSaving ? 'Saving...' : 'Save'}
+            </Panel>
+
+            <Panel>
+              <PanelTitle icon={<FileText />}>Docs</PanelTitle>
+              {project.docs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No docs yet.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {project.docs.map((doc) => (
+                    <li key={doc.id} className="flex items-stretch gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectDoc(doc)}
+                        aria-current={activeDocId === doc.id ? 'true' : undefined}
+                        className={cn(
+                          'flex min-w-0 flex-1 items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                          activeDocId === doc.id
+                            ? 'bg-primary/10 text-primary'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        )}
+                      >
+                        <FileText className="size-4 shrink-0" />
+                        <span className="truncate">{doc.title}</span>
+                      </button>
+                      {!archived && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-auto w-10 shrink-0 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          aria-label={`Delete doc ${doc.title}`}
+                          onClick={() => setDocToDelete(doc.id)}
+                        >
+                          <Trash2 />
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+
+            <Panel>
+              <PanelTitle icon={<BrainCircuit />}>Ask AI</PanelTitle>
+              <p className="text-sm text-muted-foreground">
+                Brainstorm features, outline a doc or plan the next steps for this project.
+              </p>
+              <Button variant="outline" className="mt-4 w-full" onClick={() => setIsAiOpen(true)}>
+                <Sparkles />
+                Ask about {project.title}
+              </Button>
+            </Panel>
+          </div>
+
+          <div className="lg:col-span-8">
+            <Panel className="flex min-h-[60vh] flex-col">
+              {activeDocId ? (
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-4">
+                    <input
+                      value={docTitle}
+                      aria-label="Doc title"
+                      readOnly={archived}
+                      onChange={(e) => {
+                        setDocTitle(e.target.value);
+                        setHasUnsavedChanges(true);
+                      }}
+                      className="min-w-0 flex-1 bg-transparent font-heading text-xl font-bold outline-none focus-visible:underline"
+                    />
+                    {!archived && (
+                      <div className="flex shrink-0 items-center gap-3">
+                        {hasUnsavedChanges && (
+                          <span className="text-xs font-medium text-orange-600 dark:text-orange-400">
+                            Unsaved changes
+                          </span>
+                        )}
+                        <Button onClick={handleSaveDoc} disabled={isSaving || !hasUnsavedChanges}>
+                          {isSaving ? <Loader2 className="animate-spin" /> : <Save />}
+                          {isSaving ? 'Saving…' : 'Save'}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <textarea
+                    value={docContent}
+                    aria-label="Doc content"
+                    readOnly={archived}
+                    onChange={(e) => {
+                      setDocContent(e.target.value);
+                      setHasUnsavedChanges(true);
+                    }}
+                    placeholder="Ideas, features, research, a plan…"
+                    className="mt-4 flex-1 resize-none bg-transparent text-base leading-relaxed outline-none"
+                  />
+                </>
+              ) : (
+                <EmptyState
+                  className="my-auto"
+                  icon={<FileText />}
+                  title={project.docs.length === 0 ? 'Start the first doc' : 'Pick a doc to open it'}
+                  description="Docs hold the plan: what you are building, what is left, and what you have found out."
+                  action={
+                    !archived && (
+                      <Button onClick={handleCreateDoc} disabled={isCreating}>
+                        {isCreating ? <Loader2 className="animate-spin" /> : <Plus />}
+                        New doc
+                      </Button>
+                    )
+                  }
+                />
+              )}
+            </Panel>
+          </div>
+        </div>
+      </PageBody>
+
+      <Dialog open={isAiOpen} onOpenChange={setIsAiOpen}>
+        <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Ask AI</DialogTitle>
+            <DialogDescription>About {project.title}. It can see the project&apos;s description and doc titles.</DialogDescription>
+          </DialogHeader>
+
+          <div className="min-h-32 flex-1 overflow-y-auto">
+            {isAiLoading ? (
+              <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground" role="status">
+                <Loader2 className="size-4 animate-spin" />
+                Thinking…
+              </p>
+            ) : aiResponse ? (
+              <div className="rounded-xl border border-border/40 bg-muted/40 p-4">
+                <Typewriter text={aiResponse} />
+                <Button variant="ghost" size="sm" className="mt-2" onClick={() => setAiResponse('')}>
+                  Clear
                 </Button>
               </div>
-            </div>
-            <textarea
-              value={docContent}
-              onChange={(e) => { setDocContent(e.target.value); setHasUnsavedChanges(true); }}
-              placeholder="Start documenting your project ideas, features, and research..."
-              className="flex-1 p-12 text-lg font-medium leading-relaxed resize-none focus:outline-none bg-transparent"
-            />
-          </>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-             <div className="p-8 bg-muted/50 rounded-2xl mb-8">
-               <FileText className="w-20 h-20 text-muted-foreground/20" />
-             </div>
-             <h3 className="text-3xl font-heading font-bold mb-4 tracking-tight">Project Documentation</h3>
-             <p className="text-muted-foreground font-medium max-w-md">
-               Select an existing document or create a new one to start outlining your roadmap.
-             </p>
-             <Button onClick={handleCreateDoc} className="mt-8 h-14 rounded-xl font-bold px-8 shadow-lg shadow-primary/20 gap-2">
-               <Plus className="w-5 h-5" /> Create first doc
-             </Button>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Try &ldquo;What should the first milestone be?&rdquo; or &ldquo;Outline a doc for the testing plan.&rdquo;
+              </p>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* AI Sidepanel Overlay */}
-      {isAiOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/20 backdrop-blur-sm" onClick={() => setIsAiOpen(false)}>
-           <div
-             className="w-full max-w-[500px] h-full bg-background border-l shadow-2xl flex flex-col"
-             onClick={(e) => e.stopPropagation()}
-           >
-              <div className="p-8 border-b flex items-center justify-between">
-                 <div className="flex items-center gap-4">
-                   <div className="p-3 bg-primary/10 rounded-xl text-primary">
-                     <BrainCircuit className="w-6 h-6" />
-                   </div>
-                   <div>
-                     <h3 className="text-xl font-heading font-bold">AI Architect</h3>
-                     <p className="text-xs font-medium text-muted-foreground">AI Assistant</p>
-                   </div>
-                 </div>
-                 <Button variant="ghost" size="icon" aria-label="Close AI panel" className="rounded-full" onClick={() => setIsAiOpen(false)}>
-                   <X className="w-5 h-5" />
-                 </Button>
-              </div>
+          <div className="relative">
+            <textarea
+              value={aiInput}
+              onChange={(e) => setAiInput(e.target.value)}
+              aria-label="Your question"
+              placeholder="Ask anything about this project"
+              className="min-h-24 w-full resize-none rounded-xl border border-input bg-transparent p-3 pr-14 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleAskAi();
+                }
+              }}
+            />
+            <Button
+              size="icon"
+              aria-label="Send question"
+              className="absolute bottom-3 right-3"
+              onClick={handleAskAi}
+              disabled={isAiLoading || !aiInput.trim()}
+            >
+              <Send />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                 {aiResponse ? (
-                   <div className="prose prose-sm dark:prose-invert max-w-none">
-                      <div className="bg-muted/30 p-6 rounded-2xl border border-border/40 whitespace-pre-wrap font-medium leading-relaxed text-base">
-                        <Typewriter text={aiResponse} />
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="mt-4 font-bold text-primary gap-2"
-                        onClick={() => setAiResponse('')}
-                      >
-                         Clear response
-                      </Button>
-                   </div>
-                 ) : (
-                   <div className="h-full flex flex-col items-center justify-center text-center">
-                      <Sparkles className="w-12 h-12 text-primary/20 mb-6" />
-                      <p className="text-muted-foreground font-semibold px-8 leading-relaxed">
-                        I can help you brainstorm features, write documentation, or create a roadmap for <span className="text-primary">{project.title}</span>.
-                      </p>
-                   </div>
-                 )}
-                 {isAiLoading && (
-                   <div className="flex items-center gap-3 p-6 bg-muted/30 rounded-2xl border border-dashed border-primary/20 mt-6 animate-pulse">
-                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                      <span className="font-semibold text-sm text-primary">Architect is thinking...</span>
-                   </div>
-                 )}
-              </div>
-
-              <div className="p-8 border-t bg-muted/10">
-                 <div className="relative">
-                    <textarea
-                      value={aiInput}
-                      onChange={(e) => setAiInput(e.target.value)}
-                      aria-label="Ask the Architect"
-                      placeholder="Ask the Architect anything..."
-                      className="w-full min-h-[120px] p-6 rounded-xl bg-background border border-border/60 font-medium focus:ring-2 focus:ring-primary/20 resize-none pr-16"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleAskAi();
-                        }
-                      }}
-                    />
-                    <Button
-                      size="icon"
-                      aria-label="Send question"
-                      className="absolute right-4 bottom-4 h-12 w-12 rounded-xl shadow-lg shadow-primary/20 transition-all"
-                      onClick={handleAskAi}
-                      disabled={isAiLoading || !aiInput.trim()}
-                    >
-                       <Send className="w-5 h-5" />
-                    </Button>
-                 </div>
-              </div>
-           </div>
-        </div>
-      )}
-
-      {/* Delete document confirmation */}
       <ConfirmModal
         isOpen={docToDelete !== null}
         onClose={() => setDocToDelete(null)}
@@ -346,11 +387,10 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
           }
           setDocToDelete(null);
         }}
-        title="Delete document?"
-        description="This document and its contents will be permanently removed. You cannot undo this action."
+        title="Delete this doc?"
+        description="The doc and everything in it will be removed. You cannot undo this."
       />
 
-      {/* Discard unsaved changes when switching documents */}
       <ConfirmModal
         isOpen={pendingDoc !== null}
         onClose={() => setPendingDoc(null)}
@@ -359,8 +399,8 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
           setPendingDoc(null);
         }}
         title="Discard unsaved changes?"
-        description="You have unsaved edits in the current document. Switching now will discard them."
+        description="You have unsaved edits in this doc. Switching now will discard them."
       />
-    </div>
+    </Page>
   );
 }

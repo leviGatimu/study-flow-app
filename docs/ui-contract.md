@@ -8,6 +8,35 @@ An earlier attempt to restyle several pages at once was rejected outright
 because each page was reinvented. This contract exists so alignment means
 *converging on one thing* rather than applying taste.
 
+## Use the primitives, not the class strings
+
+Since the 2026-09-24 refactor the strings below are baked into components.
+A page is assembled from these and should almost never re-type a surface,
+heading or empty-state class by hand:
+
+| Component | Import | What it is |
+|---|---|---|
+| `Page`, `PageBody` | `@/components/ui/page` | The 1600px column + gutter; body at `pt-8 space-y-8` |
+| `PageHeader` | `@/components/ui/page-header` | Title (`text-3xl font-bold`), one-sentence description, actions on the right, ruled off like the dashboard hero. Carries its own gutter. |
+| `Section` | `@/components/ui/section` | h2 block (`text-2xl font-bold`) with optional actions |
+| `Panel`, `PanelTitle` | `@/components/ui/panel` | The card surface; h3 with a `w-5` primary icon and an optional right-side action |
+| `ListRow`, `Pill` | `@/components/ui/list-row` | The dashboard's muted row (optionally a link) and its rounded tag |
+| `Stat` | `@/components/ui/stat` | Muted label over a `font-black` number |
+| `EmptyState` | `@/components/ui/empty-state` | Muted well: title, what to do, an action |
+| `ErrorState` | `@/components/ui/error-state` | Plain-words failure + recovery action |
+| `PageSkeleton` | `@/components/PageSkeleton` | `loading.tsx` shaped like the page (`grid` / `split` / `list`) |
+
+Page skeleton:
+
+```tsx
+<Page>
+  <PageHeader title="Homework" description="Everything due, soonest first." actions={<Button>Add homework</Button>} />
+  <PageBody>
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">...</div>
+  </PageBody>
+</Page>
+```
+
 ## Layout
 
 | Thing | Value |
@@ -85,9 +114,25 @@ budget in `app/globals.css`).
 - A clickable `div` becomes a `button`, or gains `role`, `tabIndex` and a key handler.
 - A visible `<Label>` needs `htmlFor` matched to the input's `id`.
 
-## Off limits
+## Buttons
 
-`components/TaskList.tsx`, `components/LiveFocusCard.tsx`,
-`components/DailyQuote.tsx`, `components/MemoryGuard.tsx`,
-`components/FocusSessionUI.tsx`, `components/ui/**`, and the marketing tier
-(`app/welcome`, `app/login`, `app/register`, `components/landing/**`).
+`Button` from `@/components/ui/button`. One `default` (primary) button per
+view for the main action; `outline` for secondary; `ghost` for toolbar/icon
+actions. Size `lg` in page headers. Do not hand-style `<button>`s to look like
+buttons.
+
+## Navigation
+
+`lib/nav.ts` is the only list of destinations. A section's href is its first
+page; there are no hub/overview pages that only link to other pages. Sibling
+pages are reached through the section tabs under the header, so pages do not
+add their own "Back to dashboard" links. Detail pages (an exam, a project)
+link back to their list.
+
+## Handle with care
+
+`components/FocusSessionUI.tsx` (the immersive session screen, its own
+full-bleed world by design), `components/ui/**` shadcn internals, and the
+marketing tier (`app/welcome`, `app/login`, `app/register`,
+`components/landing/**`) are not restyled to this contract. Change their
+behaviour when a flow needs it; leave their look.

@@ -1,27 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  ChevronLeft,
-  Cpu,
-  History,
-  Info,
-  Palette,
-  RotateCcw,
-  Save,
-  Settings,
-  Sparkles,
-  Volume2,
-  Zap,
-} from "lucide-react";
+import { ArrowLeft, Cpu, History, Palette, RotateCcw, Save } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { Page, PageBody } from "@/components/ui/page";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel, PanelTitle } from "@/components/ui/panel";
+import { Pill } from "@/components/ui/list-row";
 import { cn } from "@/lib/utils";
 import {
+  CALCULATOR_EVENT,
   DEFAULT_CALCULATOR_SETTINGS,
   loadCalculatorHistory,
   loadCalculatorSettings,
@@ -30,232 +23,227 @@ import {
 } from "@/lib/calculator";
 
 export default function CalculatorSettingsPage() {
-  const [settings, setSettings] = useState(() => loadCalculatorSettings());
-  const [savedMessage, setSavedMessage] = useState("");
+  const [settings, setSettings] = useState(DEFAULT_CALCULATOR_SETTINGS);
+  const [historyCount, setHistoryCount] = useState(0);
+  const [dirty, setDirty] = useState(false);
+
+  // Read local storage after mount: the server render has none, and reading it
+  // during the first render would not match what the server sent. The
+  // calculator page announces its own writes with CALCULATOR_EVENT.
+  useEffect(() => {
+    const sync = () => {
+      setSettings(loadCalculatorSettings());
+      setHistoryCount(loadCalculatorHistory().length);
+    };
+    sync();
+    window.addEventListener(CALCULATOR_EVENT, sync);
+    return () => window.removeEventListener(CALCULATOR_EVENT, sync);
+  }, []);
 
   const updateSetting = <K extends keyof typeof settings>(key: K, value: (typeof settings)[K]) => {
-    setSavedMessage("");
+    setDirty(true);
     setSettings((current) => ({ ...current, [key]: value }));
   };
 
   const persistSettings = () => {
     saveCalculatorSettings(settings);
-    setSavedMessage("Preferences saved locally.");
+    setDirty(false);
+    toast.success("Calculator settings saved on this device.");
   };
 
   const resetDefaults = () => {
     setSettings(DEFAULT_CALCULATOR_SETTINGS);
     saveCalculatorSettings(DEFAULT_CALCULATOR_SETTINGS);
-    setSavedMessage("Defaults restored.");
+    setDirty(false);
+    toast.success("Defaults restored.");
   };
 
-  const purgeHistory = () => {
+  const clearHistory = () => {
     saveCalculatorHistory([]);
-    setSavedMessage("Calculator history cleared.");
+    setHistoryCount(0);
+    toast.success("Calculator history cleared.");
   };
-
-  const historyCount = loadCalculatorHistory().length;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-background">
-      <header className="h-24 border-b border-border/60 bg-card/40 backdrop-blur-xl flex items-center justify-between px-12">
-        <div className="flex items-center gap-8">
-          <Link href="/calculator">
-            <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10">
-              <ChevronLeft className="h-6 w-6" />
+    <Page>
+      <PageHeader
+        title="Calculator settings"
+        description="How results are rounded, how the keypad behaves, and how much history is kept. Stored on this device."
+        meta={dirty ? "Unsaved changes" : undefined}
+        actions={
+          <>
+            <Button asChild variant="outline" size="lg">
+              <Link href="/calculator">
+                <ArrowLeft />
+                Calculator
+              </Link>
             </Button>
-          </Link>
-          <div className="flex items-center gap-4">
-            <div className="rounded-2xl bg-primary/10 p-3 text-primary shadow-inner">
-              <Settings className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-heading font-bold tracking-tight">Calculator Preferences</h1>
-              <p className="text-sm text-muted-foreground">Engine &amp; UI configuration</p>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          {savedMessage ? <span className="text-sm font-bold text-primary">{savedMessage}</span> : null}
-          <Button variant="outline" onClick={resetDefaults} className="h-12 rounded-2xl px-8 border-2 font-bold">
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Defaults
-          </Button>
-          <Button onClick={persistSettings} className="h-12 rounded-2xl px-8 font-bold shadow-lg shadow-primary/20">
-            <Save className="w-4 h-4 mr-2" />
-            Save Preferences
-          </Button>
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-y-auto custom-scrollbar p-12">
-        <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12">
-          <div className="lg:col-span-8 space-y-12">
-            <section className="space-y-6">
-              <div className="flex items-center gap-3 px-2">
-                <Cpu className="w-5 h-5 text-primary" />
-                <h2 className="font-heading text-lg font-bold text-foreground">Computational Core</h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="rounded-2xl border-2 border-border/40 bg-card/40 backdrop-blur-sm p-8 space-y-8">
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-base font-bold">Decimal Precision</Label>
-                      <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">{settings.precision} places</span>
-                    </div>
-                    <p className="text-xs font-medium text-muted-foreground">Controls result rounding for standard and scientific output.</p>
+            <Button variant="outline" size="lg" onClick={resetDefaults}>
+              <RotateCcw />
+              Defaults
+            </Button>
+            <Button size="lg" onClick={persistSettings} disabled={!dirty}>
+              <Save />
+              Save
+            </Button>
+          </>
+        }
+      />
+      <PageBody>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="space-y-6 lg:col-span-8">
+            <Panel>
+              <PanelTitle icon={<Cpu />}>Results</PanelTitle>
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label htmlFor="calc-precision" className="text-base font-semibold">
+                      Decimal places
+                    </Label>
+                    <Pill tone="primary">{settings.precision} places</Pill>
                   </div>
-                  <Slider value={[settings.precision]} onValueChange={(value) => updateSetting("precision", value[0])} max={12} step={1} className="py-2" />
-                </Card>
-
-                <Card className="rounded-2xl border-2 border-border/40 bg-card/40 backdrop-blur-sm p-8 space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <Label className="text-base font-bold">Angular Unit</Label>
-                      <p className="text-xs font-medium text-muted-foreground">Trigonometric calculations can use degrees or radians.</p>
-                    </div>
-                    <div className="flex p-1 rounded-xl border border-border/60 bg-muted/40">
-                      <button
-                        onClick={() => updateSetting("useDegrees", true)}
-                        aria-pressed={settings.useDegrees}
-                        className={cn("px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors", settings.useDegrees ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground")}
-                      >
-                        Deg
-                      </button>
-                      <button
-                        onClick={() => updateSetting("useDegrees", false)}
-                        aria-pressed={!settings.useDegrees}
-                        className={cn("px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors", !settings.useDegrees ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground")}
-                      >
-                        Rad
-                      </button>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            </section>
-
-            <section className="space-y-6">
-              <div className="flex items-center gap-3 px-2">
-                <Palette className="w-5 h-5 text-primary" />
-                <h2 className="font-heading text-lg font-bold text-foreground">User interface</h2>
-              </div>
-
-              <Card className="rounded-2xl border-2 border-border/40 bg-card/20 p-10 overflow-hidden relative">
-                <div className="absolute top-0 right-0 p-8">
-                  <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-primary", settings.largeButtons ? "bg-primary/20" : "bg-primary/10")}>
-                    <Zap className="w-6 h-6" />
-                  </div>
+                  <p className="text-sm text-muted-foreground">How far results are rounded, in both modes.</p>
+                  <Slider
+                    id="calc-precision"
+                    value={[settings.precision]}
+                    onValueChange={(value) => updateSetting("precision", value[0])}
+                    max={12}
+                    step={1}
+                    aria-label="Decimal places"
+                    className="py-2"
+                  />
                 </div>
 
-                <div className="space-y-8">
-                  <ToggleRow
-                    label="Large Button Layout"
-                    description="Increase key height and hit area for a denser desktop/numpad workflow."
-                    checked={settings.largeButtons}
-                    onCheckedChange={(checked) => updateSetting("largeButtons", checked)}
-                  />
-                  <Divider />
-                  <ToggleRow
-                    label="Motion Engine"
-                    description="Enable animated panel reveals and calculation history transitions."
-                    checked={settings.animationsEnabled}
-                    onCheckedChange={(checked) => updateSetting("animationsEnabled", checked)}
-                  />
-                  <Divider />
-                  <ToggleRow
-                    label="Acoustic Feedback"
-                    description="Play a short synthetic click on keypress."
-                    checked={settings.soundEnabled}
-                    onCheckedChange={(checked) => updateSetting("soundEnabled", checked)}
-                    icon={<Volume2 className="w-4 h-4 text-primary" />}
-                  />
-                  <Divider />
-                  <ToggleRow
-                    label="Scientific Mode by Default"
-                    description="Open the calculator with the scientific panel already expanded."
-                    checked={settings.useScientificByDefault}
-                    onCheckedChange={(checked) => updateSetting("useScientificByDefault", checked)}
-                    icon={<Sparkles className="w-4 h-4 text-primary" />}
-                  />
-                </div>
-              </Card>
-            </section>
-          </div>
+                <Divider />
 
-          <div className="lg:col-span-4 space-y-12">
-            <section className="space-y-6">
-              <div className="flex items-center gap-3 px-2">
-                <History className="w-5 h-5 text-primary" />
-                <h2 className="font-heading text-lg font-bold text-foreground">Log management</h2>
-              </div>
-
-              <Card className="rounded-2xl border-2 border-primary/20 bg-foreground text-background p-10 space-y-8 overflow-hidden relative group">
-                <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-10 transition-opacity" />
-                <div className="relative space-y-6">
-                  <div className="space-y-2">
-                    <Label className="text-lg font-bold text-background">History buffer</Label>
-                    <p className="text-xs font-medium leading-relaxed text-background/40">
-                      Controls how many completed calculations are kept in local history.
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <p id="calc-angle-label" className="text-base font-semibold">
+                      Angles
                     </p>
+                    <p className="text-sm text-muted-foreground">Whether sin, cos and tan work in degrees or radians.</p>
                   </div>
-
-                  <div className="pt-4 space-y-6">
-                    <div className="flex justify-between text-xs font-medium opacity-60">
-                      <span>Stored states</span>
-                      <span>{settings.historyLimit} max</span>
-                    </div>
-                    <Slider value={[settings.historyLimit]} onValueChange={(value) => updateSetting("historyLimit", value[0])} max={200} min={10} step={5} className="py-2" />
-                    <div className="text-sm font-semibold text-background/70">{historyCount} currently saved</div>
+                  <div role="group" aria-labelledby="calc-angle-label" className="flex rounded-xl border border-border/60 bg-muted/40 p-1">
+                    {[
+                      { label: "Degrees", value: true },
+                      { label: "Radians", value: false },
+                    ].map((option) => (
+                      <button
+                        key={option.label}
+                        type="button"
+                        onClick={() => updateSetting("useDegrees", option.value)}
+                        aria-pressed={settings.useDegrees === option.value}
+                        className={cn(
+                          "rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors",
+                          settings.useDegrees === option.value
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
                   </div>
-
-                  <Button variant="ghost" onClick={purgeHistory} className="w-full h-12 rounded-2xl border border-background/10 bg-background/5 text-background font-bold hover:bg-background/10">
-                    Purge History Cache
-                  </Button>
                 </div>
-              </Card>
-            </section>
-
-            <Card className="rounded-2xl border-2 border-border/60 bg-muted/20 p-8 space-y-4">
-              <div className="flex items-center gap-3 text-primary">
-                <Info className="w-4 h-4" />
-                <span className="text-xs font-medium">Metadata</span>
               </div>
-              <p className="text-xs font-medium leading-relaxed text-muted-foreground/60">
-                Preferences are stored locally in your browser. The calculator engine supports chained expressions, parentheses, exponentiation, inverse trig functions, and persistent memory/history.
-              </p>
-            </Card>
+            </Panel>
+
+            <Panel>
+              <PanelTitle icon={<Palette />}>Keypad</PanelTitle>
+              <div className="space-y-6">
+                <ToggleRow
+                  id="calc-large-buttons"
+                  label="Large buttons"
+                  description="Taller keys with a bigger hit area."
+                  checked={settings.largeButtons}
+                  onCheckedChange={(checked) => updateSetting("largeButtons", checked)}
+                />
+                <Divider />
+                <ToggleRow
+                  id="calc-animations"
+                  label="Animations"
+                  description="Fade new entries into the history list."
+                  checked={settings.animationsEnabled}
+                  onCheckedChange={(checked) => updateSetting("animationsEnabled", checked)}
+                />
+                <Divider />
+                <ToggleRow
+                  id="calc-sound"
+                  label="Key sound"
+                  description="A short click on every key press."
+                  checked={settings.soundEnabled}
+                  onCheckedChange={(checked) => updateSetting("soundEnabled", checked)}
+                />
+                <Divider />
+                <ToggleRow
+                  id="calc-scientific-default"
+                  label="Open in scientific mode"
+                  description="Show the scientific keys every time the calculator opens."
+                  checked={settings.useScientificByDefault}
+                  onCheckedChange={(checked) => updateSetting("useScientificByDefault", checked)}
+                />
+              </div>
+            </Panel>
+          </div>
+
+          <div className="lg:col-span-4">
+            <Panel>
+              <PanelTitle icon={<History />}>History</PanelTitle>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="calc-history-limit" className="text-base font-semibold">
+                    Keep up to
+                  </Label>
+                  <Pill tone="primary">{settings.historyLimit}</Pill>
+                </div>
+                <Slider
+                  id="calc-history-limit"
+                  value={[settings.historyLimit]}
+                  onValueChange={(value) => updateSetting("historyLimit", value[0])}
+                  max={200}
+                  min={10}
+                  step={5}
+                  aria-label="History limit"
+                  className="py-2"
+                />
+                <p className="text-sm text-muted-foreground">{historyCount} saved right now.</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={clearHistory}
+                disabled={historyCount === 0}
+                className="mt-6 w-full hover:bg-destructive/10 hover:text-destructive"
+              >
+                Clear history
+              </Button>
+            </Panel>
           </div>
         </div>
-      </main>
-    </div>
+      </PageBody>
+    </Page>
   );
 }
 
 function ToggleRow({
+  id,
   label,
   description,
   checked,
   onCheckedChange,
-  icon,
 }: {
+  id: string;
   label: string;
   description: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
-  icon?: React.ReactNode;
 }) {
-  const id = `calc-toggle-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-
   return (
     <div className="flex items-center justify-between gap-6">
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          {icon}
-          <Label htmlFor={id} className="text-lg font-semibold">{label}</Label>
-        </div>
-        <p className="max-w-md text-sm font-medium text-muted-foreground">{description}</p>
+      <div className="space-y-1">
+        <Label htmlFor={id} className="text-base font-semibold">
+          {label}
+        </Label>
+        <p className="text-sm text-muted-foreground">{description}</p>
       </div>
       <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
     </div>

@@ -54,10 +54,10 @@ export function DeleteTemplateButton({ id }: { id: string }) {
     }
 
     if (parts.length === 0) {
-      return `${name} will be removed from your weekly timetable. Nothing else is affected.`;
+      return `${name} will be removed from your study routine. Nothing else is affected.`;
     }
 
-    return `${name} will be removed from your weekly timetable. ${parts.join(', and ')}.`;
+    return `${name} will be removed from your study routine. ${parts.join(', and ')}.`;
   };
 
   if (archived) return null;
@@ -67,8 +67,8 @@ export function DeleteTemplateButton({ id }: { id: string }) {
       <Button
         variant="ghost"
         size="icon"
-        aria-label="Delete this timetable block"
-        title="Delete this timetable block"
+        aria-label="Remove from study routine"
+        title="Remove from study routine"
         disabled={isPending}
         onClick={openDialog}
       >
@@ -79,13 +79,17 @@ export function DeleteTemplateButton({ id }: { id: string }) {
         isOpen={open}
         onClose={() => setOpen(false)}
         isPending={isPending}
-        title="Remove this from your timetable?"
+        title="Remove this from your study routine?"
         description={describe()}
         onConfirm={() =>
           startTransition(async () => {
-            await deleteTemplate(id);
-            setOpen(false);
-            toast.success('Removed from your timetable. Completed sessions were kept.');
+            try {
+              await deleteTemplate(id);
+              setOpen(false);
+              toast.success('Removed from your study routine. Completed sessions were kept.');
+            } catch {
+              toast.error('That block could not be removed. Try again.');
+            }
           })
         }
       />

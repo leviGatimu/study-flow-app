@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useIsDesktopApp } from "@/components/DesktopUpdater";
 import { deleteSubject } from "@/lib/actions";
 import type { LibraryOverview as Overview, LibrarySubject, ResourceItem } from "@/lib/library-actions";
@@ -144,18 +145,25 @@ export function LibraryOverview({ overview }: { overview: Overview }) {
         {/* body */}
         <div className="flex-1 p-3">
           {subjects.length === 0 ? (
-            <div className="flex h-full min-h-[300px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border text-center">
-              <Folder className="size-7 text-muted-foreground" />
-              <p className="font-heading text-sm font-medium">{query ? `No subject matches “${query}”` : "No subjects yet"}</p>
-              <p className="max-w-sm text-sm text-muted-foreground">
-                {query ? "Try another spelling." : "Subjects come from your timetable. Add a study block in Manage Schedule and its folder appears here."}
-              </p>
-              {!query && (
-                <Button asChild size="sm" variant="outline" className="mt-1">
-                  <Link href="/manage">Manage schedule</Link>
-                </Button>
-              )}
-            </div>
+            <EmptyState
+              icon={<Folder />}
+              className="h-full min-h-[300px]"
+              title={query ? `No subject matches "${query}"` : "No subjects yet"}
+              description={
+                query
+                  ? "Check the spelling, or clear the search."
+                  : "Every subject gets a folder here. Add your subjects first, then file notes and past papers under them."
+              }
+              action={
+                query ? (
+                  <Button size="sm" variant="outline" onClick={() => setQuery("")}>Clear search</Button>
+                ) : (
+                  <Button asChild size="sm" variant="outline">
+                    <Link href="/subjects">Add subjects</Link>
+                  </Button>
+                )
+              }
+            />
           ) : view === "grid" ? (
             <ul role="list" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
               {subjects.map((s) => (
@@ -249,14 +257,14 @@ function SubjectTile({
         <KindIcon item={{ type: "FOLDER", ext: "" }} size="lg" />
         <div className="min-w-0">
           <p className="line-clamp-2 break-words text-sm font-medium leading-snug text-foreground">{s.name}</p>
-          <p className="truncate text-[11px] text-muted-foreground">
+          <p className="truncate text-xs text-muted-foreground">
             {count === 0 ? "Empty" : `${count} ${count === 1 ? "item" : "items"}`}
             {s.folders > 0 ? ` · ${s.folders} ${s.folders === 1 ? "folder" : "folders"}` : ""}
           </p>
         </div>
         {pct !== null && (
           <div className="mt-auto" aria-label={`Mastery ${pct}%`}>
-            <div className="flex justify-between text-[10px] text-muted-foreground">
+            <div className="flex justify-between text-xs text-muted-foreground">
               <span>Mastery</span>
               <span className="tabular-nums">{pct}%</span>
             </div>
@@ -294,7 +302,7 @@ function SubjectRows({
   const cols = "grid grid-cols-[minmax(0,1fr)_90px_90px_120px_140px] items-center gap-3";
   return (
     <div role="table" aria-label="Subjects" className="text-sm">
-      <div role="row" className={cn(cols, "border-b border-border px-3 pb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground")}>
+      <div role="row" className={cn(cols, "border-b border-border px-3 pb-2 text-xs font-medium text-muted-foreground")}>
         <span>Name</span>
         <span className="hidden sm:block">Files</span>
         <span className="hidden sm:block">Links</span>
@@ -357,13 +365,13 @@ function RecentCard({ item, onDesktop }: { item: ResourceItem; onDesktop: boolea
         <KindIcon item={item} size="sm" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-foreground">{displayName(item)}</p>
-          <p className="truncate text-[11px] text-muted-foreground">
+          <p className="truncate text-xs text-muted-foreground">
             {item.subject}
             {item.folder ? ` › ${item.folder.replace(/\//g, " › ")}` : ""}
             {item.type === "LINK" ? ` · ${hostOf(item.url)}` : ""}
           </p>
         </div>
-        <span className="shrink-0 text-[11px] text-muted-foreground">{formatWhen(item.createdAt)}</span>
+        <span className="shrink-0 text-xs text-muted-foreground">{formatWhen(item.createdAt)}</span>
       </Link>
     </li>
   );

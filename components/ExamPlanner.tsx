@@ -1,14 +1,16 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { CalendarClock, CheckCircle2, Circle, Trash2, Wand2 } from 'lucide-react';
+import { CalendarClock, CheckCircle2, Circle, Link2, Loader2, Trash2, Trophy, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
 import { useIsArchived } from '@/components/ArchiveContext';
 import { Button } from '@/components/ui/button';
+import { Panel, PanelTitle } from '@/components/ui/panel';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -73,10 +75,10 @@ export function ExamPlanner({
   const done = revisionTasks.filter((t) => t.isDone).length;
   const total = revisionTasks.length;
 
-  const run = (fn: () => Promise<any>, ok: (r: any) => string) =>
+  const run = <T extends { error?: string }>(fn: () => Promise<T>, ok: (r: T) => string) =>
     startTransition(async () => {
       const res = await fn();
-      if (res?.error) toast.error(res.error);
+      if (res.error) toast.error(res.error);
       else {
         toast.success(ok(res));
         router.refresh();
@@ -87,19 +89,16 @@ export function ExamPlanner({
     <div className="space-y-6">
       {/* 1. What does this exam actually assess? */}
       {!subjectId && !archived && (
-        <div className="rounded-2xl border border-orange-500/30 bg-orange-500/5 p-5 space-y-3">
-          <div>
-            <p className="font-heading font-bold text-foreground">
-              This exam is not linked to a subject
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Link it so preparation stats, mastery topics and revision planning
-              know what they are about.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+        <Panel className="border-orange-500/30">
+          <PanelTitle icon={<Link2 />}>Link a subject</PanelTitle>
+          <p className="mb-4 text-sm text-muted-foreground">
+            This exam is not linked to a subject yet. Link it so preparation
+            stats, syllabus topics, practice and revision planning know what it
+            is about.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Select value={pickedSubject} onValueChange={setPickedSubject}>
-              <SelectTrigger className="w-64">
+              <SelectTrigger aria-label="Subject this exam assesses" className="h-9 w-full sm:w-64">
                 <SelectValue placeholder="Choose a subject" />
               </SelectTrigger>
               <SelectContent>
@@ -111,47 +110,55 @@ export function ExamPlanner({
               </SelectContent>
             </Select>
             <Button
+              size="lg"
               disabled={isPending || !pickedSubject}
               onClick={() =>
                 run(() => setExamSubject(examId, pickedSubject), () => 'Subject linked.')
               }
             >
-              Link
+              {isPending && <Loader2 className="animate-spin" />}
+              Link subject
             </Button>
           </div>
-        </div>
+          {subjects.length === 0 && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              You have no subjects yet.{' '}
+              <Link href="/subjects" className="font-medium text-primary hover:underline">Add one in Subjects</Link>.
+            </p>
+          )}
+        </Panel>
       )}
 
       {/* 2. Plan the revision backwards from the date. Never offered in a
           finished year - there is nothing left to revise for. */}
       {!isPast && !archived && (
-        <div className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="font-heading font-bold text-lg flex items-center gap-2">
-                <CalendarClock className="w-5 h-5 text-primary" />
-                Revision plan
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {total > 0
-                  ? `${done} of ${total} blocks done`
-                  : `Schedule sessions leading up to ${subjectName ?? 'this exam'}.`}
-              </p>
-            </div>
-            {total > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={isPending}
-                className="gap-1.5 text-muted-foreground"
-                onClick={() =>
-                  run(() => clearRevisionPlan(examId), (r) => `${r.removed} blocks removed.`)
-                }
-              >
-                <Trash2 className="w-3.5 h-3.5" /> Clear
-              </Button>
-            )}
-          </div>
+        <Panel className="space-y-4">
+          <PanelTitle
+            icon={<CalendarClock />}
+            className="mb-0"
+            action={
+              total > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={isPending}
+                  className="text-muted-foreground"
+                  onClick={() =>
+                    run(() => clearRevisionPlan(examId), (r) => `${r.removed} blocks removed.`)
+                  }
+                >
+                  <Trash2 /> Clear
+                </Button>
+              )
+            }
+          >
+            Revision plan
+          </PanelTitle>
+          <p className="text-sm text-muted-foreground">
+            {total > 0
+              ? `${done} of ${total} blocks done. They are on your timetable.`
+              : `Schedule sessions leading up to the exam${subjectName ? ` for ${subjectName}` : ''}.`}
+          </p>
 
           {total > 0 && (
             <>
@@ -165,9 +172,9 @@ export function ExamPlanner({
                 {revisionTasks.slice(0, 8).map((t) => (
                   <div key={t.id} className="flex items-center gap-2.5 text-sm">
                     {t.isDone ? (
-                      <CheckCircle2 className="w-4 h-4 shrink-0 text-success" />
+                      <CheckCircle2 className="size-4 shrink-0 text-success" />
                     ) : (
-                      <Circle className="w-4 h-4 shrink-0 text-muted-foreground/50" />
+                      <Circle className="size-4 shrink-0 text-muted-foreground/50" />
                     )}
                     <span
                       className={cn(
@@ -235,7 +242,6 @@ export function ExamPlanner({
 
           <Button
             disabled={isPending}
-            className="gap-2"
             onClick={() =>
               run(
                 () => planRevision(examId, { sessions, daysBefore, startTime }),
@@ -243,16 +249,16 @@ export function ExamPlanner({
               )
             }
           >
-            <Wand2 className="w-4 h-4" />
+            {isPending ? <Loader2 className="animate-spin" /> : <Wand2 />}
             {total > 0 ? 'Re-plan revision' : 'Plan revision'}
           </Button>
-        </div>
+        </Panel>
       )}
 
       {/* 3. How did it go? */}
-      <div className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
+      <Panel className="space-y-4">
         <div>
-          <h3 className="font-heading font-bold text-lg">Result</h3>
+          <PanelTitle icon={<Trophy />} className="mb-1">Result</PanelTitle>
           <p className="text-sm text-muted-foreground">
             {score !== null && maxScore
               ? `You scored ${score} out of ${maxScore} (${Math.round((score / maxScore) * 100)}%).`
@@ -298,10 +304,10 @@ export function ExamPlanner({
               )
             }
           >
-            Save
+            Save result
           </Button>
         </div>
-      </div>
+      </Panel>
     </div>
   );
 }

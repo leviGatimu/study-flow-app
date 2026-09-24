@@ -437,20 +437,43 @@ export async function getYesterdayTasks() {
 }
 
 /**
- * Fetch all tasks (Calendar view)
+ * Tasks for a date range (the Month grid, and the AI's schedule summary).
+ *
+ * This used to generate up to a hard-coded 2026-06-30 and return every task
+ * the user had ever had: months after that date showed nothing, and the read
+ * grew forever. It now reads only the requested range, and generates only the
+ * part of it that lies between today and the running term's end - generating
+ * past days would manufacture blocks that are instantly marked missed, and
+ * days after the term ends belong to no term.
+ *
+ * Without a range it covers last week to four weeks ahead, which is what the
+ * AI summary needs to talk about "my schedule".
  */
-export async function getAllTasks() {
+export async function getAllTasks(range?: { from: Date; to: Date }) {
   const userId = await getUserId();
   if (!userId) return [];
 
   const tz = await getUserTimezone(userId);
-  const today = getZonedNow(tz);
-  const endOfJune = new Date(2026, 5, 30);
-  await ensureTasksGenerated(today, endOfJune);
+  const today = startOfDay(getZonedNow(tz));
+  const from = startOfDay(range?.from ?? addDays(today, -7));
+  const to = endOfDay(range?.to ?? addDays(today, 28));
+
+  const schedule = await getScheduleState(userId);
+  const generateFrom = from > today ? from : today;
+  const termEnd = schedule.termEndDate ? endOfDay(schedule.termEndDate) : null;
+  const generateTo = termEnd && termEnd < to ? termEnd : to;
+  if (generateFrom <= generateTo) {
+    await ensureTasksGenerated(generateFrom, generateTo);
+  }
   await checkAndMarkMissedTasks(userId);
 
   return prisma.task.findMany({
-    where: { userId, ...byTerm(await getViewScope(userId)), isDeleted: false },
+    where: {
+      userId,
+      ...byTerm(await getViewScope(userId)),
+      isDeleted: false,
+      date: { gte: from, lte: to },
+    },
     include: { template: true },
     orderBy: { startTime: 'asc' }
   });
@@ -1021,25 +1044,6 @@ const syncStreakFor = cache(async function syncStreakFor(userId: string) {
     scheduleReason: schedule.reason,
   };
 });
-
-/**
- * Set (or clear) the user's marked "last day of school". Passing null clears it.
- * After this date passes, syncStreak freezes the streak until resumeStreak().
- */
-export async function setSchoolEndDate(date: Date | null) {
-  const userId = await getUserId();
-  if (!userId) return;
-
-  const value = date ? startOfDay(date) : null;
-  await prisma.userProgress.upsert({
-    where: { userId },
-    update: { schoolEndDate: value },
-    create: { userId, schoolEndDate: value, currentStreak: 0, longestStreak: 0 },
-  });
-  revalidatePath('/');
-  revalidatePath('/calendar');
-  revalidatePath('/streak');
-}
 
 /**
  * Fetch the user's marked last day of school (or null).
@@ -2040,7 +2044,7 @@ export async function updateDailySummaryTime(time: string) {
     update: { dailySummaryTime: time },
     create: { userId, dailySummaryTime: time },
   });
-  revalidatePath('/daily-summary');
+  revalidatePath('/summaries');
 }
 
 /**

@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { GraduationCap, Sparkles } from 'lucide-react';
+import { Brain, GraduationCap } from 'lucide-react';
 
 import { getUserId } from '@/lib/auth';
 import { getSubjectLibrary } from '@/lib/library-actions';
 import { Button } from '@/components/ui/button';
+import { Page } from '@/components/ui/page';
 import { SubjectExplorer } from '@/components/resources/SubjectExplorer';
 
 export const dynamic = 'force-dynamic';
@@ -37,25 +38,25 @@ export default async function SubjectResourcesPage({
   const encoded = encodeURIComponent(library.subject);
 
   return (
-    <div className="h-full animate-in fade-in duration-300">
+    <Page bleed>
       <SubjectExplorer
         library={library}
         initialPath={initialPath}
         tabStripEnd={
           <>
             <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
-              <Link href={`/subjects?subject=${encoded}`}>
-                <GraduationCap /> <span className="hidden sm:inline">{library.subject} hub</span>
+              <Link href={`/subjects?subject=${encoded}`} aria-label={`Open ${library.subject} in Subjects`}>
+                <GraduationCap /> <span className="hidden sm:inline">{library.subject}</span>
               </Link>
             </Button>
             <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
-              <Link href={`/studio/${encoded}`}>
-                <Sparkles /> <span className="hidden sm:inline">Deep work studio</span>
+              <Link href={`/ai?subject=${encoded}`} aria-label={`Practice ${library.subject}`}>
+                <Brain /> <span className="hidden sm:inline">Practice</span>
               </Link>
             </Button>
           </>
         }
       />
-    </div>
+    </Page>
   );
 }

@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { createProject } from '@/lib/project-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,50 +11,53 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 
 export function CreateProjectForm() {
+  const router = useRouter();
   const [isPending, setIsPending] = useState(false);
 
   const handleSubmit = async (formData: FormData) => {
+    const title = String(formData.get('title') ?? '').trim();
+    const description = String(formData.get('description') ?? '').trim();
+    if (!title) return;
+
     setIsPending(true);
-    const title = formData.get('title') as string;
-    const description = formData.get('description') as string;
-    
     try {
-      await createProject({ title, description });
-      window.location.reload(); // Quick refresh to show new project
+      const project = await createProject({ title, description: description || undefined });
+      // The next thing to do with a new project is open it.
+      router.push(`/projects/${project.id}`);
     } catch (error) {
       console.error(error);
-    } finally {
+      toast.error('That project could not be created. Try again.');
       setIsPending(false);
     }
   };
 
   return (
-    <form action={handleSubmit} className="space-y-6 mt-4">
+    <form action={handleSubmit} className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor="project-title" className="text-xs font-medium text-muted-foreground ml-1">Project title</Label>
+        <Label htmlFor="project-title">Title</Label>
         <Input
           id="project-title"
           name="title"
-          placeholder="e.g., E-Commerce App"
-          className="h-14 rounded-xl bg-muted/30 border-border/60 font-bold px-6"
+          placeholder="e.g. Chemistry coursework"
+          className="h-11 rounded-xl"
           required
+          autoFocus
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="project-description" className="text-xs font-medium text-muted-foreground ml-1">Description (optional)</Label>
+        <Label htmlFor="project-description">
+          Description <span className="font-normal text-muted-foreground">Optional</span>
+        </Label>
         <Textarea
           id="project-description"
           name="description"
-          placeholder="What are you building?"
-          className="min-h-[120px] rounded-xl bg-muted/30 border-border/60 font-medium p-6 resize-none"
+          placeholder="What is it, and when is it due?"
+          className="min-h-28 resize-none rounded-xl"
         />
       </div>
-      <Button
-        type="submit"
-        disabled={isPending}
-        className="w-full h-14 rounded-xl font-heading font-bold text-lg shadow-xl shadow-primary/20"
-      >
-        {isPending ? 'Creating...' : 'Create project'}
+      <Button type="submit" disabled={isPending} className="w-full">
+        {isPending && <Loader2 className="animate-spin" />}
+        {isPending ? 'Creating…' : 'Create project'}
       </Button>
     </form>
   );

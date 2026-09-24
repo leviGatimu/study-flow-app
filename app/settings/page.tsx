@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 
 import { getSettingsData } from '@/lib/actions';
 import SettingsInterface from './SettingsInterface';
+import { PageSkeleton } from '@/components/PageSkeleton';
 import { getUserId } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -17,7 +18,7 @@ export default async function SettingsPage() {
 
   // ?tab= opens a specific section, and useSearchParams needs a boundary.
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PageSkeleton layout="list" cards={4} />}>
       <SettingsInterface initialData={settingsData} />
     </Suspense>
   );

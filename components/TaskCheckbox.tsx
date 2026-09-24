@@ -18,8 +18,8 @@ export function TaskCheckbox({ taskId, isDone, isMissed, hasProof }: { taskId: s
 
   const handleToggleDone = () => {
     if (!isDone && !hasProof) {
-      toast.error("Proof Required", {
-        description: "Please attach proof before marking this task as done."
+      toast.error("Add proof first", {
+        description: "Write what you did, or attach a PDF, before ticking this block off."
       });
       setShowValidation(true);
       return;
@@ -55,7 +55,7 @@ export function TaskCheckbox({ taskId, isDone, isMissed, hasProof }: { taskId: s
         className={cn(
           "w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all",
           isDone 
-            ? "bg-success border-success text-white shadow-lg shadow-success/30" 
+            ? "bg-success border-success text-white" 
             : "border-border hover:border-success/50 text-transparent hover:text-success/30"
         )}
       >
@@ -74,7 +74,7 @@ export function TaskCheckbox({ taskId, isDone, isMissed, hasProof }: { taskId: s
         className={cn(
           "w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all",
           isMissed 
-            ? "bg-destructive border-destructive text-white shadow-lg shadow-destructive/30" 
+            ? "bg-destructive border-destructive text-white" 
             : "border-border hover:border-destructive/50 text-transparent hover:text-destructive/30"
         )}
       >
@@ -84,8 +84,8 @@ export function TaskCheckbox({ taskId, isDone, isMissed, hasProof }: { taskId: s
       <ValidationModal 
         isOpen={showValidation}
         onClose={() => setShowValidation(false)}
-        title="Proof Required"
-        description="Please 'Attach Proof' of your work before marking this task as done!"
+        title="Add proof first"
+        description="Use Add proof on this block to write a line about what you did, or attach a PDF. Then you can tick it off."
       />
     </div>
   );

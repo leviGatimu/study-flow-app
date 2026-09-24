@@ -230,7 +230,7 @@ export function Sidebar({
         {userProgress && (
           <div className="mt-auto px-3 pt-3">
             <Link
-              href="/ranks"
+              href="/streak"
               title={`Level ${userProgress.level}`}
               className={cn(
                 "flex h-10 w-full items-center rounded-xl border border-border bg-card transition-colors hover:bg-muted",

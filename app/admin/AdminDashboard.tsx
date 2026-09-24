@@ -22,6 +22,12 @@ import {
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { Page, PageBody } from '@/components/ui/page';
+import { PageHeader } from '@/components/ui/page-header';
+import { Section } from '@/components/ui/section';
+import { Panel, PanelTitle } from '@/components/ui/panel';
+import { Pill } from '@/components/ui/list-row';
+import { Stat as StatValue } from '@/components/ui/stat';
 import type { AdminOverview, AdminUserRow, SystemHealth } from '@/lib/admin-actions';
 
 type Tab = 'overview' | 'users' | 'health';
@@ -43,18 +49,12 @@ export function AdminDashboard({
     (health.database.reachable ? 0 : 1);
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-4 py-8 md:px-8">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border/40 pb-5">
-        <div>
-          <h1 className="flex items-center gap-2.5 font-heading text-2xl font-black tracking-tight">
-            <ShieldCheck className="h-6 w-6 text-primary" />
-            Admin
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Everyone on this deployment, what they are doing, and whether anything is broken.
-          </p>
-        </div>
-        <div className="flex gap-1 rounded-xl border border-border/60 bg-muted/30 p-1">
+    <Page>
+      <PageHeader
+        title="Admin"
+        description="Everyone on this deployment, what they are doing, and whether anything is broken."
+        actions={
+        <div role="tablist" aria-label="Admin views" className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-border/60 bg-muted/30 p-1">
           {(
             [
               ['overview', 'Overview', Activity],
@@ -65,9 +65,11 @@ export function AdminDashboard({
             <button
               key={id}
               type="button"
+              role="tab"
+              aria-selected={tab === id}
               onClick={() => setTab(id)}
               className={cn(
-                'flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-bold transition-colors',
+                'flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
                 tab === id
                   ? 'bg-card text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -78,12 +80,15 @@ export function AdminDashboard({
             </button>
           ))}
         </div>
-      </header>
+        }
+      />
 
-      {tab === 'overview' && <Overview overview={overview} />}
-      {tab === 'users' && <UserTable users={users} />}
-      {tab === 'health' && <Health health={health} />}
-    </div>
+      <PageBody>
+        {tab === 'overview' && <Overview overview={overview} />}
+        {tab === 'users' && <UserTable users={users} />}
+        {tab === 'health' && <Health health={health} />}
+      </PageBody>
+    </Page>
   );
 }
 
@@ -99,11 +104,9 @@ function Stat({
   sub?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-card p-4">
-      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="mt-1 font-heading text-2xl font-black tabular-nums">{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
-    </div>
+    <Panel className="p-5">
+      <StatValue label={label} value={value} hint={sub} />
+    </Panel>
   );
 }
 
@@ -112,12 +115,9 @@ function Overview({ overview }: { overview: AdminOverview }) {
   const peak = Math.max(1, ...overview.signups.map((s) => s.count));
 
   return (
-    <div className="mt-8 space-y-8">
-      <section>
-        <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-          People
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    <div className="space-y-8">
+      <Section title="People">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <Stat label="Accounts" value={totals.users} />
           <Stat
             label="Active this week"
@@ -140,13 +140,10 @@ function Overview({ overview }: { overview: AdminOverview }) {
             sub="skipped the wizard or the tour"
           />
         </div>
-      </section>
+      </Section>
 
-      <section>
-        <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-          Content
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <Section title="Content">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Stat label="Study blocks" value={totals.tasks.toLocaleString()} />
           <Stat label="Subjects" value={totals.subjects} sub={`${totals.exams} exams tracked`} />
           <Stat label="Notes" value={totals.notes} sub={`${totals.homework} homework items`} />
@@ -156,14 +153,12 @@ function Overview({ overview }: { overview: AdminOverview }) {
             sub={`${totals.aiSessions} AI sessions`}
           />
         </div>
-      </section>
+      </Section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div>
-          <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-            Signups
-          </h2>
-          <div className="rounded-2xl border border-border/60 bg-card p-5">
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Panel>
+          <PanelTitle icon={<Users />}>Signups</PanelTitle>
+          <div>
             {overview.signups.length === 0 ? (
               <p className="text-sm text-muted-foreground">No accounts yet.</p>
             ) : (
@@ -185,13 +180,11 @@ function Overview({ overview }: { overview: AdminOverview }) {
               </ul>
             )}
           </div>
-        </div>
+        </Panel>
 
-        <div>
-          <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-            Storage &amp; devices
-          </h2>
-          <div className="space-y-3 rounded-2xl border border-border/60 bg-card p-5">
+        <Panel>
+          <PanelTitle icon={<HardDrive />}>Storage and devices</PanelTitle>
+          <div className="space-y-3">
             <div className="flex items-center gap-3">
               <HardDrive className="h-4 w-4 shrink-0 text-muted-foreground" />
               {overview.storage ? (
@@ -215,8 +208,8 @@ function Overview({ overview }: { overview: AdminOverview }) {
               </p>
             </div>
           </div>
-        </div>
-      </section>
+        </Panel>
+      </div>
     </div>
   );
 }
@@ -225,10 +218,10 @@ function Overview({ overview }: { overview: AdminOverview }) {
 
 function UserTable({ users }: { users: AdminUserRow[] }) {
   return (
-    <div className="mt-8 overflow-x-auto rounded-2xl border border-border/60">
+    <div className="overflow-x-auto rounded-2xl border border-border/60 shadow-sm">
       <table className="w-full min-w-[900px] text-sm">
         <thead className="bg-muted/40 text-left">
-          <tr className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+          <tr className="text-xs font-medium text-muted-foreground">
             <th className="px-4 py-3">User</th>
             <th className="px-4 py-3">Joined</th>
             <th className="px-4 py-3">Last active</th>
@@ -236,7 +229,9 @@ function UserTable({ users }: { users: AdminUserRow[] }) {
             <th className="px-4 py-3">Level</th>
             <th className="px-4 py-3">Content</th>
             <th className="px-4 py-3">Set up</th>
-            <th className="px-4 py-3" />
+            <th className="px-4 py-3">
+              <span className="sr-only">Open</span>
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border/60 bg-card">
@@ -245,11 +240,7 @@ function UserTable({ users }: { users: AdminUserRow[] }) {
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
                   <span className="font-bold">{u.username}</span>
-                  {u.isAdmin && (
-                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">
-                      Admin
-                    </span>
-                  )}
+                  {u.isAdmin && <Pill tone="primary">Admin</Pill>}
                 </div>
                 <span className="text-xs text-muted-foreground">
                   {u.name && u.name !== u.username ? `${u.name} · ` : ''}
@@ -285,6 +276,7 @@ function UserTable({ users }: { users: AdminUserRow[] }) {
                 <Link
                   href={`/admin/users/${u.id}`}
                   className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                  aria-label={`Open ${u.username}`}
                 >
                   Open
                   <ChevronRight className="h-3 w-3" />
@@ -303,7 +295,7 @@ function Flag({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span
       className={cn(
-        'rounded px-1.5 py-0.5 text-[10px] font-bold',
+        'rounded-md px-1.5 py-0.5 text-xs font-medium',
         ok
           ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
           : 'bg-muted text-muted-foreground line-through'
@@ -318,26 +310,26 @@ function Flag({ ok, label }: { ok: boolean; label: string }) {
 
 function Health({ health }: { health: SystemHealth }) {
   return (
-    <div className="mt-8 grid gap-6 lg:grid-cols-2">
+    <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-6">
-        <section className="rounded-2xl border border-border/60 bg-card p-5">
-          <h2 className="font-heading text-base font-black">Database</h2>
+        <Panel>
+          <PanelTitle icon={<Database />}>Database</PanelTitle>
           {health.database.reachable ? (
-            <p className="mt-2 flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+            <p className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
               <ShieldCheck className="h-4 w-4" />
               Reachable · {health.database.provider}
             </p>
           ) : (
-            <p className="mt-2 flex items-start gap-2 text-sm text-destructive">
+            <p className="flex items-start gap-2 text-sm text-destructive">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               {health.database.error}
             </p>
           )}
-        </section>
+        </Panel>
 
-        <section className="rounded-2xl border border-border/60 bg-card p-5">
-          <h2 className="font-heading text-base font-black">Recent migrations</h2>
-          <ul className="mt-3 space-y-1.5 text-sm">
+        <Panel>
+          <PanelTitle icon={<Activity />}>Recent migrations</PanelTitle>
+          <ul className="space-y-1.5 text-sm">
             {health.migrations.length === 0 && (
               <li className="text-muted-foreground">Could not read the migration table.</li>
             )}
@@ -359,17 +351,17 @@ function Health({ health }: { health: SystemHealth }) {
               </li>
             ))}
           </ul>
-        </section>
+        </Panel>
       </div>
 
       <div className="space-y-6">
-        <section className="rounded-2xl border border-border/60 bg-card p-5">
-          <h2 className="font-heading text-base font-black">Data integrity</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
+        <Panel>
+          <PanelTitle icon={<ShieldCheck />}>Data integrity</PanelTitle>
+          <p className="-mt-2 mb-3 text-sm text-muted-foreground">
             Rows with nothing above them. Unscoped rows are expected on old data — they predate
             academic years.
           </p>
-          <ul className="mt-3 space-y-1.5 text-sm">
+          <ul className="space-y-1.5 text-sm">
             {health.orphans.map((o) => (
               <li key={o.label} className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">{o.label}</span>
@@ -379,9 +371,7 @@ function Health({ health }: { health: SystemHealth }) {
               </li>
             ))}
           </ul>
-          <h3 className="mt-5 text-xs font-black uppercase tracking-wider text-muted-foreground">
-            Tombstones
-          </h3>
+          <h4 className="mt-5 text-sm font-semibold text-foreground">Tombstones</h4>
           <ul className="mt-2 space-y-1.5 text-sm">
             {health.tombstones.map((t) => (
               <li key={t.label} className="flex items-center justify-between gap-3">
@@ -390,16 +380,16 @@ function Health({ health }: { health: SystemHealth }) {
               </li>
             ))}
           </ul>
-        </section>
+        </Panel>
 
-        <section className="rounded-2xl border border-border/60 bg-card p-5">
-          <h2 className="font-heading text-base font-black">Sync errors</h2>
+        <Panel>
+          <PanelTitle icon={<AlertTriangle />}>Sync errors</PanelTitle>
           {health.syncErrors.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               No device is reporting an error.
             </p>
           ) : (
-            <ul className="mt-3 space-y-2 text-sm">
+            <ul className="space-y-2 text-sm">
               {health.syncErrors.map((s) => (
                 <li key={`${s.userId}-${s.deviceId}`} className="rounded-lg bg-destructive/5 p-3">
                   <p className="font-mono text-xs text-muted-foreground">
@@ -410,7 +400,7 @@ function Health({ health }: { health: SystemHealth }) {
               ))}
             </ul>
           )}
-        </section>
+        </Panel>
       </div>
     </div>
   );

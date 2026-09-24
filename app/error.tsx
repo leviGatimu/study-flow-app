@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { RefreshCw, Home, AlertTriangle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Panel } from '@/components/ui/panel';
 
 /**
  * What the user sees when a page throws.
@@ -28,6 +30,17 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const router = useRouter();
+  const [retrying, startRetry] = useTransition();
+
+  // reset() alone only re-renders on the client; a server error needs the
+  // route's data fetched again, so refresh first and reset in the same step.
+  const retry = () =>
+    startRetry(() => {
+      router.refresh();
+      reset();
+    });
+
   useEffect(() => {
     // The digest is what correlates this screen with the server log line.
     console.error('[page error]', error);
@@ -35,30 +48,30 @@ export default function Error({
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md space-y-6 rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
+      <Panel className="w-full max-w-md space-y-6 text-center">
         <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
           <AlertTriangle className="size-6" />
         </div>
 
         <div className="space-y-2">
-          <h1 className="font-heading text-xl font-semibold text-foreground">
-            This page didn&apos;t load
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
+            This page did not load
           </h1>
           <p className="text-sm text-muted-foreground">
-            Something went wrong fetching your data - usually the database
+            Something went wrong while fetching your data, usually a dropped
             connection. Nothing has been lost, and trying again normally works.
           </p>
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-          <Button onClick={reset} className="gap-2">
+          <Button onClick={retry} disabled={retrying} size="lg" className="gap-2">
             <RefreshCw className="size-4" />
-            Try again
+            {retrying ? 'Trying again…' : 'Try again'}
           </Button>
-          <Button variant="outline" asChild className="gap-2">
+          <Button variant="outline" size="lg" asChild className="gap-2">
             <Link href="/">
               <Home className="size-4" />
-              Back to today
+              Go to Today
             </Link>
           </Button>
         </div>
@@ -70,7 +83,7 @@ export default function Error({
             Reference: <span className="font-mono">{error.digest}</span>
           </p>
         )}
-      </div>
+      </Panel>
     </div>
   );
 }

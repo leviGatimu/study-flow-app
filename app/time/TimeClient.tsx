@@ -1,166 +1,155 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Globe, ChevronLeft, Clock, ArrowRight, Zap, Target } from 'lucide-react';
 import Link from 'next/link';
-import { TaskWithTemplate } from '@/lib/types';
-import { getZonedNow, formatTimeZoneLabel, DEFAULT_TIMEZONE } from '@/lib/utils';
 import { format } from 'date-fns';
-import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, ArrowRight, CalendarDays, Clock, Globe, Play } from 'lucide-react';
 
+import { TaskWithTemplate } from '@/lib/types';
+import { cn, getZonedNow, formatTimeZoneLabel, DEFAULT_TIMEZONE } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Page } from '@/components/ui/page';
+import { Panel, PanelTitle } from '@/components/ui/panel';
+
+const toMinutes = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+};
+
+/**
+ * A block's [start, end) in minutes. An end at or before the start ("22:30 -
+ * 00:00") runs past midnight, so it is pushed into the next day rather than
+ * treated as ending before it began.
+ */
+function span(task: TaskWithTemplate): [number, number] {
+  const start = toMinutes(task.startTime);
+  let end = toMinutes(task.endTime);
+  if (end <= start) end += 24 * 60;
+  return [start, end];
+}
+
+type Snapshot = {
+  time: string;
+  period: string;
+  date: string;
+  current: TaskWithTemplate | null;
+  next: TaskWithTemplate | null;
+};
+
+function snapshot(tasks: TaskWithTemplate[], timezone: string): Snapshot {
+  const now = getZonedNow(timezone);
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const open = tasks
+    .filter((t) => !t.isDone)
+    .sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
+
+  const current =
+    open.find((t) => {
+      const [start, end] = span(t);
+      return minutes >= start && minutes < end;
+    }) ?? null;
+  const next = open.find((t) => !t.isMissed && toMinutes(t.startTime) > minutes) ?? null;
+
+  return {
+    time: format(now, 'h:mm:ss'),
+    period: format(now, 'a'),
+    date: format(now, 'EEEE, d MMMM yyyy'),
+    current,
+    next,
+  };
+}
+
+/**
+ * The full-screen clock reached from the header clock: the time where the
+ * student lives, what they should be doing now, and what comes next.
+ * Deliberately still - the seconds tick, nothing else moves.
+ */
 export function TimeClient({
   todayTasks,
-  timezone = DEFAULT_TIMEZONE
+  timezone = DEFAULT_TIMEZONE,
 }: {
   todayTasks: TaskWithTemplate[];
   timezone?: string;
 }) {
-  const [time, setTime] = useState<string>('');
-  const [date, setDate] = useState<string>('');
-  const [currentTask, setCurrentTask] = useState<TaskWithTemplate | null>(null);
-  const [nextTask, setNextTask] = useState<TaskWithTemplate | null>(null);
+  // Null until mounted: the server cannot know the viewer's current second,
+  // and rendering one would mismatch on hydration.
+  const [now, setNow] = useState<Snapshot | null>(null);
   const tzLabel = formatTimeZoneLabel(timezone);
 
   useEffect(() => {
-    const update = () => {
-      const now = getZonedNow(timezone);
-      
-      // Update Clock
-      setTime(now.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-      }));
-      setDate(format(now, 'EEEE, MMMM do, yyyy'));
-
-      const currentTimeInMins = now.getHours() * 60 + now.getMinutes();
-
-      // Find current task
-      const current = todayTasks.find(t => {
-        const [sH, sM] = t.startTime.split(':').map(Number);
-        const [eH, eM] = t.endTime.split(':').map(Number);
-        const start = sH * 60 + sM;
-        const end = eH * 60 + eM;
-        return currentTimeInMins >= start && currentTimeInMins <= end && !t.isDone;
-      });
-      setCurrentTask(current || null);
-
-      // Find next task
-      const next = todayTasks
-        .filter(t => !t.isDone && !t.isMissed)
-        .find(t => {
-          const [sH, sM] = t.startTime.split(':').map(Number);
-          return (sH * 60 + sM) > currentTimeInMins;
-        });
-      setNextTask(next || null);
-    };
-
-    update();
-    const interval = setInterval(update, 1000);
+    const tick = () => setNow(snapshot(todayTasks, timezone));
+    tick();
+    const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [todayTasks, timezone]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 md:p-12">
-      
-      {/* Back Button */}
-      <div className="absolute top-10 left-10">
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group font-medium text-xs"
-        >
-          <div className="p-3 rounded-2xl bg-muted group-hover:bg-primary/10 group-hover:text-primary transition-all shadow-sm">
-            <ChevronLeft className="w-5 h-5" />
-          </div>
-          <span className="hidden sm:inline">Dashboard</span>
-        </Link>
+    <Page className="min-h-[80vh] px-4 md:px-8">
+      <div className="pt-6">
+        <Button variant="ghost" asChild className="gap-1.5">
+          <Link href="/">
+            <ArrowLeft className="size-4" /> Back to Today
+          </Link>
+        </Button>
       </div>
 
-      {/* Main Clock Display */}
-      <div className="flex flex-col items-center space-y-8 text-center">
-        <div className="flex items-center gap-3 px-6 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary animate-pulse">
-          <Globe className="w-4 h-4" />
-          <span className="text-xs font-medium">{tzLabel} time</span>
+      <div className="flex flex-1 flex-col items-center justify-center gap-12 py-12">
+        <div className="space-y-4 text-center">
+          <h1 className="sr-only">Clock</h1>
+          <p className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Globe className="size-4" /> {tzLabel} time
+          </p>
+          <p
+            className="font-heading text-6xl font-black leading-none tracking-tight text-foreground tabular-nums sm:text-8xl lg:text-9xl"
+            aria-live="off"
+          >
+            {now ? now.time : '--:--:--'}
+            <span className="ml-3 text-2xl font-bold text-muted-foreground sm:text-4xl">
+              {now?.period}
+            </span>
+          </p>
+          <p className="text-lg font-medium text-muted-foreground sm:text-2xl">
+            {now ? now.date : ' '}
+          </p>
         </div>
 
-        <div className="space-y-4">
-          <h1 className="text-[8rem] md:text-[12rem] lg:text-[15rem] font-heading font-black tracking-tighter leading-none text-foreground tabular-nums">
-            {time.split(' ')[0]}
-          </h1>
-          <div className="flex items-center justify-center gap-4">
-            <span className="text-4xl md:text-5xl font-heading font-black text-primary">
-              {time.split(' ')[1]}
-            </span>
-            <div className="h-10 w-px bg-border/60" />
-            <span className="text-2xl md:text-3xl font-medium text-muted-foreground">
-              {date}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Tasks Footer */}
-      <div className="mt-24 w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8">
-        
-        {/* Current Task */}
-        <div className={cn(
-          "relative overflow-hidden rounded-2xl p-8 transition-all duration-500 border-2",
-          currentTask ? "bg-primary/5 border-primary/20" : "bg-muted/20 border-border/40"
-        )}>
-          <div className="absolute top-0 right-0 p-6 opacity-10">
-            <Zap className="w-16 h-16" />
-          </div>
-          <div className="relative z-10 space-y-4">
-            <span className="text-xs font-medium text-muted-foreground/60">Current mission</span>
-            {currentTask ? (
-              <div className="space-y-2">
-                <h3 className="text-3xl font-heading font-bold text-foreground">{currentTask.subject}</h3>
-                <p className="text-sm font-bold text-primary flex items-center gap-2">
-                  <Clock className="w-4 h-4" /> {currentTask.startTime} — {currentTask.endTime}
+        <div className="grid w-full max-w-4xl grid-cols-1 gap-6 md:grid-cols-2">
+          <Panel className={cn(now?.current && 'border-primary/40')}>
+            <PanelTitle icon={<Play />}>Now</PanelTitle>
+            {now?.current ? (
+              <div className="space-y-1">
+                <p className="font-heading text-2xl font-bold text-foreground">{now.current.subject}</p>
+                <p className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground tabular-nums">
+                  <Clock className="size-4" /> {now.current.startTime} &ndash; {now.current.endTime}
                 </p>
               </div>
             ) : (
-              <p className="text-xl font-bold text-muted-foreground/40">No active mission right now.</p>
+              <p className="text-sm text-muted-foreground">Nothing scheduled right now.</p>
             )}
-          </div>
-        </div>
+          </Panel>
 
-        {/* Next Task */}
-        <div className={cn(
-          "relative overflow-hidden rounded-2xl p-8 transition-all duration-500 border-2",
-          nextTask ? "bg-secondary/5 border-secondary/20" : "bg-muted/20 border-border/40"
-        )}>
-          <div className="absolute top-0 right-0 p-6 opacity-10">
-            <Target className="w-16 h-16" />
-          </div>
-          <div className="relative z-10 space-y-4">
-            <span className="text-xs font-medium text-muted-foreground/60">Coming next</span>
-            {nextTask ? (
-              <div className="space-y-2">
-                <h3 className="text-3xl font-heading font-bold text-foreground">{nextTask.subject}</h3>
-                <p className="text-sm font-bold text-secondary flex items-center gap-2">
-                  <ArrowRight className="w-4 h-4" /> Starts at {nextTask.startTime}
+          <Panel>
+            <PanelTitle icon={<ArrowRight />}>Next</PanelTitle>
+            {now?.next ? (
+              <div className="space-y-1">
+                <p className="font-heading text-2xl font-bold text-foreground">{now.next.subject}</p>
+                <p className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground tabular-nums">
+                  <Clock className="size-4" /> Starts at {now.next.startTime}
                 </p>
               </div>
             ) : (
-              <p className="text-xl font-bold text-muted-foreground/40">Schedule clear for today.</p>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">Nothing else is scheduled today.</p>
+                <Button variant="outline" asChild className="gap-1.5">
+                  <Link href="/timetable">
+                    <CalendarDays className="size-4" /> See the week
+                  </Link>
+                </Button>
+              </div>
             )}
-          </div>
+          </Panel>
         </div>
-
       </div>
-
-      <style jsx global>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.7; }
-        }
-      `}</style>
-    </div>
+    </Page>
   );
-}
-
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ');
 }

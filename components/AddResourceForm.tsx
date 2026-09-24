@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -12,12 +14,17 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Link as LinkIcon, FileText, UploadCloud, Loader2 } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { addResource } from '@/lib/actions';
 import { useIsArchived } from '@/components/ArchiveContext';
 import { toast } from 'sonner';
 
+/**
+ * Add a link or upload a file to a subject's folder. With `subject` the
+ * subject is fixed; otherwise the form asks for one from `allSubjects`.
+ */
 export function AddResourceForm({ subject: initialSubject, allSubjects = [] }: { subject?: string, allSubjects?: string[] }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<'LINK' | 'FILE'>('LINK');
   const [isPending, setIsPending] = useState(false);
@@ -26,32 +33,33 @@ export function AddResourceForm({ subject: initialSubject, allSubjects = [] }: {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsPending(true);
-    const formData = new FormData(e.currentTarget);
-    
-    // Use the state subject if initialSubject wasn't provided
     const targetSubject = initialSubject || subject;
-    
     if (!targetSubject) {
-      toast.error("Subject is required");
-      setIsPending(false);
+      toast.error('Choose the subject this belongs to.');
       return;
     }
 
+    const formData = new FormData(e.currentTarget);
     formData.append('subject', targetSubject);
     formData.append('type', type);
-    
+
+    setIsPending(true);
     try {
       await addResource(formData);
-      toast.success("Resource added!", {
-        description: `New ${type.toLowerCase()} saved to ${targetSubject} repository.`
+      toast.success(type === 'FILE' ? 'File added' : 'Link added', {
+        description: `Saved to ${targetSubject}.`,
+        action: {
+          label: 'Open folder',
+          onClick: () => router.push(`/resources/${encodeURIComponent(targetSubject)}`),
+        },
       });
       setOpen(false);
-      if (!initialSubject) setSubject(''); // Reset if it was a global add
+      if (!initialSubject) setSubject('');
+      router.refresh();
     } catch (error) {
       console.error(error);
-      toast.error("Upload failed", {
-        description: "Make sure the file size is reasonable and try again."
+      toast.error('Could not add it', {
+        description: 'Check the file is not too large, then try again.',
       });
     } finally {
       setIsPending(false);
@@ -63,25 +71,26 @@ export function AddResourceForm({ subject: initialSubject, allSubjects = [] }: {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="h-10 rounded-xl font-semibold text-xs border-border/60 hover:bg-primary/10 hover:text-primary transition-colors duration-200">
-          <Plus className="w-3.5 h-3.5 mr-2" /> Add material
+        <Button size="lg">
+          <Plus /> Add material
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md p-8 border shadow-2xl">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-3xl font-heading font-black tracking-tighter">Add Resource</DialogTitle>
+          <DialogTitle className="font-heading text-lg font-semibold">Add material</DialogTitle>
+          <DialogDescription>A web link or a file from this device, filed under its subject.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6 mt-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {!initialSubject && (
-            <div className="space-y-2">
-              <Label htmlFor="resourceSubject" className="text-xs font-medium text-muted-foreground ml-1">Subject</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="resourceSubject">Subject</Label>
               <Select value={subject} onValueChange={setSubject} required>
-                <SelectTrigger id="resourceSubject" className="h-12 rounded-xl bg-muted/30 border-border/40 font-bold px-4">
-                  <SelectValue placeholder="Select subject..." />
+                <SelectTrigger id="resourceSubject" className="h-10 w-full">
+                  <SelectValue placeholder="Select subject" />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border-border/40 font-bold">
+                <SelectContent>
                   {allSubjects.map((s) => (
-                    <SelectItem key={s} value={s} className="rounded-lg font-bold py-3 cursor-pointer">
+                    <SelectItem key={s} value={s}>
                       {s}
                     </SelectItem>
                   ))}
@@ -90,49 +99,54 @@ export function AddResourceForm({ subject: initialSubject, allSubjects = [] }: {
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="resourceTitle" className="text-xs font-medium text-muted-foreground ml-1">Title</Label>
-            <Input id="resourceTitle" name="title" placeholder={type === 'FILE' ? "Optional - the file's own name is used" : "e.g., Chapter 1 Notes"} required={type === 'LINK'} className="h-12 rounded-xl bg-muted/30 border-border/40 font-bold px-4" />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="resourceType" className="text-xs font-medium text-muted-foreground ml-1">Resource type</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="resourceType">Type</Label>
             <Select value={type} onValueChange={(val: 'LINK' | 'FILE') => setType(val)}>
-              <SelectTrigger id="resourceType" className="h-12 rounded-xl bg-muted/30 border-border/40 font-bold">
+              <SelectTrigger id="resourceType" className="h-10 w-full">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="rounded-xl border-border/40 font-bold">
-                <SelectItem value="LINK" className="rounded-lg">Web link / URL</SelectItem>
-                <SelectItem value="FILE" className="rounded-lg">File from this computer</SelectItem>
+              <SelectContent>
+                <SelectItem value="LINK">Web link</SelectItem>
+                <SelectItem value="FILE">File from this device</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
+          <div className="space-y-1.5">
+            <Label htmlFor="resourceTitle">
+              Title{type === 'FILE' && <span className="font-normal text-muted-foreground"> (optional)</span>}
+            </Label>
+            <Input
+              id="resourceTitle"
+              name="title"
+              placeholder={type === 'FILE' ? "The file's own name is used if empty" : 'e.g. Chapter 1 notes'}
+              required={type === 'LINK'}
+              className="h-10"
+            />
+          </div>
+
           {type === 'LINK' ? (
-            <div className="space-y-2">
-              <Label htmlFor="resourceUrl" className="text-xs font-medium text-muted-foreground ml-1">URL</Label>
-              <div className="relative">
-                <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input id="resourceUrl" name="url" type="url" placeholder="https://..." required className="h-12 rounded-xl bg-muted/30 border-border/40 font-bold pl-12" />
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="resourceUrl">URL</Label>
+              <Input id="resourceUrl" name="url" type="url" placeholder="https://..." required className="h-10" />
             </div>
           ) : (
-            <div className="space-y-2">
-              <Label htmlFor="resourceFile" className="text-xs font-medium text-muted-foreground ml-1">Upload file</Label>
-              <div className="relative group">
-                <Input id="resourceFile" name="file" type="file" required className="h-24 rounded-xl bg-muted/30 border-2 border-dashed border-border/40 font-bold p-8 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors file:hidden" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-muted-foreground group-hover:text-primary transition-colors duration-200">
-                  <UploadCloud className="w-6 h-6 mb-2" />
-                  <span className="text-xs font-medium">PDF, Word, PowerPoint, image or audio</span>
-                </div>
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="resourceFile">File</Label>
+              <Input id="resourceFile" name="file" type="file" required className="h-10 cursor-pointer" />
+              <p className="text-xs text-muted-foreground">PDF, Word, PowerPoint, image or audio.</p>
             </div>
           )}
 
-          <Button type="submit" disabled={isPending} className="w-full h-14 rounded-xl font-heading font-bold gap-2">
-            {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : type === 'FILE' ? <FileText className="w-5 h-5" /> : <LinkIcon className="w-5 h-5" />}
-            {isPending ? 'Uploading...' : 'Add to repository'}
-          </Button>
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isPending} className="h-10">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isPending} className="h-10 gap-2">
+              {isPending && <Loader2 className="size-4 animate-spin" />}
+              {isPending ? (type === 'FILE' ? 'Uploading' : 'Adding') : 'Add'}
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

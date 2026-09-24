@@ -2,20 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import {
   LogOut,
-  Menu,
   Plus,
   Search,
   Settings,
   Trophy,
-  X,
   Zap,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { NAV, pageTitle, resolveNav } from "@/lib/nav";
+import { pageTitle, resolveNav } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { QuickAddForm } from "@/components/QuickAddForm";
@@ -50,37 +47,22 @@ export function AppHeader({
   subjects: { id: string; name: string }[];
 }) {
   const pathname = usePathname();
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const title = pageTitle(pathname);
   const match = resolveNav(pathname);
   const parent = match?.leaf ? match.section.name : null;
-
-  useEffect(() => setMobileNavOpen(false), [pathname]);
 
   const name = userProgress?.name || "Student";
   const initial = name.trim().charAt(0).toUpperCase() || "S";
 
   return (
     <>
-      <header className="titlebar-drag flex h-16 shrink-0 items-center gap-3 border-b border-border bg-background px-3 md:px-4">
-        {/* Mobile: open navigation */}
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Open navigation"
-          onClick={() => setMobileNavOpen(true)}
-          className="titlebar-no-drag md:hidden"
-        >
-          <Menu />
-        </Button>
-
+      <header className="titlebar-drag flex h-16 shrink-0 items-center gap-3 border-b border-border bg-background px-4">
         {/* Where you are */}
         <div className="min-w-0 flex-1 md:max-w-56 md:flex-none">
           <p className="truncate font-heading text-base font-semibold text-foreground">
             {title}
           </p>
-          {/* Phase 3 puts the active Year / Term chip on this line. */}
           {parent && (
             <p className="truncate text-xs text-muted-foreground">{parent}</p>
           )}
@@ -170,8 +152,8 @@ export function AppHeader({
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/ranks">
-                  <Trophy /> Ranks and XP
+                <Link href="/streak">
+                  <Trophy /> Streak and level
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
@@ -192,52 +174,6 @@ export function AppHeader({
         </div>
       </header>
 
-      {/* Mobile navigation overlay */}
-      {mobileNavOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setMobileNavOpen(false)}
-          />
-          <nav className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col overflow-y-auto border-r border-border bg-background p-3">
-            <div className="mb-2 flex items-center justify-between px-1">
-              <span className="font-heading text-sm font-semibold">Study Flow</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Close navigation"
-                onClick={() => setMobileNavOpen(false)}
-              >
-                <X />
-              </Button>
-            </div>
-            {NAV.map((section) => (
-              <div key={section.name} className="py-1">
-                <Link
-                  href={section.href}
-                  className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[0.9375rem] font-medium hover:bg-muted"
-                >
-                  <section.icon className="size-4 text-muted-foreground" />
-                  {section.name}
-                </Link>
-                {section.children && (
-                  <div className="ml-6 border-l border-border pl-2">
-                    {section.children.map((child) => (
-                      <Link
-                        key={child.href}
-                        href={child.href}
-                        className="block rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-                      >
-                        {child.name}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </nav>
-        </div>
-      )}
     </>
   );
 }

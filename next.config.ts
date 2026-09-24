@@ -48,6 +48,29 @@ const nextConfig: NextConfig = {
     ],
   },
   allowedDevOrigins: ['127.0.0.1', 'localhost'],
+  /**
+   * Routes that were removed or merged, kept alive for bookmarks and for the
+   * desktop app's cached shell. Temporary (307) on purpose: these are product
+   * decisions that could be revisited, and a cached 308 is hard to take back.
+   *   /plan, /progress, /study   overview hubs that only linked to their pages
+   *   /studio/*                  the per-subject "deep work studio" (removed)
+   *   /daily-summary             merged into Reports (/summaries)
+   *   /ranks                     merged into Streak
+   *   /tutor*, /notes-ai         folded into AI Study long ago
+   */
+  async redirects() {
+    return [
+      { source: '/plan', destination: '/timetable', permanent: false },
+      { source: '/progress', destination: '/insights', permanent: false },
+      { source: '/study', destination: '/ai', permanent: false },
+      { source: '/studio/:path*', destination: '/subjects', permanent: false },
+      { source: '/daily-summary', destination: '/summaries', permanent: false },
+      { source: '/ranks', destination: '/streak', permanent: false },
+      { source: '/tutor/:path*', destination: '/ai', permanent: false },
+      { source: '/tutor', destination: '/ai', permanent: false },
+      { source: '/notes-ai', destination: '/ai', permanent: false },
+    ];
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: '64mb' // song uploads (audio cap is 60 MB in lib/upload.ts)

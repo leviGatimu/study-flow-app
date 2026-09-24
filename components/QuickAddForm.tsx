@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Plus, BookOpen, Clock, CheckCircle2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -54,28 +54,28 @@ export function QuickAddForm({ initialDate, trigger, subjects = [] }: { initialD
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button variant="outline" className="rounded-full gap-2 font-bold hover:bg-primary/5 hover:text-primary transition-all shadow-sm border-border/60">
-            <Plus className="w-4 h-4" /> Quick Add Assignment
+          <Button variant="outline" size="lg">
+            <Plus /> Add task
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-heading font-black">Quick Add Task</DialogTitle>
-          <p className="text-sm text-muted-foreground">Add a one-off task for {initialDate ? format(initialDate, 'MMMM do') : 'today'}.</p>
+          <DialogTitle className="text-xl font-heading font-bold">Add a task</DialogTitle>
+          <p className="text-sm text-muted-foreground">A one-off block for {initialDate ? format(initialDate, 'MMMM do') : 'the day you pick'}. It does not change your weekly routine.</p>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+        <form onSubmit={handleSubmit} className="space-y-5 pt-2">
           <div className="space-y-2">
-            <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground ml-1">Subject</Label>
+            <Label htmlFor="quick-add-subject" className="text-xs font-medium text-muted-foreground">Subject</Label>
             <Select 
               value={formData.subject} 
               onValueChange={v => setFormData({...formData, subject: v})}
               required
             >
-              <SelectTrigger className="rounded-xl h-12 font-bold text-left">
+              <SelectTrigger id="quick-add-subject" className="rounded-xl h-11 text-left">
                 <SelectValue placeholder="Select subject..." />
               </SelectTrigger>
-              <SelectContent className="rounded-xl font-bold">
+              <SelectContent className="rounded-xl">
                 {subjects.length === 0 ? (
                   <div className="px-3 py-6 text-center text-xs font-semibold text-muted-foreground">
                     No subjects yet. Add them on the Subjects page first.
@@ -93,52 +93,55 @@ export function QuickAddForm({ initialDate, trigger, subjects = [] }: { initialD
 
           {!initialDate && (
             <div className="space-y-2">
-              <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground ml-1">Date</Label>
-              <Input 
+              <Label htmlFor="quick-add-date" className="text-xs font-medium text-muted-foreground">Date</Label>
+              <Input
+                id="quick-add-date" 
                 type="date"
                 required 
                 value={formData.date} 
                 onChange={e => setFormData({...formData, date: e.target.value})} 
-                className="rounded-xl h-12 font-bold"
+                className="rounded-xl h-11"
               />
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground ml-1">Start Time</Label>
-              <Input 
+              <Label htmlFor="quick-add-start" className="text-xs font-medium text-muted-foreground">Start time</Label>
+              <Input
+                id="quick-add-start" 
                 type="time" 
                 required 
                 value={formData.startTime} 
                 onChange={e => setFormData({...formData, startTime: e.target.value})} 
-                className="rounded-xl h-12 font-bold"
+                className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground ml-1">End Time</Label>
-              <Input 
+              <Label htmlFor="quick-add-end" className="text-xs font-medium text-muted-foreground">End time</Label>
+              <Input
+                id="quick-add-end" 
                 type="time" 
                 required 
                 value={formData.endTime} 
                 onChange={e => setFormData({...formData, endTime: e.target.value})} 
-                className="rounded-xl h-12 font-bold"
+                className="rounded-xl h-11"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground ml-1">Type</Label>
+            <Label htmlFor="quick-add-type" className="text-xs font-medium text-muted-foreground">Type</Label>
             <Select value={formData.type} onValueChange={v => setFormData({...formData, type: v})}>
-              <SelectTrigger className="rounded-xl h-12 font-bold"><SelectValue /></SelectTrigger>
-              <SelectContent className="rounded-xl font-bold">
-                <SelectItem value="HOMEWORK">HOMEWORK</SelectItem>
-                <SelectItem value="REVISION">REVISION</SelectItem>
+              <SelectTrigger id="quick-add-type" className="rounded-xl h-11"><SelectValue /></SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="HOMEWORK">Homework</SelectItem>
+                <SelectItem value="REVISION">Revision</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <Button disabled={isPending} type="submit" className="w-full h-12 rounded-xl font-black text-lg shadow-lg">Add Task</Button>
+          <Button disabled={isPending} type="submit" size="lg" className="w-full h-11">{isPending ? 'Adding...' : 'Add task'}</Button>
         </form>
       </DialogContent>
     </Dialog>

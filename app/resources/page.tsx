@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
-import { Layers } from 'lucide-react';
 
 import { getUserId } from '@/lib/auth';
 import { getLibraryOverview } from '@/lib/library-actions';
+import { Page, PageBody } from '@/components/ui/page';
 import { PageHeader } from '@/components/ui/page-header';
 import { AddResourceForm } from '@/components/AddResourceForm';
 import { LibraryOverview } from '@/components/resources/LibraryOverview';
@@ -26,16 +26,9 @@ export default async function ResourcesPage() {
   if (!overview) redirect('/welcome');
 
   return (
-    <div className="mx-auto max-w-[1800px] px-4 pb-16 pt-8 md:px-8 animate-in fade-in duration-300">
+    <Page>
       <PageHeader
-        title={
-          <span className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Layers className="size-5" />
-            </span>
-            Resources
-          </span>
-        }
+        title="Resources"
         description={
           overview.folderPath
             ? 'Every subject is a folder on this computer. Add files here or drop them into the folder - both show up in both places.'
@@ -43,7 +36,9 @@ export default async function ResourcesPage() {
         }
         actions={<AddResourceForm allSubjects={overview.subjects.map((s) => s.name)} />}
       />
-      <LibraryOverview overview={overview} />
-    </div>
+      <PageBody>
+        <LibraryOverview overview={overview} />
+      </PageBody>
+    </Page>
   );
 }

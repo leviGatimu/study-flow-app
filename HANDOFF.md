@@ -1,47 +1,85 @@
 # HANDOFF
 
 ## Current Task
-CONNECT EVERY PAGE TO ITS SECTION + POLISH (Levi, 2026-09-24): "make a plan
-page that connects all pages ... all sub pages to main one", "homeworks page
-is so shit", "remove course notes", "make the page for individual subject look
-better (not structure)". Then "package and push".
+FULL PRODUCT REFACTOR (Levi, 2026-09-24, long brief pasted in chat): audit the
+whole app, rebuild the IA and flows, one design system taken from the
+Dashboard, remove random features (named: Deep Study Studio), no dead ends.
+Levi called the 1.0.8 hubs/homework/subject restyle "shit" - superseded.
 
 ## Status
-RELEASED: desktop 1.0.8 at
-https://github.com/leviGatimu/study-flow-app/releases/tag/v1.0.8 (sha512
-checked, releases/latest serves 1.0.8). main PUSHED (f3d9ae3..0c2fd1f) BUT
-THE WEB DID NOT DEPLOY: both Vercel projects (study-tracker, study-flow-app)
-report "Account is blocked." (vercel.com/knowledge/why-is-my-account-
-deployment-blocked). Account-level, not code - Levi must resolve it in the
-Vercel dashboard, then redeploy main. Live web is still f3d9ae3.
-No prisma changes in the pushed range, so no migration is pending.
-Built by a 5-agent workflow (wf_dc50c1c9-964) + a reviewer; I checked every
-screenshot and restyled MasteryList/AddMasteryForm myself.
+BUILT, TYPE-CLEAN, VERIFIED SIGNED IN (Levi's account, local dev server,
+2026-09-24). NOT COMMITTED (Levi did not ask). 171 files, +9.4k/-16.3k.
+Every route renders 200 with real data; old routes 307 to their new homes;
+screenshots at 1440 and 390 px, no horizontal overflow anywhere.
 
-## What changed
-- lib/nav.ts: section hubs - Plan -> /plan, Progress -> /progress, Study ->
-  /study (each section's first child is "Overview"); resolveNav drops a leaf
-  whose href equals its section's.
-- components/SectionTabs.tsx (in AppShell under the header): tabs for every
-  page of the current section. This is the "connect all sub pages" mechanism;
-  the sidebar only shows children when expanded.
-- components/ui/hub-tile.tsx: HubTile, used by all hubs + Subjects.
-- app/plan, app/progress, app/study: new hubs (server page -> presentational
-  *Hub.tsx). /plan calls ensureTasksGenerated(today..+6) like the dashboard.
-- app/homeworks: planner list grouped Overdue/Today/Tomorrow/This week/Later,
-  To do/Done, side rail stats + subject chips (?subject=), HomeworkRow.tsx +
-  homework-model.ts replace HomeworkCard. Due date read by UTC fields (form
-  stores UTC midnight). Proof upload still required (server rule, unchanged).
-- app/subjects: Course Notes removed (AI buddy context = syllabus, pending
-  homework, upcoming exams, studio note if any); restyled with PageHeader,
-  Panel, HubTile; grid view has Exams/Homework/Resources tiles; goal bar
-  target marker bug fixed.
+## What was done
+Nav (lib/nav.ts): Today / | Schedule: Week /timetable, Month /calendar,
+Study routine /manage, School lessons /school-timetable | Subjects: Subjects,
+Homework, Exams, Resources | Study: Practice /ai, Focus, Notes, Projects,
+Calculator, Bible | Progress: Insights, History, Marks, Goals, Reports
+/summaries (?view=daily|weekly), Streak (ranks merged) | Settings: Settings
+(?tab=), Year & terms. A section href IS its first page - no hub pages.
+Mobile: bottom tab bar (components/MobileTabBar.tsx), hamburger removed.
+Removed: /plan /progress /study hubs, /studio (Deep Study Studio), /ranks,
+/daily-summary, /tutor*, /notes-ai (next.config redirects), 12 dead
+components, ui/table, ui/hub-tile, PWAInstaller, lib/sound, lib/studio-
+actions, public/textures. StudioNote rows are untouched in the DB (hidden
+context for the subject buddy only).
+Primitives: components/ui/{page,page-header,panel,section,list-row,stat,
+empty-state,error-state}.tsx; docs/ui-contract.md documents them.
+Dashboard: exam widgets deduped into ExamCountdown, new DueHomework panel,
+TaskList rebuilt (solid blue homework / dashed orange revision edge, Focus
+button replaces the studio link), LiveFocusCard uses the user's timezone.
+Link contract: /ai?subject=, /ai?set=, /focus?subject=, /subjects?subject=,
+/homeworks?subject=, /resources/<subject>, /summaries?view=.
+Bugs fixed: getAllTasks hard-coded 2026-06-30 end (now range-scoped; AI
+schedule summary now sees last week..+4 weeks); calendar "last day" toggle
+now calls extendActiveTerm; exam pages used exam.title as subject; A-/18-20
+grade parsing (app/subjects/subject-model.ts parseGradeToPercentage, reused
+by Marks/Goals); flashcard Leave lost reviews; CommandMenu -> /tutor;
+streak calendar timezone bucketing; project detail showed deleted docs;
+Settings options with no CSS/readers removed (accent, glass, persona, sound).
 
-## Open / not verified
-- No page was rendered signed in (sessions can't be minted); writes untested.
-- /focus is in no nav section, so no tabs there.
-- ConfirmModal still uses loud font-black styling.
-- Homework subject colours are by list position (no shared colour helper).
+## Open
+- 9 FUTURE TASK ROWS WITH LOCAL-MIDNIGHT DATES in Levi's production DB
+  (date >= 2026-09-27T22:00Z, userId levi, not done, no proof) - created by
+  my verification render of Week/Month on a local dev server (ensureTasks-
+  Generated stamps dates in the SERVER's timezone; Vercel is UTC). The web
+  build would show them a day early + generate duplicates. Soft-deleting
+  them was blocked by the permission classifier - Levi decides. Pre-existing
+  hazard: ANY local `next dev` against prod does this.
+- Pre-existing lint errors remain in lib/actions.ts, lib/ai-actions.ts,
+  DailyQuote (setState in effect). `next build` not run (dev server was up).
+- createEvent could take subjectId (new exams start unlinked).
+- LiveFocusCard + FocusSessionUI keep their own loud look by design.
+- Web deploy still blocked on Vercel ("Account is blocked").
+
+## Audit facts from before the refactor (most now fixed - see above)
+- docs/ui-contract.md is THE style law (dashboard class strings). Today's
+  primitives violate it: Panel (border full, no shadow, p-5), HubTile,
+  EmptyState (dashed, py-10), Section (h2 text-lg), Stat. Contract empty
+  state = bg-muted/50 border-border/50 py-6; card = bg-card border-border/60
+  shadow-sm rounded-2xl p-6; h3 = font-heading font-bold text-lg + w-5 icon.
+- Contract marks TaskList, LiveFocusCard, DailyQuote, FocusSessionUI,
+  components/ui/** and marketing pages OFF LIMITS - yet those are the worst
+  offenders (FocusSessionUI 2804 lines leads every violation count).
+- Fonts Nunito/Outfit are declared but never loaded (fallback). Contract:
+  never touch fonts. Accent picker + "glass" theme classes have no CSS.
+- Bugs: getAllTasks end date hardcoded 2026-06-30 (calendar generates
+  nothing, loads every task ever); calendar last-day toggle writes legacy
+  schoolEndDate nobody reads; exam detail CTAs use exam.title not subject
+  (makes phantom subjects via studio); /focus ignores ?subject=; LiveFocusCard
+  hardcodes Rwanda tz; CommandMenu study sets -> /tutor (loses set) and notes
+  -> /subjects; A- grade parse order bug (SubjectsClient:151); /ai ignores
+  ?prompt= (Insights/History links dead); FlowAI notes go to AiNote, shown
+  nowhere; flashcard "Leave" discards reviews; /studio no auth guard.
+- Dead: ActiveFocusCard, DeleteResourceButton, DeleteSubjectButton,
+  FocusTimer, LiveFocusBanner, NotificationManager, PDFViewer, RankBadge,
+  RwandaClock, ui/table (~860 lines); chat-session + AiNote readers in
+  ai-actions; /tutor*, /notes-ai are redirect stubs.
+- Task generation callers: getTodayTasks (/, /time, /focus), /plan (+6
+  days). Must keep today/tomorrow/+7 generation somewhere reliable.
+
 
 ## Recently Completed
 - 2026-09-24 Subject page as hub for resources/homework/exams, full-bleed

@@ -129,6 +129,7 @@ export function HomeworkList({ homeworks, today, chips, activeSubject, subjects 
                   icon={<PartyPopper />}
                   title="All caught up"
                   description="Nothing is waiting to be done. Finished work is under Done."
+                  action={<AddHomeworkButton subjects={subjects} defaultSubject={activeSubject} variant="outline" />}
                 />
               )
             ) : (

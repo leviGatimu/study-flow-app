@@ -1,19 +1,58 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Pin, X, Eraser, CheckCircle2, Search, Filter, CalendarPlus, Wand2, Edit3, Save, Loader2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { motion, type PanInfo } from "framer-motion";
+import ReactMarkdown from "react-markdown";
+import { toast } from "sonner";
+import {
+  CalendarPlus,
+  CheckCircle2,
+  Edit3,
+  Eraser,
+  Filter,
+  Loader2,
+  Plus,
+  Save,
+  Search,
+  StickyNote as StickyNoteIcon,
+  Trash2,
+  Wand2,
+} from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createStickyNote, deleteStickyNote, clearAllStickyNotes, toggleStickyNoteDone, updateStickyNotePosition, updateStickyNote, createQuickTask } from "@/lib/actions";
-import { organizeStickyNotes } from "@/lib/ai-actions";
-import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Page, PageBody } from "@/components/ui/page";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useIsArchived } from "@/components/ArchiveContext";
+import {
+  clearAllStickyNotes,
+  createQuickTask,
+  createStickyNote,
+  deleteStickyNote,
+  toggleStickyNoteDone,
+  updateStickyNote,
+  updateStickyNotePosition,
+} from "@/lib/actions";
+import { organizeStickyNotes } from "@/lib/ai-actions";
 import { StickyNote } from "@/lib/types";
-import ReactMarkdown from "react-markdown";
+import { cn } from "@/lib/utils";
 
+/**
+ * The note colours are the student's data (stored on each note), not theme
+ * colours, so they stay fixed pastel "paper" in both themes with dark text.
+ */
 const COLORS = [
   { name: "Yellow", value: "#fef08a" },
   { name: "Blue", value: "#bfdbfe" },
@@ -23,6 +62,11 @@ const COLORS = [
   { name: "Orange", value: "#fed7aa" },
 ];
 
+const NOTE_SIZE = 280;
+
+/** Optimistic notes carry a Math.random() id until the server answers. */
+const isTemporary = (id: string) => id.includes(".");
+
 export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNote[] }) {
   const [notes, setNotes] = useState(initialNotes);
   const archived = useIsArchived();
@@ -31,54 +75,56 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
   const [newContent, setNewContent] = useState("");
   const [selectedColor, setSelectedColor] = useState(COLORS[0].value);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
-  
-  // Search and Filter State
+
   const [searchQuery, setSearchQuery] = useState("");
   const [colorFilter, setColorFilter] = useState<string | null>(null);
 
-  // Edit State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
 
-  // Promote State
   const [promoteNote, setPromoteNote] = useState<StickyNote | null>(null);
   const [promoteSubject, setPromoteSubject] = useState("");
   const [promoteStartTime, setPromoteStartTime] = useState("19:00");
   const [promoteEndTime, setPromoteEndTime] = useState("20:00");
+  const [isPromoting, setIsPromoting] = useState(false);
 
-  // AI Organizer State
   const [isOrganizing, setIsOrganizing] = useState(false);
   const [aiPlan, setAiPlan] = useState<string | null>(null);
 
   const boardRef = useRef<HTMLDivElement>(null);
 
-  const filteredNotes = notes.filter(note => {
-    const matchesSearch = note.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          note.content.toLowerCase().includes(searchQuery.toLowerCase());
+  const query = searchQuery.trim().toLowerCase();
+  const filteredNotes = notes.filter((note) => {
+    const matchesSearch =
+      note.title.toLowerCase().includes(query) || note.content.toLowerCase().includes(query);
     const matchesColor = colorFilter ? note.color === colorFilter : true;
     return matchesSearch && matchesColor;
   });
+  const isFiltered = Boolean(query) || colorFilter !== null;
 
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
 
-    // Calculate a random position near the center
+    // A random spot near the middle of the board.
     const board = boardRef.current;
     let startX = 50;
     let startY = 50;
-    if (board) {
-       startX = (board.clientWidth / 2) - 120 + (Math.random() * 100 - 50);
-       startY = (board.clientHeight / 2) - 120 + (Math.random() * 100 - 50);
+    if (board && board.clientWidth > 0) {
+      startX = Math.max(0, board.clientWidth / 2 - NOTE_SIZE / 2 + (Math.random() * 100 - 50));
+      startY = Math.max(0, board.clientHeight / 2 - NOTE_SIZE / 2 + (Math.random() * 100 - 50));
     }
 
     const tempId = Math.random().toString();
-    const newNote = {
+    const title = newTitle;
+    const content = newContent;
+    const color = selectedColor;
+    const optimistic: StickyNote = {
       id: tempId,
-      title: newTitle,
-      content: newContent,
-      color: selectedColor,
+      title,
+      content,
+      color,
       isDone: false,
       x: startX,
       y: startY,
@@ -86,37 +132,35 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
       updatedAt: new Date(),
       deletedAt: null,
       classId: null, // filled in by the server; this row is optimistic only
-      userId: "", // Placeholder
+      userId: "",
     };
 
-    setNotes((prev) => [...prev, newNote]);
+    setNotes((prev) => [...prev, optimistic]);
     setIsAdding(false);
     setNewTitle("");
     setNewContent("");
 
-    const created = await createStickyNote(newTitle, newContent, selectedColor);
+    const created = await createStickyNote(title, content, color);
     if (created) {
-      // Swap the temporary note for the real DB record (real ID, same position)
-      // so subsequent drags persist correctly instead of being silently skipped.
-      setNotes((prev) =>
-        prev.map((n) =>
-          n.id === tempId ? { ...created, x: startX, y: startY } : n
-        )
-      );
-      // Persist the initial position immediately.
+      // Swap the temporary note for the real record (real id, same position)
+      // so later drags persist instead of being skipped.
+      setNotes((prev) => prev.map((n) => (n.id === tempId ? { ...created, x: startX, y: startY } : n)));
       await updateStickyNotePosition(created.id, startX, startY);
+    } else {
+      setNotes((prev) => prev.filter((n) => n.id !== tempId));
+      toast.error("That note could not be saved. Try again.");
     }
   };
 
   const handleDeleteNote = async (id: string) => {
-    setNotes(notes.filter((n) => n.id !== id));
-    await deleteStickyNote(id);
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+    if (!isTemporary(id)) await deleteStickyNote(id);
   };
 
   const handleToggleDone = async (id: string, currentStatus: boolean) => {
-    const newStatus = !currentStatus;
-    setNotes(notes.map(n => n.id === id ? { ...n, isDone: newStatus } : n));
-    await toggleStickyNoteDone(id, newStatus);
+    const next = !currentStatus;
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, isDone: next } : n)));
+    if (!isTemporary(id)) await toggleStickyNoteDone(id, next);
   };
 
   const handleClearAll = async () => {
@@ -125,24 +169,19 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
     await clearAllStickyNotes();
   };
 
-  const NOTE_SIZE = 280;
-
-  const handleDragEnd = async (id: string, info: any) => {
-    const note = notes.find(n => n.id === id);
+  const handleDragEnd = async (id: string, info: PanInfo) => {
+    const note = notes.find((n) => n.id === id);
     if (!note) return;
 
-    // Clamp the new position so a note can never be dragged outside the board boundaries.
+    // Clamp so a note can never be dragged off the board.
     const board = boardRef.current;
     const maxX = board ? Math.max(0, board.clientWidth - NOTE_SIZE) : note.x + info.offset.x;
     const maxY = board ? Math.max(0, board.clientHeight - NOTE_SIZE) : note.y + info.offset.y;
     const newX = Math.max(0, Math.min(note.x + info.offset.x, maxX));
     const newY = Math.max(0, Math.min(note.y + info.offset.y, maxY));
 
-    setNotes(notes.map(n => n.id === id ? { ...n, x: newX, y: newY } : n));
-
-    if (!id.includes(".")) {
-      await updateStickyNotePosition(id, newX, newY);
-    }
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, x: newX, y: newY } : n)));
+    if (!isTemporary(id)) await updateStickyNotePosition(id, newX, newY);
   };
 
   const startEditing = (note: StickyNote) => {
@@ -152,511 +191,480 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
   };
 
   const saveEdit = async (id: string) => {
-    setNotes(notes.map(n => n.id === id ? { ...n, title: editTitle, content: editContent } : n));
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, title: editTitle, content: editContent } : n)));
     setEditingId(null);
-    if (!id.includes(".")) {
-       await updateStickyNote(id, { title: editTitle, content: editContent });
-    }
+    if (!isTemporary(id)) await updateStickyNote(id, { title: editTitle, content: editContent });
   };
 
-  // AI Organizer
-  const handleMagicOrganize = async () => {
+  const handleOrganize = async () => {
     setIsOrganizing(true);
     setAiPlan(null);
     try {
       const res = await organizeStickyNotes();
-      if (res.error) {
-        alert(res.error);
-      } else if (res.plan) {
-        setAiPlan(res.plan);
-      }
-    } catch (e) {
-      alert("Failed to organize notes.");
+      if (res.error) toast.error(res.error);
+      else if (res.plan) setAiPlan(res.plan);
+    } catch {
+      toast.error("Your notes could not be organized right now. Try again in a moment.");
     } finally {
       setIsOrganizing(false);
     }
   };
 
-  const handlePromoteToTask = (note: StickyNote) => {
-     setPromoteNote(note);
-     setPromoteSubject(note.title);
+  const openPromote = (note: StickyNote) => {
+    setPromoteNote(note);
+    setPromoteSubject(note.title);
   };
 
   const submitPromote = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!promoteNote || !promoteSubject.trim()) return;
 
-    await createQuickTask({
-      subject: promoteSubject,
-      startTime: promoteStartTime,
-      endTime: promoteEndTime,
-      type: "HOMEWORK",
-      date: new Date()
-    });
-    
-    // Auto-delete note after promotion
-    await handleDeleteNote(promoteNote.id);
-    setPromoteNote(null);
+    setIsPromoting(true);
+    try {
+      await createQuickTask({
+        subject: promoteSubject,
+        startTime: promoteStartTime,
+        endTime: promoteEndTime,
+        type: "HOMEWORK",
+        date: new Date(),
+      });
+      // The note has become a task, so it leaves the board.
+      await handleDeleteNote(promoteNote.id);
+      setPromoteNote(null);
+      toast.success("Added to today's plan.");
+    } catch {
+      toast.error("That task could not be added. Try again.");
+    } finally {
+      setIsPromoting(false);
+    }
   };
 
+  const noteCardProps = (note: StickyNote) => ({
+    note,
+    archived,
+    isEditing: editingId === note.id,
+    editTitle,
+    editContent,
+    onEditTitle: setEditTitle,
+    onEditContent: setEditContent,
+    onSave: () => saveEdit(note.id),
+    onEdit: () => startEditing(note),
+    onPromote: () => openPromote(note),
+    onToggleDone: () => handleToggleDone(note.id, note.isDone),
+    onDelete: () => handleDeleteNote(note.id),
+  });
+
   return (
-    <div className="space-y-6 flex flex-col h-[calc(100vh-80px)]">
-      {/* Header & Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 bg-card/80 p-6 rounded-2xl border shadow-sm backdrop-blur-md relative z-20">
-        <div>
-          <h1 className="text-3xl font-heading font-bold text-foreground flex items-center gap-3">
-            <Pin className="w-7 h-7 text-primary rotate-12" />
-            Corkboard
-          </h1>
-          <p className="text-muted-foreground font-medium text-sm mt-1">
-            Drag, drop, and organize your thoughts.
-          </p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-          {/* Search */}
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search notes..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 rounded-xl h-12 bg-background border-border/60 focus-visible:ring-primary/20"
-            />
-          </div>
-
-          {/* Color Filter */}
-          <div className="flex items-center gap-1 bg-background p-1.5 rounded-xl border border-border/60">
-            <button
-               onClick={() => setColorFilter(null)}
-               aria-label="Show all colors"
-               title="Show all colors"
-               className={cn("w-8 h-8 rounded-xl flex items-center justify-center transition-all", !colorFilter ? "bg-muted" : "hover:bg-muted/50")}
-            >
-               <Filter className="w-4 h-4 text-muted-foreground" />
-            </button>
-            {COLORS.map(c => (
-              <button
-                key={c.value}
-                onClick={() => setColorFilter(c.value)}
-                aria-label={`Filter by ${c.name} notes`}
-                title={`Filter by ${c.name} notes`}
-                style={{ backgroundColor: c.value }}
-                className={cn(
-                  "w-8 h-8 rounded-xl transition-all border-2",
-                  colorFilter === c.value ? "border-foreground scale-110 shadow-sm" : "border-transparent opacity-50 hover:opacity-100"
-                )}
+    <Page>
+      <PageHeader
+        title="Notes"
+        description="Sticky notes for the things you do not want to forget. Drag them around the board."
+        actions={
+          !archived && (
+            <>
+              <Button variant="outline" size="lg" onClick={handleOrganize} disabled={isOrganizing || notes.length === 0}>
+                {isOrganizing ? <Loader2 className="animate-spin" /> : <Wand2 />}
+                {isOrganizing ? "Organizing…" : "Organize with AI"}
+              </Button>
+              <Button size="lg" onClick={() => setIsAdding(true)}>
+                <Plus />
+                Add note
+              </Button>
+            </>
+          )
+        }
+      />
+      <PageBody>
+        {notes.length > 0 && (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search notes"
+                aria-label="Search notes"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-10 rounded-xl pl-9"
               />
-            ))}
-          </div>
+            </div>
 
-          <div className={cn("h-8 w-px bg-border/60 hidden sm:block mx-1", archived && "sm:hidden")} />
-
-          {!archived && (
-          <>
-          <Button 
-            onClick={handleMagicOrganize}
-            variant="secondary"
-            disabled={isOrganizing}
-            className="rounded-xl gap-2 font-bold transition-transform h-12 w-full sm:w-auto text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400"
-          >
-            {isOrganizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-            Magic Organize
-          </Button>
-
-          <Button
-            onClick={() => setIsAdding(true)}
-            className="rounded-xl gap-2 font-bold shadow-lg shadow-primary/20 transition-transform h-12 w-full sm:w-auto"
-          >
-            <Plus className="w-5 h-5" />
-            Add Note
-          </Button>
-          </>
-          )}
-        </div>
-      </div>
-
-      {/* Wall Canvas */}
-      <div 
-        ref={boardRef}
-        className="flex-1 relative overflow-hidden rounded-2xl border-4 border-muted-foreground/10 bg-[url('/textures/cork-board.png')] bg-[#e8dcc7] dark:bg-[#3b3228] shadow-inner"
-      >
-        <AnimatePresence>
-          {filteredNotes.map((note) => {
-            const isEditing = editingId === note.id;
-            
-            return (
-              <motion.div
-                key={note.id}
-                drag={!isEditing && !archived}
-                dragMomentum={false}
-                onDragEnd={archived ? undefined : (e, info) => handleDragEnd(note.id, info)}
-                initial={{ x: note.x, y: note.y, scale: 0.8, opacity: 0 }}
-                animate={{ x: note.x, y: note.y, scale: 1, opacity: 1 }}
-                exit={{ scale: 0.5, opacity: 0 }}
-                whileHover={{ scale: isEditing ? 1 : 1.05, zIndex: 50 }}
-                whileDrag={{ scale: 1.1, zIndex: 100, rotate: 2, boxShadow: "0 25px 50px -12px rgb(0 0 0 / 0.25)" }}
-                style={{
-                  // Sticky notes are intentionally a light "paper" surface in both themes,
-                  // so the done state uses a fixed light neutral (keeps the black note text readable).
-                  backgroundColor: note.isDone ? "#e5e7eb" : note.color,
-                  position: 'absolute',
-                  width: 280,
-                  height: 280,
-                  touchAction: "none"
-                }}
+            <div role="group" aria-label="Filter by colour" className="flex items-center gap-1 self-start rounded-xl border border-border/60 bg-card p-1">
+              <button
+                type="button"
+                onClick={() => setColorFilter(null)}
+                aria-label="Show all colours"
+                aria-pressed={colorFilter === null}
                 className={cn(
-                  "group p-6 shadow-xl rounded-sm flex flex-col overflow-hidden border border-black/5 transition-colors duration-500",
-                  archived ? "cursor-default" : "cursor-grab active:cursor-grabbing",
-                  note.isDone && "opacity-80 grayscale-[0.3]"
+                  "flex size-8 items-center justify-center rounded-lg transition-colors",
+                  colorFilter === null ? "bg-muted" : "hover:bg-muted/60"
                 )}
               >
-                {/* Pin Detail */}
-                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
-                  <Pin className="w-6 h-6 fill-current text-black/20 rotate-45 drop-shadow-md" />
-                </div>
-
-                {/* Tape Detail */}
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-20 h-7 bg-white/40 rotate-2 backdrop-blur-sm z-10 shadow-sm" />
-
-                <div className="relative z-10 flex-1 flex flex-col pt-4">
-                  {isEditing ? (
-                    <div className="flex-1 flex flex-col gap-3">
-                       <Input
-                         value={editTitle}
-                         onChange={(e) => setEditTitle(e.target.value)}
-                         aria-label="Note title"
-                         className="font-heading font-bold text-xl bg-white/50 border-black/10 focus-visible:ring-black/20 h-10 px-2"
-                         autoFocus
-                       />
-                       <Textarea
-                         value={editContent}
-                         onChange={(e) => setEditContent(e.target.value)}
-                         aria-label="Note content"
-                         className="flex-1 font-medium text-sm bg-white/50 border-black/10 focus-visible:ring-black/20 resize-none p-2"
-                       />
-                       <Button size="sm" onClick={() => saveEdit(note.id)} className="bg-black/80 hover:bg-black text-white gap-2 font-bold">
-                         <Save className="w-4 h-4" /> Save
-                       </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-start justify-between mb-2 gap-2">
-                        <h3 className={cn(
-                          "font-heading font-bold text-xl text-black/80 leading-tight pr-2 transition-all",
-                          note.isDone && "line-through opacity-50"
-                        )}>
-                          {note.title}
-                        </h3>
-                        <div className={cn(
-                          "flex flex-wrap items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0",
-                          archived && "hidden"
-                        )}>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handlePromoteToTask(note); }}
-                            className="p-1.5 rounded-full hover:bg-black/10 transition-all text-blue-600"
-                            aria-label="Promote to task"
-                            title="Promote to Task"
-                          >
-                            <CalendarPlus className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); startEditing(note); }}
-                            className="p-1.5 rounded-full hover:bg-black/10 transition-all text-black/60"
-                            aria-label="Edit note"
-                            title="Edit Note"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleToggleDone(note.id, note.isDone); }}
-                            className={cn(
-                              "p-1.5 rounded-full transition-all",
-                              note.isDone ? "text-green-600 hover:bg-green-100" : "text-black/40 hover:bg-black/10"
-                            )}
-                            aria-label={note.isDone ? "Mark as active" : "Mark as done"}
-                            title={note.isDone ? "Mark as active" : "Mark as done"}
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }}
-                            className="p-1.5 rounded-full hover:bg-black/10 transition-all text-red-600"
-                            aria-label="Delete note"
-                            title="Delete note"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div className={cn(
-                        "text-black/80 font-medium text-sm leading-relaxed flex-1 overflow-y-auto custom-scrollbar pr-1 transition-all prose prose-sm max-w-none prose-p:leading-snug prose-headings:mb-2 prose-p:mb-2 prose-ul:my-1 prose-li:my-0",
-                        note.isDone && "opacity-50"
-                      )}>
-                        <ReactMarkdown>{note.content}</ReactMarkdown>
-                      </div>
-
-                      <div className="mt-3 pt-3 border-t border-black/10 flex items-center justify-between">
-                        <span className="text-xs font-medium text-black/40">
-                          {new Date(note.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                        </span>
-                        {note.isDone && (
-                          <span className="text-xs font-medium text-green-700 bg-green-200 px-2 py-0.5 rounded-full shadow-sm">
-                            Done
-                          </span>
-                        )}
-                      </div>
-                    </>
+                <Filter className="size-4 text-muted-foreground" />
+              </button>
+              {COLORS.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setColorFilter(c.value)}
+                  aria-label={`Only ${c.name.toLowerCase()} notes`}
+                  aria-pressed={colorFilter === c.value}
+                  style={{ backgroundColor: c.value }}
+                  className={cn(
+                    "size-8 rounded-lg border-2 transition-opacity",
+                    colorFilter === c.value ? "border-foreground" : "border-transparent opacity-60 hover:opacity-100"
                   )}
-                </div>
-
-                {/* Texture Overlay */}
-                <div className="absolute inset-0 pointer-events-none opacity-10 mix-blend-overlay bg-[url('/textures/paper-fibers.png')]" />
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-
-        {filteredNotes.length === 0 && !isAdding && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <div className="p-6 bg-foreground/5 rounded-full mb-4 backdrop-blur-sm">
-              <Pin className="w-12 h-12 text-foreground/20" />
+                />
+              ))}
             </div>
-            <h3 className="text-xl font-bold text-foreground/40">Nothing to see here</h3>
-            <p className="text-foreground/30 font-medium mt-1">
-              {notes.length === 0 ? "Stick something on the board!" : "No notes match your filters."}
-            </p>
+
+            {!archived && (
+              <Button
+                variant="ghost"
+                onClick={() => setIsDeletingAll(true)}
+                className="self-start text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:ml-auto sm:self-auto"
+              >
+                <Eraser />
+                Clear board
+              </Button>
+            )}
           </div>
         )}
-      </div>
 
-      <div className={cn("flex justify-end pt-2", archived && "hidden")}>
-         <Button
-            variant="ghost"
-            onClick={() => setIsDeletingAll(true)}
-            className="rounded-xl gap-2 font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          >
-            <Eraser className="w-4 h-4" />
-            Clean Board
-          </Button>
-      </div>
-
-      {/* Add Note Modal */}
-      <AnimatePresence>
-        {isAdding && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-card border border-border shadow-2xl rounded-2xl w-full max-w-lg overflow-hidden"
-            >
-              <div className="p-8 space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-heading font-bold">Stick New Note</h2>
-                  <Button variant="ghost" size="icon" onClick={() => setIsAdding(false)} aria-label="Close" className="rounded-full">
-                    <X className="w-5 h-5" />
+        {filteredNotes.length === 0 ? (
+          notes.length === 0 ? (
+            <EmptyState
+              icon={<StickyNoteIcon />}
+              title="No notes yet"
+              description="Jot down a reminder, a formula or a to-do. Anything worth scheduling can become a task later."
+              action={
+                !archived && (
+                  <Button onClick={() => setIsAdding(true)}>
+                    <Plus />
+                    Add note
                   </Button>
-                </div>
-
-                <form onSubmit={handleAddNote} className="space-y-6">
-                  <div className="space-y-2">
-                    <label htmlFor="newNoteTitle" className="text-xs font-medium text-muted-foreground px-1">Task name</label>
-                    <Input
-                      id="newNoteTitle"
-                      placeholder="What needs to be done?"
-                      value={newTitle}
-                      onChange={(e) => setNewTitle(e.target.value)}
-                      className="rounded-xl h-14 font-bold text-lg border-2 focus-visible:ring-primary/20"
-                      autoFocus
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="newNoteContent" className="text-xs font-medium text-muted-foreground px-1">Content (Markdown supported)</label>
-                    <Textarea
-                      id="newNoteContent"
-                      placeholder="Add details, bullet points, or checklists..."
-                      value={newContent}
-                      onChange={(e) => setNewContent(e.target.value)}
-                      className="rounded-xl min-h-[120px] font-medium border-2 focus-visible:ring-primary/20 resize-none"
-                    />
-                  </div>
-
-                  <div className="space-y-3">
-                    <span className="text-xs font-medium text-muted-foreground px-1">Pick a color</span>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      {COLORS.map((color) => (
-                        <button
-                          key={color.value}
-                          type="button"
-                          onClick={() => setSelectedColor(color.value)}
-                          aria-label={`${color.name} note`}
-                          aria-pressed={selectedColor === color.value}
-                          className={cn(
-                            "w-10 h-10 rounded-xl transition-all border-2",
-                            selectedColor === color.value
-                              ? "border-primary scale-110 shadow-lg"
-                              : "border-transparent"
-                          )}
-                          style={{ backgroundColor: color.value }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4 pt-2">
-                    <Button
-                      type="submit"
-                      className="flex-1 h-14 rounded-xl font-bold text-lg shadow-lg shadow-primary/20"
-                      disabled={!newTitle.trim()}
-                    >
-                      Stick It!
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsAdding(false)}
-                      className="h-14 px-8 rounded-xl font-bold"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Promote to Task Modal */}
-      <AnimatePresence>
-        {promoteNote && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-card border border-border shadow-2xl rounded-2xl w-full max-w-lg overflow-hidden"
-            >
-              <div className="p-8 space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-heading font-bold flex items-center gap-2">
-                    <CalendarPlus className="w-6 h-6 text-primary" /> Promote to Task
-                  </h2>
-                  <Button variant="ghost" size="icon" onClick={() => setPromoteNote(null)} aria-label="Close" className="rounded-full">
-                    <X className="w-5 h-5" />
-                  </Button>
-                </div>
-
-                <form onSubmit={submitPromote} className="space-y-6">
-                  <div className="space-y-2">
-                    <label htmlFor="promoteSubject" className="text-xs font-medium text-muted-foreground px-1">Task subject</label>
-                    <Input
-                      id="promoteSubject"
-                      placeholder="e.g. Math, Physics"
-                      value={promoteSubject}
-                      onChange={(e) => setPromoteSubject(e.target.value)}
-                      className="rounded-xl h-14 font-bold text-lg border-2 focus-visible:ring-primary/20"
-                      autoFocus
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label htmlFor="promoteStartTime" className="text-xs font-medium text-muted-foreground px-1">Start time</label>
-                      <Input
-                        id="promoteStartTime"
-                        type="time"
-                        value={promoteStartTime}
-                        onChange={(e) => setPromoteStartTime(e.target.value)}
-                        className="rounded-xl h-14 font-bold text-lg border-2 focus-visible:ring-primary/20"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label htmlFor="promoteEndTime" className="text-xs font-medium text-muted-foreground px-1">End time</label>
-                      <Input
-                        id="promoteEndTime"
-                        type="time"
-                        value={promoteEndTime}
-                        onChange={(e) => setPromoteEndTime(e.target.value)}
-                        className="rounded-xl h-14 font-bold text-lg border-2 focus-visible:ring-primary/20"
-                      />
-                    </div>
-                  </div>
-
-                  <p className="text-sm text-muted-foreground bg-muted/50 p-4 rounded-xl">
-                    This note will be automatically removed from the wall and added to today&apos;s schedule.
-                  </p>
-
-                  <div className="flex gap-4 pt-2">
-                    <Button
-                      type="submit"
-                      className="flex-1 h-14 rounded-xl font-bold text-lg shadow-lg shadow-primary/20"
-                      disabled={!promoteSubject.trim()}
-                    >
-                      Promote!
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setPromoteNote(null)}
-                      className="h-14 px-8 rounded-xl font-bold"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* AI Plan Modal */}
-      <AnimatePresence>
-        {aiPlan && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-card border border-border shadow-2xl rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden"
-            >
-              <div className="p-8 pb-4 shrink-0 flex items-center justify-between border-b border-border/40">
-                <h2 className="text-2xl font-heading font-bold flex items-center gap-2 text-blue-600">
-                  <Wand2 className="w-6 h-6" /> Magic Organization Plan
-                </h2>
-                <Button variant="ghost" size="icon" onClick={() => setAiPlan(null)} aria-label="Close" className="rounded-full">
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
-
-              <div className="p-8 overflow-y-auto custom-scrollbar flex-1 prose prose-sm max-w-none dark:prose-invert">
-                <ReactMarkdown>{aiPlan}</ReactMarkdown>
-              </div>
-
-              <div className="p-6 shrink-0 border-t border-border/40 bg-muted/30 flex justify-end">
+                )
+              }
+            />
+          ) : (
+            <EmptyState
+              icon={<Search />}
+              title="No notes match"
+              description={isFiltered ? "Nothing matches that search or colour." : undefined}
+              action={
                 <Button
-                  onClick={() => setAiPlan(null)}
-                  className="rounded-xl font-bold h-12 px-8"
+                  variant="outline"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setColorFilter(null);
+                  }}
                 >
-                  Got it, thanks!
+                  Clear filters
                 </Button>
-              </div>
-            </motion.div>
-          </div>
+              }
+            />
+          )
+        ) : (
+          <>
+            {/* Wide screens: the free-form board, where position is kept. */}
+            <div
+              ref={boardRef}
+              className="relative hidden h-[70vh] min-h-[520px] overflow-hidden rounded-2xl border border-border/60 bg-muted/30 md:block"
+            >
+              {filteredNotes.map((note) => {
+                const editing = editingId === note.id;
+                return (
+                  <motion.div
+                    key={note.id}
+                    drag={!editing && !archived}
+                    dragMomentum={false}
+                    onDragEnd={archived ? undefined : (_, info) => handleDragEnd(note.id, info)}
+                    initial={false}
+                    animate={{ x: note.x, y: note.y }}
+                    transition={{ duration: 0 }}
+                    whileDrag={{ zIndex: 50, boxShadow: "0 12px 24px -8px rgb(0 0 0 / 0.25)" }}
+                    style={{ position: "absolute", width: NOTE_SIZE, height: NOTE_SIZE, touchAction: "none" }}
+                    className={cn("rounded-xl", archived || editing ? "cursor-default" : "cursor-grab active:cursor-grabbing")}
+                  >
+                    <NoteCard {...noteCardProps(note)} className="h-full" />
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {/* Narrow screens: a plain list, since a board laid out on a
+                desktop does not fit a phone. Positions are left untouched. */}
+            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:hidden">
+              {filteredNotes.map((note) => (
+                <li key={note.id}>
+                  <NoteCard {...noteCardProps(note)} className="min-h-48" />
+                </li>
+              ))}
+            </ul>
+          </>
         )}
-      </AnimatePresence>
+      </PageBody>
+
+      {/* Add note */}
+      <Dialog open={isAdding} onOpenChange={setIsAdding}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>New note</DialogTitle>
+            <DialogDescription>It lands in the middle of the board. Markdown works in the details.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddNote} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="newNoteTitle">Title</Label>
+              <Input
+                id="newNoteTitle"
+                placeholder="What do you need to remember?"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                className="h-11 rounded-xl"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newNoteContent">Details</Label>
+              <Textarea
+                id="newNoteContent"
+                placeholder="Bullet points, a checklist, a formula…"
+                value={newContent}
+                onChange={(e) => setNewContent(e.target.value)}
+                className="min-h-28 resize-none rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <p id="newNoteColorLabel" className="text-sm font-medium">
+                Colour
+              </p>
+              <div role="group" aria-labelledby="newNoteColorLabel" className="flex flex-wrap items-center gap-2">
+                {COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    type="button"
+                    onClick={() => setSelectedColor(color.value)}
+                    aria-label={color.name}
+                    aria-pressed={selectedColor === color.value}
+                    className={cn(
+                      "size-9 rounded-xl border-2 transition-colors",
+                      selectedColor === color.value ? "border-primary" : "border-transparent"
+                    )}
+                    style={{ backgroundColor: color.value }}
+                  />
+                ))}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsAdding(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!newTitle.trim()}>
+                Add note
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Promote to task */}
+      <Dialog open={promoteNote !== null} onOpenChange={(open) => !open && !isPromoting && setPromoteNote(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Turn into a task</DialogTitle>
+            <DialogDescription>
+              The note is added to today&apos;s plan as homework and removed from the board.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submitPromote} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="promoteSubject">Task</Label>
+              <Input
+                id="promoteSubject"
+                placeholder="e.g. Math, Physics"
+                value={promoteSubject}
+                onChange={(e) => setPromoteSubject(e.target.value)}
+                className="h-11 rounded-xl"
+                autoFocus
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="promoteStartTime">Start</Label>
+                <Input
+                  id="promoteStartTime"
+                  type="time"
+                  value={promoteStartTime}
+                  onChange={(e) => setPromoteStartTime(e.target.value)}
+                  className="h-11 rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="promoteEndTime">End</Label>
+                <Input
+                  id="promoteEndTime"
+                  type="time"
+                  value={promoteEndTime}
+                  onChange={(e) => setPromoteEndTime(e.target.value)}
+                  className="h-11 rounded-xl"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPromoteNote(null)} disabled={isPromoting}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!promoteSubject.trim() || isPromoting}>
+                {isPromoting ? <Loader2 className="animate-spin" /> : <CalendarPlus />}
+                {isPromoting ? "Adding…" : "Add to today"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI plan */}
+      <Dialog open={aiPlan !== null} onOpenChange={(open) => !open && setAiPlan(null)}>
+        <DialogContent className="flex max-h-[80vh] flex-col sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>A plan for your notes</DialogTitle>
+            <DialogDescription>Written by AI from what is on your board. Nothing has been changed.</DialogDescription>
+          </DialogHeader>
+          <div className="prose prose-sm max-w-none flex-1 overflow-y-auto dark:prose-invert">
+            <ReactMarkdown>{aiPlan ?? ""}</ReactMarkdown>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setAiPlan(null)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmModal
         isOpen={isDeletingAll}
         onClose={() => setIsDeletingAll(false)}
         onConfirm={handleClearAll}
-        title="Clean the Board?"
-        description="This will permanently delete all your sticky notes. You cannot undo this action."
+        title="Clear the board?"
+        description="Every sticky note will be deleted. You cannot undo this."
       />
-    </div>
+    </Page>
+  );
+}
+
+/** One note, the same on the board and in the phone list. */
+function NoteCard({
+  note,
+  archived,
+  isEditing,
+  editTitle,
+  editContent,
+  onEditTitle,
+  onEditContent,
+  onSave,
+  onEdit,
+  onPromote,
+  onToggleDone,
+  onDelete,
+  className,
+}: {
+  note: StickyNote;
+  archived: boolean;
+  isEditing: boolean;
+  editTitle: string;
+  editContent: string;
+  onEditTitle: (value: string) => void;
+  onEditContent: (value: string) => void;
+  onSave: () => void;
+  onEdit: () => void;
+  onPromote: () => void;
+  onToggleDone: () => void;
+  onDelete: () => void;
+  className?: string;
+}) {
+  const action =
+    "flex size-8 items-center justify-center rounded-lg text-black/60 transition-colors hover:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30";
+
+  return (
+    <article
+      // Pastel "paper" in both themes; a done note turns neutral grey.
+      style={{ backgroundColor: note.isDone ? "#e5e7eb" : note.color }}
+      className={cn(
+        "group flex flex-col overflow-hidden rounded-xl border border-black/5 p-5 text-black/80 shadow-sm",
+        className
+      )}
+    >
+      {isEditing ? (
+        <div className="flex flex-1 flex-col gap-3" onPointerDownCapture={(e) => e.stopPropagation()}>
+          <Input
+            value={editTitle}
+            onChange={(e) => onEditTitle(e.target.value)}
+            aria-label="Note title"
+            className="h-10 border-black/10 bg-white/60 px-2 font-heading text-lg font-bold text-black focus-visible:ring-black/20"
+            autoFocus
+          />
+          <Textarea
+            value={editContent}
+            onChange={(e) => onEditContent(e.target.value)}
+            aria-label="Note details"
+            className="flex-1 resize-none border-black/10 bg-white/60 p-2 text-sm text-black focus-visible:ring-black/20"
+          />
+          <Button size="sm" onClick={onSave} className="bg-black/80 text-white hover:bg-black">
+            <Save />
+            Save
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <h3
+              className={cn(
+                "min-w-0 break-words font-heading text-lg font-bold leading-tight",
+                note.isDone && "line-through opacity-60"
+              )}
+            >
+              {note.title}
+            </h3>
+            {!archived && (
+              <div
+                className="-mr-2 -mt-1 flex shrink-0 items-center transition-opacity focus-within:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                onPointerDownCapture={(e) => e.stopPropagation()}
+              >
+                <button type="button" onClick={onPromote} className={action} aria-label="Turn into a task" title="Turn into a task">
+                  <CalendarPlus className="size-4" />
+                </button>
+                <button type="button" onClick={onEdit} className={action} aria-label="Edit note" title="Edit note">
+                  <Edit3 className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onToggleDone}
+                  className={cn(action, note.isDone && "text-green-700")}
+                  aria-label={note.isDone ? "Mark as not done" : "Mark as done"}
+                  aria-pressed={note.isDone}
+                  title={note.isDone ? "Mark as not done" : "Mark as done"}
+                >
+                  <CheckCircle2 className="size-4" />
+                </button>
+                <button type="button" onClick={onDelete} className={cn(action, "text-red-700")} aria-label="Delete note" title="Delete note">
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div
+            className={cn(
+              "prose prose-sm max-w-none flex-1 overflow-y-auto pr-1 text-sm leading-relaxed text-black/80 prose-headings:mb-2 prose-p:mb-2 prose-p:leading-snug prose-ul:my-1 prose-li:my-0",
+              note.isDone && "opacity-60"
+            )}
+          >
+            <ReactMarkdown>{note.content}</ReactMarkdown>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between border-t border-black/10 pt-3 text-xs font-medium text-black/50">
+            <span>{new Date(note.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+            {note.isDone && <span className="rounded-full bg-green-200 px-2 py-0.5 text-green-800">Done</span>}
+          </div>
+        </>
+      )}
+    </article>
   );
 }

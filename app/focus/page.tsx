@@ -1,112 +1,209 @@
-import { getTodayTasks } from '@/lib/actions';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Play, Sparkles, Brain, Clock, Zap } from 'lucide-react';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { CalendarPlus, ListTodo, Play, Timer } from 'lucide-react';
+
+import { getTodayTasks } from '@/lib/actions';
+import { getUserId } from '@/lib/auth';
 import { TaskWithTemplate } from '@/lib/types';
-import { getUserId } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Page, PageBody } from '@/components/ui/page';
+import { PageHeader } from '@/components/ui/page-header';
+import { Panel, PanelTitle } from '@/components/ui/panel';
+import { ListRow, Pill } from '@/components/ui/list-row';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 
 export const dynamic = 'force-dynamic';
 
-export default async function FocusHubPage() {
+/**
+ * Focus: choose what to work on, then hand over to the full-screen session
+ * at /focus/<taskId> (or /focus/free).
+ *
+ * ?subject=<name> comes from an exam or a subject page ("revise this"). The
+ * exam pages pass the exam's title, which usually contains the subject rather
+ * than equalling it, so a task matches when either name contains the other.
+ * Matching tasks are listed first and marked; with none today, the free
+ * session carries the subject instead.
+ */
+function matchesSubject(taskSubject: string, wanted: string): boolean {
+  const a = taskSubject.trim().toLowerCase();
+  const b = wanted.trim().toLowerCase();
+  return Boolean(a && b) && (a.includes(b) || b.includes(a));
+}
+
+function freeHref(subject: string) {
+  return subject ? `/focus/free?subject=${encodeURIComponent(subject)}` : '/focus/free';
+}
+
+export default async function FocusPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ subject?: string }>;
+}) {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
-  const todayTasks = await getTodayTasks();
+  const params = await searchParams;
+  const subject = typeof params.subject === 'string' ? params.subject.trim() : '';
+
+  let tasks: TaskWithTemplate[];
+  try {
+    tasks = (await getTodayTasks()) as TaskWithTemplate[];
+  } catch (error) {
+    console.error('Focus page failed to load today', error);
+    return (
+      <Page>
+        <PageHeader title="Focus" description="Pick what to work on, then start a timed session." />
+        <PageBody>
+          <ErrorState
+            title="Today's tasks could not be loaded"
+            description="You can still start a free session, or try again in a moment."
+            action={
+              <>
+                <Button asChild>
+                  <Link href={freeHref(subject)}>Start a free session</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/focus">Try again</Link>
+                </Button>
+              </>
+            }
+          />
+        </PageBody>
+      </Page>
+    );
+  }
+
+  const isMatch = (t: TaskWithTemplate) => Boolean(subject) && matchesSubject(t.subject, subject);
+  // Still to do before done; within each, the subject asked for first, then by
+  // start time.
+  const ordered = [...tasks].sort(
+    (a, b) =>
+      Number(a.isDone) - Number(b.isDone) ||
+      Number(isMatch(b)) - Number(isMatch(a)) ||
+      a.startTime.localeCompare(b.startTime)
+  );
+  const next = ordered.find((t) => !t.isDone);
+  const matchCount = tasks.filter((t) => !t.isDone && isMatch(t)).length;
+  const done = tasks.filter((t) => t.isDone).length;
 
   return (
-    <div className="space-y-12 max-w-[1000px] mx-auto animate-in fade-in duration-500 pb-16">
-      <div className="pt-6 pb-2 border-b border-border/40">
-        <h1 className="text-5xl font-heading font-bold tracking-tight text-foreground">Focus Mode</h1>
-        <p className="text-xl text-muted-foreground font-semibold mt-3">Enter the flow state and crush your objectives.</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Quick Start Card */}
-        <Card className="rounded-2xl border-border/60 shadow-sm overflow-hidden bg-primary/5 border-primary/20">
-          <CardHeader className="p-8 pb-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-2xl text-primary">
-                <Brain className="w-6 h-6" />
-              </div>
-              <div>
-                <CardTitle className="text-2xl font-heading font-black">Free Focus</CardTitle>
-                <CardDescription className="font-medium">No task assigned. Just you and the zone.</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-8 pt-4 space-y-6">
-            <p className="text-sm text-muted-foreground font-medium leading-relaxed">
-              Start a custom session with a flexible timer. Perfect for creative work or unplanned study bursts.
-            </p>
-            <Link href="/focus/free">
-              <Button className="w-full h-14 rounded-2xl font-bold text-lg shadow-lg shadow-primary/20 gap-3 mt-4">
-                <Play className="w-5 h-5 fill-current" /> Start Free Session
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        {/* Info Card */}
-        <Card className="rounded-2xl border-border/60 shadow-sm overflow-hidden">
-          <CardHeader className="p-8 pb-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-orange-500/10 rounded-2xl text-orange-600">
-                <Zap className="w-6 h-6" />
-              </div>
-              <div>
-                <CardTitle className="text-2xl font-heading font-black">Deep Focus Tips</CardTitle>
-                <CardDescription className="font-medium">Optimize your environment for results.</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-8 pt-4 space-y-4">
-            <ul className="space-y-3">
-              {[
-                { icon: Clock, text: "Work in 50-minute chunks for maximum retention." },
-                { icon: Sparkles, text: "Put your phone in another room to avoid distractions." },
-              ].map((tip, i) => (
-                <li key={i} className="flex items-start gap-3 text-sm font-medium text-muted-foreground">
-                  <tip.icon className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                  {tip.text}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Task List Section */}
-      <div className="space-y-6">
-        <h3 className="text-2xl font-heading font-black px-2">Scheduled for Today</h3>
-        <div className="grid grid-cols-1 gap-4">
-          {todayTasks.length === 0 ? (
-            <div className="p-12 text-center border-2 border-dashed border-border/40 rounded-2xl">
-              <p className="text-muted-foreground font-bold italic">No tasks scheduled for today. Start a free session above!</p>
-            </div>
+    <Page>
+      <PageHeader
+        title="Focus"
+        description="Pick what to work on, then start a timed session."
+        meta={
+          subject
+            ? matchCount > 0
+              ? `Showing ${subject} first.`
+              : `Nothing left on today's plan for ${subject}. A free session will be labelled with it.`
+            : tasks.length > 0
+              ? `${done} of ${tasks.length} done today`
+              : undefined
+        }
+        actions={
+          next ? (
+            <Button asChild size="lg">
+              <Link href={`/focus/${next.id}`}>
+                <Play />
+                Start {next.subject}
+              </Link>
+            </Button>
           ) : (
-            todayTasks.map((task: TaskWithTemplate) => (
-              <div key={task.id} className="group p-6 rounded-2xl bg-card border border-border/60 shadow-sm hover:border-primary/40 hover:shadow-md transition-all flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                  <div className="p-4 bg-muted rounded-2xl font-black text-primary text-xl tracking-tighter">
-                    {task.startTime}
-                  </div>
-                  <div>
-                    <h4 className="text-xl font-heading font-black">{task.subject}</h4>
-                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest">{task.type} • {task.endTime} Finish</p>
-                  </div>
-                </div>
-                <Link href={`/focus/${task.id}`}>
-                  <Button variant="outline" className="rounded-2xl h-12 px-8 font-black border-border/60 group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary transition-all">
-                    FOCUS
-                  </Button>
+            <Button asChild size="lg">
+              <Link href={freeHref(subject)}>
+                <Play />
+                Start a free session
+              </Link>
+            </Button>
+          )
+        }
+      />
+      <PageBody>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="lg:col-span-8">
+            <Panel>
+              <PanelTitle icon={<ListTodo />}>Today&apos;s tasks</PanelTitle>
+              {ordered.length === 0 ? (
+                <EmptyState
+                  title="Nothing scheduled today"
+                  description="Start a free session, or add study blocks to your routine so they show up here."
+                  action={
+                    <>
+                      <Button asChild>
+                        <Link href={freeHref(subject)}>Start a free session</Link>
+                      </Button>
+                      <Button asChild variant="outline">
+                        <Link href="/manage">
+                          <CalendarPlus />
+                          Study routine
+                        </Link>
+                      </Button>
+                    </>
+                  }
+                />
+              ) : (
+                <ul className="space-y-3">
+                  {ordered.map((task) => {
+                    const revision = task.type === 'REVISION';
+                    return (
+                      <li key={task.id}>
+                        <ListRow
+                          className={cn(
+                            // The app's focus-mode convention: homework solid
+                            // blue, revision dashed orange.
+                            revision ? 'border-dashed border-orange-500/50' : 'border-primary/40',
+                            isMatch(task) && !task.isDone && 'bg-primary/5',
+                            task.isDone && 'opacity-70'
+                          )}
+                          title={task.subject}
+                          subtitle={`${revision ? 'Revision' : 'Homework'} · ${task.startTime}–${task.endTime}`}
+                          trailing={
+                            task.isDone ? (
+                              <Pill tone="success">Done</Pill>
+                            ) : (
+                              <>
+                                {isMatch(task) && (
+                                  <Pill tone="primary" className="hidden sm:inline-flex">
+                                    {subject}
+                                  </Pill>
+                                )}
+                                <Button asChild size="sm" variant={task.id === next?.id ? 'default' : 'outline'}>
+                                  <Link href={`/focus/${task.id}`} aria-label={`Start a focus session for ${task.subject}`}>
+                                    <Play />
+                                    Start
+                                  </Link>
+                                </Button>
+                              </>
+                            )
+                          }
+                        />
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Panel>
+          </div>
+
+          <div className="lg:col-span-4">
+            <Panel>
+              <PanelTitle icon={<Timer />}>Free session</PanelTitle>
+              <p className="text-sm text-muted-foreground">
+                No task attached, and a timer you set yourself. Good for unplanned study or
+                {subject ? ` a quick round of ${subject}.` : ' anything not on the plan.'}
+              </p>
+              <Button asChild variant="outline" className="mt-4 w-full">
+                <Link href={freeHref(subject)}>
+                  <Play />
+                  Start a free session
                 </Link>
-              </div>
-            ))
-          )}
+              </Button>
+            </Panel>
+          </div>
         </div>
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }

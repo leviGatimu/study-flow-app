@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { AppHeader } from "@/components/AppHeader";
 import { SectionTabs } from "@/components/SectionTabs";
+import { MobileTabBar } from "@/components/MobileTabBar";
 import { CommandMenu } from "@/components/CommandMenu";
 import { SyncWatcher } from "@/components/SyncWatcher";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
@@ -60,6 +61,7 @@ export function AppShell({
           <main className="app-scroll flex-1 overflow-y-auto bg-background">
             {children}
           </main>
+          <MobileTabBar />
         </div>
       </div>
     </ArchiveProvider>

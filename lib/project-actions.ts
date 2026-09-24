@@ -24,7 +24,7 @@ export async function getProjectById(id: string) {
 
   return prisma.project.findFirst({
     where: { id, userId },
-    include: { docs: true }
+    include: { docs: { where: { deletedAt: null } } }
   });
 }
 

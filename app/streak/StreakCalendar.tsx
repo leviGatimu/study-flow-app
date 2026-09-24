@@ -10,82 +10,89 @@ import {
   isSameDay,
   addMonths,
   subMonths,
-  startOfDay,
 } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Panel, PanelTitle } from '@/components/ui/panel';
 
-export function StreakCalendar({ activeTimestamps }: { activeTimestamps: number[] }) {
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/**
+ * A month of study days. `activeDays` are "yyyy-MM-dd" keys computed on the
+ * server, so a day is active by its calendar date, not by a timestamp that
+ * shifts with the browser's time zone.
+ */
+export function StreakCalendar({ activeDays }: { activeDays: string[] }) {
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
 
-  const activeDates = new Set(activeTimestamps);
-  const today = startOfDay(new Date());
+  const active = new Set(activeDays);
+  const today = new Date();
   const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const calendarDays = eachDayOfInterval({ start: monthStart, end: endOfMonth(currentMonth) });
+  const activeThisMonth = calendarDays.filter((d) => active.has(format(d, 'yyyy-MM-dd'))).length;
 
   return (
-    <div className="bg-card border border-border/60 rounded-2xl p-6 md:p-10 shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between mb-10">
-        <h3 className="font-heading font-bold text-lg flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-primary" />
-          {format(currentMonth, 'MMMM yyyy')}
-        </h3>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
-            aria-label="Previous month"
-            title="Previous month"
-            className="p-2 rounded-xl bg-muted hover:bg-primary/10 hover:text-primary transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
-            aria-label="Next month"
-            title="Next month"
-            className="p-2 rounded-xl bg-muted hover:bg-primary/10 hover:text-primary transition-colors"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+    <Panel className="h-full">
+      <PanelTitle
+        icon={<Calendar />}
+        action={
+          <>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
+              aria-label="Previous month"
+            >
+              <ChevronLeft />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
+              aria-label="Next month"
+            >
+              <ChevronRight />
+            </Button>
+          </>
+        }
+      >
+        {format(currentMonth, 'MMMM yyyy')}
+      </PanelTitle>
 
-      <div className="flex items-center justify-end gap-2 text-xs font-medium text-muted-foreground mb-4">
-        <div className="w-2 h-2 rounded-full bg-orange-500" /> Active
-      </div>
+      <p className="mb-4 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <span className="size-2 rounded-full bg-orange-500" aria-hidden="true" />
+        {activeThisMonth === 0 ? 'No study days this month' : `Studied on ${activeThisMonth} ${activeThisMonth === 1 ? 'day' : 'days'} this month`}
+      </p>
 
-      <div className="grid grid-cols-7 gap-1.5 sm:gap-2 md:gap-3">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-          <div key={day} className="text-center text-xs font-medium text-muted-foreground/60 pb-2">
+      <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+        {WEEKDAYS.map((day) => (
+          <div key={day} className="pb-1 text-center text-xs font-medium text-muted-foreground">
             {day}
           </div>
         ))}
 
-        {/* Padding for first day of month */}
         {Array.from({ length: monthStart.getDay() }).map((_, i) => (
           <div key={`pad-${i}`} />
         ))}
 
         {calendarDays.map((date) => {
-          const isActive = activeDates.has(startOfDay(date).getTime());
+          const isActive = active.has(format(date, 'yyyy-MM-dd'));
           const isToday = isSameDay(date, today);
-
           return (
             <div
-              key={date.toString()}
-              className={`
-                aspect-square rounded-2xl flex items-center justify-center text-sm font-black transition-all relative
-                ${isActive ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20 scale-105' : 'bg-muted/30 text-muted-foreground/40'}
-                ${isToday && !isActive ? 'border-2 border-primary/40 text-primary' : ''}
-              `}
+              key={date.toISOString()}
+              className={cn(
+                'flex aspect-square items-center justify-center rounded-xl text-sm font-bold tabular-nums',
+                isActive ? 'bg-orange-500 text-white' : 'bg-muted/40 text-muted-foreground',
+                isToday && 'ring-2 ring-primary ring-offset-2 ring-offset-card'
+              )}
             >
               {format(date, 'd')}
-              {isToday && (
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-current" />
-              )}
+              <span className="sr-only">{isActive ? ', studied' : ''}{isToday ? ', today' : ''}</span>
             </div>
           );
         })}
       </div>
-    </div>
+    </Panel>
   );
 }

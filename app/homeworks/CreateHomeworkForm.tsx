@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -35,6 +36,7 @@ export function AddHomeworkButton({
   variant?: 'default' | 'outline';
 }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
   const archived = useIsArchived();
   if (archived) return null;
 
@@ -49,7 +51,16 @@ export function AddHomeworkButton({
             <DialogTitle className="font-heading text-lg font-semibold">New homework</DialogTitle>
             <DialogDescription>Add an assignment and when it is due.</DialogDescription>
           </DialogHeader>
-          <CreateHomeworkForm onSuccess={() => setOpen(false)} subjects={subjects} defaultSubject={defaultSubject} />
+          <CreateHomeworkForm
+            onSuccess={() => {
+              setOpen(false);
+              // The action revalidates /homeworks; this button is also used on
+              // subject pages, which need their own refresh.
+              router.refresh();
+            }}
+            subjects={subjects}
+            defaultSubject={defaultSubject}
+          />
         </DialogContent>
       </Dialog>
     </>

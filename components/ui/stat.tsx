@@ -2,9 +2,10 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * A single number with a label. Replaces the bespoke coloured widgets that were
- * scattered across the dashboard (each with its own tint, glow and icon
- * treatment). Colour is opt-in via `tone` and should mean something.
+ * A single headline number with a label, in the dashboard's type: a muted
+ * sentence-case label over a font-black figure (the contract reserves
+ * font-black for exactly this). Colour is opt-in via `tone` and should report
+ * status, not decorate.
  */
 export function Stat({
   label,
@@ -30,19 +31,15 @@ export function Stat({
   }[tone];
 
   return (
-    <div className={cn("flex items-center gap-3", className)}>
-      {icon && (
-        <div className={cn("flex size-9 items-center justify-center rounded-lg bg-muted", toneClass)}>
-          {icon}
-        </div>
-      )}
-      <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className={cn("font-heading text-lg leading-tight font-semibold", toneClass)}>
-          {value}
-        </p>
-        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-      </div>
+    <div className={cn("min-w-0", className)}>
+      <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground [&_svg]:size-4">
+        {icon}
+        {label}
+      </p>
+      <p className={cn("mt-1 font-heading text-3xl font-black tracking-tight tabular-nums", toneClass)}>
+        {value}
+      </p>
+      {hint && <p className="mt-0.5 text-xs font-medium text-muted-foreground">{hint}</p>}
     </div>
   );
 }

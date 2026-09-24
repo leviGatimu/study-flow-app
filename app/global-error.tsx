@@ -18,7 +18,6 @@ import { useEffect } from 'react';
  */
 export default function GlobalError({
   error,
-  reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
@@ -48,13 +47,15 @@ export default function GlobalError({
             Study Flow couldn&apos;t start
           </h1>
           <p style={{ fontSize: '0.875rem', lineHeight: 1.6, color: '#57534e', margin: '0 0 1.5rem' }}>
-            The app failed to load before it could render anything. This is
-            almost always the database being unreachable. Your data is fine -
-            nothing is written when a page fails to load.
+            The app could not load. This is almost always a dropped
+            connection to your data. Nothing has been lost: nothing is saved
+            when a page fails to load, so trying again is safe.
           </p>
 
+          {/* A full reload rather than reset(): the failure is in the root
+              layout's server render, which reset() would not fetch again. */}
           <button
-            onClick={reset}
+            onClick={() => window.location.reload()}
             style={{
               cursor: 'pointer',
               borderRadius: '0.75rem',
@@ -68,6 +69,25 @@ export default function GlobalError({
           >
             Try again
           </button>
+          {/* A plain full-page navigation on purpose: client-side routing
+              runs inside the layout that just failed. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a
+            href="/"
+            style={{
+              display: 'inline-block',
+              marginLeft: '0.5rem',
+              borderRadius: '0.75rem',
+              border: '1px solid #d6d3d1',
+              color: 'inherit',
+              padding: '0.5625rem 1.25rem',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              textDecoration: 'none',
+            }}
+          >
+            Go to Today
+          </a>
 
           {error.digest && (
             <p style={{ fontSize: '0.75rem', color: '#78716c', marginTop: '1.5rem' }}>

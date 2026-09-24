@@ -20,15 +20,17 @@ import { toast } from 'sonner';
 import { ArrowLeft, Check, Loader2, RotateCcw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Panel } from '@/components/ui/panel';
+import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import { saveFlashcardReview, type Flashcard } from '@/lib/study-actions';
 
 /** SM-2 quality values. "Again" is a lapse; the rest are degrees of success. */
 const GRADES = [
-  { label: 'Again', quality: 1, hint: 'No idea', tone: 'border-rose-500/50 hover:bg-rose-500/10' },
-  { label: 'Hard', quality: 3, hint: 'Struggled', tone: 'border-amber-500/50 hover:bg-amber-500/10' },
-  { label: 'Good', quality: 4, hint: 'Got it', tone: 'border-emerald-500/50 hover:bg-emerald-500/10' },
-  { label: 'Easy', quality: 5, hint: 'Instant', tone: 'border-sky-500/50 hover:bg-sky-500/10' },
+  { label: 'Again', quality: 1, hint: 'No idea', tone: 'border-destructive/40 hover:bg-destructive/10' },
+  { label: 'Hard', quality: 3, hint: 'Struggled', tone: 'border-orange-500/40 hover:bg-orange-500/10' },
+  { label: 'Good', quality: 4, hint: 'Got it', tone: 'border-success/40 hover:bg-success/10' },
+  { label: 'Easy', quality: 5, hint: 'Instant', tone: 'border-primary/40 hover:bg-primary/10' },
 ];
 
 export function FlashcardRunner({
@@ -59,91 +61,106 @@ export function FlashcardRunner({
     setIndex((i) => i + 1);
   };
 
-  const save = async () => {
+  /**
+   * Write the grades given so far. Every exit path goes through here: a card
+   * the student has already graded is a real review, and throwing it away
+   * because they left half way through would quietly reset its schedule.
+   */
+  const persist = async (): Promise<boolean> => {
+    if (reviews.length === 0) return true;
     setSaving(true);
     const res = await saveFlashcardReview(setId, reviews);
     setSaving(false);
     if ('error' in res) {
-      toast.error(res.error);
-      return;
+      toast.error(res.error ?? 'Your reviews could not be saved. Try again.');
+      return false;
     }
-    toast.success('Progress saved.');
+    return true;
+  };
+
+  const finish = async () => {
+    const graded = reviews.length;
+    if (!(await persist())) return;
+    if (graded > 0) toast.success(graded === 1 ? '1 review saved.' : `${graded} reviews saved.`);
     await onDone();
+  };
+
+  const goAgain = async () => {
+    if (!(await persist())) return;
+    setIndex(0);
+    setReviews([]);
+    setRevealed(false);
   };
 
   if (ordered.length === 0) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-20 text-center">
-        <p className="text-sm text-muted-foreground">This set has no flashcards yet.</p>
-        <Button variant="outline" className="mt-4" onClick={() => void onDone()}>
-          Back
-        </Button>
-      </div>
+      <EmptyState
+        title="This set has no flashcards yet"
+        description="Go back to the set and make some from the same material."
+        action={
+          <Button variant="outline" onClick={() => void onDone()}>
+            <ArrowLeft />
+            Back to the set
+          </Button>
+        }
+      />
     );
   }
 
   if (done) {
     const again = reviews.filter((r) => r.quality < 3).length;
     return (
-      <div className="mx-auto w-full max-w-lg px-4 py-16 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">
-          <Check className="h-6 w-6 text-emerald-500" />
+      <Panel className="flex flex-col items-center py-10 text-center">
+        <div className="flex size-12 items-center justify-center rounded-full bg-success/10">
+          <Check className="size-6 text-success" />
         </div>
-        <h2 className="mt-5 font-heading text-2xl font-black">
-          {reviews.length} cards reviewed
-        </h2>
+        <h2 className="mt-4 font-heading text-2xl font-bold">{reviews.length} cards reviewed</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           {again === 0
             ? 'You knew every one. They will come back further apart.'
             : `${again} to come back sooner. The rest move further out.`}
         </p>
-        <div className="mt-6 flex justify-center gap-3">
-          <Button size="lg" onClick={save} disabled={saving}>
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Button size="lg" onClick={finish} disabled={saving}>
+            {saving ? <Loader2 className="animate-spin" /> : <Check />}
             Save and finish
           </Button>
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={() => {
-              setIndex(0);
-              setReviews([]);
-              setRevealed(false);
-            }}
-            disabled={saving}
-          >
-            <RotateCcw className="h-4 w-4" />
-            Go again
+          <Button variant="outline" size="lg" onClick={goAgain} disabled={saving}>
+            <RotateCcw />
+            Save and go again
           </Button>
         </div>
-      </div>
+      </Panel>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 md:px-8">
-      <div className="flex items-center justify-between gap-4 text-xs font-black uppercase tracking-widest text-muted-foreground">
-        <button
-          type="button"
-          onClick={() => void onDone()}
-          className="flex items-center gap-1.5 hover:text-foreground"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Leave
-        </button>
-        <span>
+    <div>
+      <div className="flex items-center justify-between gap-4 text-sm font-medium text-muted-foreground">
+        <Button variant="ghost" size="sm" onClick={finish} disabled={saving}>
+          {saving ? <Loader2 className="animate-spin" /> : <ArrowLeft />}
+          {reviews.length > 0 ? 'Save and leave' : 'Leave'}
+        </Button>
+        <span className="tabular-nums">
           {index + 1} of {ordered.length}
         </span>
       </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+      <div
+        className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-label="Cards reviewed"
+        aria-valuemin={0}
+        aria-valuemax={ordered.length}
+        aria-valuenow={index}
+      >
         <div
           className="h-full rounded-full bg-primary transition-[width] duration-300"
           style={{ width: `${(index / ordered.length) * 100}%` }}
         />
       </div>
 
-      <div className="mt-8 flex min-h-[16rem] flex-col justify-center rounded-3xl border border-border/60 bg-card p-8 text-center">
-        <p className="font-heading text-2xl font-black leading-snug">{card.front}</p>
+      <Panel className="mt-6 flex min-h-64 flex-col justify-center text-center md:p-8">
+        <p className="font-heading text-xl font-bold leading-snug md:text-2xl">{card.front}</p>
 
         {revealed && (
           <>
@@ -151,7 +168,7 @@ export function FlashcardRunner({
             <p className="text-base leading-relaxed text-muted-foreground">{card.back}</p>
           </>
         )}
-      </div>
+      </Panel>
 
       {revealed ? (
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -161,21 +178,17 @@ export function FlashcardRunner({
               type="button"
               onClick={() => grade(g.quality)}
               className={cn(
-                'rounded-2xl border-2 bg-card px-3 py-4 transition-colors',
+                'rounded-2xl border-2 bg-card px-3 py-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
                 g.tone
               )}
             >
-              <span className="block font-heading text-base font-black">{g.label}</span>
-              <span className="mt-0.5 block text-[11px] text-muted-foreground">{g.hint}</span>
+              <span className="block font-heading text-base font-bold">{g.label}</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">{g.hint}</span>
             </button>
           ))}
         </div>
       ) : (
-        <Button
-          size="lg"
-          className="mt-6 h-14 w-full rounded-2xl text-base"
-          onClick={() => setRevealed(true)}
-        >
+        <Button size="lg" className="mt-6 h-12 w-full rounded-xl text-base" onClick={() => setRevealed(true)}>
           Show answer
         </Button>
       )}

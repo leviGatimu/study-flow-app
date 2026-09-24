@@ -177,6 +177,15 @@
   scrollbar-gutter: stable;
 }
 
+/* Horizontal strips (the section tabs) scroll by swipe or wheel; a scrollbar
+   under a single row of tabs only adds a clunky track on narrow screens. */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Electron: the header doubles as the window title bar. These are inert in a
    browser, so the same markup serves both targets. */
 .titlebar-drag { -webkit-app-region: drag; }

@@ -148,8 +148,17 @@ export function UploadSchoolTimetableDialog({
                 if (file) handleFile(file);
               }}
               onClick={() => inputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  inputRef.current?.click();
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label="Choose a timetable photo or file"
               className={cn(
-                'flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed px-6 py-12 text-center cursor-pointer transition-colors',
+                'flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed px-6 py-12 text-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
                 isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'
               )}
             >

@@ -25,11 +25,14 @@ import {
   CircleAlert,
   Clock,
   Flag,
+  Loader2,
   Sparkles,
   X,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Panel } from '@/components/ui/panel';
+import { Pill } from '@/components/ui/list-row';
 import { cn } from '@/lib/utils';
 import type { StudyItem } from '@/lib/study-actions';
 
@@ -139,62 +142,59 @@ export function QuestionRunner({
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8 md:px-8">
+    <Panel className="p-5 md:p-8">
       {/* Progress. In an exam this is the only thing on screen that changes
           between questions, so it carries the clock too. */}
-      <header className="mb-8">
-        <div className="flex items-center justify-between gap-4 text-xs font-black uppercase tracking-widest text-muted-foreground">
-          <span>
+      <div className="mb-8">
+        <div className="flex items-center justify-between gap-4 text-sm font-medium text-muted-foreground">
+          <span className="tabular-nums">
             Question {index + 1} of {items.length}
           </span>
           <span className="flex items-center gap-3">
             {mode === 'EXAM' && minutes ? (
-              <span
-                className={cn(
-                  'flex items-center gap-1.5 tabular-nums',
-                  secondsLeft < 60 && 'text-rose-500'
-                )}
-              >
-                <Clock className="h-3.5 w-3.5" />
+              <Pill tone={secondsLeft < 60 ? 'danger' : 'default'} aria-label="Time left">
+                <Clock />
                 {String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:
                 {String(secondsLeft % 60).padStart(2, '0')}
-              </span>
+              </Pill>
             ) : (
-              <span>{answeredCount} answered</span>
+              <span className="tabular-nums">{answeredCount} answered</span>
             )}
-            <button
-              type="button"
-              onClick={onQuit}
-              className="font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
-            >
+            <Button variant="ghost" size="sm" onClick={onQuit}>
+              <X />
               Quit
-            </button>
+            </Button>
           </span>
         </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+        <div
+          className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-label="Progress through the questions"
+          aria-valuemin={0}
+          aria-valuemax={items.length}
+          aria-valuenow={index + (isRevealed ? 1 : 0)}
+        >
           <div
             className="h-full rounded-full bg-primary transition-[width] duration-300"
             style={{ width: `${((index + (isRevealed ? 1 : 0)) / items.length) * 100}%` }}
           />
         </div>
-      </header>
+      </div>
 
-      <div key={item.id} className="animate-in fade-in slide-in-from-right-4 duration-200">
-        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">
-          {TYPE_LABEL[item.type] ?? 'Question'}
-        </p>
-        <h2 className="mt-2 font-heading text-2xl font-black leading-snug md:text-3xl">
+      <div key={item.id} className="animate-in fade-in duration-200">
+        <p className="text-sm font-medium text-primary">{TYPE_LABEL[item.type] ?? 'Question'}</p>
+        <h2 className="mt-1.5 font-heading text-xl font-bold leading-snug md:text-2xl">
           {item.question}
         </h2>
 
-        <div className="mt-7">
+        <div className="mt-6">
           <AnswerWidget item={item} given={given} onChange={set} locked={Boolean(isRevealed)} />
         </div>
 
         {isRevealed && <Verdict item={item} given={given} />}
 
-        <div className="mt-8 flex items-center justify-between gap-3 border-t border-border/60 pt-6">
-          <span className="text-xs text-muted-foreground">
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-6">
+          <span className="text-xs font-medium text-muted-foreground">
             {mode === 'EXAM'
               ? 'Marked when you finish the paper.'
               : isRevealed
@@ -209,20 +209,25 @@ export function QuestionRunner({
                 onClick={() => setRevealed((r) => ({ ...r, [item.id]: true }))}
               >
                 Check
-                <Check className="h-4 w-4" />
+                <Check />
               </Button>
             )}
             {(mode === 'EXAM' || isRevealed) && (
               <Button size="lg" onClick={advance} disabled={busy}>
-                {isLast ? (
+                {busy && isLast ? (
+                  <>
+                    Marking…
+                    <Loader2 className="animate-spin" />
+                  </>
+                ) : isLast ? (
                   <>
                     Finish
-                    <Flag className="h-4 w-4" />
+                    <Flag />
                   </>
                 ) : (
                   <>
                     Next
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight />
                   </>
                 )}
               </Button>
@@ -230,7 +235,7 @@ export function QuestionRunner({
           </div>
         </div>
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -254,19 +259,19 @@ function Verdict({ item, given }: { item: StudyItem; given: string }) {
       className={cn(
         'mt-6 rounded-2xl border p-4',
         correct === true
-          ? 'border-emerald-500/40 bg-emerald-500/10'
+          ? 'border-success/30 bg-success/10'
           : correct === false
-            ? 'border-rose-500/40 bg-rose-500/10'
+            ? 'border-destructive/30 bg-destructive/10'
             : 'border-border/60 bg-muted/40'
       )}
     >
       <p
         className={cn(
-          'flex items-center gap-2 text-sm font-black',
+          'flex items-center gap-2 text-sm font-bold',
           correct === true
-            ? 'text-emerald-600 dark:text-emerald-400'
+            ? 'text-success'
             : correct === false
-              ? 'text-rose-600 dark:text-rose-400'
+              ? 'text-destructive'
               : 'text-muted-foreground'
         )}
       >
@@ -348,6 +353,7 @@ function AnswerWidget({
           disabled={locked}
           onChange={(e) => onChange(e.target.value)}
           placeholder="The missing word or phrase"
+          aria-label="Your answer"
           className="h-12 w-full rounded-xl border border-input bg-transparent px-4 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60 dark:bg-input/30"
         />
       );
@@ -358,6 +364,7 @@ function AnswerWidget({
           disabled={locked}
           onChange={(e) => onChange(e.target.value)}
           rows={item.type === 'OPEN_ENDED' ? 8 : 4}
+          aria-label="Your answer"
           placeholder={
             item.type === 'OPEN_ENDED' ? 'Write your answer…' : 'A sentence or two…'
           }
@@ -370,10 +377,10 @@ function AnswerWidget({
 function optionRow(state: 'idle' | 'picked' | 'right' | 'wrong') {
   return cn(
     'flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition-colors',
-    state === 'right' && 'border-emerald-500/50 bg-emerald-500/10',
-    state === 'wrong' && 'border-rose-500/50 bg-rose-500/10',
+    state === 'right' && 'border-success/40 bg-success/10',
+    state === 'wrong' && 'border-destructive/40 bg-destructive/10',
     state === 'picked' && 'border-primary bg-primary/10',
-    state === 'idle' && 'border-border/60 hover:border-primary/40 hover:bg-muted/40'
+    state === 'idle' && 'border-border/60 hover:bg-muted/60'
   );
 }
 
@@ -408,14 +415,15 @@ function ChoiceList({
             key={option}
             type="button"
             disabled={locked}
+            aria-pressed={picked}
             onClick={() => onChange(option)}
             className={optionRow(state)}
           >
             <span
               className={cn(
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-sm font-black',
-                state === 'right' && 'border-emerald-500/50 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
-                state === 'wrong' && 'border-rose-500/50 bg-rose-500/20 text-rose-600 dark:text-rose-400',
+                'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-sm font-bold',
+                state === 'right' && 'border-success/40 bg-success/20 text-success',
+                state === 'wrong' && 'border-destructive/40 bg-destructive/20 text-destructive',
                 state === 'picked' && 'border-primary bg-primary/20 text-primary',
                 state === 'idle' && 'border-border text-muted-foreground'
               )}
@@ -461,6 +469,7 @@ function MultiSelect({
             key={option}
             type="button"
             disabled={locked}
+            aria-pressed={picked}
             onClick={() => {
               const next = new Set(chosen);
               if (next.has(option)) next.delete(option);
@@ -516,9 +525,9 @@ function Ordering({
       {order.map((row, i) => (
         <li
           key={row}
-          className="flex items-center gap-3 rounded-xl border border-border/60 bg-card p-3"
+          className="flex items-center gap-3 rounded-xl border border-border/40 bg-muted/40 p-3"
         >
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-black text-muted-foreground">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-bold text-muted-foreground">
             {i + 1}
           </span>
           <span className="min-w-0 flex-1 text-sm font-semibold">{row}</span>
@@ -584,12 +593,13 @@ function Matching({
       {item.items.map((term) => (
         <div
           key={term}
-          className="flex flex-col gap-2 rounded-xl border border-border/60 bg-card p-3 sm:flex-row sm:items-center"
+          className="flex flex-col gap-2 rounded-xl border border-border/40 bg-muted/40 p-3 sm:flex-row sm:items-center"
         >
           <span className="min-w-0 flex-1 text-sm font-bold">{term}</span>
           <select
             value={pairs.get(term) ?? ''}
             disabled={locked}
+            aria-label={`Match for ${term}`}
             onChange={(e) => setPair(term, e.target.value)}
             className="h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring sm:w-64 dark:bg-input/30"
           >

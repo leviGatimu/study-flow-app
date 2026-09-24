@@ -1,41 +1,73 @@
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { FolderKanban } from 'lucide-react';
+
 import { getProjects } from '@/lib/project-actions';
-import { ProjectList } from './ProjectList';
-import { Rocket } from 'lucide-react';
+import { getUserId } from '@/lib/auth';
 import { ProjectWithDocs } from '@/lib/types';
-import { getUserId } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { Button } from '@/components/ui/button';
+import { Page, PageBody } from '@/components/ui/page';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
+import { ProjectList } from './ProjectList';
 import { DialogTriggerButton } from './DialogTriggerButton';
 
 export const dynamic = 'force-dynamic';
+
+const DESCRIPTION = 'Longer pieces of coursework, each with its own docs and progress.';
 
 export default async function ProjectsPage() {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
-  const projects = await getProjects();
+  let projects: ProjectWithDocs[];
+  try {
+    projects = (await getProjects()) as ProjectWithDocs[];
+  } catch (error) {
+    console.error('Projects page failed to load', error);
+    return (
+      <Page>
+        <PageHeader title="Projects" description={DESCRIPTION} />
+        <PageBody>
+          <ErrorState
+            title="Your projects could not be loaded"
+            description="Check your connection and try again."
+            action={
+              <Button asChild variant="outline">
+                <Link href="/projects">Try again</Link>
+              </Button>
+            }
+          />
+        </PageBody>
+      </Page>
+    );
+  }
 
   return (
-    <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto pb-16 animate-in fade-in duration-500">
-      <div className="px-4 md:px-8 pt-6 pb-2 border-b border-border/40 flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-heading font-bold tracking-tight text-foreground">Project Hub</h1>
-          <p className="text-lg text-muted-foreground font-semibold mt-3">Design, document, and deliver.</p>
-        </div>
-        <DialogTriggerButton />
-      </div>
-
-      <div className="px-4 md:px-8">
+    <Page>
+      <PageHeader
+        title="Projects"
+        description={DESCRIPTION}
+        meta={
+          projects.length > 0
+            ? `${projects.length} ${projects.length === 1 ? 'project' : 'projects'}`
+            : undefined
+        }
+        actions={<DialogTriggerButton size="lg" />}
+      />
+      <PageBody>
         {projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 bg-muted/50 border border-border/50 rounded-2xl text-center">
-            <Rocket className="w-16 h-16 text-muted-foreground/20 mb-6" />
-            <h2 className="text-2xl font-heading font-bold text-muted-foreground">No projects yet</h2>
-            <p className="text-muted-foreground mt-2 max-w-md mx-auto">Start your first venture today. Your AI Buddy is ready to help you plan.</p>
-            <DialogTriggerButton className="mt-8" />
-          </div>
+          <EmptyState
+            icon={<FolderKanban />}
+            title="No projects yet"
+            description="Create one for coursework that takes more than a sitting: plan it in docs and track how far along it is."
+            action={<DialogTriggerButton />}
+          />
         ) : (
-          <ProjectList initialProjects={projects as ProjectWithDocs[]} />
+          <ProjectList initialProjects={projects} />
         )}
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }

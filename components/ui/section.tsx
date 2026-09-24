@@ -2,8 +2,9 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * A titled block within a page. Owns the heading size and the gap between the
- * heading and its content so sections can't drift apart across pages.
+ * A titled block within a page, headed like the dashboard's "Today's Focus":
+ * the contract's h2. Owns the gap between heading and content so sections
+ * cannot drift apart across pages.
  */
 export function Section({
   title,
@@ -19,12 +20,12 @@ export function Section({
   className?: string;
 }) {
   return (
-    <section className={cn("space-y-3", className)}>
+    <section className={cn("space-y-4", className)}>
       {(title || actions) && (
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0 space-y-0.5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0 space-y-1">
             {title && (
-              <h2 className="font-heading text-lg font-bold tracking-tight text-foreground">
+              <h2 className="text-2xl font-heading font-bold tracking-tight text-foreground">
                 {title}
               </h2>
             )}
@@ -33,7 +34,7 @@ export function Section({
             )}
           </div>
           {actions && (
-            <div className="flex shrink-0 items-center gap-2">{actions}</div>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
           )}
         </div>
       )}

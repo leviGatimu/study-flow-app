@@ -3,10 +3,17 @@ import { getSongs, getPlaylists } from '@/lib/music-actions';
 import { FocusSessionUI } from '@/components/FocusSessionUI';
 import { notFound, redirect } from 'next/navigation';
 import { getUserId } from '@/lib/auth';
+import type { TaskWithTemplate } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-export default async function FocusPage({ params }: { params: Promise<{ taskId: string }> }) {
+export default async function FocusPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ taskId: string }>;
+  searchParams: Promise<{ subject?: string }>;
+}) {
   const userId = await getUserId();
   if (!userId) {
     redirect('/login');
@@ -14,6 +21,10 @@ export default async function FocusPage({ params }: { params: Promise<{ taskId: 
 
   const resolvedParams = await params;
   const taskId = decodeURIComponent(resolvedParams.taskId).trim();
+  // A free session started from a subject or an exam ("revise Physics") is
+  // labelled with it, and gets that subject's resources.
+  const { subject: subjectParam } = await searchParams;
+  const freeSubject = typeof subjectParam === 'string' ? subjectParam.trim().slice(0, 120) : '';
   let task;
   
   if (taskId === 'free') {
@@ -26,7 +37,7 @@ export default async function FocusPage({ params }: { params: Promise<{ taskId: 
       date: new Date(),
       startTime: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
       endTime: oneHourLater.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-      subject: 'Custom Focus',
+      subject: freeSubject || 'Custom Focus',
       isDone: false,
       isMissed: false,
       isDeleted: false,
@@ -43,14 +54,15 @@ export default async function FocusPage({ params }: { params: Promise<{ taskId: 
     notFound();
   }
 
-  const resources = taskId === 'free' ? [] : await getResources(task.subject);
+  const resources =
+    taskId !== 'free' ? await getResources(task.subject) : freeSubject ? await getResources(freeSubject) : [];
   const [songs, playlists] = await Promise.all([getSongs(), getPlaylists()]);
   const todayTasks = await getTodayTasks();
-  const upcomingTasks = todayTasks.filter((t: any) => !t.isDone && t.id !== taskId);
+  const upcomingTasks = todayTasks.filter((t) => !t.isDone && t.id !== taskId);
 
   return (
     <div className="fixed inset-0 z-[100] bg-background overflow-hidden">
-      <FocusSessionUI task={task as any} resources={resources} songs={songs} playlists={playlists} upcomingTasks={upcomingTasks} />
+      <FocusSessionUI task={task as TaskWithTemplate} resources={resources} songs={songs} playlists={playlists} upcomingTasks={upcomingTasks} />
     </div>
   );
 }

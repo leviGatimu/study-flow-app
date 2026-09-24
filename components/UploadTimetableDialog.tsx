@@ -140,14 +140,11 @@ export function UploadTimetableDialog() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button
-          variant="outline"
-          className="h-11 px-6 rounded-xl border-border bg-card hover:bg-muted font-bold text-sm gap-2 shadow-sm transition-all cursor-pointer"
-        >
-          <Upload className="w-4 h-4" /> Upload timetable
+        <Button variant="outline" size="lg">
+          <Upload /> Upload timetable
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-2xl border border-border bg-card p-0 overflow-hidden w-[95vw] max-w-5xl shadow-2xl max-h-[90vh] flex flex-col">
+      <DialogContent className="rounded-2xl border border-border bg-card p-0 overflow-hidden w-[95vw] max-w-5xl max-h-[90vh] flex flex-col">
         <div className="p-8 pb-4 relative shrink-0">
           <DialogHeader className="relative z-10">
             <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20 mb-4">

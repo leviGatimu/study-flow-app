@@ -1263,7 +1263,7 @@ export async function createAiNote(title: string, content: string, sourceName?: 
     },
   });
 
-  revalidatePath('/notes-ai');
+  revalidatePath('/ai');
   return note;
 }
 
@@ -1281,7 +1281,7 @@ export async function updateAiNote(id: string, title: string, content: string) {
     },
   });
 
-  revalidatePath('/notes-ai');
+  revalidatePath('/ai');
   return note;
 }
 
@@ -1293,7 +1293,7 @@ export async function deleteAiNote(id: string) {
 
   await softDelete(prisma, 'aiNote', { id, userId });
 
-  revalidatePath('/notes-ai');
+  revalidatePath('/ai');
   return { success: true };
 }
 

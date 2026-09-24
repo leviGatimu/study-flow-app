@@ -57,7 +57,7 @@ export function SetupChecklist({ items }: { items: ChecklistItem[] }) {
         <div>
           <h2
             id="setup-checklist-heading"
-            className="flex items-center gap-2 font-heading text-xl font-black tracking-tight"
+            className="flex items-center gap-2 font-heading text-xl font-bold tracking-tight"
           >
             <Rocket className="h-5 w-5 text-primary" />
             Finish setting up
@@ -120,7 +120,7 @@ export function SetupChecklist({ items }: { items: ChecklistItem[] }) {
                     {item.title}
                   </span>
                   {!item.required && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                       Optional
                     </span>
                   )}

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { getUserId } from '@/lib/auth';
-import { getClassOverview, getCurrentScheduleState } from '@/lib/term-actions';
+import { getClassOverview } from '@/lib/term-actions';
 import { YearClient } from './YearClient';
 
 export const dynamic = 'force-dynamic';
@@ -11,10 +11,7 @@ export default async function YearPage() {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
-  const [classes, schedule] = await Promise.all([
-    getClassOverview(),
-    getCurrentScheduleState(),
-  ]);
+  const classes = await getClassOverview();
 
-  return <YearClient classes={classes ?? []} schedule={schedule} />;
+  return <YearClient classes={classes ?? []} />;
 }

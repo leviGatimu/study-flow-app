@@ -1,478 +1,700 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, isToday } from 'date-fns';
-import { Plus, ChevronLeft, ChevronRight, Clock, Edit2, Bookmark, BookmarkCheck, Trash2, GraduationCap } from 'lucide-react';
+import { useMemo, useState, useTransition } from 'react';
+import Link from 'next/link';
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameMonth,
+  startOfWeek,
+} from 'date-fns';
+import {
+  Bookmark,
+  BookmarkCheck,
+  BookOpen,
+  CalendarRange,
+  ChevronLeft,
+  ChevronRight,
+  Flag,
+  GraduationCap,
+  Pencil,
+  Plus,
+  Trash2,
+} from 'lucide-react';
+import { toast } from 'sonner';
+
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Panel, PanelTitle } from '@/components/ui/panel';
+import { ListRow, Pill } from '@/components/ui/list-row';
+import { EmptyState } from '@/components/ui/empty-state';
 import { TaskCheckbox } from '@/components/TaskCheckbox';
-import { toggleMarkedDay, updateTask, deleteTask, setSchoolEndDate } from '@/lib/actions';
 import { QuickAddForm } from '@/components/QuickAddForm';
-import { useIsArchived } from '@/components/ArchiveContext';
-import { cn } from '@/lib/utils';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { useIsArchived } from '@/components/ArchiveContext';
+import { toggleMarkedDay, updateTask, deleteTask } from '@/lib/actions';
+import { extendActiveTerm } from '@/lib/term-actions';
+import { cn } from '@/lib/utils';
+import {
+  StudyLegend,
+  StudyTypeIcon,
+  StudyTypePill,
+  statusOf,
+  studyBlockClass,
+} from '@/app/timetable/study-block';
+import { dayKey, monthHref, parseDayKey, weekHref } from '@/app/timetable/schedule-dates';
 
-type TaskType = {
+export type CalendarTask = {
   id: string;
   subject: string;
-  isDone: boolean;
-  isMissed: boolean;
   type: string;
   startTime: string;
   endTime: string;
-  workDescription?: string | null;
-  proofPdfUrl?: string | null;
-  template: {
-    startTime: string;
-    endTime: string;
-    deadlineDay: string;
-  } | null;
-  date: Date;
+  isDone: boolean;
+  isMissed: boolean;
+  hasProof: boolean;
+  dateKey: string;
 };
 
-type ExamType = {
-  id: string;
-  title: string;
-  date: Date;
-  priority: string;
+export type CalendarData = {
+  tasks: CalendarTask[];
+  exams: { id: string; title: string; startTime: string | null; priority: string; dateKey: string }[];
+  homework: { id: string; subject: string; title: string; isCompleted: boolean; dateKey: string }[];
+  markedDays: string[];
+  /** The running term of the active year, or null (none, or an archive is open). */
+  term: { name: string | null; start: string | null; end: string | null } | null;
 };
 
-export function CalendarGrid({ tasks, exams = [], markedDays = [], subjects = [], termEndDate = null }: { tasks: TaskType[], exams?: ExamType[], markedDays?: Date[], subjects?: { id: string; name: string }[], termEndDate?: Date | string | null }) {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-  const archived = useIsArchived();
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(monthStart);
-  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+function groupByDay<T extends { dateKey: string }>(items: T[]) {
+  const map = new Map<string, T[]>();
+  for (const item of items) {
+    const list = map.get(item.dateKey);
+    if (list) list.push(item);
+    else map.set(item.dateKey, [item]);
+  }
+  return map;
+}
 
-  // Handle filling the start of the week
-  const startDay = monthStart.getDay();
-  const prefixDays = Array.from({ length: startDay }).map((_, i) => null);
+/**
+ * The month grid, Monday first like the rest of the Schedule section. The
+ * month it shows lives in the URL (?month=yyyy-MM) and is read on the server,
+ * so the arrows are links and only that month's rows are ever loaded.
+ *
+ * Under `sm` the seven-column grid is unreadable, so it becomes a day list.
+ */
+export function CalendarGrid({
+  monthKey,
+  todayKey,
+  data,
+  subjects,
+}: {
+  monthKey: string;
+  todayKey: string;
+  data: CalendarData;
+  subjects: { id: string; name: string }[];
+}) {
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
-  const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
-  const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
-  const goToday = () => setCurrentDate(new Date());
+  const month = useMemo(() => {
+    const [y, m] = monthKey.split('-').map(Number);
+    return new Date(y, m - 1, 1);
+  }, [monthKey]);
 
-  const handleDayClick = (date: Date) => {
-    setSelectedDate(date);
-    setIsModalOpen(true);
-    setEditingTaskId(null);
+  const gridDays = useMemo(
+    () =>
+      eachDayOfInterval({
+        start: startOfWeek(month, { weekStartsOn: 1 }),
+        end: endOfWeek(endOfMonth(month), { weekStartsOn: 1 }),
+      }),
+    [month]
+  );
+  const monthDays = gridDays.filter((d) => isSameMonth(d, month));
+
+  const tasksByDay = useMemo(() => groupByDay(data.tasks), [data.tasks]);
+  const examsByDay = useMemo(() => groupByDay(data.exams), [data.exams]);
+  const homeworkByDay = useMemo(() => groupByDay(data.homework), [data.homework]);
+  const marked = useMemo(() => new Set(data.markedDays), [data.markedDays]);
+  const termEndKey = data.term?.end ? dayKey(new Date(data.term.end)) : null;
+
+  const isCurrentMonth = todayKey.startsWith(monthKey);
+
+  const summaryOf = (key: string) => {
+    const tasks = tasksByDay.get(key) ?? [];
+    return {
+      tasks,
+      exams: examsByDay.get(key) ?? [],
+      homework: homeworkByDay.get(key) ?? [],
+      hasHomework: tasks.some((t) => t.type !== 'REVISION'),
+      hasRevision: tasks.some((t) => t.type === 'REVISION'),
+      isMarked: marked.has(key),
+      isTermEnd: key === termEndKey,
+      isToday: key === todayKey,
+    };
   };
 
-  const selectedTasks = selectedDate 
-    ? tasks.filter(t => isSameDay(new Date(t.date), selectedDate))
-    : [];
+  return (
+    <>
+      <Panel padded={false} className="overflow-hidden">
+        <div className="p-4 pb-0 sm:p-6 sm:pb-0">
+          <PanelTitle
+            icon={<CalendarRange />}
+            action={
+              <>
+                {!isCurrentMonth && (
+                  <Button asChild variant="outline">
+                    <Link href="/calendar">Today</Link>
+                  </Button>
+                )}
+                <Button asChild variant="outline" size="icon" aria-label="Previous month">
+                  <Link href={monthHref(addMonths(month, -1))}>
+                    <ChevronLeft />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="icon" aria-label="Next month">
+                  <Link href={monthHref(addMonths(month, 1))}>
+                    <ChevronRight />
+                  </Link>
+                </Button>
+              </>
+            }
+          >
+            {format(month, 'MMMM yyyy')}
+          </PanelTitle>
+        </div>
 
-  const selectedExams = selectedDate
-    ? exams.filter(e => isSameDay(new Date(e.date), selectedDate))
-    : [];
-    
-  const isSelectedDateMarked = selectedDate
-    ? markedDays.some(md => isSameDay(new Date(md), selectedDate))
-    : false;
+        {/* Phone: a list of the month's days. */}
+        <ul className="divide-y divide-border/60 border-t border-border/60 sm:hidden">
+          {monthDays.map((date) => {
+            const key = dayKey(date);
+            const s = summaryOf(key);
+            const count = s.tasks.length + s.exams.length + s.homework.length;
+            return (
+              <li key={key}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedKey(key)}
+                  className={cn(
+                    'flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none',
+                    s.isToday && 'bg-primary/5'
+                  )}
+                >
+                  <DayNumber date={date} isToday={s.isToday} isMarked={s.isMarked} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-foreground">
+                      {format(date, 'EEEE')}
+                    </span>
+                    <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      <DayDots summary={s} />
+                      {count > 0 ? `${count} ${count === 1 ? 'item' : 'items'}` : 'Nothing planned'}
+                      {s.isTermEnd && <Pill tone="warning">Term ends</Pill>}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
 
-  const schoolEnd = termEndDate ? new Date(termEndDate) : null;
-  const isSelectedLastDay = selectedDate && schoolEnd
-    ? isSameDay(schoolEnd, selectedDate)
-    : false;
+        {/* Tablet and up: the month grid. */}
+        <div className="hidden sm:block">
+          <div className="mt-2 grid grid-cols-7 border-y border-border/60 bg-muted/40">
+            {WEEKDAYS.map((d) => (
+              <div key={d} className="py-3 text-center text-xs font-medium text-muted-foreground">
+                {d}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-px bg-border/60">
+            {gridDays.map((date) => {
+              const key = dayKey(date);
+              const s = summaryOf(key);
+              const inMonth = isSameMonth(date, month);
+              const labels = [
+                ...s.exams.map((e) => ({ id: e.id, text: e.title, kind: 'exam' as const })),
+                ...s.tasks.map((t) => ({ id: t.id, text: t.subject, kind: 'task' as const, task: t })),
+              ];
+              const hidden = labels.length - 2;
+              const count = s.tasks.length + s.exams.length + s.homework.length;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSelectedKey(key)}
+                  aria-label={`${format(date, 'EEEE d MMMM')}, ${count} ${count === 1 ? 'item' : 'items'}`}
+                  className={cn(
+                    'flex min-h-28 w-full flex-col gap-2 bg-card p-2 text-left transition-colors hover:bg-muted/50 focus-visible:relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50 lg:min-h-32 lg:p-3',
+                    !inMonth && 'bg-muted/30 text-muted-foreground',
+                    s.isToday && 'bg-primary/5'
+                  )}
+                >
+                  <span className="flex items-center justify-between gap-1">
+                    <DayNumber date={date} isToday={s.isToday} isMarked={s.isMarked} muted={!inMonth} />
+                    <DayDots summary={s} />
+                  </span>
+                  {s.isTermEnd && (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-orange-600 dark:text-orange-400">
+                      <Flag aria-hidden="true" className="size-3" /> Term ends
+                    </span>
+                  )}
+                  <span className="hidden w-full flex-col gap-1 md:flex">
+                    {labels.slice(0, 2).map((l) =>
+                      l.kind === 'exam' ? (
+                        <span
+                          key={l.id}
+                          className="truncate rounded-lg bg-orange-500/10 px-2 py-1 text-xs font-semibold text-orange-700 dark:text-orange-300"
+                        >
+                          Exam: {l.text}
+                        </span>
+                      ) : (
+                        <span
+                          key={l.id}
+                          className={cn(
+                            'truncate rounded-lg px-2 py-0.5 text-xs font-medium text-foreground',
+                            studyBlockClass(l.task.type, statusOf(l.task)),
+                            l.task.isDone && 'line-through opacity-70'
+                          )}
+                        >
+                          {l.text}
+                        </span>
+                      )
+                    )}
+                    {hidden > 0 && (
+                      <span className="px-1 text-xs font-medium text-muted-foreground">+{hidden} more</span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-  const handleToggleMark = () => {
-    if (!selectedDate) return;
-    startTransition(() => {
-      toggleMarkedDay(selectedDate, !isSelectedDateMarked);
+        <div className="border-t border-border/60 p-4 sm:px-6">
+          <StudyLegend
+            extra={
+              <>
+                <span className="flex items-center gap-2">
+                  <span aria-hidden="true" className="size-2 rounded-full bg-orange-500" /> Exam
+                </span>
+                <span className="flex items-center gap-2">
+                  <span aria-hidden="true" className="size-2 rounded-full border-2 border-foreground/60" /> Homework due
+                </span>
+                <span className="flex items-center gap-2">
+                  <Bookmark aria-hidden="true" className="size-3 text-destructive" /> Marked day
+                </span>
+              </>
+            }
+          />
+        </div>
+      </Panel>
+
+      <DayDialog
+        dateKey={selectedKey}
+        onClose={() => setSelectedKey(null)}
+        summary={selectedKey ? summaryOf(selectedKey) : null}
+        term={data.term}
+        subjects={subjects}
+      />
+    </>
+  );
+}
+
+type DaySummary = {
+  tasks: CalendarTask[];
+  exams: CalendarData['exams'];
+  homework: CalendarData['homework'];
+  hasHomework: boolean;
+  hasRevision: boolean;
+  isMarked: boolean;
+  isTermEnd: boolean;
+  isToday: boolean;
+};
+
+function DayNumber({
+  date,
+  isToday,
+  isMarked,
+  muted = false,
+}: {
+  date: Date;
+  isToday: boolean;
+  isMarked: boolean;
+  muted?: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        'flex size-8 shrink-0 items-center justify-center rounded-lg font-heading text-sm font-bold tabular-nums',
+        isToday
+          ? 'bg-primary text-primary-foreground'
+          : isMarked
+            ? 'bg-destructive/10 text-destructive ring-1 ring-destructive/30'
+            : muted
+              ? 'text-muted-foreground'
+              : 'text-foreground'
+      )}
+    >
+      {format(date, 'd')}
+    </span>
+  );
+}
+
+/** Blue for homework blocks, orange for revision and exams, a ring for homework due. */
+function DayDots({ summary: s }: { summary: DaySummary }) {
+  if (!s.hasHomework && !s.hasRevision && s.exams.length === 0 && s.homework.length === 0) return null;
+  return (
+    <span className="flex items-center gap-1" aria-hidden="true">
+      {s.hasHomework && <span className="size-2 rounded-full bg-primary" />}
+      {s.hasRevision && <span className="size-2 rounded-full border-2 border-dashed border-orange-500" />}
+      {s.exams.length > 0 && <span className="size-2 rounded-full bg-orange-500" />}
+      {s.homework.length > 0 && <span className="size-2 rounded-full border-2 border-foreground/60" />}
+    </span>
+  );
+}
+
+/**
+ * Everything on one day. Closing it returns to the grid unchanged; "Open this
+ * week" carries the day over to the Week page.
+ */
+function DayDialog({
+  dateKey,
+  summary,
+  term,
+  subjects,
+  onClose,
+}: {
+  dateKey: string | null;
+  summary: DaySummary | null;
+  term: CalendarData['term'];
+  subjects: { id: string; name: string }[];
+  onClose: () => void;
+}) {
+  const archived = useIsArchived();
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [confirmTermEnd, setConfirmTermEnd] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const date = parseDayKey(dateKey ?? undefined);
+  const open = !!date && !!summary;
+
+  const close = () => {
+    setEditingTaskId(null);
+    setConfirmTermEnd(false);
+    onClose();
+  };
+
+  const termStartKey = term?.start ? dayKey(new Date(term.start)) : null;
+  const canSetTermEnd =
+    !!term && !archived && !summary?.isTermEnd && !!dateKey && (!termStartKey || dateKey >= termStartKey);
+
+  const toggleMark = () => {
+    if (!date || !summary) return;
+    startTransition(async () => {
+      try {
+        await toggleMarkedDay(date, !summary.isMarked);
+      } catch {
+        toast.error('That day could not be updated. Try again.');
+      }
     });
   };
 
-  const handleToggleLastDay = () => {
-    if (!selectedDate) return;
-    startTransition(() => {
-      setSchoolEndDate(isSelectedLastDay ? null : selectedDate);
+  const setTermEnd = () => {
+    if (!date) return;
+    startTransition(async () => {
+      const result = await extendActiveTerm(date);
+      if (result && 'error' in result && result.error) {
+        toast.error(result.error);
+        return;
+      }
+      setConfirmTermEnd(false);
+      toast.success(`${term?.name ?? 'Your term'} now ends on ${format(date, 'EEEE d MMMM')}.`);
     });
   };
 
   const onConfirmDelete = () => {
     if (!deleteConfirmId) return;
     startTransition(async () => {
-      await deleteTask(deleteConfirmId);
+      const result = await deleteTask(deleteConfirmId);
+      if (!result?.success) toast.error('That block could not be removed. Try again.');
       setDeleteConfirmId(null);
     });
   };
 
+  const counts = summary
+    ? [
+        summary.tasks.length && `${summary.tasks.length} study ${summary.tasks.length === 1 ? 'block' : 'blocks'}`,
+        summary.homework.length && `${summary.homework.length} homework due`,
+        summary.exams.length && `${summary.exams.length} ${summary.exams.length === 1 ? 'exam' : 'exams'}`,
+      ].filter(Boolean)
+    : [];
+
   return (
-    <div className="flex flex-col bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
+    <>
+      <Dialog open={open} onOpenChange={(next) => !next && close()}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          {date && summary && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex flex-wrap items-center gap-2 font-heading text-2xl font-bold">
+                  {format(date, 'EEEE d MMMM')}
+                  {summary.isToday && <Pill tone="primary">Today</Pill>}
+                  {summary.isTermEnd && <Pill tone="warning">Last day of term</Pill>}
+                </DialogTitle>
+                <DialogDescription>
+                  {counts.length > 0 ? counts.join(' · ') : 'Nothing is planned on this day yet.'}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <QuickAddForm
+                  initialDate={date}
+                  subjects={subjects}
+                  trigger={
+                    <Button size="sm">
+                      <Plus /> Add task
+                    </Button>
+                  }
+                />
+                {!archived && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleMark}
+                    disabled={isPending}
+                    aria-pressed={summary.isMarked}
+                  >
+                    {summary.isMarked ? <BookmarkCheck className="text-destructive" /> : <Bookmark />}
+                    {summary.isMarked ? 'Unmark day' : 'Mark day'}
+                  </Button>
+                )}
+                {canSetTermEnd && !confirmTermEnd && (
+                  <Button variant="outline" size="sm" onClick={() => setConfirmTermEnd(true)} disabled={isPending}>
+                    <Flag /> Make this the last day of term
+                  </Button>
+                )}
+              </div>
+
+              {confirmTermEnd && (
+                <div className="space-y-3 rounded-xl border border-orange-500/30 bg-orange-500/5 p-4">
+                  <p className="text-sm font-medium text-foreground">
+                    {term?.name ?? 'Your term'} will end on {format(date, 'EEEE d MMMM')}. Study blocks stop being
+                    planned after that day, and you will be asked to finish the term when it arrives. You can
+                    change it again in{' '}
+                    <Link href="/year" className="font-semibold text-primary hover:underline">
+                      Year &amp; terms
+                    </Link>
+                    .
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" onClick={setTermEnd} disabled={isPending}>
+                      {isPending ? 'Saving…' : 'Set last day'}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmTermEnd(false)} disabled={isPending}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-6">
+                {summary.exams.length > 0 && (
+                  <DaySection title="Exams">
+                    {summary.exams.map((exam) => (
+                      <ListRow
+                        key={exam.id}
+                        href={`/exams/${exam.id}`}
+                        leading={<GraduationCap aria-hidden="true" className="size-5 shrink-0 text-orange-500" />}
+                        title={exam.title}
+                        subtitle={exam.startTime ? `Starts ${exam.startTime}` : 'Time not set'}
+                        trailing={exam.priority === 'HIGH' ? <Pill tone="danger">High priority</Pill> : undefined}
+                      />
+                    ))}
+                  </DaySection>
+                )}
+
+                {summary.homework.length > 0 && (
+                  <DaySection title="Homework due">
+                    {summary.homework.map((hw) => (
+                      <ListRow
+                        key={hw.id}
+                        href="/homeworks"
+                        leading={<BookOpen aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />}
+                        title={hw.title}
+                        subtitle={hw.subject}
+                        trailing={
+                          hw.isCompleted ? <Pill tone="success">Done</Pill> : <Pill>Due</Pill>
+                        }
+                      />
+                    ))}
+                  </DaySection>
+                )}
+
+                {summary.tasks.length > 0 && (
+                  <DaySection title="Study blocks">
+                    {summary.tasks.map((task) =>
+                      editingTaskId === task.id ? (
+                        <EditTaskForm
+                          key={task.id}
+                          task={task}
+                          dateKey={dateKey!}
+                          onClose={() => setEditingTaskId(null)}
+                        />
+                      ) : (
+                        <div
+                          key={task.id}
+                          className={cn(
+                            'flex items-center justify-between gap-3 px-4 py-3',
+                            studyBlockClass(task.type, statusOf(task))
+                          )}
+                        >
+                          <div className="flex min-w-0 items-center gap-3">
+                            <TaskCheckbox
+                              taskId={task.id}
+                              isDone={task.isDone}
+                              isMissed={task.isMissed}
+                              hasProof={task.hasProof}
+                            />
+                            <div className="min-w-0">
+                              <p
+                                className={cn(
+                                  'flex min-w-0 items-center gap-2 font-bold text-foreground',
+                                  task.isDone && 'line-through opacity-70'
+                                )}
+                              >
+                                <StudyTypeIcon type={task.type} />
+                                <span className="truncate">{task.subject}</span>
+                              </p>
+                              <p className="text-xs font-medium tabular-nums text-muted-foreground">
+                                {task.startTime} – {task.endTime}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <span className="hidden sm:inline-flex">
+                              <StudyTypePill type={task.type} status={statusOf(task)} />
+                            </span>
+                            {!archived && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Move or retime ${task.subject}`}
+                                  onClick={() => setEditingTaskId(task.id)}
+                                >
+                                  <Pencil />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Remove ${task.subject}`}
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => setDeleteConfirmId(task.id)}
+                                >
+                                  <Trash2 />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </DaySection>
+                )}
+
+                {counts.length === 0 && (
+                  <EmptyState
+                    title="A free day"
+                    description={
+                      archived
+                        ? 'Nothing was planned on this day.'
+                        : 'Add a one-off task above, or give this weekday a recurring block in your study routine.'
+                    }
+                    action={
+                      !archived ? (
+                        <Button asChild variant="outline" size="sm">
+                          <Link href="/manage">Open study routine</Link>
+                        </Button>
+                      ) : undefined
+                    }
+                  />
+                )}
+              </div>
+
+              <div className="flex justify-end border-t border-border/60 pt-4">
+                <Button asChild variant="outline">
+                  <Link href={weekHref(startOfWeek(date, { weekStartsOn: 1 }))}>
+                    <CalendarRange /> Open this week
+                  </Link>
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <ConfirmModal
         isOpen={!!deleteConfirmId}
         onClose={() => setDeleteConfirmId(null)}
         onConfirm={onConfirmDelete}
-        title="Remove Session?"
-        description="This will permanently remove this study session from your calendar."
+        title="Remove this study block?"
+        description="It will be removed from this day. Your study routine is not changed, so other weeks keep their block."
         isPending={isPending}
       />
-
-      {/* Calendar Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-8 border-b bg-muted/10 shrink-0">
-        <h2 className="text-2xl font-heading font-bold tracking-tight text-foreground">
-          {format(currentDate, 'MMMM yyyy')}
-        </h2>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="rounded-xl bg-background border hover:bg-secondary transition-colors font-semibold px-5 h-11" onClick={goToday}>
-            Today
-          </Button>
-          <div className="flex items-center gap-1 bg-background rounded-xl p-1.5 border shadow-sm">
-            <Button variant="ghost" size="icon" aria-label="Previous month" className="rounded-lg h-9 w-9 hover:bg-secondary transition-colors" onClick={prevMonth}>
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" aria-label="Next month" className="rounded-lg h-9 w-9 hover:bg-secondary transition-colors" onClick={nextMonth}>
-              <ChevronRight className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile: agenda list (the 7-column grid below is unusable under ~500px) */}
-      <div className="sm:hidden divide-y divide-border/60">
-        {days.map((date) => {
-          const dayTasks = tasks.filter(t => isSameDay(new Date(t.date), date));
-          const dayExams = exams.filter(e => isSameDay(new Date(e.date), date));
-          const today = isToday(date);
-          const isMarked = markedDays.some(md => isSameDay(new Date(md), date));
-          const isLastDay = schoolEnd ? isSameDay(date, schoolEnd) : false;
-          const hasHomework = dayTasks.some(t => t.type === 'HOMEWORK');
-          const hasRevision = dayTasks.some(t => t.type === 'REVISION');
-          const itemCount = dayTasks.length + dayExams.length;
-
-          return (
-            <button
-              key={date.toString()}
-              type="button"
-              onClick={() => handleDayClick(date)}
-              className={`w-full flex items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/50 ${today ? 'bg-primary/[0.03]' : ''} ${isMarked ? 'bg-destructive/[0.03]' : ''}`}
-            >
-              <span className={`text-sm font-heading font-bold w-9 h-9 shrink-0 flex items-center justify-center rounded-xl
-                ${today ? 'bg-primary text-primary-foreground' :
-                  isMarked ? 'bg-destructive text-white' :
-                  isLastDay ? 'bg-amber-500 text-white' :
-                  'bg-muted text-foreground'}`}>
-                {format(date, 'd')}
-              </span>
-
-              <span className="flex-1 min-w-0">
-                <span className="block text-sm font-semibold text-foreground">{format(date, 'EEEE')}</span>
-                {itemCount > 0 ? (
-                  <span className="mt-1 flex items-center gap-1.5 flex-wrap">
-                    {dayExams.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" aria-hidden="true" />}
-                    {hasHomework && <span className="w-1.5 h-1.5 rounded-full bg-primary" aria-hidden="true" />}
-                    {hasRevision && <span className="w-1.5 h-1.5 rounded-full bg-orange-500" aria-hidden="true" />}
-                    <span className="text-xs text-muted-foreground">
-                      {itemCount} {itemCount === 1 ? 'item' : 'items'}
-                    </span>
-                  </span>
-                ) : (
-                  <span className="block text-xs text-muted-foreground mt-1">No activity</span>
-                )}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Desktop / tablet: full month grid */}
-      <div className="hidden sm:block">
-      {/* Days of Week */}
-      <div className="grid grid-cols-7 bg-muted/30 border-b shrink-0">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-          <div key={day} className="py-4 text-center text-xs font-medium text-muted-foreground">{day}</div>
-        ))}
-      </div>
-
-      {/* Grid */}
-      <div className="grid grid-cols-7 bg-border/40 gap-px">
-        {prefixDays.map((_, i) => (
-          <div key={`prefix-${i}`} className="bg-muted/5 min-h-[140px]" />
-        ))}
-        {days.map((date) => {
-          const dayTasks = tasks.filter(t => isSameDay(new Date(t.date), date));
-          const dayExams = exams.filter(e => isSameDay(new Date(e.date), date));
-          const today = isToday(date);
-          const isMarked = markedDays.some(md => isSameDay(new Date(md), date));
-          const isLastDay = schoolEnd ? isSameDay(date, schoolEnd) : false;
-          
-          return (
-            <button
-              key={date.toString()}
-              type="button"
-              onClick={() => handleDayClick(date)}
-              className={`bg-card p-4 text-left transition-colors duration-200 hover:bg-muted/50 flex flex-col space-y-4 relative overflow-hidden group min-h-[140px] w-full
-                ${today ? 'bg-primary/[0.03]' : ''}
-                ${isMarked ? 'bg-destructive/[0.03]' : ''}
-                ${isLastDay ? 'bg-amber-500/[0.05] border-2 border-amber-500/30' : ''}
-              `}
-            >
-              <div className="absolute top-0 left-0 w-full h-1 flex gap-px">
-                {today && <div className="flex-1 bg-primary h-full" />}
-                {isMarked && <div className="flex-1 bg-destructive h-full" />}
-                {isLastDay && <div className="flex-1 bg-amber-500 h-full" />}
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className={`text-xl font-heading font-bold w-10 h-10 flex items-center justify-center rounded-2xl transition-colors
-                  ${today ? 'bg-primary text-primary-foreground' :
-                    isMarked ? 'bg-destructive text-white' :
-                    isLastDay ? 'bg-amber-500 text-white' :
-                    'text-foreground group-hover:text-primary group-hover:bg-primary/10'}`}>
-                  {format(date, 'd')}
-                </span>
-                {(dayTasks.length > 0 || dayExams.length > 0) && (
-                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full border
-                    ${isMarked ? 'bg-destructive/10 text-destructive border-destructive/20' :
-                      dayExams.length > 0 ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' :
-                      'bg-muted text-muted-foreground border-border/40'}`}>
-                    {dayTasks.length + dayExams.length} {dayTasks.length + dayExams.length === 1 ? 'item' : 'items'}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-2 z-10 flex-1">
-                {dayExams.map(exam => (
-                  <div
-                    key={exam.id}
-                    className="text-xs font-medium truncate px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20"
-                  >
-                    Exam: {exam.title}
-                  </div>
-                ))}
-                {dayTasks.slice(0, 2 - dayExams.length).map(task => {
-                  const isHomework = task.type === 'HOMEWORK';
-                  return (
-                    <div
-                      key={task.id}
-                      className={`text-xs font-medium truncate px-3 py-1.5 rounded-xl transition-colors duration-200 border
-                        ${task.isDone
-                          ? 'bg-success/10 text-success border-success/20 line-through opacity-60'
-                          : task.isMissed
-                            ? 'bg-destructive/10 text-destructive border-destructive/20 line-through opacity-60'
-                            : isHomework
-                              ? 'bg-primary/5 text-primary border-primary/10 hover:bg-primary/10'
-                              : 'bg-orange-500/5 text-orange-600 border-orange-500/10 hover:bg-orange-500/10'
-                        }`}
-                      title={task.subject}
-                    >
-                      {task.subject}
-                    </div>
-                  );
-                })}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-      </div>
-
-      {/* Day Detail Modal */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-3xl w-[90vw] rounded-2xl p-0 overflow-hidden border-none shadow-xl">
-          <div className="bg-card">
-            <DialogHeader className="p-8 border-b bg-muted/20">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                   <DialogTitle className="text-2xl font-heading font-bold tracking-tight text-foreground leading-none">
-                    {selectedDate ? format(selectedDate, 'EEEE') : ''}
-                  </DialogTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedDate ? format(selectedDate, 'MMMM do, yyyy') : ''}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {selectedDate && (
-                    <QuickAddForm
-                      initialDate={selectedDate}
-                      subjects={subjects}
-                      trigger={
-                        <Button variant="outline" size="sm" className="rounded-xl h-10 px-4 font-medium text-xs hover:bg-primary/10 hover:text-primary border-border/60 mr-2">
-                          <Plus className="w-3.5 h-3.5 mr-2" /> Add task
-                        </Button>
-                      }
-                    />
-                  )}
-                  {selectedDate && isToday(selectedDate) && (
-                    <span className="text-xs font-semibold bg-primary text-primary-foreground px-3 py-1.5 rounded-full mr-2">Today</span>
-                  )}
-                  {!archived && (
-                  <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleToggleLastDay}
-                    disabled={isPending}
-                    title="Mark this as your last day of school — your streak pauses after it until you resume."
-                    className={`rounded-xl h-10 px-4 transition-colors font-medium text-xs mr-2 ${isSelectedLastDay ? 'bg-amber-500/15 text-amber-600 hover:bg-amber-500/25' : 'bg-muted/50 text-muted-foreground hover:bg-amber-500/10 hover:text-amber-600'}`}
-                  >
-                    <GraduationCap className="w-4 h-4 mr-2" />
-                    {isSelectedLastDay ? 'Last day ✓' : 'Last day of school'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleToggleMark}
-                    disabled={isPending}
-                    className={`rounded-xl h-10 px-4 transition-colors font-medium text-xs ${isSelectedDateMarked ? 'bg-destructive/10 text-destructive hover:bg-destructive/20' : 'bg-muted/50 text-muted-foreground hover:bg-destructive/10 hover:text-destructive'}`}
-                  >
-                    {isSelectedDateMarked ? <BookmarkCheck className="w-4 h-4 mr-2" /> : <Bookmark className="w-4 h-4 mr-2" />}
-                    {isSelectedDateMarked ? 'Unmark' : 'Mark day'}
-                  </Button>
-                  </>
-                  )}
-                </div>
-              </div>
-            </DialogHeader>
-
-            <div className="p-8 max-h-[60vh] overflow-y-auto space-y-6">
-              {selectedExams.length > 0 && (
-                <div className="space-y-4">
-                  <h4 className="text-xs font-medium text-muted-foreground ml-1">Scheduled exams</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {selectedExams.map(exam => (
-                      <div key={exam.id} className="bg-amber-500/5 border border-amber-500/20 p-6 rounded-2xl flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-600">
-                             <Bookmark className="w-6 h-6 fill-current" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-medium text-amber-600/70 mb-1">Upcoming exam</p>
-                            <h4 className="font-heading font-bold text-xl text-foreground tracking-tight">{exam.title}</h4>
-                          </div>
-                        </div>
-                        {exam.priority === 'HIGH' && (
-                          <span className="bg-red-500 text-white text-xs font-semibold px-2.5 py-1 rounded-lg">High priority</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {selectedTasks.length === 0 && selectedExams.length === 0 ? (
-                <p className="text-sm font-medium text-muted-foreground text-center py-6 bg-muted/50 rounded-2xl border border-border/50">
-                  No activity scheduled for this day. Use &quot;Add task&quot; above to create one.
-                </p>
-              ) : (
-                <div className="space-y-4">
-                   {selectedTasks.length > 0 && <h4 className="text-xs font-medium text-muted-foreground ml-1">Study sessions</h4>}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {selectedTasks.map((task) => {
-                      const isHomework = task.type === 'HOMEWORK';
-                      const isEditing = editingTaskId === task.id;
-
-                      if (isEditing) {
-                        return (
-                          <div key={task.id} className="md:col-span-2">
-                            <EditTaskForm
-                              task={task}
-                              onClose={() => setEditingTaskId(null)}
-                            />
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div
-                          key={task.id}
-                          className={`relative overflow-hidden bg-card border shadow-sm p-6 rounded-2xl hover:shadow-md transition-shadow duration-200 flex flex-col
-                            ${task.isDone
-                              ? 'bg-success/5 border-success/30 opacity-70'
-                              : task.isMissed
-                                ? 'bg-destructive/5 border-destructive/30 opacity-70'
-                                : 'border-border/60'
-                            }`}
-                        >
-                          <div className="flex items-start justify-between relative z-10 gap-4 mb-4">
-                            <div className="flex items-start gap-4">
-                               <TaskCheckbox
-                                taskId={task.id}
-                                isDone={task.isDone}
-                                isMissed={task.isMissed}
-                                hasProof={!!task.workDescription || !!task.proofPdfUrl}
-                               />
-                               <p className={`font-heading font-bold text-xl tracking-tight transition-colors mt-0.5 ${task.isDone ? 'line-through text-success' : task.isMissed ? 'line-through text-destructive' : 'text-foreground'}`}>
-                                  {task.subject}
-                                </p>
-                            </div>
-                            <span className={`text-xs font-medium px-3 py-1 rounded-xl border
-                              ${isHomework ? 'bg-primary/5 text-primary border-primary/10' : 'bg-orange-500/5 text-orange-600 border-orange-500/10'}`}>
-                              {isHomework ? 'Homework' : 'Revision'}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/40 relative z-10">
-                            <div className="bg-muted px-3 py-1.5 rounded-xl border border-border/40 flex items-center gap-2">
-                              <Clock className="w-3.5 h-3.5 text-primary" />
-                              <span className="text-xs font-semibold text-foreground">
-                                {task.startTime} — {task.endTime}
-                              </span>
-                            </div>
-
-                            <div className={cn("flex items-center gap-1", archived && "hidden")}>
-                               <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label="Edit session"
-                                onClick={() => setEditingTaskId(task.id)}
-                                className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label="Remove session"
-                                onClick={() => setDeleteConfirmId(task.id)}
-                                className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+    </>
   );
 }
 
-// Subcomponent for editing a task within the modal
-function EditTaskForm({ task, onClose }: { task: TaskType, onClose: () => void }) {
+function DaySection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-2">
+      <h3 className="text-sm font-semibold text-muted-foreground">{title}</h3>
+      <div className="space-y-2">{children}</div>
+    </section>
+  );
+}
+
+/** Move a block to another day or change its times, inside the day dialog. */
+function EditTaskForm({
+  task,
+  dateKey: initialKey,
+  onClose,
+}: {
+  task: CalendarTask;
+  dateKey: string;
+  onClose: () => void;
+}) {
   const [isPending, startTransition] = useTransition();
-  const [dateStr, setDateStr] = useState(format(new Date(task.date), 'yyyy-MM-dd'));
+  const [dateStr, setDateStr] = useState(initialKey);
   const [startTime, setStartTime] = useState(task.startTime);
   const [endTime, setEndTime] = useState(task.endTime);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const newDate = parseDayKey(dateStr);
+    if (!newDate) {
+      toast.error('Pick a valid date.');
+      return;
+    }
     startTransition(async () => {
-      const dateParts = dateStr.split('-');
-      const newDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
-      
-      await updateTask(task.id, {
-        date: newDate,
-        startTime,
-        endTime
-      });
-      onClose();
+      try {
+        await updateTask(task.id, { date: newDate, startTime, endTime });
+        onClose();
+      } catch {
+        toast.error('That block could not be saved. Try again.');
+      }
     });
   };
 
@@ -481,55 +703,31 @@ function EditTaskForm({ task, onClose }: { task: TaskType, onClose: () => void }
   const endId = `${task.id}-end`;
 
   return (
-    <div className="bg-muted/30 border border-border/60 p-6 rounded-2xl">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="flex items-center justify-between border-b border-border/40 pb-4">
-          <h4 className="font-heading font-bold text-xl tracking-tight text-foreground">{task.subject}</h4>
-          <span className="text-xs font-medium text-muted-foreground">Editing session</span>
-        </div>
-
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-border/60 bg-muted/40 p-4">
+      <p className="font-bold text-foreground">Edit {task.subject}</p>
+      <div className="space-y-2">
+        <Label htmlFor={dateId}>Move to date</Label>
+        <Input id={dateId} type="date" required value={dateStr} onChange={(e) => setDateStr(e.target.value)} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label htmlFor={dateId} className="text-xs font-medium text-muted-foreground ml-1">Move to date</Label>
-          <Input
-            id={dateId}
-            type="date"
-            required
-            value={dateStr}
-            onChange={e => setDateStr(e.target.value)}
-            className="h-12 rounded-xl bg-background font-semibold border-border/60 focus:ring-primary/20"
-          />
+          <Label htmlFor={startId}>Starts</Label>
+          <Input id={startId} type="time" required value={startTime} onChange={(e) => setStartTime(e.target.value)} />
         </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor={startId} className="text-xs font-medium text-muted-foreground ml-1">Start time</Label>
-            <Input
-              id={startId}
-              type="time"
-              required
-              value={startTime}
-              onChange={e => setStartTime(e.target.value)}
-              className="h-12 rounded-xl bg-background font-semibold border-border/60 focus:ring-primary/20"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor={endId} className="text-xs font-medium text-muted-foreground ml-1">End time</Label>
-            <Input
-              id={endId}
-              type="time"
-              required
-              value={endTime}
-              onChange={e => setEndTime(e.target.value)}
-              className="h-12 rounded-xl bg-background font-semibold border-border/60 focus:ring-primary/20"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor={endId}>Ends</Label>
+          <Input id={endId} type="time" required value={endTime} onChange={(e) => setEndTime(e.target.value)} />
         </div>
-
-        <div className="flex items-center gap-3 pt-2">
-          <Button variant="ghost" type="button" onClick={onClose} disabled={isPending} className="flex-1 h-12 rounded-xl font-medium">Cancel</Button>
-          <Button type="submit" disabled={isPending} className="flex-[2] h-12 rounded-xl font-heading font-semibold">Save changes</Button>
-        </div>
-      </form>
-    </div>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" type="button" onClick={onClose} disabled={isPending}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isPending}>
+          {isPending ? 'Saving…' : 'Save changes'}
+        </Button>
+      </div>
+    </form>
   );
 }
+

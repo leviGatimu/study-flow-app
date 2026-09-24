@@ -40,7 +40,7 @@ export function HeaderStats({ progress }: { progress: UserProgress }) {
         className="hidden 2xl:flex"
       />
       <Stat
-        href="/ranks"
+        href="/streak"
         label={`Level ${progress.level}`}
         icon={<Sparkles className="size-4 text-primary" />}
         value={

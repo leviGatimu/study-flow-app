@@ -1,1099 +1,239 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import {
-  FileText,
-  Upload,
-  Trash2,
-  Sparkles,
-  ChevronRight,
-  Loader2,
-  TrendingUp,
-  Award,
-  Zap,
-  PlusCircle,
-  Download,
-  BookOpen,
-  Compass,
-  Plus,
-  Edit2,
-  Save,
-  Trash,
-  Trophy,
-  History,
-} from "lucide-react";
-import {
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area
-} from "recharts";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-import { useIsArchived } from "@/components/ArchiveContext";
-import {
-  uploadReportCard,
-  deleteReportCard,
-  createManualReportCard,
-  addSubjectGrade,
-  updateSubjectGrade,
-  deleteSubjectGrade
-} from "@/lib/marks-actions";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
-
-interface SubjectGradeType {
-  id: string;
-  subject: string;
-  grade: string;
-  status: string;
-  aiFeedback: string;
-}
-
-interface ReportCardType {
-  id: string;
-  term: string;
-  overallAverage: number | null;
-  aiSummary: string | null;
-  fileUrl: string | null;
-  createdAt: Date;
-  grades: SubjectGradeType[];
-}
+import { Award, Download, Plus, PlusCircle, Target, Trash2, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Page, PageBody } from "@/components/ui/page";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useIsArchived } from "@/components/ArchiveContext";
+import { deleteReportCard } from "@/lib/marks-actions";
+import { AddGradeDialog, CreateTermDialog, UploadReportDialog } from "./MarksDialogs";
+import { GradeRow } from "./GradeRow";
+import { TermOverview } from "./TermOverview";
+import { exportReportCardPdf, subjectKey, type GoalTarget, type ReportCardType } from "./marks-model";
 
 export function MarksClient({
   initialReportCards,
   currentTermSetting,
-  subjects = []
+  subjects = [],
+  goals = [],
 }: {
-  initialReportCards: ReportCardType[],
-  currentTermSetting: string,
-  subjects?: { id: string; name: string }[]
+  initialReportCards: ReportCardType[];
+  currentTermSetting: string;
+  subjects?: { id: string; name: string }[];
+  goals?: GoalTarget[];
 }) {
-  const [selectedTerm, setSelectedTerm] = useState(currentTermSetting);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadTerm, setUploadTerm] = useState(currentTermSetting);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-
-  // Manual actions states
+  // A finished year's report cards are a record: viewable, not editable.
   const archived = useIsArchived();
-  const [isCreateTermOpen, setIsCreateTermOpen] = useState(false);
-  const [newTermName, setNewTermName] = useState("");
-  const [isCreatingTerm, setIsCreatingTerm] = useState(false);
-
-  const [isAddingGrade, setIsAddingGrade] = useState(false);
-  const [isSavingGrade, setIsSavingGrade] = useState(false);
-  const [newGradeForm, setNewGradeForm] = useState({
-    subject: "",
-    grade: "",
-    status: "Good",
-    aiFeedback: ""
-  });
-
-  const [editingGradeId, setEditingGradeId] = useState<string | null>(null);
-  const [isUpdatingGrade, setIsUpdatingGrade] = useState(false);
-  const [editForm, setEditForm] = useState({
-    subject: "",
-    grade: "",
-    status: "Good",
-    aiFeedback: ""
-  });
-
-  // Active subject grade for the detail modal
-  const [selectedGradeDetail, setSelectedGradeDetail] = useState<SubjectGradeType | null>(null);
+  const [selectedTerm, setSelectedTerm] = useState(currentTermSetting);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [addGradeOpen, setAddGradeOpen] = useState(false);
 
   const availableTerms = useMemo(() => {
-    const terms = Array.from(new Set(initialReportCards.map(rc => rc.term)));
-    if (!terms.includes(currentTermSetting)) {
-      terms.push(currentTermSetting);
-    }
+    const terms = Array.from(new Set(initialReportCards.map((rc) => rc.term)));
+    if (!terms.includes(currentTermSetting)) terms.push(currentTermSetting);
     return terms.sort();
   }, [initialReportCards, currentTermSetting]);
 
-  const activeReportCard = initialReportCards.find(rc => rc.term === selectedTerm);
+  const activeReportCard = initialReportCards.find((rc) => rc.term === selectedTerm);
 
-  const parseGrade = (grade: string | number): number => {
-    if (typeof grade === 'number') return grade;
-    const num = parseFloat(grade.replace(/[^0-9.]/g, ''));
-    return isNaN(num) ? 0 : num;
-  };
+  const targets = useMemo(() => {
+    const map = new Map<string, number>();
+    goals.forEach((g) => map.set(subjectKey(g.subject), g.targetGrade));
+    return map;
+  }, [goals]);
 
-  const getLetterGrade = (gradeStr: string): string => {
-    const score = parseGrade(gradeStr);
-    if (score >= 95) return "A+";
-    if (score >= 90) return "A";
-    if (score >= 85) return "B+";
-    if (score >= 80) return "B";
-    if (score >= 75) return "C+";
-    if (score >= 70) return "C";
-    if (score >= 60) return "D";
-    return "F";
-  };
-
-  const handleUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!uploadFile || !uploadTerm) return;
-
-    setIsUploading(true);
-    const formData = new FormData();
-    formData.append("file", uploadFile);
-    formData.append("term", uploadTerm);
-
+  const handleDeleteTerm = async (id: string) => {
+    if (!confirm(`Delete ${selectedTerm}? Every mark on it is deleted too.`)) return;
     try {
-      const result = await uploadReportCard(formData);
-      if (result.error) {
+      const result = await deleteReportCard(id);
+      if (result?.error) {
         toast.error(result.error);
-      } else {
-        setUploadFile(null);
-        setIsUploadModalOpen(false);
-        setSelectedTerm(uploadTerm);
-        toast.success("Document analyzed and grades successfully logged.");
+        return;
       }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to process document.");
-    } finally {
-      setIsUploading(false);
+      toast.success(`${selectedTerm} deleted.`);
+      const remaining = availableTerms.filter((t) => t !== selectedTerm);
+      if (remaining.length > 0) setSelectedTerm(remaining[0]);
+    } catch {
+      toast.error("The term could not be deleted. Try again.");
     }
-  };
-
-  const handleCreateTerm = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTermName.trim()) return;
-
-    setIsCreatingTerm(true);
-    try {
-      const result = await createManualReportCard(newTermName.trim());
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        setSelectedTerm(newTermName.trim());
-        setNewTermName("");
-        setIsCreateTermOpen(false);
-        toast.success(`Academic term "${newTermName.trim()}" created.`);
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to create term.");
-    } finally {
-      setIsCreatingTerm(false);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this term? All logged grades will be permanently deleted.")) return;
-    try {
-      await deleteReportCard(id);
-      toast.success("Academic term deleted.");
-      const remaining = availableTerms.filter(t => t !== selectedTerm);
-      if (remaining.length > 0) {
-        setSelectedTerm(remaining[0]);
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete term.");
-    }
-  };
-
-  const handleAddGrade = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeReportCard || !newGradeForm.subject.trim() || !newGradeForm.grade.trim()) return;
-
-    setIsSavingGrade(true);
-    try {
-      const result = await addSubjectGrade(activeReportCard.id, {
-        subject: newGradeForm.subject.trim(),
-        grade: newGradeForm.grade.trim(),
-        status: newGradeForm.status,
-        aiFeedback: newGradeForm.aiFeedback.trim() || "Consistently work on course materials."
-      });
-
-      if (result.success) {
-        setIsAddingGrade(false);
-        setNewGradeForm({ subject: "", grade: "", status: "Good", aiFeedback: "" });
-        toast.success("Grade added successfully.");
-      } else {
-        toast.error("Failed to add grade.");
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Error adding grade.");
-    } finally {
-      setIsSavingGrade(false);
-    }
-  };
-
-  const handleStartEdit = (grade: SubjectGradeType) => {
-    setEditingGradeId(grade.id);
-    setEditForm({
-      subject: grade.subject,
-      grade: grade.grade,
-      status: grade.status,
-      aiFeedback: grade.aiFeedback
-    });
-  };
-
-  const handleUpdateGrade = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingGradeId) return;
-
-    setIsUpdatingGrade(true);
-    try {
-      const result = await updateSubjectGrade(editingGradeId, {
-        subject: editForm.subject.trim(),
-        grade: editForm.grade.trim(),
-        status: editForm.status,
-        aiFeedback: editForm.aiFeedback.trim() || "Consistently work on course materials."
-      });
-
-      if (result.success) {
-        setEditingGradeId(null);
-        setSelectedGradeDetail(null);
-        toast.success("Subject details updated.");
-      } else {
-        toast.error("Failed to update subject.");
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Error updating subject.");
-    } finally {
-      setIsUpdatingGrade(false);
-    }
-  };
-
-  const handleDeleteGrade = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this subject grade?")) return;
-    try {
-      await deleteSubjectGrade(id);
-      setSelectedGradeDetail(null);
-      toast.success("Subject deleted.");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete subject.");
-    }
-  };
-
-  const allTermsHistory = useMemo(() => {
-    return initialReportCards
-      .map(rc => ({
-        id: rc.id,
-        term: rc.term,
-        average: rc.overallAverage || 0,
-        subjectCount: rc.grades?.length || 0,
-        date: new Date(rc.createdAt).getTime(),
-        aiSummary: rc.aiSummary
-      }))
-      .sort((a, b) => a.date - b.date);
-  }, [initialReportCards]);
-
-  const bestTerm = useMemo(() => {
-    if (allTermsHistory.length === 0) return null;
-    return [...allTermsHistory].sort((a, b) => b.average - a.average)[0];
-  }, [allTermsHistory]);
-
-  const termProgressTrend = useMemo(() => {
-    if (allTermsHistory.length < 2) return "Stable";
-    const last = allTermsHistory[allTermsHistory.length - 1].average;
-    const prev = allTermsHistory[allTermsHistory.length - 2].average;
-    const diff = last - prev;
-    if (diff > 0.5) return `+${diff.toFixed(1)}% Gain`;
-    if (diff < -0.5) return `${diff.toFixed(1)}% Decline`;
-    return "Stable";
-  }, [allTermsHistory]);
-
-  const getStandingStatus = (avg: number) => {
-    if (avg >= 85) return "First Class Honors";
-    if (avg >= 70) return "Excellent Standing";
-    if (avg >= 55) return "Good Standing";
-    return "Needs Focus";
-  };
-
-  // Derive metrics
-  const activeMetrics = useMemo(() => {
-    if (!activeReportCard || !activeReportCard.grades || activeReportCard.grades.length === 0) {
-      return { highest: null, focusNeeded: null, passingRatio: "0/0" };
-    }
-    const list = activeReportCard.grades.map(g => ({
-      subject: g.subject,
-      score: parseGrade(g.grade),
-      status: g.status
-    }));
-
-    const highest = [...list].sort((a, b) => b.score - a.score)[0];
-
-    const critical = list.find(g => g.status === "Critical");
-    const needsWork = list.find(g => g.status === "Needs Work");
-    const lowest = [...list].sort((a, b) => a.score - b.score)[0];
-    const focusNeeded = critical || needsWork || lowest;
-
-    const passing = list.filter(g => g.score >= 50).length;
-    const passingRatio = `${passing}/${list.length}`;
-
-    return { highest, focusNeeded, passingRatio };
-  }, [activeReportCard]);
-
-  const exportPDF = () => {
-    if (!activeReportCard) return;
-    const doc = new jsPDF();
-
-    doc.setFontSize(22);
-    doc.text("Academic Performance Record", 14, 20);
-
-    doc.setFontSize(12);
-    doc.setTextColor(100);
-    doc.text(`Term: ${selectedTerm}`, 14, 30);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 37);
-
-    doc.setFontSize(14);
-    doc.setTextColor(0);
-    doc.text("Academic Strategy & Overview Summary", 14, 50);
-    doc.setFontSize(10);
-    doc.setTextColor(80);
-    const summaryLines = doc.splitTextToSize(activeReportCard.aiSummary || "No summary available.", 180);
-    doc.text(summaryLines, 14, 57);
-
-    autoTable(doc, {
-      startY: 75,
-      head: [["Subject", "Grade (%)", "Standing", "Target Study Strategy Guidelines"]],
-      body: activeReportCard.grades.map((g: any) => [
-        g.subject,
-        g.grade,
-        g.status,
-        g.aiFeedback
-      ]),
-      headStyles: { fillColor: [79, 70, 229] },
-      styles: { fontSize: 9, cellPadding: 5 }
-    });
-
-    doc.save(`Academic_Report_${selectedTerm.replace(/\s+/g, '_')}.pdf`);
   };
 
   return (
-    <div className="space-y-8">
+    <Page>
+      <PageHeader
+        title="Marks"
+        description="Your report cards, term by term, with each subject's mark and how to improve it."
+        actions={
+          <>
+            <Button asChild variant="outline" size="lg">
+              <Link href="/goals">
+                <Target />
+                Goals
+              </Link>
+            </Button>
+            {!archived && (
+              <>
+                <Button variant="outline" size="lg" onClick={() => setCreateOpen(true)}>
+                  <PlusCircle />
+                  New term
+                </Button>
+                <Button size="lg" onClick={() => setUploadOpen(true)}>
+                  <Upload />
+                  Scan report card
+                </Button>
+              </>
+            )}
+          </>
+        }
+      />
 
-      {/* Top Ribbon Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-border/40">
-        <div className="flex items-center gap-3.5 flex-wrap">
+      <PageBody>
+        <div className="flex flex-wrap items-center gap-3">
+          <label htmlFor="marks-term" className="sr-only">Term</label>
           <Select value={selectedTerm} onValueChange={setSelectedTerm}>
-            <SelectTrigger className="w-[200px] h-11 rounded-xl bg-card border-border/50 font-semibold text-sm shadow-sm hover:border-primary/45 transition-colors">
-              <SelectValue placeholder="Select Term" />
+            <SelectTrigger id="marks-term" className="h-9 w-full rounded-xl font-semibold sm:w-56">
+              <SelectValue placeholder="Choose a term" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl border-border bg-card">
-              {availableTerms.map(term => (
-                <SelectItem key={term} value={term} className="font-medium cursor-pointer">
+            <SelectContent>
+              {availableTerms.map((term) => (
+                <SelectItem key={term} value={term}>
                   {term}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-
-          <Dialog open={isCreateTermOpen} onOpenChange={setIsCreateTermOpen}>
-            {!archived && (
-              <DialogTrigger asChild>
-                <Button variant="outline" className="h-11 rounded-xl font-semibold gap-2 hover:border-primary/45 transition-colors">
-                  <PlusCircle className="w-4 h-4 text-primary" /> Create term
-                </Button>
-              </DialogTrigger>
-            )}
-            <DialogContent className="sm:max-w-[400px] rounded-2xl border-border bg-card p-6 shadow-xl">
-              <DialogHeader>
-                <DialogTitle className="text-xl font-heading font-bold tracking-tight">New study term</DialogTitle>
-                <p className="text-muted-foreground text-sm">Initialize a new school term manually.</p>
-              </DialogHeader>
-              <form onSubmit={handleCreateTerm} className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="create-term-name" className="text-xs font-medium text-muted-foreground">Term name</Label>
-                  <Input
-                    id="create-term-name"
-                    required
-                    value={newTermName}
-                    onChange={(e) => setNewTermName(e.target.value)}
-                    placeholder="e.g., Term 2 2026"
-                    className="h-11 rounded-xl bg-muted/30 border-border/50 font-medium focus-visible:ring-1 focus-visible:ring-primary/25"
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  disabled={isCreatingTerm || !newTermName.trim()}
-                  className="w-full h-11 rounded-xl font-semibold cursor-pointer"
-                >
-                  {isCreatingTerm ? <Loader2 className="w-5 h-5 animate-spin" /> : "Initialize Term"}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        <div className="flex items-center gap-3 w-full sm:w-auto">
           {activeReportCard && (
             <>
-              <Button
-                variant="outline"
-                onClick={exportPDF}
-                className="h-11 px-4 rounded-xl font-semibold gap-2 border-border/50 hover:bg-muted/50 transition-colors shadow-sm cursor-pointer"
-              >
-                <Download className="w-4 h-4" /> Export Report Card
+              <Button variant="outline" onClick={() => exportReportCardPdf(activeReportCard, selectedTerm)}>
+                <Download />
+                Download PDF
               </Button>
-
               {!archived && (
                 <Button
                   variant="ghost"
-                  onClick={() => handleDelete(activeReportCard.id)}
-                  className="h-11 px-4 rounded-xl font-semibold gap-2 text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                  onClick={() => handleDeleteTerm(activeReportCard.id)}
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                 >
-                  <Trash2 className="w-4 h-4" /> Delete term
+                  <Trash2 />
+                  Delete term
                 </Button>
               )}
             </>
           )}
+        </div>
 
-          <div className={cn("h-6 w-px bg-border/60 mx-1 hidden md:block", archived && "md:hidden")} />
+        {!activeReportCard ? (
+          <EmptyState
+            icon={<Award />}
+            title={`No marks for ${selectedTerm} yet`}
+            description={
+              archived
+                ? "No report card was added for this term."
+                : "Scan the term's report card and the marks are read off it, or start the term and add each subject yourself."
+            }
+            action={
+              archived ? undefined : (
+                <>
+                  <Button onClick={() => setUploadOpen(true)}>
+                    <Upload />
+                    Scan report card
+                  </Button>
+                  <Button variant="outline" onClick={() => setCreateOpen(true)}>
+                    Add marks by hand
+                  </Button>
+                </>
+              )
+            }
+          />
+        ) : (
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+            <div className="lg:col-span-5">
+              <TermOverview card={activeReportCard} allCards={initialReportCards} />
+            </div>
 
-          <Dialog open={isUploadModalOpen} onOpenChange={setIsUploadModalOpen}>
-            {!archived && (
-              <DialogTrigger asChild>
-                <Button className="h-11 px-5 rounded-xl font-semibold gap-2 shadow-sm cursor-pointer">
-                  <Upload className="w-4 h-4" /> Scan transcript file
-                </Button>
-              </DialogTrigger>
-            )}
-            <DialogContent className="sm:max-w-[440px] rounded-2xl border-border bg-card p-8 shadow-2xl">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-heading font-bold tracking-tight text-center">Scan transcript document</DialogTitle>
-                <p className="text-center text-muted-foreground text-sm">Upload your transcript or report file to automatically extract grades.</p>
-              </DialogHeader>
-              <form onSubmit={handleUpload} className="space-y-6 pt-6">
-                <div className="space-y-2">
-                  <Label htmlFor="upload-term" className="text-xs font-medium text-muted-foreground">Target academic term</Label>
-                  <Input
-                    id="upload-term"
-                    required
-                    value={uploadTerm}
-                    onChange={(e) => setUploadTerm(e.target.value)}
-                    placeholder="e.g., Term 1 2026"
-                    className="h-11 rounded-xl bg-muted/30 border-border/50 font-medium focus:ring-2 focus:ring-primary/20 transition-all"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="report-upload" className="text-xs font-medium text-muted-foreground">Document file</Label>
-                  <div className="relative group">
-                    <input
-                      type="file"
-                      accept=".pdf,image/*,.docx"
-                      required
-                      onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                      className="hidden"
-                      id="report-upload"
+            <Section
+              title="Subjects"
+              description={
+                goals.length > 0
+                  ? "Open a subject for its note, its target from Goals and a practice set."
+                  : "Open a subject for its note and a practice set."
+              }
+              actions={
+                !archived ? (
+                  <Button onClick={() => setAddGradeOpen(true)}>
+                    <Plus />
+                    Add subject
+                  </Button>
+                ) : undefined
+              }
+              className="lg:col-span-7"
+            >
+              {activeReportCard.grades.length === 0 ? (
+                <EmptyState
+                  title="No subjects on this report card"
+                  description={archived ? "This term was started but no marks were added." : "Add each subject's mark to see this term's average."}
+                  action={
+                    archived ? undefined : (
+                      <Button onClick={() => setAddGradeOpen(true)}>
+                        <Plus />
+                        Add subject
+                      </Button>
+                    )
+                  }
+                />
+              ) : (
+                <div className="space-y-3">
+                  {activeReportCard.grades.map((grade) => (
+                    <GradeRow
+                      key={grade.id}
+                      grade={grade}
+                      target={targets.get(subjectKey(grade.subject))}
+                      subjects={subjects}
+                      readOnly={archived}
                     />
-                    <label
-                      htmlFor="report-upload"
-                      className={cn(
-                        "flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed border-border/50 rounded-xl cursor-pointer transition-colors duration-200",
-                        uploadFile
-                          ? "bg-primary/5 border-primary"
-                          : "bg-muted/10 border-border hover:bg-muted/20 hover:border-primary/45"
-                      )}
-                    >
-                      {uploadFile ? (
-                        <div className="flex flex-col items-center gap-3 p-4 text-center">
-                          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                            <FileText className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold truncate max-w-[280px]">{uploadFile.name}</p>
-                            <p className="text-xs text-muted-foreground mt-1">Ready to extract</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-3 p-4 text-center text-muted-foreground group-hover:text-primary transition-colors">
-                          <div className="w-12 h-12 bg-muted/50 rounded-full flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                            <Upload className="w-5 h-5" />
-                          </div>
-                          <p className="text-sm font-medium">Drop your file here, or click to browse</p>
-                        </div>
-                      )}
-                    </label>
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isUploading || !uploadFile}
-                  className="w-full h-12 rounded-xl font-semibold text-base shadow-sm cursor-pointer"
-                >
-                  {isUploading ? (
-                    <span className="flex items-center gap-2 justify-center">
-                      <Loader2 className="w-5 h-5 animate-spin" /> Scanning Transcript...
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2 justify-center">
-                      <Sparkles className="w-5 h-5" /> Start Extraction Scan
-                    </span>
-                  )}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-
-      {!activeReportCard ? (
-        <div className="py-24 flex flex-col items-center justify-center text-center border border-border/40 rounded-2xl bg-card animate-in fade-in duration-300">
-           <div className="w-16 h-16 bg-muted/50 rounded-2xl flex items-center justify-center mb-6 border border-border/50">
-              <Award className="w-8 h-8 text-primary/45" />
-           </div>
-           <h3 className="text-2xl font-heading font-bold tracking-tight text-foreground">No grades logged</h3>
-           <p className="text-muted-foreground mt-2 max-w-sm leading-relaxed text-sm">
-             Initialize this term by scanning a report card document or creating manual subjects.
-           </p>
-           <div className={cn("flex gap-4 mt-8", archived && "hidden")}>
-             <Button
-               variant="outline"
-               onClick={() => setIsUploadModalOpen(true)}
-               className="rounded-xl h-11 px-5 font-semibold border-border/50 hover:bg-primary/5 hover:text-primary transition-colors cursor-pointer"
-             >
-               Scan Document
-             </Button>
-             <Button
-               onClick={() => setIsCreateTermOpen(true)}
-               className="rounded-xl h-11 px-5 font-semibold transition-colors shadow-sm cursor-pointer"
-             >
-               Add Term Manually
-             </Button>
-           </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-
-          {/* LEFT COLUMN: Core stats, term average progress track & history graph (col-span-5) */}
-          <div className="lg:col-span-5 space-y-6">
-
-            {/* The GPA Dashboard Display */}
-            <Card className="p-6 border-border/60 shadow-sm rounded-2xl bg-card relative overflow-hidden flex flex-col justify-between min-h-[220px]">
-              <div className="space-y-4">
-                <p className="text-xs font-medium text-muted-foreground">Term cumulative average</p>
-                <div className="relative flex items-baseline gap-3">
-                  <span className="text-6xl font-heading font-black tracking-tighter text-foreground leading-none">
-                    {activeReportCard.overallAverage?.toFixed(1) || 0}%
-                  </span>
-                  <span className="text-xs font-semibold text-primary bg-primary/10 border border-primary/20 px-3 py-1 rounded-full leading-none">
-                    {getStandingStatus(activeReportCard.overallAverage || 0)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Progress Range Track Slider (Replaces standard circle icon) */}
-              <div className="mt-8 space-y-2">
-                <div className="h-2 w-full bg-muted/40 rounded-full overflow-hidden border border-border/10 relative">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all duration-1000 ease-out"
-                    style={{ width: `${Math.min(activeReportCard.overallAverage || 0, 100)}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs font-medium text-muted-foreground/60 px-0.5">
-                  <span>0% Fail</span>
-                  <span>50% Pass</span>
-                  <span>75% Credit</span>
-                  <span>100% Elite</span>
-                </div>
-              </div>
-            </Card>
-
-            {/* Quick Metrics Widget */}
-            <div className="bg-card border border-border/60 shadow-sm rounded-2xl p-6 space-y-4">
-              <h4 className="text-xs font-semibold text-muted-foreground border-b border-border/30 pb-3">Academic milestones</h4>
-              <div className="grid grid-cols-1 gap-3">
-                <div className="bg-muted/20 border border-border/30 rounded-xl p-4.5 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-muted-foreground/70 leading-none">Top performance</p>
-                    <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                  </div>
-                  {activeMetrics.highest ? (
-                    <div className="flex items-baseline justify-between mt-1">
-                      <span className="text-base font-semibold truncate max-w-[150px]">{activeMetrics.highest.subject}</span>
-                      <span className="text-base font-heading font-bold text-amber-500">{activeMetrics.highest.score}%</span>
-                    </div>
-                  ) : (
-                    <p className="text-xs font-medium text-muted-foreground mt-1">None registered</p>
+                  ))}
+                  {goals.length === 0 && (
+                    <p className="pt-2 text-sm text-muted-foreground">
+                      Know what you are aiming for?{" "}
+                      <Link href="/goals" className="font-medium text-primary hover:underline">
+                        Set a target for each subject
+                      </Link>
+                      .
+                    </p>
                   )}
                 </div>
-
-                <div className="bg-muted/20 border border-border/30 rounded-xl p-4.5 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-muted-foreground/70 leading-none">Focus priority</p>
-                    <Zap className="w-3.5 h-3.5 text-orange-500" />
-                  </div>
-                  {activeMetrics.focusNeeded ? (
-                    <div className="flex items-baseline justify-between mt-1">
-                      <span className="text-base font-semibold truncate max-w-[150px]">{activeMetrics.focusNeeded.subject}</span>
-                      <span className="text-base font-heading font-bold text-orange-500">{activeMetrics.focusNeeded.score}%</span>
-                    </div>
-                  ) : (
-                    <p className="text-xs font-medium text-muted-foreground mt-1">None registered</p>
-                  )}
-                </div>
-
-                <div className="bg-muted/20 border border-border/30 rounded-xl p-4.5 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-muted-foreground/70 leading-none">Passing rate</p>
-                    <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
-                  </div>
-                  <div className="flex items-baseline justify-between mt-1">
-                    <span className="text-base font-medium text-muted-foreground">Subjects (≥50%)</span>
-                    <span className="text-base font-heading font-bold text-emerald-500">{activeMetrics.passingRatio}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Historical Progression Graph */}
-            {allTermsHistory.length > 1 && (
-              <div className="bg-card border border-border/60 shadow-sm rounded-2xl p-6 space-y-4">
-                <div className="flex sm:items-center justify-between gap-4 border-b border-border/30 pb-3">
-                  <div className="flex items-center gap-2">
-                    <History className="w-4 h-4 text-primary" />
-                    <h4 className="text-xs font-semibold text-muted-foreground">Historical progression</h4>
-                  </div>
-                  <span className="text-xs font-semibold text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full">
-                    Trend: {termProgressTrend}
-                  </span>
-                </div>
-
-                <div className="h-[180px] w-full pt-2">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={allTermsHistory} margin={{ top: 5, right: 5, left: -32, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorAvgCrossMinimal" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.25}/>
-                          <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(var(--primary), 0.05)" />
-                      <XAxis
-                        dataKey="term"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 10, fontWeight: 600, fill: 'currentColor', opacity: 0.5 }}
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 10, fontWeight: 600, fill: 'currentColor', opacity: 0.5 }}
-                        domain={[0, 100]}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          borderRadius: '12px',
-                          border: '1px solid rgba(var(--border), 0.5)',
-                          backgroundColor: 'rgba(var(--card), 0.95)',
-                          backdropFilter: 'blur(8px)',
-                          fontWeight: 600,
-                          fontSize: '12px'
-                        }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="average"
-                        stroke="var(--primary)"
-                        strokeWidth={3}
-                        fillOpacity={1}
-                        fill="url(#colorAvgCrossMinimal)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
+              )}
+            </Section>
           </div>
+        )}
+      </PageBody>
 
-          {/* RIGHT COLUMN: Performance Strategy guidelines & Courses Ledger (col-span-7) */}
-          <div className="lg:col-span-7 space-y-6">
-
-            {/* Strategic Overview Brief */}
-            <div className="bg-card border border-border/60 shadow-sm rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-primary">
-                  <BookOpen className="w-5 h-5 text-primary" />
-                  <span className="text-xs font-semibold">Strategic academic summary</span>
-                </div>
-                <div className="relative pl-5 py-1 border-l-2 border-primary/20">
-                  <p className="text-sm font-medium text-foreground/80 leading-relaxed italic">
-                    "{activeReportCard.aiSummary || "Add manual subjects or scan a report card to see your performance summary."}"
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Course Standings Ledger Entries (Interactive row list layout) */}
-            <div className="space-y-5">
-              <div className="flex items-center justify-between gap-4 border-b border-border/40 pb-4">
-                <div>
-                  <h2 className="text-2xl font-heading font-bold tracking-tight text-foreground">Course ledger entries</h2>
-                  <p className="text-xs text-muted-foreground">Interactive index of registered subjects.</p>
-                </div>
-
-                <Dialog open={isAddingGrade} onOpenChange={setIsAddingGrade}>
-                  {!archived && (
-                    <DialogTrigger asChild>
-                      <Button className="h-9 rounded-xl font-semibold gap-1.5 cursor-pointer shadow-sm text-xs">
-                        <Plus className="w-3.5 h-3.5" /> Add subject
-                      </Button>
-                    </DialogTrigger>
-                  )}
-                  <DialogContent className="sm:max-w-[460px] rounded-2xl border-border bg-card p-6 shadow-xl">
-                    <DialogHeader>
-                      <DialogTitle className="text-xl font-heading font-bold tracking-tight">Add subject grade</DialogTitle>
-                      <p className="text-muted-foreground text-sm">Add a new grade entry to this term's record.</p>
-                    </DialogHeader>
-                    <form onSubmit={handleAddGrade} className="space-y-4 pt-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="add-grade-subject" className="text-xs font-medium text-muted-foreground">Subject name</Label>
-                        {subjects && subjects.length > 0 ? (
-                          <Select
-                            value={newGradeForm.subject}
-                            onValueChange={(val) => setNewGradeForm(prev => ({ ...prev, subject: val }))}
-                          >
-                            <SelectTrigger id="add-grade-subject" className="h-11 rounded-xl bg-muted/30 border-border/50 font-medium focus:ring-1 focus:ring-primary/25">
-                              <SelectValue placeholder="Select Subject" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {subjects.map((sub) => (
-                                <SelectItem key={sub.id} value={sub.name}>
-                                  {sub.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Input
-                            id="add-grade-subject"
-                            required
-                            value={newGradeForm.subject}
-                            onChange={(e) => setNewGradeForm(prev => ({ ...prev, subject: e.target.value }))}
-                            placeholder="e.g. Physics"
-                            className="h-11 rounded-xl bg-muted/30 border-border/50 font-medium focus-visible:ring-1 focus-visible:ring-primary/25"
-                          />
-                        )}
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="add-grade-score" className="text-xs font-medium text-muted-foreground">Grade (%)</Label>
-                          <Input
-                            id="add-grade-score"
-                            required
-                            value={newGradeForm.grade}
-                            onChange={(e) => setNewGradeForm(prev => ({ ...prev, grade: e.target.value }))}
-                            placeholder="e.g. 92%"
-                            className="h-11 rounded-xl bg-muted/30 border-border/50 font-medium focus-visible:ring-1 focus-visible:ring-primary/25"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="add-grade-status" className="text-xs font-medium text-muted-foreground">Standing status</Label>
-                          <Select
-                            value={newGradeForm.status}
-                            onValueChange={(val) => setNewGradeForm(prev => ({ ...prev, status: val }))}
-                          >
-                            <SelectTrigger id="add-grade-status" className="h-11 rounded-xl bg-muted/30 border-border/50 font-medium">
-                              <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl bg-card">
-                              <SelectItem value="Excellent" className="font-medium">Excellent</SelectItem>
-                              <SelectItem value="Good" className="font-medium">Good</SelectItem>
-                              <SelectItem value="Needs Work" className="font-medium">Needs Work</SelectItem>
-                              <SelectItem value="Critical" className="font-medium">Critical</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="add-grade-feedback" className="text-xs font-medium text-muted-foreground">Study action plan guidelines</Label>
-                        <Input
-                          id="add-grade-feedback"
-                          value={newGradeForm.aiFeedback}
-                          onChange={(e) => setNewGradeForm(prev => ({ ...prev, aiFeedback: e.target.value }))}
-                          placeholder="e.g. Practice problem solving daily."
-                          className="h-11 rounded-xl bg-muted/30 border-border/50 font-medium focus-visible:ring-1 focus-visible:ring-primary/25"
-                        />
-                      </div>
-                      <Button
-                        type="submit"
-                        disabled={isSavingGrade || !newGradeForm.subject.trim() || !newGradeForm.grade.trim()}
-                        className="w-full h-11 rounded-xl font-semibold mt-2 cursor-pointer"
-                      >
-                        {isSavingGrade ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save Subject"}
-                      </Button>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-              </div>
-
-              {/* Subject Ledger Rows */}
-              <div className="space-y-3.5">
-                {activeReportCard.grades?.length === 0 ? (
-                  <div className="py-16 text-center text-muted-foreground font-medium bg-muted/10 border border-dashed border-border/50 rounded-2xl">
-                    No subjects registered. Click "Add Subject" to begin manually.
-                  </div>
-                ) : (
-                  activeReportCard.grades.map((grade: any) => {
-                    const scoreNum = parseGrade(grade.grade);
-                    const letterGrade = getLetterGrade(grade.grade);
-                    return (
-                      <Dialog
-                        key={grade.id}
-                        open={selectedGradeDetail?.id === grade.id}
-                        onOpenChange={(open) => {
-                          if (!open) {
-                            setSelectedGradeDetail(null);
-                            setEditingGradeId(null);
-                          } else {
-                            setSelectedGradeDetail(grade);
-                          }
-                        }}
-                      >
-                        <DialogTrigger asChild>
-                          <button
-                            type="button"
-                            aria-label={`View details for ${grade.subject}`}
-                            className="group w-full text-left bg-card/30 hover:bg-card/65 border border-border/30 hover:border-primary/45 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 cursor-pointer transition-colors duration-200 relative overflow-hidden"
-                          >
-                            {/* Inner gradient indicator */}
-                            <div className={cn(
-                              "absolute inset-y-0 left-0 w-1 group-hover:w-1.5 transition-all duration-200",
-                              grade.status === 'Excellent' ? "bg-emerald-500" :
-                              grade.status === 'Needs Work' ? "bg-orange-500" :
-                              grade.status === 'Critical' ? "bg-red-500" :
-                              "bg-primary"
-                            )} />
-
-                            {/* Info Block */}
-                            <div className="flex-1 min-w-0 space-y-1 md:pl-2">
-                              <div className="flex items-center gap-3">
-                                <h3 className="text-lg font-heading font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
-                                  {grade.subject}
-                                </h3>
-                                <span className={cn(
-                                  "text-xs font-medium px-2 py-0.5 rounded border leading-none",
-                                  grade.status === 'Excellent' ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5" :
-                                  grade.status === 'Needs Work' ? "text-orange-500 border-orange-500/20 bg-orange-500/5" :
-                                  grade.status === 'Critical' ? "text-red-500 border-red-500/20 bg-red-500/5" :
-                                  "text-primary border-primary/20 bg-primary/5"
-                                )}>
-                                  {grade.status}
-                                </span>
-                              </div>
-                              <p className="text-xs text-muted-foreground/80 font-medium truncate max-w-lg">
-                                {grade.aiFeedback || "Consistently work on course materials."}
-                              </p>
-                            </div>
-
-                            {/* Score & Letter Grade display */}
-                            <div className="flex items-center gap-6 shrink-0 justify-between md:justify-end">
-                              <div className="text-right">
-                                <div className="flex items-baseline gap-1 justify-end">
-                                  <span className="text-2xl font-heading font-bold tracking-tighter leading-none">{grade.grade}</span>
-                                  <span className="text-xs font-medium text-muted-foreground">%</span>
-                                </div>
-                                <div className="h-1 w-24 bg-muted/40 rounded-full overflow-hidden border border-border/10 mt-1.5">
-                                  <div
-                                    className={cn(
-                                      "h-full rounded-full transition-all duration-500",
-                                      grade.status === 'Excellent' ? "bg-emerald-500" :
-                                      grade.status === 'Needs Work' ? "bg-orange-500" :
-                                      grade.status === 'Critical' ? "bg-red-500" :
-                                      "bg-primary"
-                                    )}
-                                    style={{ width: `${Math.min(scoreNum, 100)}%` }}
-                                  />
-                                </div>
-                              </div>
-
-                              <span className={cn(
-                                "text-sm font-bold w-9 h-9 rounded-xl border flex items-center justify-center leading-none font-heading shadow-inner shrink-0",
-                                grade.status === 'Excellent' ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/10" :
-                                grade.status === 'Needs Work' ? "text-orange-500 border-orange-500/30 bg-orange-500/10" :
-                                grade.status === 'Critical' ? "text-red-500 border-red-500/30 bg-red-500/10" :
-                                "text-primary border-primary/30 bg-primary/10"
-                              )}>
-                                {letterGrade}
-                              </span>
-
-                              <ChevronRight className="w-5 h-5 text-muted-foreground/30 group-hover:text-foreground transition-colors hidden md:block" />
-                            </div>
-                          </button>
-                        </DialogTrigger>
-
-                        {/* Grade details modal overlay */}
-                        <DialogContent className="sm:max-w-[480px] rounded-2xl border-border bg-card p-6 shadow-2xl">
-                          {editingGradeId === grade.id ? (
-                            <form onSubmit={handleUpdateGrade} className="space-y-4">
-                              <DialogHeader>
-                                <DialogTitle className="text-xl font-heading font-bold">Edit subject details</DialogTitle>
-                              </DialogHeader>
-                              <div className="space-y-3 pt-2">
-                                <div className="space-y-1">
-                                  <Label htmlFor="edit-grade-subject" className="text-xs font-medium text-muted-foreground">Subject name</Label>
-                                  {subjects && subjects.length > 0 ? (
-                                    <Select
-                                      value={editForm.subject}
-                                      onValueChange={(val) => setEditForm(prev => ({ ...prev, subject: val }))}
-                                    >
-                                      <SelectTrigger id="edit-grade-subject" className="h-10 rounded-xl bg-muted/30 border-border/50 font-medium focus:ring-1 focus:ring-primary/25">
-                                        <SelectValue placeholder="Select Subject" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {subjects.map((sub) => (
-                                          <SelectItem key={sub.id} value={sub.name}>
-                                            {sub.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    <Input
-                                      id="edit-grade-subject"
-                                      required
-                                      value={editForm.subject}
-                                      onChange={(e) => setEditForm(prev => ({ ...prev, subject: e.target.value }))}
-                                      className="h-10 rounded-xl bg-muted/30 border-border/50 font-medium focus-visible:ring-1 focus-visible:ring-primary/25"
-                                    />
-                                  )}
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="space-y-1">
-                                    <Label htmlFor="edit-grade-score" className="text-xs font-medium text-muted-foreground">Grade (%)</Label>
-                                    <Input
-                                      id="edit-grade-score"
-                                      required
-                                      value={editForm.grade}
-                                      onChange={(e) => setEditForm(prev => ({ ...prev, grade: e.target.value }))}
-                                      className="h-10 rounded-xl bg-muted/30 border-border/50 font-medium focus-visible:ring-1 focus-visible:ring-primary/25"
-                                    />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <Label htmlFor="edit-grade-status" className="text-xs font-medium text-muted-foreground">Standing status</Label>
-                                    <Select
-                                      value={editForm.status}
-                                      onValueChange={(val) => setEditForm(prev => ({ ...prev, status: val }))}
-                                    >
-                                      <SelectTrigger id="edit-grade-status" className="h-10 rounded-xl bg-muted/30 border-border/50 font-medium">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent className="rounded-xl bg-card">
-                                        <SelectItem value="Excellent" className="font-medium">Excellent</SelectItem>
-                                        <SelectItem value="Good" className="font-medium">Good</SelectItem>
-                                        <SelectItem value="Needs Work" className="font-medium">Needs Work</SelectItem>
-                                        <SelectItem value="Critical" className="font-medium">Critical</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                </div>
-                                <div className="space-y-1">
-                                  <Label htmlFor="edit-grade-feedback" className="text-xs font-medium text-muted-foreground">Study action plan guidelines</Label>
-                                  <Input
-                                    id="edit-grade-feedback"
-                                    value={editForm.aiFeedback}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, aiFeedback: e.target.value }))}
-                                    className="h-10 rounded-xl bg-muted/30 border-border/50 font-medium focus-visible:ring-1 focus-visible:ring-primary/25"
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="flex gap-3 pt-4">
-                                <Button
-                                  type="submit"
-                                  disabled={isUpdatingGrade}
-                                  className="flex-1 h-11 rounded-xl font-semibold gap-2 cursor-pointer"
-                                >
-                                  {isUpdatingGrade ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                  Save Changes
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => setEditingGradeId(null)}
-                                  className="h-11 rounded-xl font-semibold px-4 border-border/50 cursor-pointer"
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
-                            </form>
-                          ) : (
-                            <div className="space-y-5">
-                              <DialogHeader>
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className={cn(
-                                    "text-xs font-medium px-2 py-0.5 rounded border leading-none",
-                                    grade.status === 'Excellent' ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5" :
-                                    grade.status === 'Needs Work' ? "text-orange-500 border-orange-500/20 bg-orange-500/5" :
-                                    grade.status === 'Critical' ? "text-red-500 border-red-500/20 bg-red-500/5" :
-                                    "text-primary border-primary/20 bg-primary/5"
-                                  )}>
-                                    {grade.status}
-                                  </span>
-
-                                  <span className="text-xs font-medium text-muted-foreground/60">
-                                    Grade {letterGrade}
-                                  </span>
-                                </div>
-                                <DialogTitle className="text-2xl font-heading font-bold tracking-tight">{grade.subject}</DialogTitle>
-                              </DialogHeader>
-
-                              <div className="flex items-baseline gap-1 py-4 border-b border-border/40">
-                                <span className="text-5xl font-heading font-black tracking-tighter leading-none">{grade.grade}</span>
-                                <span className="text-xs font-medium text-muted-foreground">% Score</span>
-                              </div>
-
-                              <div className="space-y-2">
-                                <div className="flex items-center gap-1.5 text-muted-foreground">
-                                  <Compass className="w-4 h-4 text-primary" />
-                                  <h4 className="text-xs font-semibold">Target study strategy</h4>
-                                </div>
-                                <div className="bg-muted/30 border border-border/40 p-4.5 rounded-xl relative overflow-hidden">
-                                  <p className="text-sm font-medium leading-relaxed italic text-foreground/80">
-                                    "{grade.aiFeedback || "Consistently work on course materials."}"
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className={cn(
-                                "flex gap-3 pt-5 border-t border-border/40",
-                                archived && "hidden"
-                              )}>
-                                <Button
-                                  onClick={() => handleStartEdit(grade)}
-                                  variant="outline"
-                                  className="flex-1 h-11 rounded-xl font-semibold gap-2 border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
-                                >
-                                  <Edit2 className="w-4 h-4" /> Edit Subject
-                                </Button>
-                                <Button
-                                  onClick={() => handleDeleteGrade(grade.id)}
-                                  variant="ghost"
-                                  className="h-11 px-4 rounded-xl font-semibold gap-2 text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                                  disabled={editingGradeId === grade.id}
-                                >
-                                  <Trash className="w-4 h-4" /> Delete
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </DialogContent>
-                      </Dialog>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-          </div>
-
-        </div>
+      {!archived && (
+        <>
+          <CreateTermDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={setSelectedTerm} />
+          <UploadReportDialog
+            open={uploadOpen}
+            onOpenChange={setUploadOpen}
+            defaultTerm={currentTermSetting}
+            onUploaded={setSelectedTerm}
+          />
+          {activeReportCard && (
+            <AddGradeDialog
+              open={addGradeOpen}
+              onOpenChange={setAddGradeOpen}
+              reportCardId={activeReportCard.id}
+              subjects={subjects}
+            />
+          )}
+        </>
       )}
-    </div>
+    </Page>
   );
 }

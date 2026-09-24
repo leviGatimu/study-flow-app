@@ -167,12 +167,12 @@ export function ItemDetails({
       </div>
 
       {kind === "pdf" && (
-        <p className="px-5 pb-4 text-[11px] text-muted-foreground">
-          Studying this? Open it in the{" "}
-          <Link href={`/studio/${encodeURIComponent(subject)}`} className="text-primary hover:underline">
-            deep work studio
+        <p className="px-5 pb-4 text-xs text-muted-foreground">
+          Studying this?{" "}
+          <Link href={`/ai?subject=${encodeURIComponent(subject)}`} className="text-primary hover:underline">
+            Practise {subject}
           </Link>{" "}
-          with notes alongside.
+          with questions once you have read it.
         </p>
       )}
     </div>
@@ -182,7 +182,7 @@ export function ItemDetails({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[72px_1fr] gap-2">
-      <dt className="text-xs uppercase tracking-wide text-muted-foreground pt-0.5">{label}</dt>
+      <dt className="text-xs font-medium text-muted-foreground pt-0.5">{label}</dt>
       <dd className="min-w-0 break-words text-foreground">{children}</dd>
     </div>
   );

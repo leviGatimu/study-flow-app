@@ -32,6 +32,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { Page, PageBody } from '@/components/ui/page';
+import { PageHeader } from '@/components/ui/page-header';
+import { Panel as Surface, PanelTitle } from '@/components/ui/panel';
+import { Pill } from '@/components/ui/list-row';
+import { Stat } from '@/components/ui/stat';
 import type { AdminUserDetail } from '@/lib/admin-actions';
 import {
   deleteUserAccount,
@@ -49,46 +54,48 @@ export function AdminUserView({ user }: { user: AdminUserDetail }) {
   const [isPending, startTransition] = useTransition();
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-4 py-8 md:px-8">
-      <Button variant="ghost" size="sm" asChild className="mb-4">
-        <Link href="/admin">
-          <ArrowLeft className="h-4 w-4" />
-          All users
-        </Link>
-      </Button>
-
-      {/* Say plainly whose data this is. An admin reading someone's notes
-          should never be able to forget they are doing it. */}
-      <div className="mb-6 flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-        <Eye className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-        <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
-          You are looking at <span className="font-black">{user.username}</span>&apos;s account,
-          including everything they have written.
-        </p>
+    <Page>
+      <div className="px-4 pt-6 md:px-8">
+        <Button variant="ghost" asChild className="gap-1.5">
+          <Link href="/admin">
+            <ArrowLeft className="size-4" />
+            All users
+          </Link>
+        </Button>
       </div>
 
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border/40 pb-5">
-        <div>
-          <h1 className="flex items-center gap-2.5 font-heading text-2xl font-black tracking-tight">
+      <PageHeader
+        className="pt-4"
+        title={
+          <span className="flex flex-wrap items-center gap-2.5">
             {user.username}
-            {user.isAdmin && (
-              <span className="rounded-full bg-primary/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-primary">
-                Admin
-              </span>
-            )}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+            {user.isAdmin && <Pill tone="primary">Admin</Pill>}
+          </span>
+        }
+        description={
+          <>
             Joined {formatDate(user.createdAt)}
             {user.progress ? ` · ${user.progress.timezone}` : ''}
             {user.progress?.lastActiveDate
               ? ` · last active ${formatDate(user.progress.lastActiveDate)}`
               : ' · never active'}
-          </p>
-        </div>
-      </header>
+          </>
+        }
+      />
 
-      <div className="mt-8 grid gap-8 xl:grid-cols-3">
-        <div className="space-y-8 xl:col-span-2">
+      <PageBody>
+      {/* Say plainly whose data this is. An admin reading someone's notes
+          should never be able to forget they are doing it. */}
+      <div className="flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+        <Eye className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+        <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+          You are looking at <span className="font-bold">{user.username}</span>&apos;s account,
+          including everything they have written.
+        </p>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-3">
+        <div className="space-y-6 xl:col-span-2">
           <SetupState user={user} />
           <Counts user={user} />
           <Years user={user} />
@@ -101,7 +108,8 @@ export function AdminUserView({ user }: { user: AdminUserDetail }) {
           <Actions user={user} isPending={isPending} startTransition={startTransition} router={router} />
         </aside>
       </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }
 
@@ -109,12 +117,10 @@ export function AdminUserView({ user }: { user: AdminUserDetail }) {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section>
-      <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-        {title}
-      </h2>
-      <div className="rounded-2xl border border-border/60 bg-card p-5">{children}</div>
-    </section>
+    <Surface>
+      <PanelTitle>{title}</PanelTitle>
+      {children}
+    </Surface>
   );
 }
 
@@ -204,13 +210,7 @@ function Counts({ user }: { user: AdminUserDetail }) {
           ],
           ['AI sessions', `${user.counts.aiSessions ?? 0}`, ''],
         ].map(([label, value, sub]) => (
-          <div key={label}>
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              {label}
-            </p>
-            <p className="mt-0.5 font-heading text-xl font-black tabular-nums">{value}</p>
-            {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-          </div>
+          <Stat key={label} label={label} value={value} hint={sub || undefined} />
         ))}
       </div>
       <div className="mt-5 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
@@ -241,16 +241,9 @@ function Years({ user }: { user: AdminUserDetail }) {
           <li key={c.id}>
             <p className="text-sm font-bold">
               {c.label}
-              <span
-                className={cn(
-                  'ml-2 rounded px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider',
-                  c.status === 'ACTIVE'
-                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                    : 'bg-muted text-muted-foreground'
-                )}
-              >
-                {c.status}
-              </span>
+              <Pill tone={c.status === 'ACTIVE' ? 'success' : 'default'} className="ml-2">
+                {c.status === 'ACTIVE' ? 'Active' : 'Finished'}
+              </Pill>
             </p>
             <ul className="mt-1.5 space-y-1 pl-4 text-xs text-muted-foreground">
               {c.terms.map((t) => (
@@ -508,12 +501,9 @@ function Actions({
         </div>
       </Panel>
 
-      <section>
-        <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-destructive">
-          Danger
-        </h2>
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5">
-          <p className="text-sm font-bold">Delete this account</p>
+      <Surface className="border-destructive/30">
+        <PanelTitle icon={<Trash2 />}>Delete this account</PanelTitle>
+        <div>
           <p className="mt-1 text-xs text-muted-foreground">
             Everything goes: their tasks, notes, marks, timetable, uploads and paired devices.
             There is no undo and no backup taken here.
@@ -549,7 +539,7 @@ function Actions({
             Delete permanently
           </Button>
         </div>
-      </section>
+      </Surface>
     </>
   );
 }

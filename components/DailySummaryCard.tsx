@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef } from "react";
 import {
-  Clock, BrainCircuit, X, Target,
+  Clock, X, Target, FileText,
   Download, Sparkles,
   Loader2, ShieldCheck, Flame, CalendarDays, CheckCircle2,
   Zap, Lightbulb, ArrowUpRight, ListChecks, Star,
@@ -14,6 +14,8 @@ import {
   DialogTrigger, DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Panel } from "@/components/ui/panel";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
@@ -130,7 +132,7 @@ export function DailySummaryCard({ summary }: DailySummaryCardProps) {
       pdf.save(`StudyFlow_Daily_Report_${format(new Date(summary.date), "yyyy_MM_dd")}.pdf`);
     } catch (e) {
       console.error("PDF generation failed:", e);
-      alert("Failed to generate PDF. Please try again.");
+      toast.error("The PDF could not be created. Try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -144,84 +146,75 @@ export function DailySummaryCard({ summary }: DailySummaryCardProps) {
   ];
 
   return (
-    <div className="bg-card border border-border/60 shadow-sm rounded-2xl p-6 hover:shadow-md transition-shadow duration-200 overflow-hidden relative flex flex-col justify-between min-h-[380px]">
-
-      {/* Status stripe — colour reports the grade tier, not decoration */}
-      <div className={cn("absolute top-0 left-8 w-14 h-1.5 rounded-b-md", theme.glow)} />
-
-      {/* Grade seal */}
-      <div className={cn("absolute top-6 right-6 w-20 h-20 rounded-2xl flex flex-col items-center justify-center border shadow-sm bg-background select-none", theme.border)}>
-        <span className="text-xs font-medium text-muted-foreground/70 leading-none">Grade</span>
-        <span className={cn("text-4xl font-heading font-black tracking-tighter mt-1", theme.text)}>{summary.grade}</span>
-      </div>
-
-      <div className="space-y-6">
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-primary text-xs font-semibold select-none">
-            <BrainCircuit className="w-3.5 h-3.5" /> Daily report
+    <Panel className="flex flex-col justify-between gap-6">
+      <div className="space-y-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">Daily report</p>
+            <h3 className="font-heading text-xl font-bold text-foreground">{format(new Date(summary.date), "EEEE d MMMM")}</h3>
+            <p className="text-sm text-muted-foreground">
+              <span className={cn("font-semibold", theme.text)}>{perf.level}</span> · {perf.score}/100
+            </p>
           </div>
-          <h3 className="text-2xl font-heading font-bold tracking-tight leading-none text-foreground pr-24 mt-1">
-            {format(new Date(summary.date), "EEEE")}
-          </h3>
-          <p className="text-sm font-medium text-muted-foreground/70">{format(new Date(summary.date), "MMMM do, yyyy")}</p>
-          <div className="flex items-center gap-2 pt-1">
-            <span className={cn("text-xs font-semibold", theme.text)}>{perf.level}</span>
-            <span className="text-xs font-medium text-muted-foreground">· {perf.score}/100</span>
+          {/* Grade seal: colour reports the grade tier, not decoration. */}
+          <div className={cn("flex size-16 shrink-0 flex-col items-center justify-center rounded-2xl border", theme.bg, theme.border)}>
+            <span className="text-xs font-medium text-muted-foreground">Grade</span>
+            <span className={cn("font-heading text-3xl font-black leading-none", theme.text)}>{summary.grade}</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <dl className="grid grid-cols-3 gap-3">
           {[
             { icon: Clock, label: "Studied", value: fmtHM(summary.totalMinutes), c: "text-primary" },
-            { icon: CheckCircle2, label: "Sessions", value: `${summary.completedSessions}/${summary.totalSessions}`, c: "text-success" },
-            { icon: Flame, label: "Streak", value: `${summary.currentStreak}d`, c: "text-amber-500" },
+            { icon: CheckCircle2, label: "Blocks", value: `${summary.completedSessions}/${summary.totalSessions}`, c: "text-success" },
+            { icon: Flame, label: "Streak", value: `${summary.currentStreak}d`, c: "text-orange-500" },
           ].map(s => (
-            <div key={s.label} className="p-3.5 bg-muted/30 border border-border/40 rounded-xl">
-              <div className="flex items-center gap-1.5 text-muted-foreground mb-1.5 text-xs font-medium select-none">
-                <s.icon className={cn("w-3.5 h-3.5", s.c)} /> {s.label}
-              </div>
-              <p className="text-lg font-heading font-bold leading-none">{s.value}</p>
+            <div key={s.label} className="min-w-0 rounded-xl border border-border/40 bg-muted/40 p-3">
+              <dt className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <s.icon className={cn("size-3.5 shrink-0", s.c)} aria-hidden="true" /> {s.label}
+              </dt>
+              <dd className="truncate font-heading text-lg font-bold leading-none tabular-nums">{s.value}</dd>
             </div>
           ))}
-        </div>
+        </dl>
 
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-            <span>Performance score</span><span>{perf.score}/100</span>
+            <span>Performance score</span><span className="tabular-nums">{perf.score}/100</span>
           </div>
-          <div className="h-2.5 bg-muted/40 rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${perf.score}%`, backgroundColor: theme.hex }} />
+          <div className="h-2 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${perf.score}%`, backgroundColor: theme.hex }} />
           </div>
         </div>
 
         {topSubjects.length > 0 && (
-          <div className="space-y-2 bg-muted/20 border border-border/30 p-4 rounded-xl">
-            <p className="text-xs font-medium text-muted-foreground select-none">Top focus areas</p>
-            <div className="flex flex-col gap-2">
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Most time on</p>
+            <ul className="space-y-2">
               {topSubjects.map((item, idx) => (
-                <div key={item.name} className="flex items-center justify-between text-sm font-medium text-foreground/80">
-                  <div className="flex items-center gap-2 truncate">
-                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: SUBJECT_COLORS[idx % SUBJECT_COLORS.length] }} />
-                    <span className="truncate max-w-[150px]">{item.name}</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground shrink-0 bg-muted px-2 py-0.5 rounded-md border border-border/40">{fmtHM(item.value)}</span>
-                </div>
+                <li key={item.name} className="flex items-center justify-between gap-3 text-sm font-medium text-foreground">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: SUBJECT_COLORS[idx % SUBJECT_COLORS.length] }} />
+                    <span className="truncate">{item.name}</span>
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{fmtHM(item.value)}</span>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         )}
       </div>
 
-      <div className="mt-6 pt-4 border-t border-border/30">
+      <div className="border-t border-border/40 pt-4">
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full h-11 rounded-xl gap-2 text-sm font-semibold shadow-sm">
-              View full report <Sparkles className="w-4 h-4" />
+            <Button variant="outline" className="w-full">
+              <FileText /> View full report
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[95vw] w-full p-0 overflow-hidden bg-background border-none rounded-2xl shadow-2xl z-[110]">
             <div className="flex flex-col h-[92vh]">
-              <div className="px-8 py-5 border-b flex items-center justify-between bg-card shrink-0">
+              <div className="px-4 sm:px-8 py-4 sm:py-5 border-b flex items-center justify-between gap-3 bg-card shrink-0">
                 <div className="text-left flex-1 space-y-0.5">
                   <p className="text-xs font-semibold text-primary">Performance report</p>
                   <DialogTitle className="text-2xl font-heading font-bold tracking-tight">Daily study analytics</DialogTitle>
@@ -243,10 +236,10 @@ export function DailySummaryCard({ summary }: DailySummaryCardProps) {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-12 bg-[#e2e8f0] dark:bg-[#030303] flex justify-center">
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-6 md:p-12 bg-muted flex justify-center">
                 <div className="w-full max-w-[860px] pb-16">
 
-                  <div ref={reportRef} className="bg-white text-slate-900 p-8 md:p-12 shadow-2xl rounded-2xl space-y-9 relative overflow-hidden" style={{ fontFamily: "sans-serif" }}>
+                  <div ref={reportRef} className="bg-white text-slate-900 p-8 md:p-12 shadow-sm rounded-2xl space-y-9 relative overflow-hidden" style={{ fontFamily: "sans-serif" }}>
 
                     <div className="flex justify-between items-start border-b border-slate-200 pb-6">
                       <div className="space-y-2.5">
@@ -271,10 +264,10 @@ export function DailySummaryCard({ summary }: DailySummaryCardProps) {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl overflow-hidden relative text-white shadow-lg"
-                         style={{ background: `linear-gradient(135deg, ${theme.hex}, ${theme.hex}cc)` }}>
+                    <div className="rounded-2xl overflow-hidden relative text-white"
+                         style={{ backgroundColor: theme.hex }}>
                       <div className="relative p-7 flex flex-col md:flex-row items-center gap-7">
-                        <div className="shrink-0 w-32 h-32 rounded-2xl bg-white/15 backdrop-blur border border-white/25 flex flex-col items-center justify-center">
+                        <div className="shrink-0 w-32 h-32 rounded-2xl bg-white/15 border border-white/25 flex flex-col items-center justify-center">
                           <span className="text-6xl font-black tracking-tighter leading-none">{summary.grade}</span>
                           <span className="text-xs font-semibold mt-1.5 opacity-80">Grade</span>
                         </div>
@@ -443,6 +436,6 @@ export function DailySummaryCard({ summary }: DailySummaryCardProps) {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </Panel>
   );
 }

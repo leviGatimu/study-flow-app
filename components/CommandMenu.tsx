@@ -38,18 +38,7 @@ export function openCommandMenu() {
   window.dispatchEvent(new CustomEvent(OPEN_EVENT));
 }
 
-type Results = {
-  tasks: any[];
-  stickyNotes: any[];
-  tutorModules: any[];
-  projects: any[];
-  homeworks: any[];
-  subjects: any[];
-  exams: any[];
-  resources: any[];
-  notes: any[];
-  marks: any[];
-};
+type Results = Awaited<ReturnType<typeof universalSearch>>;
 
 const EMPTY: Results = {
   tasks: [],
@@ -63,6 +52,16 @@ const EMPTY: Results = {
   notes: [],
   marks: [],
 };
+
+/**
+ * Where a task result should land. Today's tasks live on the dashboard, done
+ * ones in History, and anything else on its day in the month view.
+ */
+function taskHref(task: { date: string | Date; isDone?: boolean }): string {
+  if (task.isDone) return "/history";
+  const date = new Date(task.date);
+  return date.toDateString() === new Date().toDateString() ? "/" : "/calendar";
+}
 
 export function CommandMenu() {
   const [open, setOpen] = useState(false);
@@ -97,24 +96,24 @@ export function CommandMenu() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestQuery = useRef("");
 
+  // Below two characters there is nothing to search, so stale results and the
+  // spinner are hidden by derivation rather than reset in the effect.
+  const searching = query.trim().length >= 2;
+  const shown = searching ? results : EMPTY;
+  const busy = searching && loading;
+
   useEffect(() => {
     const trimmed = query.trim();
     latestQuery.current = trimmed;
 
     if (timer.current) clearTimeout(timer.current);
+    if (trimmed.length < 2) return;
 
-    if (trimmed.length < 2) {
-      setResults(EMPTY);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
     timer.current = setTimeout(async () => {
       try {
         const res = await universalSearch(trimmed);
         // Ignore responses that arrived after the query moved on.
-        if (latestQuery.current === trimmed) setResults(res as Results);
+        if (latestQuery.current === trimmed) setResults(res);
       } finally {
         if (latestQuery.current === trimmed) setLoading(false);
       }
@@ -132,8 +131,8 @@ export function CommandMenu() {
   };
 
   const hasResults = useMemo(
-    () => Object.values(results).some((group) => group.length > 0),
-    [results]
+    () => Object.values(shown).some((group) => group.length > 0),
+    [shown]
   );
 
   return (
@@ -142,9 +141,14 @@ export function CommandMenu() {
         <CommandInput
           placeholder="Search tasks, notes, subjects..."
           value={query}
-          onValueChange={setQuery}
+          onValueChange={(value) => {
+            setQuery(value);
+            // Pending from the keystroke, so the list says "Searching..."
+            // through the debounce instead of flashing "No results".
+            setLoading(value.trim().length >= 2);
+          }}
         />
-        {loading && (
+        {busy && (
           <div className="absolute top-1/2 right-4 -translate-y-1/2">
             <Loader2 className="size-4 animate-spin text-muted-foreground" />
           </div>
@@ -152,15 +156,15 @@ export function CommandMenu() {
       </div>
 
       <CommandList className="max-h-[400px]">
-        <CommandEmpty>{loading ? "Searching..." : "No results found."}</CommandEmpty>
+        <CommandEmpty>{busy ? "Searching..." : "No results found."}</CommandEmpty>
 
-        {results.homeworks.length > 0 && (
+        {shown.homeworks.length > 0 && (
           <CommandGroup heading="Homework">
-            {results.homeworks.map((hw) => (
+            {shown.homeworks.map((hw) => (
               <CommandItem
                 key={hw.id}
                 value={`homework-${hw.id}-${hw.title}`}
-                onSelect={() => go("/homeworks")}
+                onSelect={() => go(`/homeworks?subject=${encodeURIComponent(hw.subject)}`)}
               >
                 <BookOpen className="mr-2 size-4 text-muted-foreground" />
                 <span className="truncate">{hw.title}</span>
@@ -172,13 +176,13 @@ export function CommandMenu() {
           </CommandGroup>
         )}
 
-        {results.tutorModules.length > 0 && (
+        {shown.tutorModules.length > 0 && (
           <CommandGroup heading="Study sets">
-            {results.tutorModules.map((m) => (
+            {shown.tutorModules.map((m) => (
               <CommandItem
                 key={m.id}
                 value={`module-${m.id}-${m.title}`}
-                onSelect={() => go(`/tutor/${m.id}`)}
+                onSelect={() => go(`/ai?set=${encodeURIComponent(m.id)}`)}
               >
                 <Brain className="mr-2 size-4 text-muted-foreground" />
                 <span className="truncate">{m.title}</span>
@@ -190,13 +194,13 @@ export function CommandMenu() {
           </CommandGroup>
         )}
 
-        {results.tasks.length > 0 && (
+        {shown.tasks.length > 0 && (
           <CommandGroup heading="Tasks">
-            {results.tasks.map((t) => (
+            {shown.tasks.map((t) => (
               <CommandItem
                 key={t.id}
                 value={`task-${t.id}-${t.subject}`}
-                onSelect={() => go("/")}
+                onSelect={() => go(taskHref(t))}
               >
                 <Zap className="mr-2 size-4 text-muted-foreground" />
                 <span className="truncate">{t.subject}</span>
@@ -205,9 +209,9 @@ export function CommandMenu() {
           </CommandGroup>
         )}
 
-        {results.stickyNotes.length > 0 && (
-          <CommandGroup heading="Sticky Notes">
-            {results.stickyNotes.map((n) => (
+        {shown.stickyNotes.length > 0 && (
+          <CommandGroup heading="Sticky notes">
+            {shown.stickyNotes.map((n) => (
               <CommandItem
                 key={n.id}
                 value={`note-${n.id}-${n.title}`}
@@ -220,9 +224,9 @@ export function CommandMenu() {
           </CommandGroup>
         )}
 
-        {results.projects.length > 0 && (
+        {shown.projects.length > 0 && (
           <CommandGroup heading="Projects">
-            {results.projects.map((p) => (
+            {shown.projects.map((p) => (
               <CommandItem
                 key={p.id}
                 value={`project-${p.id}-${p.title}`}
@@ -235,13 +239,13 @@ export function CommandMenu() {
           </CommandGroup>
         )}
 
-        {results.subjects.length > 0 && (
+        {shown.subjects.length > 0 && (
           <CommandGroup heading="Subjects">
-            {results.subjects.map((s) => (
+            {shown.subjects.map((s) => (
               <CommandItem
                 key={s.id}
                 value={`subject-${s.id}-${s.name}`}
-                onSelect={() => go("/subjects")}
+                onSelect={() => go(`/subjects?subject=${encodeURIComponent(s.name)}`)}
               >
                 <Library className="mr-2 size-4 text-muted-foreground" />
                 <span className="truncate">{s.name}</span>
@@ -250,9 +254,9 @@ export function CommandMenu() {
           </CommandGroup>
         )}
 
-        {results.exams.length > 0 && (
+        {shown.exams.length > 0 && (
           <CommandGroup heading="Exams">
-            {results.exams.map((e) => (
+            {shown.exams.map((e) => (
               <CommandItem
                 key={e.id}
                 value={`exam-${e.id}-${e.title}`}
@@ -268,9 +272,9 @@ export function CommandMenu() {
           </CommandGroup>
         )}
 
-        {results.resources.length > 0 && (
+        {shown.resources.length > 0 && (
           <CommandGroup heading="Resources">
-            {results.resources.map((r) => (
+            {shown.resources.map((r) => (
               <CommandItem
                 key={r.id}
                 value={`resource-${r.id}-${r.title}`}
@@ -286,13 +290,13 @@ export function CommandMenu() {
           </CommandGroup>
         )}
 
-        {results.notes.length > 0 && (
-          <CommandGroup heading="Subject Notes">
-            {results.notes.map((n) => (
+        {shown.notes.length > 0 && (
+          <CommandGroup heading="Subject notes">
+            {shown.notes.map((n) => (
               <CommandItem
                 key={n.id}
                 value={`studionote-${n.id}-${n.subject}`}
-                onSelect={() => go("/subjects")}
+                onSelect={() => go(`/subjects?subject=${encodeURIComponent(n.subject)}`)}
               >
                 <FileText className="mr-2 size-4 text-muted-foreground" />
                 <span className="truncate">{n.subject}</span>
@@ -304,9 +308,9 @@ export function CommandMenu() {
           </CommandGroup>
         )}
 
-        {results.marks.length > 0 && (
+        {shown.marks.length > 0 && (
           <CommandGroup heading="Marks">
-            {results.marks.map((m) => (
+            {shown.marks.map((m) => (
               <CommandItem
                 key={m.id}
                 value={`mark-${m.id}-${m.subject}`}
@@ -340,10 +344,6 @@ export function CommandMenu() {
               </CommandItem>
             );
           })}
-          <CommandItem value="Focus mode concentrate timer" onSelect={() => go("/focus")}>
-            <Zap className="mr-2 size-4 text-muted-foreground" />
-            <span>Focus Mode</span>
-          </CommandItem>
         </CommandGroup>
       </CommandList>
     </CommandDialog>

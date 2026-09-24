@@ -28,7 +28,7 @@ export function SectionTabs() {
   return (
     <nav
       aria-label={`${section.name} pages`}
-      className="app-scroll flex h-11 shrink-0 items-stretch gap-1 overflow-x-auto border-b border-border bg-background px-3 md:px-4"
+      className="scrollbar-none flex h-11 shrink-0 items-stretch gap-1 overflow-x-auto border-b border-border bg-background px-3 md:px-4"
     >
       {pages.map((page) => {
         const Icon = page.icon;

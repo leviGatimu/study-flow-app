@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * The sync controls, in Settings, on the desktop app only.
+ * The sync controls, in Settings. The controls exist on the desktop app only;
+ * on the web build the caller's `unavailable` content is shown instead.
  *
  * What this screen has to answer, in order of how often it is asked:
  *   1. Is anything of mine still only on this machine?
@@ -31,8 +32,14 @@ import {
   type SyncStatus,
 } from '@/lib/sync/actions';
 
-export function SyncPanel() {
+export function SyncPanel({
+  unavailable = null,
+}: {
+  /** Shown instead of the controls on the web build, where there is nothing to sync. */
+  unavailable?: React.ReactNode;
+} = {}) {
   const [status, setStatus] = useState<SyncStatus | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,19 +60,45 @@ export function SyncPanel() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-  const refresh = () => getSyncStatus().then(setStatus);
+  const refresh = () =>
+    getSyncStatus()
+      .then((next) => {
+        setStatus(next);
+        setLoadFailed(false);
+      })
+      .catch((err) => {
+        console.error('[sync] status', err);
+        setLoadFailed(true);
+      });
   useEffect(() => {
     refresh();
   }, []);
 
-  // Nothing to show on the web build: there, the database is the server.
-  if (!status?.available) return null;
+  if (loadFailed && !status) {
+    return (
+      <Notice tone="error">
+        Could not read the sync status. Reload the page to try again.
+      </Notice>
+    );
+  }
+  if (!status) {
+    return <p className="text-sm text-muted-foreground">Checking sync…</p>;
+  }
+  // Nothing to control on the web build: there, the database is the server.
+  if (!status.available) return <>{unavailable}</>;
 
   const connect = () => {
     setError(null);
     setMessage(null);
     startTransition(async () => {
-      const result = await connectSync(serverUrl, username, password);
+      let result: Awaited<ReturnType<typeof connectSync>>;
+      try {
+        result = await connectSync(serverUrl, username, password);
+      } catch (err) {
+        console.error('[sync] connect', err);
+        setError('Could not reach the website. Check the address and your connection, then try again.');
+        return;
+      }
       if ('error' in result && result.error) {
         setError(result.error);
         return;
@@ -90,7 +123,14 @@ export function SyncPanel() {
     setError(null);
     setMessage(null);
     startTransition(async () => {
-      const result = await syncNow();
+      let result: Awaited<ReturnType<typeof syncNow>>;
+      try {
+        result = await syncNow();
+      } catch (err) {
+        console.error('[sync] sync now', err);
+        setError('The sync did not finish. Check your connection, then try again.');
+        return;
+      }
       if ('error' in result && result.error) {
         setError(result.error);
       } else if (result.errors?.length) {
@@ -107,8 +147,16 @@ export function SyncPanel() {
   };
 
   const disconnect = () => {
+    setError(null);
+    setMessage(null);
     startTransition(async () => {
-      await disconnectSync();
+      try {
+        await disconnectSync();
+      } catch (err) {
+        console.error('[sync] disconnect', err);
+        setError('This device could not be disconnected. Try again.');
+        return;
+      }
       setMessage('This device no longer syncs. Nothing on it was deleted.');
       await refresh();
     });

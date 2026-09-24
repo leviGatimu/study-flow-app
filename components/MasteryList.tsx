@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useArchiveReason } from '@/components/ArchiveContext';
 
 type MasteryItem = {
@@ -24,9 +25,14 @@ export function MasteryList({ items, subject }: { items: MasteryItem[], subject:
   return (
     <div>
       {items.length === 0 ? (
-        <p className="py-3 text-sm text-muted-foreground">
-          No topics yet. Add the chapters this subject covers.
-        </p>
+        <EmptyState
+          title="No topics yet"
+          description={
+            archived
+              ? "No syllabus topics were recorded for this subject."
+              : "Type the chapters this subject covers above, then tick each one off as you master it."
+          }
+        />
       ) : (
         <ul className="divide-y divide-border/60">
         {items.map((item) => (

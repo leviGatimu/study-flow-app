@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import Link from 'next/link';
 import { TaskWithTemplate } from '@/lib/types';
-import { cn, getRwandaTime } from '@/lib/utils';
+import { cn, getZonedNow, DEFAULT_TIMEZONE } from '@/lib/utils';
 import { useFocus } from '@/lib/FocusContext';
 import { useTimetableSync } from '@/components/useTimetableSync';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -45,7 +45,7 @@ const headlineSize = (text: string) =>
  * visibly taller than one without.
  */
 const CARD_SHELL =
-  'relative overflow-hidden border-none rounded-[32px] p-5 md:p-7 shadow-2xl lg:min-h-[19rem]';
+  'relative overflow-hidden border-none rounded-3xl p-5 md:p-7 shadow-2xl lg:min-h-[19rem]';
 
 /** The content row inside the shell, grown so the footer stays at the bottom. */
 const CARD_ROW =
@@ -55,7 +55,8 @@ export function LiveFocusCard({
   todayTasks,
   tomorrowTasks = [],
   yesterdayTasks = [],
-  schoolLessons = []
+  schoolLessons = [],
+  timezone = DEFAULT_TIMEZONE,
 }: { 
   todayTasks: TaskWithTemplate[],
   tomorrowTasks?: TaskWithTemplate[],
@@ -66,7 +67,9 @@ export function LiveFocusCard({
    * used to be a hardcoded array imported from SchoolTimetable, so every user's
    * dashboard announced one particular student's lessons.
    */
-  schoolLessons?: SchoolLesson[]
+  schoolLessons?: SchoolLesson[],
+  /** The user's IANA timezone; "now" is read in it, not in Kigali's. */
+  timezone?: string
 }) {
   const { activeTask, isPaused, step, timeLeft: contextTime, isActive, resetFocus } = useFocus();
   // The same flag the portal's toggle writes. Shared through one hook so the
@@ -87,7 +90,7 @@ export function LiveFocusCard({
   // Update current scheduled task, school lesson and timers
   useEffect(() => {
     const updateTaskAndTimer = () => {
-      const now = getRwandaTime();
+      const now = getZonedNow(timezone);
       const currentTimeInMins = now.getHours() * 60 + now.getMinutes();
 
       // 1. Find School Lesson scheduled for RIGHT NOW
@@ -233,16 +236,9 @@ export function LiveFocusCard({
     updateTaskAndTimer();
     const interval = setInterval(updateTaskAndTimer, 1000);
     return () => clearInterval(interval);
-  }, [searchPool, todayTasks, tomorrowTasks, isActive, isTimetableSynced, schoolLessons]);
+  }, [searchPool, todayTasks, tomorrowTasks, isActive, isTimetableSynced, schoolLessons, timezone]);
 
   const isActuallyRunning = !!activeTask && step === 'FOCUS';
-
-  const hudState = isActuallyRunning
-    ? (isPaused ? 'paused' : 'studying')
-    : activeSchoolLesson ? 'school'
-    : currentScheduledTask ? 'scheduled'
-    : nextSchoolLesson ? 'schoolBreak'
-    : 'break';
 
   /**
    * The status card owns its controls now: timetable sync on every state, plus
@@ -360,7 +356,7 @@ export function LiveFocusCard({
     //   - the blurb ("Stay focused and take good notes!") told you nothing you
     //     could act on. It now says when the school day releases you.
     if (activeSchoolLesson) {
-      const schoolDayEnd = schoolDayBounds(schoolLessons, getRwandaTime().getDay())?.end ?? null;
+      const schoolDayEnd = schoolDayBounds(schoolLessons, getZonedNow(timezone).getDay())?.end ?? null;
 
       return (
         <motion.div key="school-lesson" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full">
@@ -447,7 +443,7 @@ export function LiveFocusCard({
                         {currentScheduledTask.subject}
                      </h2>
                      <p className="text-white/75 text-sm font-medium max-w-xl">
-                        It's time for your scheduled session. Dive in and crush your goals!
+                        It&apos;s time for your scheduled session. Open it when you&apos;re ready.
                      </p>
                   </div>
                </div>
@@ -501,7 +497,7 @@ export function LiveFocusCard({
                         Time to Recharge
                      </h2>
                      <p className="text-white/75 text-sm font-medium max-w-xl">
-                        Your next lesson "{nextSchoolLesson.subject}" starts soon. Use this time to prepare.
+                        Your next lesson, {nextSchoolLesson.subject}, starts soon. Use this time to prepare.
                      </p>
                   </div>
                   <div className="flex items-center gap-3 bg-white/10 border border-white/10 px-3.5 py-2 rounded-xl w-fit max-w-xl backdrop-blur-md">

@@ -1,24 +1,42 @@
-import { getStickyNotes } from "@/lib/actions";
-import { StickyNotesContainer } from "@/components/StickyNotesContainer";
-import { getUserId } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
+
+import { getStickyNotes } from "@/lib/actions";
+import { getUserId } from "@/lib/auth";
+import { StickyNotesContainer } from "@/components/StickyNotesContainer";
+import { Button } from "@/components/ui/button";
+import { Page, PageBody } from "@/components/ui/page";
+import { PageHeader } from "@/components/ui/page-header";
+import { ErrorState } from "@/components/ui/error-state";
 
 export const dynamic = "force-dynamic";
 
-export default async function StickyNotesPage() {
+export default async function NotesPage() {
   const userId = await getUserId();
-  if (!userId) redirect('/welcome');
+  if (!userId) redirect("/welcome");
 
-  const initialNotes = await getStickyNotes();
-  
-  return (
-    <div className="min-h-full w-full bg-[#f8f9fa] dark:bg-[#0a0a0a] relative overflow-hidden">
-      {/* Decorative background elements */}
-      <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] dark:opacity-[0.05] pointer-events-none z-0 bg-[url('/textures/cubes.png')]" />
-      
-      <div className="container mx-auto py-10 px-6 md:px-10 relative z-10">
-        <StickyNotesContainer initialNotes={initialNotes} />
-      </div>
-    </div>
-  );
+  let notes: Awaited<ReturnType<typeof getStickyNotes>>;
+  try {
+    notes = await getStickyNotes();
+  } catch (error) {
+    console.error("Notes page failed to load", error);
+    return (
+      <Page>
+        <PageHeader title="Notes" description="Sticky notes for the things you do not want to forget." />
+        <PageBody>
+          <ErrorState
+            title="Your notes could not be loaded"
+            description="Nothing has been lost. Check your connection and try again."
+            action={
+              <Button asChild variant="outline">
+                <Link href="/notes">Try again</Link>
+              </Button>
+            }
+          />
+        </PageBody>
+      </Page>
+    );
+  }
+
+  return <StickyNotesContainer initialNotes={notes} />;
 }

@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": true, "tsBuildInfoFile": "./tsconfig.check.tsbuildinfo" },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "**/*.mts"],
+  "exclude": ["node_modules", "prisma.config.ts", "desktop-app", "promo", ".next"]
+}

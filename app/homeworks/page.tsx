@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { format } from 'date-fns';
 
@@ -7,6 +8,7 @@ import { getCurrentUserTimezone } from '@/lib/actions';
 import { getUserId } from '@/lib/auth';
 import { getTimeZoneOffsetMinutes, getZonedNow, isSubjectSimilar } from '@/lib/utils';
 import { PageHeader } from '@/components/ui/page-header';
+import { Page, PageBody } from '@/components/ui/page';
 import { HomeworkList } from './HomeworkList';
 import { AddHomeworkButton } from './CreateHomeworkForm';
 import type { HomeworkItem, SubjectChip } from './homework-model';
@@ -79,19 +81,34 @@ export default async function HomeworksPage({
   const subjectOptions = subjects.map((s) => ({ id: s.id, name: s.name }));
 
   return (
-    <div className="mx-auto max-w-[1600px] px-4 pb-16 pt-8 md:px-8 animate-in fade-in duration-300">
+    <Page>
       <PageHeader
         title="Homework"
         description="What is due, in the order it is due. Finish an assignment by uploading proof of the work."
         actions={<AddHomeworkButton subjects={subjectOptions} defaultSubject={subjectFilter} />}
+        meta={
+          subjectFilter && (
+            <>
+              Showing {subjectFilter} only.{' '}
+              <Link
+                href={`/subjects?subject=${encodeURIComponent(subjectFilter)}`}
+                className="font-medium text-primary hover:underline"
+              >
+                Open {subjectFilter}
+              </Link>
+            </>
+          )
+        }
       />
-      <HomeworkList
-        homeworks={shown}
-        today={format(getZonedNow(timeZone), DAY)}
-        chips={chips}
-        activeSubject={subjectFilter}
-        subjects={subjectOptions}
-      />
-    </div>
+      <PageBody>
+        <HomeworkList
+          homeworks={shown}
+          today={format(getZonedNow(timeZone), DAY)}
+          chips={chips}
+          activeSubject={subjectFilter}
+          subjects={subjectOptions}
+        />
+      </PageBody>
+    </Page>
   );
 }

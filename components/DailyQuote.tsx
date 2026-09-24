@@ -78,7 +78,7 @@ export function DailyQuote() {
         try {
           const savedHistory = localStorage.getItem('study-flow-bible-history');
           let historyList = savedHistory ? JSON.parse(savedHistory) : [];
-          if (!historyList.some((h: any) => h.ref === currentVerse.ref)) {
+          if (!historyList.some((h: { ref: string }) => h.ref === currentVerse.ref)) {
             historyList = [
               { text: currentVerse.text, ref: currentVerse.ref, shownAt: new Date().toISOString() },
               ...historyList
@@ -102,8 +102,8 @@ export function DailyQuote() {
       try {
         const savedBookmarked = localStorage.getItem('study-flow-bible-bookmarked');
         const bookmarkedList = savedBookmarked ? JSON.parse(savedBookmarked) : [];
-        setIsBookmarked(bookmarkedList.some((b: any) => b.ref === verse.ref));
-      } catch (e) {
+        setIsBookmarked(bookmarkedList.some((b: { ref: string }) => b.ref === verse.ref));
+      } catch {
         // Fallback
       }
     }
@@ -119,7 +119,7 @@ export function DailyQuote() {
       
       let nextState = false;
       if (isBookmarked) {
-        bookmarkedList = bookmarkedList.filter((b: any) => b.ref !== verse.ref);
+        bookmarkedList = bookmarkedList.filter((b: { ref: string }) => b.ref !== verse.ref);
         nextState = false;
       } else {
         bookmarkedList.push({ text: verse.text, ref: verse.ref, savedAt: new Date().toISOString() });
@@ -134,34 +134,36 @@ export function DailyQuote() {
 
   if (!mounted) return null;
 
+  // The card links to the reader; the bookmark sits beside the link rather
+  // than inside it, so it is its own control and not a button nested in an <a>.
   return (
-    <Link href="/bible" className="block mt-6">
-      <div className="bg-card border border-border/60 border-l-4 border-l-primary p-6 sm:p-8 rounded-2xl shadow-sm relative overflow-hidden hover:shadow-md transition-shadow duration-200 group">
-        <div className="absolute left-0 bottom-0 w-full h-1/2 bg-gradient-to-t from-primary/5 to-transparent pointer-events-none" />
-        
-        {/* Bookmark Button */}
-        <div className="absolute top-4 right-4 z-20">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleBookmark}
-            className={cn(
-              "h-9 w-9 rounded-xl transition-all duration-300 hover:bg-muted active:scale-90",
-              isBookmarked ? "text-primary" : "text-muted-foreground/60 hover:text-foreground"
-            )}
-          >
-            <Bookmark className={cn("w-5 h-5", isBookmarked && "fill-current")} />
-          </Button>
-        </div>
-
-        <blockquote className="italic text-muted-foreground text-lg leading-relaxed relative z-10 pr-10">
+    <div className="relative">
+      <Link
+        href="/bible"
+        className="block bg-card border border-border/60 border-l-4 border-l-primary p-6 sm:p-8 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        <blockquote className="italic text-muted-foreground text-lg leading-relaxed pr-10">
           &quot;{verse.text}&quot;
-          <footer className="mt-4 text-sm font-bold text-foreground/80 flex items-center gap-2">
-            <span className="w-4 h-[2px] bg-primary rounded-full"></span> {verse.ref}
+          <footer className="mt-4 text-sm font-bold text-foreground/80 not-italic flex items-center gap-2">
+            <span aria-hidden className="w-4 h-0.5 bg-primary rounded-full"></span> {verse.ref}
           </footer>
         </blockquote>
-      </div>
-    </Link>
+      </Link>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleBookmark}
+        aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark this verse'}
+        aria-pressed={isBookmarked}
+        className={cn(
+          "absolute top-4 right-4 size-9 rounded-xl hover:bg-muted",
+          isBookmarked ? "text-primary" : "text-muted-foreground hover:text-foreground"
+        )}
+      >
+        <Bookmark className={cn("size-5", isBookmarked && "fill-current")} />
+      </Button>
+    </div>
   );
 }
 

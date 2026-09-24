@@ -65,7 +65,7 @@ export const TOUR_STEPS: TourStep[] = [
     route: '/',
     selector: '[data-tour="sidebar"]',
     title: 'Six places, and that is all',
-    body: 'Today, Plan, Subjects, Progress, Study and Settings. Hover an icon — or tab to it — and the pages inside that section appear beside it. Nothing in the app is more than two clicks from here.',
+    body: 'Today, Schedule, Subjects, Study, Progress and Settings. Hover an icon — or tab to it — and the pages inside that section appear beside it; once you are in a section, its pages are the tabs under the top bar. Nothing is more than two clicks away.',
     placement: 'right',
   },
   {
@@ -112,7 +112,7 @@ export const TOUR_STEPS: TourStep[] = [
     chapter: 'Your day',
     route: '/',
     selector: '[data-tour="focus-mode"]',
-    title: 'Deep Focus',
+    title: 'Focus mode',
     body: 'A full-screen session: a timer, your own music, and an AI tutor that answers on the material in front of you. The time you spend in here is counted automatically — you never have to log it.',
     placement: 'bottom',
   },
@@ -156,7 +156,7 @@ export const TOUR_STEPS: TourStep[] = [
     route: '/subjects',
     selector: '[data-tour="subjects-hero"]',
     title: 'Everything hangs off a subject',
-    body: 'Each subject collects its own homework, resources, goals, marks and AI tutor modules. Open one and you get the whole picture of how that course is going, in one place.',
+    body: 'Each subject collects its own homework, exams, resources, marks and practice sets. Open one and you get the whole picture of how that course is going, in one place.',
     placement: 'bottom',
   },
   {
@@ -184,8 +184,8 @@ export const TOUR_STEPS: TourStep[] = [
     chapter: 'Proof it is working',
     route: '/history',
     selector: '[data-tour="nav-progress"]',
-    title: 'Marks, insights and summaries',
-    body: 'Marks turns your report cards into a trend line per subject. Insights and Summaries read your finished work and say plainly which subjects you have been quietly avoiding.',
+    title: 'Insights, marks and reports',
+    body: 'Insights reads your finished work and says plainly which subjects you have been quietly avoiding. Marks turns report cards into a trend per subject, Goals sets the target, and Reports writes up each day and week.',
     placement: 'right',
   },
 
@@ -215,7 +215,7 @@ export const TOUR_STEPS: TourStep[] = [
     route: '/school-timetable',
     selector: '[data-tour="nav-study"]',
     title: 'Get tested on your own material',
-    body: 'Drop a PDF, a Word file or a photo of your notes into AI Study, say how many questions you want and what kind, and it writes them. Then answer them one at a time, or sit the whole thing as a timed mock exam.',
+    body: 'Drop a PDF, a Word file or a photo of your notes into Practice, say how many questions you want and what kind, and it writes them. Then answer them one at a time, or sit the whole thing as a timed mock exam.',
     placement: 'right',
   },
 
@@ -225,7 +225,7 @@ export const TOUR_STEPS: TourStep[] = [
     chapter: 'Done',
     route: '/',
     title: 'That is the whole app',
-    body: 'Start with your study week under Plan — everything else grows from it. Anything still unset is on the checklist on this page, and you can replay this tour any time from the "Take a tour" button.',
+    body: 'Start with your study routine under Schedule — everything else grows from it. Anything still unset is on the checklist on this page, and you can replay this tour any time from the "Take a tour" button.',
   },
 ];
 

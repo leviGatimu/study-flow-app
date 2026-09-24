@@ -1,33 +1,33 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, Cell, PieChart, Pie,
-  AreaChart, Area
-} from 'recharts';
-import { 
-  CheckCircle2, BookOpen, Repeat, Trophy, XCircle, 
-  Zap, Clock, FileEdit, FileText, Search, ArrowUpDown, 
-  Filter, Calendar, ChevronDown, ChevronUp, Eye, Sparkles
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { TaskWithTemplate, SafeUserProgress as UserProgress } from '@/lib/types';
-import { cn } from '@/lib/utils';
-import { format, subDays, isAfter, startOfDay, differenceInDays } from 'date-fns';
+import {
+  Tooltip, ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area,
+  CartesianGrid, XAxis, YAxis,
+} from "recharts";
+import {
+  ArrowUpDown, BookOpen, CheckCircle2, ChevronDown, Clock, FileText,
+  History as HistoryIcon, ListChecks, Repeat, Search, Sparkles, Trophy, XCircle,
+} from "lucide-react";
+import { format, subDays, isAfter, startOfDay } from "date-fns";
+import type { TaskWithTemplate, SafeUserProgress as UserProgress } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { DeleteTaskButton } from "@/components/DeleteTaskButton";
-
-const TOOLTIP_STYLE = {
-  borderRadius: "16px",
-  border: "1px solid var(--border)",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
-  fontWeight: "bold" as const,
-  fontSize: "11px",
-  background: "var(--card)",
-  color: "var(--foreground)",
-};
+import { PageSkeleton } from "@/components/PageSkeleton";
+import { Page, PageBody } from "@/components/ui/page";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel, PanelTitle } from "@/components/ui/panel";
+import { Section } from "@/components/ui/section";
+import { Stat } from "@/components/ui/stat";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Pill } from "@/components/ui/list-row";
+import { Segmented } from "../insights/Segmented";
+import {
+  ChartFrame, TOOLTIP_STYLE, AXIS_TICK, CHART_PRIMARY, SUBJECT_COLORS, useIsClient,
+} from "../insights/chart-frame";
 
 interface HistoryClientProps {
   tasks: TaskWithTemplate[];
@@ -38,749 +38,473 @@ type TabType = "ALL" | "HOMEWORK" | "REVISION" | "MISSED";
 type PeriodType = "ALL" | "7_DAYS" | "30_DAYS";
 type SortType = "DATE_DESC" | "DATE_ASC" | "SUBJECT" | "DURATION";
 
+const TAB_LABELS: Record<TabType, string> = {
+  ALL: "Everything",
+  HOMEWORK: "Homework",
+  REVISION: "Revision",
+  MISSED: "Missed",
+};
+
+function taskMinutes(t: TaskWithTemplate): number {
+  const [sH, sM] = t.startTime.split(":").map(Number);
+  const [eH, eM] = t.endTime.split(":").map(Number);
+  let mins = eH * 60 + eM - (sH * 60 + sM);
+  if (mins < 0) mins += 1440; // crosses midnight
+  return Number.isFinite(mins) ? Math.max(0, mins) : 0;
+}
+
+function formatMinutes(total: number): string {
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+const cleanSubject = (s: string) => s.replace(/\s*\(revision\)\s*/gi, "").trim();
+
+/** When in the day most finished blocks started. Null with no finished work. */
+function peakTimeOfDay(done: TaskWithTemplate[]): string | null {
+  if (done.length === 0) return null;
+  const buckets = [
+    { label: "Morning", count: 0 },   // 05:00 - 11:59
+    { label: "Afternoon", count: 0 }, // 12:00 - 16:59
+    { label: "Evening", count: 0 },   // 17:00 - 20:59
+    { label: "Night", count: 0 },     // 21:00 - 04:59
+  ];
+  for (const t of done) {
+    const hour = parseInt(t.startTime.split(":")[0], 10);
+    if (Number.isNaN(hour)) continue;
+    if (hour >= 5 && hour < 12) buckets[0].count++;
+    else if (hour >= 12 && hour < 17) buckets[1].count++;
+    else if (hour >= 17 && hour < 21) buckets[2].count++;
+    else buckets[3].count++;
+  }
+  return buckets.reduce((a, b) => (b.count > a.count ? b : a)).label;
+}
+
 export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
-  const [mounted, setMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<TabType>("ALL");
   const [timeRange, setTimeRange] = useState<PeriodType>("ALL");
   const [sortBy, setSortBy] = useState<SortType>("DATE_DESC");
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Dates are formatted in the viewer's time zone, which the server cannot
+  // know, so the log renders after mount rather than risk a hydration mismatch.
+  const mounted = useIsClient();
 
-  // Helper: Get task duration in minutes
-  const getTaskMinutes = (t: TaskWithTemplate): number => {
-    try {
-      const [sH, sM] = t.startTime.split(':').map(Number);
-      const [eH, eM] = t.endTime.split(':').map(Number);
-      let mins = (eH * 60 + eM) - (sH * 60 + sM);
-      if (mins < 0) mins += 1440; // Handle cross-midnight
-      return Math.max(0, mins);
-    } catch (e) {
-      return 0;
-    }
-  };
+  // The period applies to everything on the page; the type tabs and search
+  // narrow only the log.
+  const inPeriod = useMemo(() => {
+    if (timeRange === "ALL") return tasks;
+    const cutoff = startOfDay(subDays(new Date(), timeRange === "7_DAYS" ? 7 : 30));
+    return tasks.filter((t) => isAfter(startOfDay(new Date(t.date)), cutoff));
+  }, [tasks, timeRange]);
 
-  // Filter and sort tasks
   const filteredTasks = useMemo(() => {
-    let result = [...tasks];
+    let result = inPeriod;
 
-    // 1. Filter by search term
     if (searchTerm.trim() !== "") {
       const term = searchTerm.toLowerCase();
-      result = result.filter(t => 
-        t.subject.toLowerCase().includes(term) || 
-        (t.workDescription && t.workDescription.toLowerCase().includes(term))
+      result = result.filter(
+        (t) =>
+          t.subject.toLowerCase().includes(term) ||
+          (t.workDescription && t.workDescription.toLowerCase().includes(term))
       );
     }
 
-    // 2. Filter by tab status/type
-    if (activeTab === "HOMEWORK") {
-      result = result.filter(t => t.type === "HOMEWORK" && t.isDone);
-    } else if (activeTab === "REVISION") {
-      result = result.filter(t => t.type === "REVISION" && t.isDone);
-    } else if (activeTab === "MISSED") {
-      result = result.filter(t => t.isMissed);
-    }
+    if (activeTab === "HOMEWORK") result = result.filter((t) => t.type === "HOMEWORK" && t.isDone);
+    else if (activeTab === "REVISION") result = result.filter((t) => t.type === "REVISION" && t.isDone);
+    else if (activeTab === "MISSED") result = result.filter((t) => t.isMissed);
 
-    // 3. Filter by time period
-    if (timeRange !== "ALL") {
-      const daysLimit = timeRange === "7_DAYS" ? 7 : 30;
-      const cutoffDate = startOfDay(subDays(new Date(), daysLimit));
-      result = result.filter(t => isAfter(startOfDay(new Date(t.date)), cutoffDate));
-    }
-
-    // 4. Sort
-    result.sort((a, b) => {
-      if (sortBy === "DATE_DESC") {
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
-      }
-      if (sortBy === "DATE_ASC") {
-        return new Date(a.date).getTime() - new Date(b.date).getTime();
-      }
-      if (sortBy === "SUBJECT") {
-        return a.subject.localeCompare(b.subject);
-      }
-      if (sortBy === "DURATION") {
-        return getTaskMinutes(b) - getTaskMinutes(a);
-      }
-      return 0;
+    return [...result].sort((a, b) => {
+      if (sortBy === "DATE_DESC") return new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (sortBy === "DATE_ASC") return new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (sortBy === "SUBJECT") return a.subject.localeCompare(b.subject);
+      return taskMinutes(b) - taskMinutes(a);
     });
+  }, [inPeriod, searchTerm, activeTab, sortBy]);
 
-    return result;
-  }, [tasks, searchTerm, activeTab, timeRange, sortBy]);
-
-  // Compute Statistics for the filtered dataset
   const stats = useMemo(() => {
-    const doneTasks = filteredTasks.filter(t => t.isDone);
-    const homeworksCount = doneTasks.filter(t => t.type === "HOMEWORK").length;
-    const revisionsCount = doneTasks.filter(t => t.type === "REVISION").length;
-    const missedCount = filteredTasks.filter(t => t.isMissed).length;
-    const totalCount = filteredTasks.length;
-
-    const totalMinutes = doneTasks.reduce((sum, t) => sum + getTaskMinutes(t), 0);
-    const hours = Math.floor(totalMinutes / 60);
-    const mins = totalMinutes % 60;
-    const timeText = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-
-    const successRate = totalCount > 0 
-      ? Math.round((doneTasks.length / totalCount) * 100) 
-      : 100;
-
+    const done = inPeriod.filter((t) => t.isDone);
+    const missed = inPeriod.filter((t) => t.isMissed).length;
+    const totalMinutes = done.reduce((sum, t) => sum + taskMinutes(t), 0);
+    const counted = done.length + missed;
     return {
-      homeworks: homeworksCount,
-      revisions: revisionsCount,
-      missed: missedCount,
-      timeText,
+      done,
+      homeworks: done.filter((t) => t.type === "HOMEWORK").length,
+      revisions: done.filter((t) => t.type === "REVISION").length,
+      missed,
       totalMinutes,
-      successRate,
-      sessionsCount: doneTasks.length
+      // Done against done + missed. Null rather than a made-up 100% when there
+      // is nothing to count.
+      completionRate: counted > 0 ? Math.round((done.length / counted) * 100) : null,
     };
-  }, [filteredTasks]);
+  }, [inPeriod]);
 
-  // AI Insights derived from history
-  const aiInsights = useMemo(() => {
-    const doneTasks = tasks.filter(t => t.isDone);
-    if (doneTasks.length === 0) {
-      return {
-        peakTime: "No data",
-        mostRevisedSubject: "No data",
-        primaryActivityType: "No data",
-        summary: "Start completing study sessions to unlock personalized AI insights here!"
-      };
+  const patterns = useMemo(() => {
+    const revisionCounts = new Map<string, number>();
+    for (const t of stats.done) {
+      if (t.type !== "REVISION") continue;
+      const sub = cleanSubject(t.subject);
+      revisionCounts.set(sub, (revisionCounts.get(sub) ?? 0) + 1);
     }
-
-    // 1. Calculate Peak Time
-    let morning = 0;   // 05:00 - 11:59
-    let afternoon = 0; // 12:00 - 16:59
-    let evening = 0;   // 17:00 - 20:59
-    let night = 0;     // 21:00 - 04:59
-
-    doneTasks.forEach(t => {
-      try {
-        const hour = parseInt(t.startTime.split(':')[0], 10);
-        if (hour >= 5 && hour < 12) morning++;
-        else if (hour >= 12 && hour < 17) afternoon++;
-        else if (hour >= 17 && hour < 21) evening++;
-        else night++;
-      } catch (e) {}
-    });
-
-    let peakTime = "Evening (5 PM - 9 PM)";
-    let maxCount = evening;
-    if (morning > maxCount) { peakTime = "Morning (5 AM - 12 PM)"; maxCount = morning; }
-    if (afternoon > maxCount) { peakTime = "Afternoon (12 PM - 5 PM)"; maxCount = afternoon; }
-    if (night > maxCount) { peakTime = "Night (9 PM - 5 AM)"; maxCount = night; }
-
-    // 2. Calculate Most Revised Subject
-    const revisions = doneTasks.filter(t => t.type === "REVISION");
-    const revisionSubjectCounts: Record<string, number> = {};
-    revisions.forEach(t => {
-      const sub = t.subject.replace(/\s*\(revision\)\s*/gi, '').trim();
-      revisionSubjectCounts[sub] = (revisionSubjectCounts[sub] || 0) + 1;
-    });
-    let mostRevisedSubject = "None yet";
-    let maxRevCount = 0;
-    Object.entries(revisionSubjectCounts).forEach(([sub, count]) => {
-      if (count > maxRevCount) {
-        mostRevisedSubject = sub;
-        maxRevCount = count;
+    let mostRevised: string | null = null;
+    let max = 0;
+    for (const [sub, count] of revisionCounts) {
+      if (count > max) {
+        mostRevised = sub;
+        max = count;
       }
-    });
-
-    // 3. Primary activity type
-    const homeworksCount = doneTasks.filter(t => t.type === "HOMEWORK").length;
-    const revisionsCount = doneTasks.filter(t => t.type === "REVISION").length;
-    const primaryActivityType = homeworksCount >= revisionsCount ? "Homework & Assignments" : "Revision & Active Recall";
-
-    // 4. Productivity Summary Advice
-    let summary = "";
-    if (peakTime.startsWith("Morning")) {
-      summary = "You are a morning warrior! Capitalize on your high early-day alertness by scheduling your hardest subjects (like Math or Programming) before noon.";
-    } else if (peakTime.startsWith("Afternoon")) {
-      summary = "Your cognitive peak hits in the afternoon. Take advantage of this post-lunch window to crunch complex problem sheets or finish assignment writeups.";
-    } else if (peakTime.startsWith("Evening")) {
-      summary = "You focus best in the evening. This is a perfect routine for winding down your day with deep active recall revision cards or coding labs.";
-    } else {
-      summary = "You are a night owl. Studying late requires discipline; make sure to maintain regular sleep schedules to preserve memory consolidation.";
     }
+    return { peak: peakTimeOfDay(stats.done), mostRevised };
+  }, [stats.done]);
 
-    if (maxRevCount > 0) {
-      summary += ` You are highly dedicated to revising ${mostRevisedSubject}. Try to distribute this level of focus to other subjects as well to balance your syllabus mastery.`;
+  const subjectSplit = useMemo(() => {
+    const breakdown = new Map<string, number>();
+    for (const t of stats.done) {
+      const subject = cleanSubject(t.subject) || "General";
+      breakdown.set(subject, (breakdown.get(subject) ?? 0) + taskMinutes(t));
     }
-
-    return {
-      peakTime,
-      mostRevisedSubject,
-      primaryActivityType,
-      summary
-    };
-  }, [tasks]);
-
-  // Charts processing: 1. Subject breakdown
-  const pieChartData = useMemo(() => {
-    const breakdown: Record<string, number> = {};
-    filteredTasks.filter(t => t.isDone).forEach(t => {
-      const subject = t.subject.replace(/\s*\(revision\)\s*/gi, '').trim() || 'General';
-      breakdown[subject] = (breakdown[subject] || 0) + getTaskMinutes(t);
-    });
-
-    return Object.entries(breakdown)
-      .map(([name, value]) => ({ name, value }))
-      .filter(item => item.value > 0)
+    return Array.from(breakdown, ([name, value]) => ({ name, value }))
+      .filter((item) => item.value > 0)
       .sort((a, b) => b.value - a.value);
-  }, [filteredTasks]);
+  }, [stats.done]);
 
-  // Charts processing: 2. Focus Curve (daily minutes over selected range)
-  const areaChartData = useMemo(() => {
-    // Generate dates based on selected range (7 days, 30 days, or 14 days default for 'ALL')
+  const dailyMinutes = useMemo(() => {
+    // "All time" charts the last two weeks: a curve across a whole year of
+    // days is too dense to read.
     const rangeDays = timeRange === "7_DAYS" ? 7 : timeRange === "30_DAYS" ? 30 : 14;
-    const dataList = [];
-
-    for (let i = rangeDays - 1; i >= 0; i--) {
-      const date = subDays(new Date(), i);
-      const dateStrStr = format(date, "yyyy-MM-dd");
-      const label = format(date, "MMM dd");
-      
-      // Sum minutes for tasks done on this specific date
-      const dayMins = tasks
-        .filter(t => t.isDone && format(new Date(t.date), "yyyy-MM-dd") === dateStrStr)
-        .reduce((sum, t) => sum + getTaskMinutes(t), 0);
-
-      dataList.push({
-        dateLabel: label,
-        minutes: dayMins
-      });
+    const byDay = new Map<string, number>();
+    for (const t of tasks) {
+      if (!t.isDone) continue;
+      const key = format(new Date(t.date), "yyyy-MM-dd");
+      byDay.set(key, (byDay.get(key) ?? 0) + taskMinutes(t));
     }
-    return dataList;
+    return Array.from({ length: rangeDays }, (_, i) => {
+      const date = subDays(new Date(), rangeDays - 1 - i);
+      return {
+        dateLabel: format(date, "MMM d"),
+        minutes: byDay.get(format(date, "yyyy-MM-dd")) ?? 0,
+      };
+    });
   }, [tasks, timeRange]);
 
-  const PIE_COLORS = ['#3b82f6', '#f97316', '#8b5cf6', '#10b981', '#ef4444', '#f59e0b', '#ec4899', '#06b6d4'];
+  if (!mounted) return <PageSkeleton layout="list" />;
 
-  if (!mounted) {
-    return (
-      <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto animate-pulse pb-16 px-4 md:px-8">
-        <div className="h-20 bg-muted/30 rounded-2xl" />
-        <div className="grid grid-cols-6 gap-6">
-          {[...Array(6)].map((_, i) => <div key={i} className="h-28 bg-muted/30 rounded-2xl" />)}
-        </div>
-      </div>
-    );
-  }
-
-  const toggleExpandTask = (id: string) => {
-    setExpandedTaskId(expandedTaskId === id ? null : id);
-  };
+  const periodLabel =
+    timeRange === "7_DAYS" ? "in the last 7 days" : timeRange === "30_DAYS" ? "in the last 30 days" : "so far";
+  const filtersActive = searchTerm.trim() !== "" || activeTab !== "ALL";
 
   return (
-    <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto px-4 md:px-8 pb-16 animate-in fade-in duration-500">
-
-      {/* Page Header */}
-      <div className="pt-6 pb-2 border-b border-border/40 flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-1" data-tour="history-intro">
-          <h1 className="text-2xl font-heading font-bold tracking-tight text-foreground">Activity Analytics</h1>
-          <p className="text-sm text-muted-foreground">
-            Evaluate your study trends, filters, and logs of completed work.
-          </p>
-        </div>
-
-        {/* Floating Time Period Range Selector */}
-        <div className="flex items-center gap-2 bg-muted/40 border p-1 rounded-xl w-fit self-start md:self-auto">
-          <button
-            onClick={() => setTimeRange("ALL")}
-            className={cn(
-              "px-4 py-2 rounded-xl text-xs font-medium transition-colors",
-              timeRange === "ALL" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            All Time
-          </button>
-          <button
-            onClick={() => setTimeRange("7_DAYS")}
-            className={cn(
-              "px-4 py-2 rounded-xl text-xs font-medium transition-colors",
-              timeRange === "7_DAYS" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Last 7D
-          </button>
-          <button
-            onClick={() => setTimeRange("30_DAYS")}
-            className={cn(
-              "px-4 py-2 rounded-xl text-xs font-medium transition-colors",
-              timeRange === "30_DAYS" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Last 30D
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Cards Overview Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-        <StatCard
-          label="Assignments Secured"
-          value={stats.homeworks}
-          icon={<BookOpen className="w-5 h-5 text-blue-500" />}
-          description="Homework sessions done"
-          borderClass="border-blue-500/10"
-        />
-        <StatCard
-          label="Active Recall Blocks"
-          value={stats.revisions}
-          icon={<Repeat className="w-5 h-5 text-orange-500" />}
-          description="Revision sessions done"
-          borderClass="border-orange-500/10"
-        />
-        <StatCard
-          label="Total Hours Focused"
-          value={stats.timeText}
-          icon={<Clock className="w-5 h-5 text-teal-500" />}
-          description="Formatted focus duration"
-          borderClass="border-teal-500/10"
-        />
-        <StatCard
-          label="Session Efficiency"
-          value={`${stats.successRate}%`}
-          icon={<Zap className="w-5 h-5 text-purple-500" />}
-          description="Done vs missed ratio"
-          borderClass="border-purple-500/10"
-        />
-        <StatCard
-          label="Longest Day Streak"
-          value={`${userProgress?.longestStreak || 0} Days`}
-          icon={<Trophy className="w-5 h-5 text-yellow-500" />}
-          description="Your all-time record"
-          borderClass="border-yellow-500/10"
-        />
-      </div>
-
-      {/* AI Study Insights Panel */}
-      <div className="bg-card border border-border/60 shadow-sm rounded-2xl p-6">
-        <h3 className="font-heading font-bold text-lg mb-1 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-primary" />
-          AI study insights
-        </h3>
-        <p className="text-sm text-muted-foreground mb-5">Automated analytics derived from your study logs.</p>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Peak Focus Time */}
-          <div className="bg-muted/40 border border-border/40 p-5 rounded-xl flex flex-col justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Peak focus hour</span>
-            <span className="text-lg font-heading font-bold text-foreground mt-2 flex items-center gap-2">
-              <Clock className="w-4.5 h-4.5 text-primary" />
-              {aiInsights.peakTime}
-            </span>
-          </div>
-
-          {/* Core Focus Area */}
-          <div className="bg-muted/40 border border-border/40 p-5 rounded-xl flex flex-col justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Most revised subject</span>
-            <span className="text-lg font-heading font-bold text-foreground mt-2 flex items-center gap-2">
-              <Repeat className="w-4.5 h-4.5 text-orange-500" />
-              {aiInsights.mostRevisedSubject}
-            </span>
-          </div>
-
-          {/* Primary Study Type */}
-          <div className="bg-muted/40 border border-border/40 p-5 rounded-xl flex flex-col justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Primary activity</span>
-            <span className="text-lg font-heading font-bold text-foreground mt-2 flex items-center gap-2">
-              <BookOpen className="w-4.5 h-4.5 text-teal-500" />
-              {aiInsights.primaryActivityType}
-            </span>
-          </div>
-        </div>
-
-        {/* AI Briefing Message */}
-        <div className="mt-5 p-4.5 bg-muted/30 rounded-xl border border-border/40 text-sm text-muted-foreground leading-relaxed flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <p className="flex-1">
-            {aiInsights.summary}
-          </p>
-
-          <Link
-            href={`/ai?prompt=${encodeURIComponent(`Let's discuss my study history. According to my analytics, my peak focus hour is during the ${aiInsights.peakTime}, my most revised subject is ${aiInsights.mostRevisedSubject}, and I focus mostly on ${aiInsights.primaryActivityType}. What advice do you have to help me optimize my routine?`)}`}
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium px-4 py-2.5 rounded-xl transition-colors shrink-0 self-start sm:self-auto"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Consult buddy</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Visual Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* Chart 1: Donut Time Distribution (8 columns on large screens) */}
-        <div className="lg:col-span-5 bg-card border border-border/60 p-8 rounded-2xl shadow-sm flex flex-col justify-between">
-          <div className="mb-6">
-            <h3 className="font-heading font-bold text-lg mb-1">Time Distribution</h3>
-            <p className="text-sm text-muted-foreground">Focus duration breakdown across subjects.</p>
-          </div>
-
-          <div className="h-[280px] w-full flex items-center justify-center relative">
-            {pieChartData.length > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieChartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={75}
-                      outerRadius={105}
-                      paddingAngle={4}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {pieChartData.map((_entry, index) => (
-                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={TOOLTIP_STYLE}
-                      formatter={(value: any) => [`${value} mins`, 'Duration']}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-
-                {/* Center text displaying aggregate total focus time */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
-                  <span className="text-xs font-medium text-muted-foreground leading-none">Total focused</span>
-                  <span className="text-2xl font-heading font-black text-foreground mt-1.5">{stats.timeText}</span>
-                </div>
-              </>
-            ) : (
-              <div className="text-center space-y-2">
-                <div className="p-4 bg-muted/60 rounded-full inline-block">
-                  <Clock className="w-8 h-8 text-muted-foreground/30" />
-                </div>
-                <p className="text-sm text-muted-foreground">No data available for this range.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Color Indicators Legend */}
-          {pieChartData.length > 0 && (
-            <div className="grid grid-cols-2 gap-3 mt-6 border-t pt-5 border-border/40">
-              {pieChartData.slice(0, 6).map((item, i) => (
-                <div key={item.name} className="flex items-center gap-2 min-w-0">
-                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
-                  <span className="text-xs text-muted-foreground truncate" title={item.name}>{item.name}</span>
-                  <span className="text-xs font-medium text-muted-foreground/40 ml-auto shrink-0">
-                    {Math.round((item.value / stats.totalMinutes) * 100)}%
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Chart 2: Focus Consistency Curve (7 columns) */}
-        <div className="lg:col-span-7 bg-card border border-border/60 p-8 rounded-2xl shadow-sm flex flex-col justify-between">
-          <div className="mb-6">
-            <h3 className="font-heading font-bold text-lg mb-1">Focus Consistency Curve</h3>
-            <p className="text-sm text-muted-foreground">Trend of daily study minutes over the range.</p>
-          </div>
-
-          <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={areaChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorMinutes" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.35}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                <XAxis
-                  dataKey="dateLabel"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 10, fontWeight: 'bold', fill: 'var(--muted-foreground)' }}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 10, fontWeight: 'bold', fill: 'var(--muted-foreground)' }}
-                  unit="m"
-                />
-                <Tooltip
-                  contentStyle={TOOLTIP_STYLE}
-                  formatter={(value: any) => [`${value} mins`, 'Time Focused']}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="minutes" 
-                  stroke="#3b82f6" 
-                  strokeWidth={2.5}
-                  fillOpacity={1} 
-                  fill="url(#colorMinutes)" 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="mt-6 p-4.5 bg-muted/30 rounded-xl border border-border/40 text-sm text-muted-foreground flex items-center gap-2">
-            <Zap className="w-4 h-4 text-primary shrink-0" />
-            <span>
-              You finalized <span className="text-primary font-medium">{stats.sessionsCount} sessions</span> within this window. Keep the curve rising!
-            </span>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Ledger and Search / Filter Header */}
-      <div className="space-y-6">
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-          <h2 className="text-2xl font-heading font-bold tracking-tight text-foreground">Performance Log</h2>
-
-          {/* Controls Bar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 flex-1 max-w-4xl justify-end">
-
-            {/* Search Bar */}
-            <div className="relative flex-1 min-w-[200px]">
-              <label htmlFor="history-search" className="sr-only">Search subject or logs</label>
-              <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-              <Input
-                id="history-search"
-                placeholder="Search subject or logs..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-10 pl-9 pr-4 rounded-xl border border-border/60 bg-card text-sm"
+    <Page>
+      {/* The onboarding tour anchors on this. */}
+      <div data-tour="history-intro">
+        <PageHeader
+          title="History"
+          description="Every study block you finished, and the ones you missed."
+          actions={
+            <>
+              <Segmented
+                label="Period"
+                value={timeRange}
+                options={[
+                  { value: "7_DAYS", label: "7 days", onSelect: () => setTimeRange("7_DAYS") },
+                  { value: "30_DAYS", label: "30 days", onSelect: () => setTimeRange("30_DAYS") },
+                  { value: "ALL", label: "All time", onSelect: () => setTimeRange("ALL") },
+                ]}
               />
-            </div>
-
-            {/* Sort Dropdown Selector */}
-            <div className="flex items-center gap-2 bg-card border border-border/60 rounded-xl px-3 h-10 shrink-0">
-              <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
-              <label htmlFor="history-sort" className="sr-only">Sort by</label>
-              <select
-                id="history-sort"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortType)}
-                className="bg-transparent border-none text-xs font-medium text-muted-foreground focus:outline-none cursor-pointer pr-4"
-              >
-                <option value="DATE_DESC">Newest first</option>
-                <option value="DATE_ASC">Oldest first</option>
-                <option value="SUBJECT">Subject A-Z</option>
-                <option value="DURATION">Longest study</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Ledger Filter Tabs */}
-        <div className="flex flex-wrap items-center gap-2.5 border-b pb-4 border-border/30">
-          {(["ALL", "HOMEWORK", "REVISION", "MISSED"] as TabType[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                "px-5 py-2 rounded-xl text-xs font-medium border transition-colors",
-                activeTab === tab
-                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                  : "bg-card text-muted-foreground border-border/60 hover:text-foreground"
-              )}
-            >
-              {tab === "ALL" && "All entries"}
-              {tab === "HOMEWORK" && "Completed homework"}
-              {tab === "REVISION" && "Completed revisions"}
-              {tab === "MISSED" && "Missed block logs"}
-            </button>
-          ))}
-          <span className="text-xs font-medium text-muted-foreground ml-auto mr-2">
-            Showing {filteredTasks.length} results
-          </span>
-        </div>
-
-        {/* Expanding Log Grid Rows */}
-        <div className="space-y-4">
-          {filteredTasks.length === 0 ? (
-            <div className="text-sm font-medium text-muted-foreground text-center py-6 bg-muted/50 rounded-2xl border border-border/50">
-              No matching records found. Try adjusting your search or filters.
-            </div>
-          ) : (
-            filteredTasks.map((task) => {
-              const isExpanded = expandedTaskId === task.id;
-              const durationMins = getTaskMinutes(task);
-
-              return (
-                <div
-                  key={task.id}
-                  className={cn(
-                    "bg-card border rounded-2xl overflow-hidden transition-all duration-200 shadow-sm",
-                    isExpanded
-                      ? "border-primary/40 shadow-md"
-                      : "border-border/60 hover:border-border"
-                  )}
-                >
-                  {/* Row Header Trigger */}
-                  <div
-                    onClick={() => toggleExpandTask(task.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        toggleExpandTask(task.id);
-                      }
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={isExpanded}
-                    className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer select-none"
-                  >
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-
-                      {/* Check/X Status Circle Indicator */}
-                      <div className={cn(
-                        "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border",
-                        task.isDone
-                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                          : "bg-red-500/10 text-red-500 border-red-500/20"
-                      )}>
-                        {task.isDone ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <h4 className="font-heading font-bold text-lg text-foreground truncate">{task.subject}</h4>
-                          <span className={cn(
-                            "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border",
-                            task.type === "HOMEWORK"
-                              ? "bg-blue-500/5 text-blue-500 border-blue-500/20"
-                              : "bg-orange-500/5 text-orange-500 border-orange-500/20"
-                          )}>
-                            {task.type}
-                          </span>
-                        </div>
-
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {format(new Date(task.date), 'EEEE, MMMM do, yyyy')}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Right column with time summary / toggle chevron */}
-                    <div className="flex items-center gap-4 shrink-0 ml-14 sm:ml-0">
-                      <DeleteTaskButton taskId={task.id} className="h-9 w-9" />
-                      <div className="text-right hidden md:block">
-                        <p className="text-xs font-medium text-muted-foreground">{task.startTime} - {task.endTime}</p>
-                        <p className="text-xs font-medium text-muted-foreground/60 mt-1">Duration: {durationMins}m</p>
-                      </div>
-
-                      <div
-                        className={cn(
-                          "p-2 rounded-xl border border-border/50 text-muted-foreground",
-                          isExpanded && "bg-muted text-primary border-primary/20"
-                        )}
-                        aria-hidden="true"
-                      >
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Expandable Panel */}
-                  <AnimatePresence initial={false}>
-                    {isExpanded && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.25, ease: "easeInOut" }}
-                        className="border-t border-border/40 bg-muted/10"
-                      >
-                        <div className="p-6 space-y-6">
-
-                          {/* Duration Badge stats for mobile */}
-                          <div className="grid grid-cols-2 gap-4 md:hidden border-b pb-4 border-border/40">
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground leading-none">Time slot</p>
-                              <p className="text-xs font-semibold text-foreground mt-1.5">{task.startTime} - {task.endTime}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground leading-none">Total minutes</p>
-                              <p className="text-xs font-semibold text-foreground mt-1.5">{durationMins} minutes</p>
-                            </div>
-                          </div>
-
-                          {/* Work proof details */}
-                          <div className="space-y-3">
-                            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                              <FileEdit className="w-3.5 h-3.5" />
-                              <span>Proof of work ledger</span>
-                            </p>
-
-                            {task.workDescription ? (
-                              <div className="bg-card border p-5 rounded-2xl relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
-                                <p className="text-sm font-medium text-foreground leading-relaxed italic">
-                                  &quot;{task.workDescription}&quot;
-                                </p>
-                              </div>
-                            ) : (
-                              <div className="text-xs text-muted-foreground/60 italic py-2">
-                                No written reflection or text log was attached to this session.
-                              </div>
-                            )}
-
-                            {/* View supplementary PDF upload */}
-                            {task.proofPdfUrl && (
-                              <div className="pt-3 flex items-center gap-3">
-                                <a
-                                  href={task.proofPdfUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 p-3 px-5 rounded-xl text-primary hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
-                                >
-                                  <FileText className="w-4 h-4" />
-                                  <span className="text-xs font-medium">Open supplementary PDF document</span>
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })
-          )}
-        </div>
+              <Button asChild size="lg">
+                <Link href="/">
+                  <ListChecks />
+                  Today&apos;s tasks
+                </Link>
+              </Button>
+            </>
+          }
+        />
       </div>
-    </div>
+
+      <PageBody>
+        {tasks.length === 0 ? (
+          <EmptyState
+            icon={<HistoryIcon />}
+            title="Nothing finished yet"
+            description="Tick off a study block on Today and it lands here, with the time you spent and any notes you added."
+            action={
+              <Button asChild>
+                <Link href="/">Go to today</Link>
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <Panel className="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 xl:grid-cols-5">
+              <Stat icon={<BookOpen />} tone="primary" label="Homework done" value={stats.homeworks} hint={periodLabel} />
+              <Stat icon={<Repeat />} tone="warning" label="Revision done" value={stats.revisions} hint={periodLabel} />
+              <Stat icon={<Clock />} label="Time studied" value={formatMinutes(stats.totalMinutes)} hint="From finished blocks" />
+              <Stat
+                icon={<CheckCircle2 />}
+                tone="success"
+                label="Completion"
+                value={stats.completionRate == null ? "No data" : `${stats.completionRate}%`}
+                hint={`${stats.missed} missed ${periodLabel}`}
+              />
+              <Link
+                href="/streak"
+                className="-m-2 rounded-xl p-2 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <Stat
+                  icon={<Trophy />}
+                  label="Best streak"
+                  value={`${userProgress?.longestStreak ?? 0} days`}
+                  hint="Your all-time record"
+                />
+              </Link>
+            </Panel>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+              <Panel className="lg:col-span-5">
+                <PanelTitle icon={<Clock />}>Time by subject</PanelTitle>
+                {subjectSplit.length > 0 ? (
+                  <>
+                    <div className="relative">
+                      <ChartFrame>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={subjectSplit} cx="50%" cy="50%" innerRadius={75} outerRadius={105} paddingAngle={4} dataKey="value" stroke="none">
+                              {subjectSplit.map((item, index) => (
+                                <Cell key={item.name} fill={SUBJECT_COLORS[index % SUBJECT_COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value) => [`${value} min`, "Time"]} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </ChartFrame>
+                      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-xs font-medium text-muted-foreground">Total</span>
+                        <span className="font-heading text-2xl font-black text-foreground">{formatMinutes(stats.totalMinutes)}</span>
+                      </div>
+                    </div>
+                    <ul className="mt-4 grid grid-cols-2 gap-3 border-t border-border/40 pt-4">
+                      {subjectSplit.slice(0, 6).map((item, i) => (
+                        <li key={item.name} className="flex min-w-0 items-center gap-2">
+                          <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: SUBJECT_COLORS[i % SUBJECT_COLORS.length] }} />
+                          <span className="truncate text-xs text-muted-foreground" title={item.name}>{item.name}</span>
+                          <span className="ml-auto shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+                            {Math.round((item.value / stats.totalMinutes) * 100)}%
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <EmptyState
+                    title="No finished blocks in this period"
+                    description="Pick a longer period, or finish a block today."
+                    action={
+                      <Button variant="outline" size="sm" onClick={() => setTimeRange("ALL")}>
+                        Show all time
+                      </Button>
+                    }
+                  />
+                )}
+              </Panel>
+
+              <Panel className="lg:col-span-7">
+                <PanelTitle icon={<Sparkles />}>Daily study time</PanelTitle>
+                <ChartFrame>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={dailyMinutes} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                      <XAxis dataKey="dateLabel" axisLine={false} tickLine={false} tick={AXIS_TICK} />
+                      <YAxis axisLine={false} tickLine={false} tick={AXIS_TICK} unit="m" />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value) => [`${value} min`, "Studied"]} />
+                      <Area type="monotone" dataKey="minutes" stroke={CHART_PRIMARY} strokeWidth={2.5} fill={CHART_PRIMARY} fillOpacity={0.12} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </ChartFrame>
+                {(patterns.peak || patterns.mostRevised) && (
+                  <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-border/40 pt-4 text-sm text-muted-foreground">
+                    {patterns.peak && (
+                      <span>
+                        You finish most in the <span className="font-semibold text-foreground">{patterns.peak.toLowerCase()}</span>
+                      </span>
+                    )}
+                    {patterns.mostRevised && (
+                      <span>
+                        Most revised: <span className="font-semibold text-foreground">{patterns.mostRevised}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </Panel>
+            </div>
+
+            <Section
+              title="Log"
+              actions={
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                  <div className="relative sm:w-64">
+                    <label htmlFor="history-search" className="sr-only">Search subject or notes</label>
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="history-search"
+                      placeholder="Search subject or notes"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="h-9 rounded-xl pl-9"
+                    />
+                  </div>
+                  <div className="flex h-9 items-center gap-2 rounded-xl border border-border bg-card px-3">
+                    <ArrowUpDown className="size-3.5 shrink-0 text-muted-foreground" />
+                    <label htmlFor="history-sort" className="sr-only">Sort by</label>
+                    <select
+                      id="history-sort"
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as SortType)}
+                      className="w-full cursor-pointer bg-transparent text-sm font-medium text-foreground focus:outline-none"
+                    >
+                      <option value="DATE_DESC">Newest first</option>
+                      <option value="DATE_ASC">Oldest first</option>
+                      <option value="SUBJECT">Subject A to Z</option>
+                      <option value="DURATION">Longest first</option>
+                    </select>
+                  </div>
+                </div>
+              }
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <Segmented
+                  label="Entry type"
+                  value={activeTab}
+                  options={(Object.keys(TAB_LABELS) as TabType[]).map((tab) => ({
+                    value: tab,
+                    label: TAB_LABELS[tab],
+                    onSelect: () => setActiveTab(tab),
+                  }))}
+                />
+                <span className="text-sm text-muted-foreground" aria-live="polite">
+                  {filteredTasks.length} {filteredTasks.length === 1 ? "entry" : "entries"}
+                </span>
+              </div>
+
+              {filteredTasks.length === 0 ? (
+                <EmptyState
+                  icon={<Search />}
+                  title="No entries match"
+                  description={filtersActive ? "Nothing in this period matches your search and filter." : "Nothing was logged in this period."}
+                  action={
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSearchTerm("");
+                        setActiveTab("ALL");
+                        setTimeRange("ALL");
+                      }}
+                    >
+                      Clear filters
+                    </Button>
+                  }
+                />
+              ) : (
+                <div className="space-y-3">
+                  {filteredTasks.map((task) => (
+                    <LogRow
+                      key={task.id}
+                      task={task}
+                      expanded={expandedTaskId === task.id}
+                      onToggle={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </Section>
+          </>
+        )}
+      </PageBody>
+    </Page>
   );
 }
 
-// Compact Subcard widget
-interface StatCardProps {
-  label: string;
-  value: string | number;
-  icon: React.ReactNode;
-  description: string;
-  borderClass?: string;
-}
+/**
+ * One logged block. The toggle and the delete button are siblings rather than
+ * one nested inside the other - a button inside a button is invalid and
+ * breaks keyboard and screen-reader use.
+ */
+function LogRow({
+  task,
+  expanded,
+  onToggle,
+}: {
+  task: TaskWithTemplate;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const minutes = taskMinutes(task);
+  const panelId = `history-entry-${task.id}`;
 
-function StatCard({ label, value, icon, description, borderClass }: StatCardProps) {
   return (
-    <div className={cn(
-      "bg-card border p-6 rounded-2xl shadow-sm",
-      borderClass
-    )}>
-      <div className="flex items-center justify-between mb-4">
-        <div className="p-3 bg-muted/60 rounded-2xl">
-          {icon}
+    <Panel padded={false} className={cn("overflow-hidden", expanded && "border-primary/40")}>
+      <div className="flex items-center gap-2 pr-4">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          aria-controls={panelId}
+          className="flex min-w-0 flex-1 items-center gap-4 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50 sm:p-5"
+        >
+          <span
+            className={cn(
+              "flex size-10 shrink-0 items-center justify-center rounded-xl border",
+              task.isDone
+                ? "border-success/20 bg-success/10 text-success"
+                : "border-destructive/20 bg-destructive/10 text-destructive"
+            )}
+          >
+            {task.isDone ? <CheckCircle2 className="size-5" aria-label="Done" /> : <XCircle className="size-5" aria-label="Missed" />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="truncate font-bold text-foreground">{task.subject}</span>
+              <Pill
+                tone={task.type === "HOMEWORK" ? "primary" : "warning"}
+                className={cn(task.type === "REVISION" && "border-dashed")}
+              >
+                {task.type === "HOMEWORK" ? "Homework" : "Revision"}
+              </Pill>
+            </span>
+            <span className="mt-0.5 block text-xs font-medium text-muted-foreground">
+              {format(new Date(task.date), "EEE d MMM yyyy")} · {task.startTime} to {task.endTime} · {minutes} min
+            </span>
+          </span>
+          <ChevronDown
+            className={cn("size-4 shrink-0 text-muted-foreground transition-transform", expanded && "rotate-180")}
+            aria-hidden="true"
+          />
+        </button>
+        <DeleteTaskButton taskId={task.id} className="size-9 shrink-0" />
+      </div>
+
+      {expanded && (
+        <div id={panelId} className="space-y-3 border-t border-border/40 bg-muted/20 p-5">
+          <p className="text-xs font-medium text-muted-foreground">What you did</p>
+          {task.workDescription ? (
+            <p className="border-l-2 border-primary pl-4 text-sm leading-relaxed text-foreground">
+              {task.workDescription}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">No notes were added to this block.</p>
+          )}
+          {task.proofPdfUrl && (
+            <Button asChild variant="outline" size="sm">
+              <a href={task.proofPdfUrl} target="_blank" rel="noreferrer">
+                <FileText />
+                Open attached PDF
+              </a>
+            </Button>
+          )}
         </div>
-        <span className="text-2xl font-heading font-black tracking-tight text-foreground select-all">{value}</span>
-      </div>
-      <div>
-        <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
-        <p className="text-xs text-muted-foreground/80">{description}</p>
-      </div>
-    </div>
+      )}
+    </Panel>
   );
 }

@@ -8,17 +8,18 @@ import {
   CalendarClock,
   CheckCircle,
   FileText,
+  FolderKanban,
   FolderOpen,
   GraduationCap,
   Home,
   Layers,
   LayoutGrid,
-  LayoutDashboard,
   Library,
   Settings,
   Sparkles,
   StickyNote,
   Target,
+  Timer,
   Trophy,
   TrendingUp,
   type LucideIcon,
@@ -37,12 +38,21 @@ export type NavSection = NavLeaf & {
 };
 
 /**
- * The whole app's navigation, in one place.
+ * The whole app's navigation, in one place. Six sections, each named for what
+ * the student is doing rather than for the tables behind it:
  *
- * Six destinations, not twenty-seven. Nothing was deleted — every route that
- * used to sit in the sidebar is still here, one level down, and the command
- * palette (Cmd+K) reaches all of them directly. The sidebar's job is to answer
- * "where am I and where can I go", not to list every feature that exists.
+ *   Today     what to do right now (the dashboard)
+ *   Schedule  when things happen - the week, the month, and the two recurring
+ *             timetables (study routine, school lessons) that fill them
+ *   Subjects  what you study - each subject, and its homework, exams, files
+ *   Study     doing the work - practice sets, focus sessions, notes, projects
+ *   Progress  how it is going - insights, history, marks, goals, reports
+ *   Settings  the account, and the academic year it is organised by
+ *
+ * A section's href IS its first page. There are no "overview" hub pages: a
+ * hub that only links to its children is a page with nothing to do on it.
+ * Every page is reachable from the sidebar, the section tabs under the header
+ * and the command palette (Cmd+K), which indexes this list.
  */
 export const NAV: NavSection[] = [
   {
@@ -52,15 +62,14 @@ export const NAV: NavSection[] = [
     keywords: "dashboard home focus tasks",
   },
   {
-    name: "Plan",
-    href: "/plan",
+    name: "Schedule",
+    href: "/timetable",
     icon: Calendar,
     children: [
-      { name: "Overview", href: "/plan", icon: LayoutDashboard, keywords: "plan hub schedule overview" },
-      { name: "Calendar", href: "/calendar", icon: Calendar, keywords: "month grid dates" },
-      { name: "This Week", href: "/timetable", icon: LayoutGrid, keywords: "week schedule" },
-      { name: "Weekly Timetable", href: "/manage", icon: Layers, keywords: "templates recurring manage schedule" },
-      { name: "Year & Terms", href: "/year", icon: GraduationCap, keywords: "class term semester pause archive academic year" },
+      { name: "Week", href: "/timetable", icon: LayoutGrid, keywords: "this week schedule plan" },
+      { name: "Month", href: "/calendar", icon: Calendar, keywords: "calendar month grid dates" },
+      { name: "Study routine", href: "/manage", icon: Layers, keywords: "weekly timetable templates recurring manage schedule" },
+      { name: "School lessons", href: "/school-timetable", icon: GraduationCap, keywords: "school timetable lessons classes school day upload photo" },
     ],
   },
   {
@@ -68,47 +77,41 @@ export const NAV: NavSection[] = [
     href: "/subjects",
     icon: Library,
     children: [
-      { name: "All Subjects", href: "/subjects", icon: Library, keywords: "courses modules" },
-      { name: "Exams", href: "/exams", icon: GraduationCap, keywords: "assessments tests papers" },
+      { name: "Subjects", href: "/subjects", icon: Library, keywords: "courses modules" },
       { name: "Homework", href: "/homeworks", icon: BookOpen, keywords: "assignments due" },
-      { name: "Resources", href: "/resources", icon: Layers, keywords: "files links pdfs" },
-    ],
-  },
-  {
-    name: "Progress",
-    href: "/progress",
-    icon: Activity,
-    children: [
-      { name: "Overview", href: "/progress", icon: LayoutDashboard, keywords: "progress hub overview" },
-      { name: "Insights", href: "/insights", icon: Activity, keywords: "stats analytics charts" },
-      { name: "History", href: "/history", icon: CheckCircle, keywords: "completed done log" },
-      { name: "Marks", href: "/marks", icon: TrendingUp, keywords: "grades results report card" },
-      { name: "Goals", href: "/goals", icon: Target, keywords: "targets" },
-      { name: "Summaries", href: "/summaries", icon: FileText, keywords: "weekly review" },
-      { name: "Daily Summary", href: "/daily-summary", icon: CalendarClock, keywords: "day review" },
-      { name: "Streak", href: "/streak", icon: Trophy, keywords: "consistency days" },
-      { name: "Ranks", href: "/ranks", icon: Trophy, keywords: "xp level badges" },
+      { name: "Exams", href: "/exams", icon: GraduationCap, keywords: "assessments tests papers" },
+      { name: "Resources", href: "/resources", icon: FolderOpen, keywords: "files links pdfs library" },
     ],
   },
   {
     name: "Study",
-    href: "/study",
+    href: "/ai",
     icon: Sparkles,
     children: [
-      { name: "Overview", href: "/study", icon: LayoutDashboard, keywords: "study hub overview tools" },
-      // One AI, not three. "AI Buddy", "AI Tutor" and "AI Notes" read as three
-      // separate products a student had to choose between before they had even
-      // asked their question; they were one assistant with three front doors.
       {
-        name: "AI Study",
+        name: "Practice",
         href: "/ai",
         icon: BrainCircuit,
-        keywords: "quiz flashcards mock exam generate questions pdf word document revision test me",
+        keywords: "ai study quiz flashcards mock exam generate questions pdf word document revision test me",
       },
-      { name: "Sticky Notes", href: "/notes", icon: StickyNote, keywords: "scratch reminders" },
-      { name: "Projects", href: "/projects", icon: FolderOpen, keywords: "coursework docs" },
+      { name: "Focus", href: "/focus", icon: Timer, keywords: "focus mode timer pomodoro concentrate music" },
+      { name: "Notes", href: "/notes", icon: StickyNote, keywords: "sticky notes scratch reminders" },
+      { name: "Projects", href: "/projects", icon: FolderKanban, keywords: "coursework docs" },
       { name: "Calculator", href: "/calculator", icon: Calculator, keywords: "maths compute" },
       { name: "Bible", href: "/bible", icon: Book, keywords: "verse scripture" },
+    ],
+  },
+  {
+    name: "Progress",
+    href: "/insights",
+    icon: Activity,
+    children: [
+      { name: "Insights", href: "/insights", icon: Activity, keywords: "progress stats analytics charts attention" },
+      { name: "History", href: "/history", icon: CheckCircle, keywords: "completed done log" },
+      { name: "Marks", href: "/marks", icon: TrendingUp, keywords: "grades results report card" },
+      { name: "Goals", href: "/goals", icon: Target, keywords: "targets" },
+      { name: "Reports", href: "/summaries", icon: FileText, keywords: "daily summary weekly review report pdf" },
+      { name: "Streak", href: "/streak", icon: Trophy, keywords: "consistency days xp level rank badges" },
     ],
   },
   {
@@ -116,8 +119,8 @@ export const NAV: NavSection[] = [
     href: "/settings",
     icon: Settings,
     children: [
-      { name: "Settings", href: "/settings", icon: Settings, keywords: "preferences account timezone ai keys" },
-      { name: "School Timetable", href: "/school-timetable", icon: GraduationCap, keywords: "lessons classes school day upload photo" },
+      { name: "Settings", href: "/settings", icon: Settings, keywords: "preferences account timezone ai keys sync" },
+      { name: "Year & terms", href: "/year", icon: CalendarClock, keywords: "class term semester pause archive academic year" },
     ],
   },
 ];
@@ -164,13 +167,17 @@ export function resolveNav(pathname: string | null): {
   }
 
   // Longest matching href wins, so /projects/abc resolves to Projects.
-  const best = matches.sort((a, b) => b.score - a.score)[0] ?? null;
+  // On a tie (a section's href is its first page's) the page wins, so the
+  // header can name it.
+  const best =
+    matches.sort((a, b) => b.score - a.score || Number(!!b.leaf) - Number(!!a.leaf))[0] ?? null;
 
   if (!best) return null;
   const { section, leaf } = best;
-  // A leaf that just repeats its section (Settings > Settings, or a hub's own
-  // "Overview") adds noise.
-  const repeats = leaf && (leaf.name === section.name || leaf.href === section.href);
+  // A leaf that just repeats its section's name (Settings > Settings,
+  // Subjects > Subjects) adds noise. A section's first page keeps its own name
+  // ("Week" under Schedule), since that is what the tabs call it.
+  const repeats = leaf && leaf.name === section.name;
   return { section, leaf: repeats ? undefined : leaf };
 }
 
