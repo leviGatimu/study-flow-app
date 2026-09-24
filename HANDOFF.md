@@ -7,8 +7,15 @@ Dashboard, remove random features (named: Deep Study Studio), no dead ends.
 Levi called the 1.0.8 hubs/homework/subject restyle "shit" - superseded.
 
 ## Status
-BUILT, TYPE-CLEAN, VERIFIED SIGNED IN (Levi's account, local dev server,
-2026-09-24). NOT COMMITTED (Levi did not ask). 171 files, +9.4k/-16.3k.
+RELEASED: desktop 1.0.9 at
+https://github.com/leviGatimu/study-flow-app/releases/tag/v1.0.9 (sha512 of
+the installer checked against latest.yml; releases/latest serves 1.0.9).
+main PUSHED (cce905a refactor + 04afd40 version bump). WEB DID NOT DEPLOY:
+Vercel still "Account is blocked" on both projects - Levi must fix it in the
+Vercel dashboard, then redeploy main. 122/122 tests, next build passed
+inside build:desktop. Levi's dev server was stopped for the build (with his
+OK) - restart with `npm run dev`; the web Prisma client is back on Postgres.
+Verified signed in (Levi's account, local dev server) before release.
 Every route renders 200 with real data; old routes 307 to their new homes;
 screenshots at 1440 and 390 px, no horizontal overflow anywhere.
 
