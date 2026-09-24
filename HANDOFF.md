@@ -7,7 +7,7 @@ Dashboard, remove random features (named: Deep Study Studio), no dead ends.
 Levi called the 1.0.8 hubs/homework/subject restyle "shit" - superseded.
 
 ## Latest
-RELEASED desktop 1.0.11 (normal always-open sidebar, 87e014c) after 1.0.10 (https://github.com/leviGatimu/study-flow-app/releases/tag/v1.0.10,
+RELEASED desktop 1.0.12 (icon rail that opens on hover, no Add task in it; + in header) after 1.0.11 after 1.0.10 (https://github.com/leviGatimu/study-flow-app/releases/tag/v1.0.10,
 sha512 checked; releases/latest serves it) and main pushed (3a02181):
 Home-style PageHeader on every page (components/ui/page-header.tsx,
 components/SectionNav.tsx pills, `highlight` card, `back` link); the section
