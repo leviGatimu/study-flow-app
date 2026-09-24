@@ -2174,6 +2174,7 @@ export async function addMasteryItem(subject: string, title: string) {
     }
   });
   revalidatePath('/resources');
+  revalidatePath('/subjects');
   revalidatePath(`/resources/${encodeURIComponent(normalized)}`);
   revalidatePath('/exams/[examId]', 'page');
 }
@@ -2193,6 +2194,7 @@ export async function toggleMasteryItem(id: string, isCompleted: boolean, subjec
     data: { isCompleted }
   });
   revalidatePath('/resources');
+  revalidatePath('/subjects');
   revalidatePath(`/resources/${encodeURIComponent(normalized)}`);
   revalidatePath('/exams/[examId]', 'page');
 }
@@ -2209,6 +2211,7 @@ export async function deleteMasteryItem(id: string, subject: string) {
   const normalized = normalizeSubject(subject);
   await softDelete(prisma, 'masteryItem', { id, userId });
   revalidatePath('/resources');
+  revalidatePath('/subjects');
   revalidatePath(`/resources/${encodeURIComponent(normalized)}`);
   revalidatePath('/exams/[examId]', 'page');
 }

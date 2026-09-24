@@ -100,6 +100,8 @@ import { useStoredPref } from "./use-stored-view";
 type Props = {
   library: SubjectLibrary;
   initialPath: string;
+  /** Pinned to the right end of the tab strip, like a window's own buttons. */
+  tabStripEnd?: React.ReactNode;
 };
 
 /** Folders that exist only because something is filed beneath them. */
@@ -143,7 +145,7 @@ const parseColumns = (raw: string): Columns | null => {
 };
 const parseBool = (raw: string) => (raw === "true" ? true : raw === "false" ? false : null);
 
-export function SubjectExplorer({ library, initialPath }: Props) {
+export function SubjectExplorer({ library, initialPath, tabStripEnd }: Props) {
   const router = useRouter();
   const onDesktop = useIsDesktopApp();
   const [pending, startTransition] = useTransition();
@@ -814,13 +816,16 @@ export function SubjectExplorer({ library, initialPath }: Props) {
   const canLoad = (item: ResourceItem) => !(item.type === "FILE" && item.inLibrary && !onDesktop);
 
   return (
-    <div className="flex h-[calc(100dvh-7.5rem)] min-h-[560px] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm dark:[color-scheme:dark] md:h-[calc(100dvh-6rem)]">
+    // Fills whatever holds it, edge to edge: this is the whole page, not a
+    // card on one. The holder decides the height.
+    <div className="flex h-full min-h-[480px] flex-col overflow-hidden bg-card dark:[color-scheme:dark]">
       {/* ---------------------------------------------------------- tab strip */}
       <div className="flex h-10 shrink-0 items-end gap-2 border-b border-border bg-muted/40 px-2">
         <div className="flex h-8 max-w-xs min-w-0 items-center gap-2 rounded-t-lg border border-b-0 border-border bg-card px-3 text-[13px]">
           <KindGlyph item={{ type: "FOLDER", ext: "" }} px={16} />
           <span className="truncate font-medium">{query ? `Search results in ${currentLabel}` : currentLabel}</span>
         </div>
+        {tabStripEnd && <div className="ml-auto flex h-full shrink-0 items-center gap-1">{tabStripEnd}</div>}
       </div>
 
       {/* ------------------------------------------------ toolbar + address */}

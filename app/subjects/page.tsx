@@ -17,7 +17,7 @@ export default async function SubjectsPage() {
   // showing the previous year's resources, homework, goals and report cards.
   const scope = await getViewScope(userId);
 
-  const [subjects, resources, homeworks, goals, reportCards, studioNotes] = await Promise.all([
+  const [subjects, resources, homeworks, goals, reportCards, studioNotes, exams, mastery] = await Promise.all([
     getSubjects(),
     prisma.resource.findMany({ where: { userId, ...byClass(scope), type: { not: 'FOLDER' } }, orderBy: { createdAt: 'desc' } }),
     prisma.homework.findMany({ where: { userId, ...byTerm(scope) }, orderBy: { dueDate: 'asc' } }),
@@ -29,6 +29,16 @@ export default async function SubjectsPage() {
       orderBy: { createdAt: 'asc' } // Ascending so chart runs chronologically
     }),
     prisma.studioNote.findMany({ where: { userId, ...byClass(scope) } }),
+    prisma.examEvent.findMany({
+      where: { userId, ...byTerm(scope) },
+      select: { id: true, title: true, date: true, subject: { select: { name: true } } },
+      orderBy: { date: 'asc' },
+    }),
+    prisma.masteryItem.findMany({
+      where: { userId, ...byClass(scope) },
+      select: { id: true, subject: true, title: true, isCompleted: true },
+      orderBy: { createdAt: 'asc' },
+    }),
   ]);
 
   return (
@@ -53,6 +63,8 @@ export default async function SubjectsPage() {
           initialGoals={goals}
           initialReportCards={reportCards as any}
           initialNotes={studioNotes}
+          initialExams={exams}
+          initialMastery={mastery}
         />
       </div>
     </div>

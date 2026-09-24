@@ -14,9 +14,11 @@ import { cn } from '@/lib/utils';
 interface CreateHomeworkFormProps {
   onSuccess?: () => void;
   subjects: { id: string; name: string }[];
+  /** Pre-picks the subject, when the list is already narrowed to one. */
+  defaultSubject?: string | null;
 }
 
-export function CreateHomeworkForm({ onSuccess, subjects }: CreateHomeworkFormProps) {
+export function CreateHomeworkForm({ onSuccess, subjects, defaultSubject }: CreateHomeworkFormProps) {
   const [isPending, setIsPending] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -45,7 +47,7 @@ export function CreateHomeworkForm({ onSuccess, subjects }: CreateHomeworkFormPr
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="space-y-2">
           <Label htmlFor="subject" className="text-xs font-medium text-muted-foreground ml-1">Subject</Label>
-          <Select name="subject" required>
+          <Select name="subject" required defaultValue={subjects.find((s) => s.name === defaultSubject)?.name}>
             <SelectTrigger id="subject" className={cn(fieldClass, "text-left")}>
               <SelectValue placeholder="Select subject..." />
             </SelectTrigger>

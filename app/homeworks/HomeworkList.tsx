@@ -14,9 +14,11 @@ import { useIsArchived } from '@/components/ArchiveContext';
 interface HomeworkListProps {
   homeworks: Homework[];
   subjects: { id: string; name: string }[];
+  /** Set when the list is narrowed to one subject; new homework defaults to it. */
+  defaultSubject?: string | null;
 }
 
-export function HomeworkList({ homeworks, subjects }: HomeworkListProps) {
+export function HomeworkList({ homeworks, subjects, defaultSubject }: HomeworkListProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const archived = useIsArchived();
   const activeHomeworks = homeworks.filter(h => !h.isCompleted);
@@ -53,7 +55,7 @@ export function HomeworkList({ homeworks, subjects }: HomeworkListProps) {
               <DialogDescription className="text-sm text-muted-foreground">Add an assignment to track, plan, and complete.</DialogDescription>
             </DialogHeader>
             <div className="mt-6">
-              <CreateHomeworkForm onSuccess={() => setShowAddForm(false)} subjects={subjects} />
+              <CreateHomeworkForm onSuccess={() => setShowAddForm(false)} subjects={subjects} defaultSubject={defaultSubject} />
             </div>
           </DialogContent>
         </Dialog>

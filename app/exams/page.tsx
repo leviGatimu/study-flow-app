@@ -13,12 +13,13 @@ import {
   History,
   LayoutGrid,
   Award,
-  ArrowUpRight
+  ArrowUpRight,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
-import { cn } from '@/lib/utils';
+import { cn, isSubjectSimilar } from '@/lib/utils';
 import { ExamsClient, DeleteExamButton } from '@/components/ExamsClient';
 import { UploadTimetableDialog } from '@/components/UploadTimetableDialog';
 
@@ -29,21 +30,33 @@ function priorityLabel(priority: string) {
   return priority === 'HIGH' ? 'High priority' : priority === 'LOW' ? 'Low priority' : 'Normal priority';
 }
 
-export default async function ExamsPage() {
+export default async function ExamsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ subject?: string | string[] }>;
+}) {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
-  const [events, streakData] = await Promise.all([
+  const [events, streakData, params] = await Promise.all([
     getEvents(),
-    syncStreak()
+    syncStreak(),
+    searchParams,
   ]);
 
+  // ?subject= narrows the page to one subject; its page in Subjects links here.
+  // An exam without a linked subject is matched on its title, as below.
+  const subjectFilter = (Array.isArray(params.subject) ? params.subject[0] : params.subject)?.trim() || null;
+  const shown = subjectFilter
+    ? events.filter((e) => isSubjectSimilar((e as any).subject?.name ?? e.title, subjectFilter))
+    : events;
+
   const now = startOfDay(new Date());
-  const upcomingExams = events
+  const upcomingExams = shown
     .filter(e => !isAfter(now, new Date(e.date)))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  const pastExams = events
+  const pastExams = shown
     .filter(e => isAfter(now, new Date(e.date)))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -67,6 +80,23 @@ export default async function ExamsPage() {
           <p className="text-sm text-muted-foreground max-w-2xl">
             Track your upcoming exam dates, monitor preparation levels, and plan study focuses to stay prepared.
           </p>
+          {subjectFilter && (
+            <div className="flex flex-wrap items-center gap-2 pt-2 text-sm">
+              <span className="text-muted-foreground">Showing</span>
+              <Link
+                href={`/subjects?subject=${encodeURIComponent(subjectFilter)}`}
+                className="rounded-full bg-primary/10 px-3 py-1 font-semibold text-primary hover:bg-primary/15"
+              >
+                {subjectFilter}
+              </Link>
+              <Link
+                href="/exams"
+                className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="size-3.5" /> All subjects
+              </Link>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-3 items-center">
@@ -206,7 +236,7 @@ export default async function ExamsPage() {
                       <CheckCircle2 className="w-5 h-5 text-primary" /> Study Topics
                     </h3>
 
-                    <Link href={`/resources?subject=${encodeURIComponent(nearestExam.title)}`} aria-label="View all study topics">
+                    <Link href={`/exams/${nearestExam.id}`} aria-label="View all study topics">
                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
                         <ChevronRight className="w-4 h-4" />
                       </Button>
@@ -245,7 +275,11 @@ export default async function ExamsPage() {
             </div>
             <div className="space-y-2 max-w-md">
               <h2 className="text-2xl font-heading font-bold tracking-tight text-foreground">No Exams Scheduled</h2>
-              <p className="text-sm text-muted-foreground">Your exam schedule is currently clear. Add your first assessment below.</p>
+              <p className="text-sm text-muted-foreground">
+                {subjectFilter
+                  ? `Nothing coming up for ${subjectFilter}. Add an assessment below.`
+                  : 'Your exam schedule is currently clear. Add your first assessment below.'}
+              </p>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
               <UploadTimetableDialog />

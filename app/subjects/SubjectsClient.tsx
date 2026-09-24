@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { differenceInCalendarDays, format } from "date-fns";
 import { toast } from "sonner";
 import {
   Plus,
@@ -14,26 +16,19 @@ import {
   TrendingUp,
   CheckCircle,
   Clock,
-  ExternalLink,
-  FileText,
-  Link2,
   AlertTriangle,
   ChevronRight,
   BookOpenText,
-  Bookmark,
   Layers,
-  Sparkles,
-  Trash,
   ArrowLeft,
-  GraduationCap,
   BrainCircuit,
   Send,
-  Save,
   Loader2,
-  Split,
   CheckCircle2,
-  FileCode,
-  Notebook
+  Notebook,
+  FolderOpen,
+  CalendarClock,
+  ListChecks
 } from "lucide-react";
 import {
   AreaChart,
@@ -66,9 +61,10 @@ import {
   repairSubjects
 } from "@/lib/subject-actions";
 import { saveGoal } from "@/lib/goal-actions";
-import { addResource, deleteResource } from "@/lib/actions";
 import { saveStudioNote } from "@/lib/studio-actions";
 import { askAIBuddy } from "@/lib/ai-actions";
+import { AddMasteryForm } from "@/components/AddMasteryForm";
+import { MasteryList } from "@/components/MasteryList";
 
 interface Subject {
   id: string;
@@ -128,6 +124,20 @@ interface StudioNote {
   updatedAt: Date;
 }
 
+interface ExamEvent {
+  id: string;
+  title: string;
+  date: Date;
+  subject: { name: string } | null;
+}
+
+interface MasteryItem {
+  id: string;
+  subject: string;
+  title: string;
+  isCompleted: boolean;
+}
+
 interface SubjectsClientProps {
   initialSubjects: Subject[];
   initialResources: Resource[];
@@ -135,6 +145,8 @@ interface SubjectsClientProps {
   initialGoals: SubjectGoal[];
   initialReportCards: ReportCard[];
   initialNotes: StudioNote[];
+  initialExams: ExamEvent[];
+  initialMastery: MasteryItem[];
 }
 
 function parseGradeToPercentage(gradeStr: string): number {
@@ -166,6 +178,8 @@ export function SubjectsClient({
   initialGoals,
   initialReportCards,
   initialNotes,
+  initialExams,
+  initialMastery,
 }: SubjectsClientProps) {
   const router = useRouter();
   const archived = useIsArchived();
@@ -173,25 +187,18 @@ export function SubjectsClient({
   const [isRepairing, setIsRepairing] = useState(false);
   const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
   
-  // Navigation states: null shows Grid landing view, otherwise shows specific subject workspace
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
 
   // Dialog states
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isGoalOpen, setIsGoalOpen] = useState(false);
-  const [isResourceOpen, setIsResourceOpen] = useState(false);
 
   // Form states
   const [newSubjectName, setNewSubjectName] = useState("");
   const [renameSubjectName, setRenameSubjectName] = useState("");
   const [deleteCleanRelated, setDeleteCleanRelated] = useState(false);
   const [targetGoalGrade, setTargetGoalGrade] = useState("");
-  const [resourceTitle, setResourceTitle] = useState("");
-  const [resourceType, setResourceType] = useState<"LINK" | "FILE">("LINK");
-  const [resourceUrl, setResourceUrl] = useState("");
-  const [resourceFile, setResourceFile] = useState<File | null>(null);
 
   // Active targeted subject (used for card action shortcuts)
   const [targetSubject, setTargetSubject] = useState<Subject | null>(null);
@@ -200,14 +207,14 @@ export function SubjectsClient({
   const [searchQuery, setSearchQuery] = useState("");
 
   // DB Synced copies of other data tables (for local mutation / refresh after actions)
-  const [resources, setResources] = useState<Resource[]>(initialResources);
+  const resources = initialResources;
   const [goals, setGoals] = useState<SubjectGoal[]>(initialGoals);
 
   // Workspace integration states
   const [notes, setNotes] = useState<StudioNote[]>(initialNotes);
   const [noteContent, setNoteContent] = useState("");
   const [isNoteSaving, setIsNoteSaving] = useState(false);
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"notes" | "resources" | "chat">("notes");
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"notes" | "chat">("notes");
   
   // AI Coach chat states
   const [aiQuery, setAiQuery] = useState("");
@@ -222,10 +229,23 @@ export function SubjectsClient({
     );
   }, [subjects, searchQuery]);
 
-  // Selected Subject Details
+  // The open subject lives in the URL (/subjects?subject=Math), so other
+  // pages can link straight to it and the browser's Back returns to the grid.
+  // An exact name wins; the similarity match catches "Maths" for "Math".
+  const subjectParam = useSearchParams().get("subject");
   const selectedSubject = useMemo(() => {
-    return subjects.find((s) => s.id === selectedSubjectId) || null;
-  }, [subjects, selectedSubjectId]);
+    if (!subjectParam) return null;
+    return (
+      subjects.find((s) => s.name === subjectParam) ??
+      subjects.find((s) => isSubjectSimilar(s.name, subjectParam)) ??
+      null
+    );
+  }, [subjects, subjectParam]);
+  const selectedSubjectId = selectedSubject?.id ?? null;
+
+  const subjectUrl = (name: string | null) =>
+    name ? `/subjects?subject=${encodeURIComponent(name)}` : "/subjects";
+  const openSubject = (name: string | null) => window.history.pushState(null, "", subjectUrl(name));
 
   // Sync related entities to selected subject
   const subjectResources = useMemo(() => {
@@ -241,6 +261,18 @@ export function SubjectsClient({
       (h) => isSubjectSimilar(h.subject, selectedSubject.name)
     );
   }, [initialHomeworks, selectedSubject]);
+
+  const subjectExams = useMemo(() => {
+    if (!selectedSubject) return [];
+    return initialExams.filter((e) => isSubjectSimilar(e.subject?.name ?? e.title, selectedSubject.name));
+  }, [initialExams, selectedSubject]);
+
+  // Mirrors getMasteryItems: syllabus topics are filed under the normalized name.
+  const subjectMastery = useMemo(() => {
+    if (!selectedSubject) return [];
+    const key = normalizeSubject(selectedSubject.name);
+    return initialMastery.filter((m) => m.subject === key);
+  }, [initialMastery, selectedSubject]);
 
   const subjectGoal = useMemo(() => {
     if (!selectedSubject) return null;
@@ -398,7 +430,7 @@ export function SubjectsClient({
         toast.success(`Subject "${res.subject.name}" added to master list.`);
         // Locally update subjects state
         setSubjects((prev) => [...prev, res.subject as Subject].sort((a, b) => a.name.localeCompare(b.name)));
-        setSelectedSubjectId(res.subject.id);
+        openSubject(res.subject.name);
         setNewSubjectName("");
         setIsAddOpen(false);
       }
@@ -426,6 +458,9 @@ export function SubjectsClient({
             s.id === activeSub.id ? { ...s, name: renameSubjectName } : s
           ).sort((a, b) => a.name.localeCompare(b.name))
         );
+        if (activeSub.id === selectedSubjectId) {
+          window.history.replaceState(null, "", subjectUrl(renameSubjectName));
+        }
         setIsRenameOpen(false);
         setTargetSubject(null);
       }
@@ -450,7 +485,7 @@ export function SubjectsClient({
         const updatedSubjects = subjects.filter((s) => s.id !== activeSub.id);
         setSubjects(updatedSubjects);
         if (selectedSubjectId === activeSub.id) {
-          setSelectedSubjectId(null);
+          window.history.replaceState(null, "", subjectUrl(null));
         }
         setIsDeleteOpen(false);
         setDeleteCleanRelated(false);
@@ -484,68 +519,6 @@ export function SubjectsClient({
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to save goal");
-    }
-  };
-
-  const handleAddResourceSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedSubject) return;
-    if (!resourceTitle.trim()) {
-      toast.error("Resource title is required");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("subject", selectedSubject.name);
-    formData.append("title", resourceTitle);
-    formData.append("type", resourceType);
-
-    if (resourceType === "LINK") {
-      if (!resourceUrl.trim()) {
-        toast.error("Please specify link URL");
-        return;
-      }
-      formData.append("url", resourceUrl);
-    } else {
-      if (!resourceFile) {
-        toast.error("Please select a resource file to upload");
-        return;
-      }
-      formData.append("file", resourceFile);
-    }
-
-    try {
-      toast.loading("Uploading study resource...", { id: "resource-upload" });
-      await addResource(formData);
-      toast.success("Study resource added!", { id: "resource-upload" });
-
-      const mockResource: Resource = {
-        id: `mock-${Date.now()}`,
-        subject: selectedSubject.name,
-        title: resourceTitle,
-        type: resourceType,
-        url: resourceType === "LINK" ? resourceUrl : `/uploads/${resourceFile?.name || "file"}`,
-        createdAt: new Date(),
-      };
-      setResources((prev) => [mockResource, ...prev]);
-
-      setResourceTitle("");
-      setResourceUrl("");
-      setResourceFile(null);
-      setIsResourceOpen(false);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to add resource", { id: "resource-upload" });
-    }
-  };
-
-  const handleDeleteResource = async (resId: string) => {
-    if (!selectedSubject) return;
-    try {
-      await deleteResource(resId, selectedSubject.name);
-      toast.success("Resource deleted.");
-      setResources((prev) => prev.filter((r) => r.id !== resId));
-    } catch (err: any) {
-      toast.error("Failed to delete resource");
     }
   };
 
@@ -679,8 +652,8 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                   .filter(Boolean) as SubjectGrade[];
                 const latestGrade = subjectGrades.length > 0 ? subjectGrades[subjectGrades.length - 1].grade : null;
 
-                const openSubject = () => {
-                  setSelectedSubjectId(s.id);
+                const openCard = () => {
+                  openSubject(s.name);
                   setRenameSubjectName(s.name);
                 };
 
@@ -689,12 +662,12 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                     key={s.id}
                     role="button"
                     tabIndex={0}
-                    onClick={openSubject}
+                    onClick={openCard}
                     onKeyDown={(e) => {
                       if (e.target !== e.currentTarget) return;
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        openSubject();
+                        openCard();
                       }
                     }}
                     className="group bg-card border border-border/60 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer flex flex-col justify-between min-h-[220px]"
@@ -779,7 +752,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
           {/* Breadcrumb Nav Control */}
           <div className="flex items-center">
             <Button
-              onClick={() => setSelectedSubjectId(null)}
+              onClick={() => openSubject(null)}
               variant="ghost"
               className="rounded-xl font-bold text-xs hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center gap-1.5"
             >
@@ -818,6 +791,17 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
               </Button>
             </div>
           </div>
+
+          {/* Everything else about this subject lives on its own page. These
+              are the ways there, each landing already narrowed to it. */}
+          {selectedSubject && (
+            <SubjectLinks
+              subject={selectedSubject.name}
+              resourceCount={subjectResources.length}
+              homeworks={subjectHomeworks}
+              exams={subjectExams}
+            />
+          )}
 
           {/* Split-Screen desktop-grade workstation grid (Left Span: 5, Right Span: 7) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -989,11 +973,21 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                     Homework Tracker
                   </h3>
 
-                  {subjectHomeworks.length > 0 && (
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted border border-border/40 text-muted-foreground">
-                      {subjectHomeworks.filter(h => h.isCompleted).length}/{subjectHomeworks.length} done
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {subjectHomeworks.length > 0 && (
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted border border-border/40 text-muted-foreground">
+                        {subjectHomeworks.filter(h => h.isCompleted).length}/{subjectHomeworks.length} done
+                      </span>
+                    )}
+                    {selectedSubject && (
+                      <Link
+                        href={`/homeworks?subject=${encodeURIComponent(selectedSubject.name)}`}
+                        className="text-xs font-semibold text-primary hover:underline"
+                      >
+                        See all
+                      </Link>
+                    )}
+                  </div>
                 </div>
 
                 {subjectHomeworks.length > 0 && (
@@ -1043,9 +1037,23 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                 </div>
               </Card>
 
+              {/* 4. Syllabus mastery - the topics this subject's exams cover */}
+              {selectedSubject && (
+                <Card className="bg-card border border-border/60 p-6 rounded-2xl shadow-sm space-y-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
+                      <ListChecks className="w-5 h-5 text-emerald-500" />
+                      Syllabus Mastery
+                    </h3>
+                    <AddMasteryForm subject={selectedSubject.name} />
+                  </div>
+                  <MasteryList items={subjectMastery} subject={selectedSubject.name} />
+                </Card>
+              )}
+
             </div>
 
-            {/* RIGHT COLUMN: Unified Study Vault Workspace (lg:col-span-7) */}
+            {/* RIGHT COLUMN: notes and the AI study buddy (lg:col-span-7) */}
             <Card className="lg:col-span-7 bg-card border border-border/60 rounded-2xl overflow-hidden flex flex-col h-[750px] shadow-sm">
               
               {/* Tab Header Selector */}
@@ -1062,18 +1070,6 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                   >
                     <Notebook className="w-4 h-4" />
                     Course Notes
-                  </button>
-                  <button
-                    onClick={() => setActiveWorkspaceTab("resources")}
-                    className={cn(
-                      "px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all",
-                      activeWorkspaceTab === "resources"
-                        ? "bg-background text-foreground shadow-sm border border-border/40"
-                        : "text-muted-foreground hover:bg-background/40 hover:text-foreground"
-                    )}
-                  >
-                    <Layers className="w-4 h-4" />
-                    Study Vault
                   </button>
                   <button
                     onClick={() => setActiveWorkspaceTab("chat")}
@@ -1128,153 +1124,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                   </div>
                 )}
 
-                {/* TAB 2: Study Vault resources with inline form */}
-                {activeWorkspaceTab === "resources" && (
-                  <div className="flex-1 flex flex-col min-h-0 space-y-5">
-                    {/* Inline add resource asset form */}
-                    <form onSubmit={handleAddResourceSubmit} className={cn(
-                      "bg-muted/20 border border-border/40 p-4 rounded-2xl space-y-3.5",
-                      archived && "hidden"
-                    )}>
-                      <p className="text-xs font-medium text-muted-foreground">Quick add assets</p>
-                      
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label htmlFor="inlineResTitle" className="text-xs font-medium text-muted-foreground">Title</Label>
-                          <Input
-                            id="inlineResTitle"
-                            placeholder="e.g. Lectures PDF / Git Repo"
-                            value={resourceTitle}
-                            onChange={(e) => setResourceTitle(e.target.value)}
-                            className="rounded-xl border border-border bg-background font-bold h-9 text-xs"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium text-muted-foreground">Asset Type</Label>
-                          <div className="grid grid-cols-2 gap-1 bg-background border border-border/40 p-0.5 rounded-lg h-9">
-                            <button
-                              type="button"
-                              onClick={() => setResourceType("LINK")}
-                              className={cn(
-                                "text-xs font-medium rounded-md transition-colors duration-200",
-                                resourceType === "LINK" ? "bg-muted shadow text-foreground font-semibold" : "text-muted-foreground"
-                              )}
-                            >
-                              URL Link
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setResourceType("FILE")}
-                              className={cn(
-                                "text-xs font-medium rounded-md transition-colors duration-200",
-                                resourceType === "FILE" ? "bg-muted shadow text-foreground font-semibold" : "text-muted-foreground"
-                              )}
-                            >
-                              Local PDF
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-end gap-3">
-                        <div className="flex-1 min-w-0">
-                          {resourceType === "LINK" ? (
-                            <div className="space-y-1">
-                              <Label htmlFor="inlineResUrl" className="text-xs font-medium text-muted-foreground">Link URL</Label>
-                              <Input
-                                id="inlineResUrl"
-                                placeholder="e.g. https://github.com/..."
-                                value={resourceUrl}
-                                onChange={(e) => setResourceUrl(e.target.value)}
-                                className="rounded-xl border border-border bg-background font-bold h-9 text-xs"
-                                required={resourceType === "LINK"}
-                              />
-                            </div>
-                          ) : (
-                            <div className="space-y-1">
-                              <Label htmlFor="inlineResFile" className="text-xs font-medium text-muted-foreground">Select Local File</Label>
-                              <Input
-                                id="inlineResFile"
-                                type="file"
-                                onChange={(e) => setResourceFile(e.target.files?.[0] || null)}
-                                className="rounded-xl border border-border bg-background font-bold h-9 text-xs pt-1.5 cursor-pointer"
-                                required={resourceType === "FILE"}
-                              />
-                            </div>
-                          )}
-                        </div>
-
-                        <Button 
-                          type="submit" 
-                          className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/95 text-xs h-9 px-4"
-                        >
-                          Add Asset
-                        </Button>
-                      </div>
-                    </form>
-
-                    {/* Resources List */}
-                    <div className="flex-1 flex flex-col min-h-0 space-y-3">
-                      <p className="text-xs font-medium text-muted-foreground">Vault inventory</p>
-                      
-                      <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                        {subjectResources.length === 0 ? (
-                          <div className="text-center py-12 text-muted-foreground italic text-xs font-semibold border border-dashed border-border/40 rounded-2xl">
-                            Vault is empty. Add reference web links or course PDFs above.
-                          </div>
-                        ) : (
-                          subjectResources.map((res) => (
-                            <div
-                              key={res.id}
-                              className="p-3.5 rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/40 transition-all flex items-center justify-between text-xs"
-                            >
-                              <div className="min-w-0 flex-1 flex items-center gap-2.5">
-                                {res.type === "LINK" ? (
-                                  <div className="p-1.5 bg-blue-500/10 text-blue-500 rounded-lg shrink-0">
-                                    <Link2 className="w-4 h-4" />
-                                  </div>
-                                ) : (
-                                  <div className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg shrink-0">
-                                    <FileText className="w-4 h-4" />
-                                  </div>
-                                )}
-                                <div className="min-w-0">
-                                  <p className="font-bold text-foreground truncate" title={res.title}>
-                                    {res.title}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-md">
-                                    {res.url}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-1.5 shrink-0 ml-3">
-                                <a href={res.url} target="_blank" rel="noopener noreferrer">
-                                  <Button size="icon" variant="ghost" className="w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground">
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                  </Button>
-                                </a>
-                                {!archived && (
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    aria-label="Delete resource"
-                                    onClick={() => handleDeleteResource(res.id)}
-                                    className="w-8 h-8 rounded-lg text-muted-foreground hover:text-destructive"
-                                  >
-                                    <Trash className="w-3.5 h-3.5" />
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* TAB 3: AI Study Coach chat module */}
+                {/* TAB 2: AI Study Coach chat module */}
                 {activeWorkspaceTab === "chat" && (
                   <div className="flex-1 flex flex-col min-h-0 space-y-4">
                     
@@ -1527,94 +1377,6 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Add Resource */}
-      <Dialog open={isResourceOpen} onOpenChange={setIsResourceOpen}>
-        <DialogContent className="rounded-3xl border border-border bg-popover max-w-sm p-6 shadow-2xl">
-          <form onSubmit={handleAddResourceSubmit}>
-            <DialogHeader className="space-y-2 mb-4">
-              <DialogTitle className="text-2xl font-heading font-black tracking-tight">Add Resource</DialogTitle>
-              <DialogDescription className="text-xs font-semibold text-muted-foreground">
-                Attach a bookmark URL link or upload a local syllabus file for {selectedSubject?.name}.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <Label className="text-xs font-medium text-muted-foreground">Resource Type</Label>
-                <div className="grid grid-cols-2 gap-2 bg-muted/30 p-1 rounded-xl">
-                  <button
-                    type="button"
-                    onClick={() => setResourceType("LINK")}
-                    className={cn(
-                      "py-2 text-xs font-bold rounded-lg transition-all",
-                      resourceType === "LINK" ? "bg-background shadow text-foreground" : "text-muted-foreground"
-                    )}
-                  >
-                    Link URL
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setResourceType("FILE")}
-                    className={cn(
-                      "py-2 text-xs font-bold rounded-lg transition-all",
-                      resourceType === "FILE" ? "bg-background shadow text-foreground" : "text-muted-foreground"
-                    )}
-                  >
-                    Local File
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="resTitle" className="text-xs font-medium text-muted-foreground">Title</Label>
-                <Input
-                  id="resTitle"
-                  placeholder="e.g. Lectures PDF / Git Repository"
-                  value={resourceTitle}
-                  onChange={(e) => setResourceTitle(e.target.value)}
-                  className="rounded-xl border border-border bg-muted/20 font-bold h-11"
-                  required
-                />
-              </div>
-
-              {resourceType === "LINK" ? (
-                <div className="space-y-1">
-                  <Label htmlFor="resUrl" className="text-xs font-medium text-muted-foreground">Link URL</Label>
-                  <Input
-                    id="resUrl"
-                    placeholder="e.g. https://github.com/..."
-                    value={resourceUrl}
-                    onChange={(e) => setResourceUrl(e.target.value)}
-                    className="rounded-xl border border-border bg-muted/20 font-bold h-11"
-                    required
-                  />
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  <Label htmlFor="resFile" className="text-xs font-medium text-muted-foreground">Upload File</Label>
-                  <Input
-                    id="resFile"
-                    type="file"
-                    onChange={(e) => setResourceFile(e.target.files?.[0] || null)}
-                    className="rounded-xl border border-border bg-muted/20 font-bold h-11 cursor-pointer pt-2"
-                    required
-                  />
-                </div>
-              )}
-            </div>
-
-            <DialogFooter className="mt-6 flex gap-2">
-              <Button type="button" variant="ghost" onClick={() => setIsResourceOpen(false)} className="rounded-xl font-bold flex-1">
-                Cancel
-              </Button>
-              <Button type="submit" className="rounded-xl font-bold flex-1 bg-primary text-primary-foreground hover:bg-primary/90">
-                Add Resource
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
       {/* Hide ugly scrollbars globally in workspace */}
       <style dangerouslySetInnerHTML={{__html: `
         .scrollbar-hide::-webkit-scrollbar {
@@ -1622,5 +1384,103 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
         }
       `}} />
     </div>
+  );
+}
+
+/** The subject's doors to Resources, Homework and Exams. */
+function SubjectLinks({
+  subject,
+  resourceCount,
+  homeworks,
+  exams,
+}: {
+  subject: string;
+  resourceCount: number;
+  homeworks: Homework[];
+  exams: ExamEvent[];
+}) {
+  const encoded = encodeURIComponent(subject);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const pending = homeworks.filter((h) => !h.isCompleted);
+  const nextDue = pending.reduce<Homework | null>(
+    (soonest, h) => (!soonest || new Date(h.dueDate) < new Date(soonest.dueDate) ? h : soonest),
+    null,
+  );
+  const upcoming = exams
+    .filter((e) => new Date(e.date) >= today)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const nextExam = upcoming[0] ?? null;
+  const daysToExam = nextExam ? differenceInCalendarDays(new Date(nextExam.date), today) : null;
+
+  return (
+    <nav aria-label={`${subject} pages`} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <SubjectLink
+        href={`/resources/${encoded}`}
+        icon={<FolderOpen className="w-5 h-5" />}
+        tint="bg-teal-500/10 text-teal-600 dark:text-teal-400"
+        label="Resources"
+        value={`${resourceCount} ${resourceCount === 1 ? "file" : "files"}`}
+        detail={`Open the ${subject} folder`}
+      />
+      <SubjectLink
+        href={`/homeworks?subject=${encoded}`}
+        icon={<BookOpen className="w-5 h-5" />}
+        tint="bg-blue-500/10 text-blue-600 dark:text-blue-400"
+        label="Homework"
+        value={`${pending.length} pending`}
+        detail={nextDue ? `Next due ${format(new Date(nextDue.dueDate), "EEE d MMM")}` : "All caught up"}
+      />
+      <SubjectLink
+        href={`/exams?subject=${encoded}`}
+        icon={<CalendarClock className="w-5 h-5" />}
+        tint="bg-orange-500/10 text-orange-600 dark:text-orange-400"
+        label="Exams"
+        value={
+          daysToExam === null
+            ? "None coming"
+            : daysToExam === 0
+              ? "Today"
+              : `In ${daysToExam} ${daysToExam === 1 ? "day" : "days"}`
+        }
+        detail={
+          nextExam
+            ? `${nextExam.title} · ${format(new Date(nextExam.date), "EEE d MMM")}${upcoming.length > 1 ? ` (+${upcoming.length - 1} more)` : ""}`
+            : "Nothing scheduled"
+        }
+      />
+    </nav>
+  );
+}
+
+function SubjectLink({
+  href,
+  icon,
+  tint,
+  label,
+  value,
+  detail,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  tint: string;
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl", tint)}>{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-medium text-muted-foreground">{label}</span>
+        <span className="block font-heading text-lg font-bold leading-tight text-foreground">{value}</span>
+        <span className="block truncate text-xs text-muted-foreground">{detail}</span>
+      </span>
+      <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+    </Link>
   );
 }

@@ -1,65 +1,44 @@
 # HANDOFF
 
 ## Current Task
-SUBJECT RESOURCES PAGE AS A WINDOWS FILE EXPLORER (Levi, 2026-09-23: "i want
-it more exactly like file explorer especially the stand alone page for each
-subject").
+SUBJECT PAGE AS THE HUB (Levi, 2026-09-24): subjects page felt disconnected
+from Resources/Homework/Exams. Clicking a subject should link to its
+resources, homework and upcoming exams; the per-subject resources page should
+be a full-bleed file explorer with nothing under it.
 
 ## Status
-BUILT, COMMITTED (f521129), DESKTOP 1.0.6 PUBLISHED at
-https://github.com/leviGatimu/study-flow-app/releases/tag/v1.0.6 (tag pushed,
-main NOT pushed - the website still runs f3d9ae3). Not yet seen signed in.
-/resources/[subject] is now one Explorer window: tab strip; back/forward/up/
-refresh + editable address bar (click empty space -> Windows path, every ">"
-lists subfolders) + "Search <folder>" (recursive, adds a Folder column);
-command bar (New, Upload, Cut, Paste, Rename, Copy path/link, Delete, Sort,
-View, ..., Details toggle); nav pane (all subjects + folder tree); contents in
-7 views (xl/large/medium/small icons, list, details with resizable columns,
-tiles); details pane; status bar. Stats + syllabus moved below the window.
+BUILT, NOT COMMITTED. tsc clean, 122/122 node tests, no new lint errors
+(the 14 in SubjectsClient are pre-existing `any`s). Verified in Electron
+against throwaway /welcome harness routes (deleted): hub links, URL sync,
+explorer fills <main> exactly (836px, no outer scroll). Not seen signed in.
 
 ## Progress
-- [x] components/resources/explorer-views.tsx (views + in-place RenameBox),
-      explorer-chrome.tsx (NavPane, AddressBar), SubjectExplorer.tsx rewritten
-      (selection, keyboard, drag/drop, rubber band, history, cut/paste).
-- [x] getSubjectLibrary returns `subjects` (nav pane); MoveDialog takes several
-      items (ownPaths, currentFolder null = mixed); use-stored-view.ts is now a
-      generic useStoredPref (overview keeps its "resources:view" key).
-- [x] tsc clean, eslint clean, 122/122 node tests.
-- [x] Driven with Electron against a throwaway signed-out harness route (now
-      deleted): click/Ctrl/Shift select, Ctrl+A, arrows, F2 rename box, context
-      menu, all views, rubber band, open folder, Alt+Up/Left/Right, search,
-      address edit, phone width, light + dark. No console errors.
-- [ ] NOT exercised: any successful write (rename commit, Ctrl+Shift+N then
-      rename, paste/move, drag onto folder, delete, upload) - the harness is
-      signed out, so only the "Not signed in." error path ran. Needs Levi
-      signed in, or permission to mint a session (see browser memory).
-- [x] Desktop 1.0.6 packaged + released (sha512 checked, new code found in the
-      packaged server, latest.yml served from releases/latest).
-- [ ] Push main (deploys the web) once Levi is happy with it on the desktop.
-      Before any desktop build: rm -rf .next/dev if a harness route was used -
-      stale dev types fail `next build`'s type check.
+- [x] /subjects: open subject lives in the URL (?subject=Math, pushState;
+      Back returns to grid; rename/delete replaceState). New "SubjectLinks"
+      row: Resources (file count) -> /resources/<s>, Homework (pending, next
+      due) -> /homeworks?subject=, Exams (days to next) -> /exams?subject=.
+      Removed the duplicate "Study Vault" tab + dead Add Resource dialog.
+      Added Syllabus Mastery card (moved off the resources page). Homework
+      card has "See all".
+- [x] /homeworks and /exams accept ?subject= (isSubjectSimilar; exams match
+      subject.name ?? title), with a "Showing X / All subjects" chip; new
+      homework pre-picks the subject. Exams "study topics" chevron now goes
+      to the exam page (it pointed at /resources?subject=, which ignores it).
+- [x] /resources/[subject]: explorer only, h-full, no border/rounding; stats +
+      syllabus removed. Tab strip right end: "<subject> hub" + "Deep work
+      studio" (new `tabStripEnd` prop on SubjectExplorer).
+- [x] Mastery actions also revalidate /subjects.
+- [ ] Levi to look at it signed in; then commit. Writes (mastery add/toggle
+      from the hub) not exercised - harness is signed out.
 
 ## Working Notes
-DESIGN DECISIONS
-  - No Copy. The server can move/rename but not duplicate; Cut+Paste moves.
-    "Copy as path" (desktop) and "Copy link address" exist instead.
-  - New folder = create "New folder"/"New folder (n)" then rename in place;
-    the row arrives after router.refresh(), so `awaitingRename` holds the path
-    and render picks it up (setState-during-render pattern, not an effect).
-  - Slow second click renames (550ms timer, cancelled by any other click/key).
-  - Arrow keys: along the flow = +-1 in order; across = nearest item by
-    on-screen position (neighbour()). List view flows down columns.
-  - Folder icons use FOLDER_PAINT (fixed #fcd34d/#d97706): a currentColor
-    tint turned muddy on dark.
-  - Prefs in localStorage: resources:explorer-{view,columns,nav,details}.
-HOW IT WAS VERIFIED (reuse this): /welcome/* bypasses proxy.ts auth, so a
-temporary app/welcome/<x>/page.tsx rendering the component with fake data +
-`next dev -p 3100` + desktop-app/node_modules/.bin/electron driving it with
-sendInputEvent works. Electron gotchas: Menu.setApplicationMenu(null) or
-Ctrl+A also selects page text; disableHardwareAcceleration; capturePage lags
-- capture twice; light theme needs webPreferences.offscreen + 'paint' event.
+Before any desktop build: rm -rf .next/dev (harness routes were used).
+/welcome/* renders INSIDE the AppShell (not bare) - a harness needs no fake
+header/main wrapper.
 
 ## Recently Completed
+- 2026-09-23 Subject resources page as a Windows Explorer window (f521129),
+  desktop 1.0.6 released; main not pushed. Writes never exercised signed in.
 - 2026-09-22 Desktop sync 500: pooler ceiling; the fix (4503c7e) was never
   pushed. Pushed it + the library work (f3d9ae3). Open: purgeTombstones dies on
   models without deletedAt (lib/soft-delete.ts) - reported, not fixed.
