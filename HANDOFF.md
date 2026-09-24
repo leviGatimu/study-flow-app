@@ -1,48 +1,45 @@
 # HANDOFF
 
 ## Current Task
-SUBJECT PAGE AS THE HUB (Levi, 2026-09-24): subjects page felt disconnected
-from Resources/Homework/Exams. Clicking a subject should link to its
-resources, homework and upcoming exams; the per-subject resources page should
-be a full-bleed file explorer with nothing under it.
+CONNECT EVERY PAGE TO ITS SECTION + POLISH (Levi, 2026-09-24): "make a plan
+page that connects all pages ... all sub pages to main one", "homeworks page
+is so shit", "remove course notes", "make the page for individual subject look
+better (not structure)". Then "package and push".
 
 ## Status
-COMMITTED (c8a0173), DESKTOP 1.0.7 PUBLISHED at
-https://github.com/leviGatimu/study-flow-app/releases/tag/v1.0.7 (tag pushed,
-main NOT pushed - the website still runs f3d9ae3). Installer sha512 matched
-latest.yml; packaged server checked for the new hub/filter code, SQLite
-client, no .env, no harness routes; releases/latest serves 1.0.7.
-tsc clean, 122/122 node tests. Verified in Electron against throwaway
-/welcome harness routes (deleted). Not yet seen signed in.
+BUILT AND VERIFIED (harness screenshots, tsc, 122/122 tests). Being released
+as desktop 1.0.8 + main pushed (web deploy) - see git log / releases.
+Built by a 5-agent workflow (wf_dc50c1c9-964) + a reviewer; I checked every
+screenshot and restyled MasteryList/AddMasteryForm myself.
 
-## Progress
-- [x] /subjects: open subject lives in the URL (?subject=Math, pushState;
-      Back returns to grid; rename/delete replaceState). New "SubjectLinks"
-      row: Resources (file count) -> /resources/<s>, Homework (pending, next
-      due) -> /homeworks?subject=, Exams (days to next) -> /exams?subject=.
-      Removed the duplicate "Study Vault" tab + dead Add Resource dialog.
-      Added Syllabus Mastery card (moved off the resources page). Homework
-      card has "See all".
-- [x] /homeworks and /exams accept ?subject= (isSubjectSimilar; exams match
-      subject.name ?? title), with a "Showing X / All subjects" chip; new
-      homework pre-picks the subject. Exams "study topics" chevron now goes
-      to the exam page (it pointed at /resources?subject=, which ignores it).
-- [x] /resources/[subject]: explorer only, h-full, no border/rounding; stats +
-      syllabus removed. Tab strip right end: "<subject> hub" + "Deep work
-      studio" (new `tabStripEnd` prop on SubjectExplorer).
-- [x] Mastery actions also revalidate /subjects.
-- [ ] Levi to look at it signed in (Settings -> Desktop app -> Check for
-      updates). Push main once he is happy (deploys the web). Writes (mastery add/toggle
-      from the hub) not exercised - harness is signed out.
+## What changed
+- lib/nav.ts: section hubs - Plan -> /plan, Progress -> /progress, Study ->
+  /study (each section's first child is "Overview"); resolveNav drops a leaf
+  whose href equals its section's.
+- components/SectionTabs.tsx (in AppShell under the header): tabs for every
+  page of the current section. This is the "connect all sub pages" mechanism;
+  the sidebar only shows children when expanded.
+- components/ui/hub-tile.tsx: HubTile, used by all hubs + Subjects.
+- app/plan, app/progress, app/study: new hubs (server page -> presentational
+  *Hub.tsx). /plan calls ensureTasksGenerated(today..+6) like the dashboard.
+- app/homeworks: planner list grouped Overdue/Today/Tomorrow/This week/Later,
+  To do/Done, side rail stats + subject chips (?subject=), HomeworkRow.tsx +
+  homework-model.ts replace HomeworkCard. Due date read by UTC fields (form
+  stores UTC midnight). Proof upload still required (server rule, unchanged).
+- app/subjects: Course Notes removed (AI buddy context = syllabus, pending
+  homework, upcoming exams, studio note if any); restyled with PageHeader,
+  Panel, HubTile; grid view has Exams/Homework/Resources tiles; goal bar
+  target marker bug fixed.
 
-## Working Notes
-Build steps used: stop dev server, rm -rf .next, npm run build:desktop,
-`npx electron-builder --publish never` in desktop-app/, verify, tag, push tag,
-`gh release create vX --repo leviGatimu/study-flow-app <exe> <latest.yml>`.
-/welcome/* renders INSIDE the AppShell (not bare) - a harness needs no fake
-header/main wrapper.
+## Open / not verified
+- No page was rendered signed in (sessions can't be minted); writes untested.
+- /focus is in no nav section, so no tabs there.
+- ConfirmModal still uses loud font-black styling.
+- Homework subject colours are by list position (no shared colour helper).
 
 ## Recently Completed
+- 2026-09-24 Subject page as hub for resources/homework/exams, full-bleed
+  explorer - desktop 1.0.7 (c8a0173).
 - 2026-09-23 Subject resources page as a Windows Explorer window (f521129),
   desktop 1.0.6 released; main not pushed. Writes never exercised signed in.
 - 2026-09-22 Desktop sync 500: pooler ceiling; the fix (4503c7e) was never

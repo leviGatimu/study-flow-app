@@ -41,32 +41,21 @@ export default async function SubjectsPage() {
     }),
   ]);
 
+  // The title, actions and hub tiles live in SubjectsClient: whether the page
+  // shows the Subjects hub or one subject depends on ?subject=, which changes
+  // on the client without a server round trip.
   return (
-    <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto animate-in fade-in duration-500 pb-16">
-      {/* Hero */}
-      <section className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-8 pt-10 pb-6 border-b border-border/40">
-        <div data-tour="subjects-hero">
-          <h1 className="text-4xl font-heading font-bold tracking-tight text-foreground">
-            Subjects Hub <span className="text-primary font-bold text-2xl opacity-80">({subjects.length})</span>
-          </h1>
-          <p className="text-base text-muted-foreground font-medium mt-2 max-w-2xl">
-            Your academic command center. Manage courses, track performance growth, and organize study assets in one place.
-          </p>
-        </div>
-      </section>
-
-      <div className="px-4 md:px-8">
-        <SubjectsClient
-          initialSubjects={subjects}
-          initialResources={resources}
-          initialHomeworks={homeworks}
-          initialGoals={goals}
-          initialReportCards={reportCards as any}
-          initialNotes={studioNotes}
-          initialExams={exams}
-          initialMastery={mastery}
-        />
-      </div>
+    <div className="mx-auto max-w-[1600px] px-4 pb-16 pt-8 md:px-8 animate-in fade-in duration-300">
+      <SubjectsClient
+        initialSubjects={subjects}
+        initialResources={resources}
+        initialHomeworks={homeworks}
+        initialGoals={goals}
+        initialReportCards={reportCards as any}
+        initialNotes={studioNotes}
+        initialExams={exams}
+        initialMastery={mastery}
+      />
     </div>
   );
 }

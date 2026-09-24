@@ -1,13 +1,34 @@
+import { redirect } from 'next/navigation';
+import { format } from 'date-fns';
+
 import { getHomeworks } from '@/lib/homework-actions';
-import { HomeworkList } from './HomeworkList';
-import { getUserId } from "@/lib/auth";
-import { redirect } from "next/navigation";
-import Link from 'next/link';
-import { BookOpen, X } from 'lucide-react';
 import { getSubjects } from '@/lib/subject-actions';
-import { isSubjectSimilar } from '@/lib/utils';
+import { getCurrentUserTimezone } from '@/lib/actions';
+import { getUserId } from '@/lib/auth';
+import { getTimeZoneOffsetMinutes, getZonedNow, isSubjectSimilar } from '@/lib/utils';
+import { PageHeader } from '@/components/ui/page-header';
+import { HomeworkList } from './HomeworkList';
+import { AddHomeworkButton } from './CreateHomeworkForm';
+import type { HomeworkItem, SubjectChip } from './homework-model';
 
 export const dynamic = 'force-dynamic';
+
+const DAY = 'yyyy-MM-dd';
+
+/**
+ * A due date is a date-only value: the form sends "yyyy-MM-dd", which the
+ * action parses as UTC midnight. Its UTC fields are the day the student picked,
+ * whatever timezone they are in.
+ */
+function dateOnlyDay(d: Date): string {
+  return format(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()), DAY);
+}
+
+/** A real instant (planned day, completion time) read on the user's clock. */
+function instantDay(d: Date, timeZone: string): string {
+  const shifted = new Date(d.getTime() + getTimeZoneOffsetMinutes(timeZone, d) * 60_000);
+  return dateOnlyDay(shifted);
+}
 
 export default async function HomeworksPage({
   searchParams,
@@ -17,52 +38,60 @@ export default async function HomeworksPage({
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
-  const [homeworks, subjects, params] = await Promise.all([
+  const [homeworks, subjects, timeZone, params] = await Promise.all([
     getHomeworks(),
     getSubjects(),
+    getCurrentUserTimezone(),
     searchParams,
   ]);
 
   // ?subject= narrows the list to one subject; its page in Subjects links here.
   const subjectFilter = (Array.isArray(params.subject) ? params.subject[0] : params.subject)?.trim() || null;
-  const shown = subjectFilter
-    ? homeworks.filter((h) => isSubjectSimilar(h.subject, subjectFilter))
-    : homeworks;
+
+  const items: HomeworkItem[] = homeworks.map((h) => ({
+    id: h.id,
+    subject: h.subject,
+    title: h.title,
+    description: h.description?.trim() || null,
+    dueDay: dateOnlyDay(h.dueDate),
+    plannedDay: h.plannedDate ? instantDay(h.plannedDate, timeZone) : null,
+    isCompleted: h.isCompleted,
+    completedDay: h.completedAt ? instantDay(h.completedAt, timeZone) : null,
+    completedAt: h.completedAt ? h.completedAt.toISOString() : null,
+    proofUrl: h.proofUrl,
+  }));
+
+  // One chip per subject that has homework, so the row always shows every
+  // subject, not just the one being filtered to.
+  const openBySubject = new Map<string, number>();
+  for (const h of items) {
+    openBySubject.set(h.subject, (openBySubject.get(h.subject) ?? 0) + (h.isCompleted ? 0 : 1));
+  }
+  const chips: SubjectChip[] = [...openBySubject.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, open]) => ({
+      name,
+      open,
+      active: subjectFilter !== null && isSubjectSimilar(name, subjectFilter),
+    }));
+
+  const shown = subjectFilter ? items.filter((h) => isSubjectSimilar(h.subject, subjectFilter)) : items;
+  const subjectOptions = subjects.map((s) => ({ id: s.id, name: s.name }));
 
   return (
-    <div className="flex flex-col space-y-8 max-w-[1600px] mx-auto animate-in fade-in duration-500 pb-16">
-      {/* Header */}
-      <header className="px-4 md:px-8 pt-10 pb-6 border-b border-border/40">
-        <h1 className="text-2xl font-heading font-bold tracking-tight text-foreground flex items-center gap-2">
-          <BookOpen className="w-6 h-6 text-primary" /> Homeworks
-        </h1>
-        <p className="text-sm text-muted-foreground mt-2">Track, plan, and manage your academic assignments.</p>
-        {subjectFilter && <SubjectFilterChip subject={subjectFilter} clearHref="/homeworks" />}
-      </header>
-
-      <div className="px-4 md:px-8">
-        <HomeworkList homeworks={shown} subjects={subjects} defaultSubject={subjectFilter} />
-      </div>
-    </div>
-  );
-}
-
-function SubjectFilterChip({ subject, clearHref }: { subject: string; clearHref: string }) {
-  return (
-    <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-      <span className="text-muted-foreground">Showing</span>
-      <Link
-        href={`/subjects?subject=${encodeURIComponent(subject)}`}
-        className="rounded-full bg-primary/10 px-3 py-1 font-semibold text-primary hover:bg-primary/15"
-      >
-        {subject}
-      </Link>
-      <Link
-        href={clearHref}
-        className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-      >
-        <X className="size-3.5" /> All subjects
-      </Link>
+    <div className="mx-auto max-w-[1600px] px-4 pb-16 pt-8 md:px-8 animate-in fade-in duration-300">
+      <PageHeader
+        title="Homework"
+        description="What is due, in the order it is due. Finish an assignment by uploading proof of the work."
+        actions={<AddHomeworkButton subjects={subjectOptions} defaultSubject={subjectFilter} />}
+      />
+      <HomeworkList
+        homeworks={shown}
+        today={format(getZonedNow(timeZone), DAY)}
+        chips={chips}
+        activeSubject={subjectFilter}
+        subjects={subjectOptions}
+      />
     </div>
   );
 }

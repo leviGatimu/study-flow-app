@@ -12,23 +12,19 @@ import {
   Trash2,
   Edit3,
   BookOpen,
+  BookOpenText,
   Target,
   TrendingUp,
-  CheckCircle,
-  Clock,
   AlertTriangle,
-  ChevronRight,
-  BookOpenText,
-  Layers,
   ArrowLeft,
   BrainCircuit,
   Send,
   Loader2,
   CheckCircle2,
-  Notebook,
   FolderOpen,
   CalendarClock,
-  ListChecks
+  ListChecks,
+  NotebookPen,
 } from "lucide-react";
 import {
   AreaChart,
@@ -40,10 +36,14 @@ import {
   ResponsiveContainer
 } from "recharts";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
+import { Stat } from "@/components/ui/stat";
+import { EmptyState } from "@/components/ui/empty-state";
+import { HubTile } from "@/components/ui/hub-tile";
 import {
   Dialog,
   DialogContent,
@@ -61,7 +61,6 @@ import {
   repairSubjects
 } from "@/lib/subject-actions";
 import { saveGoal } from "@/lib/goal-actions";
-import { saveStudioNote } from "@/lib/studio-actions";
 import { askAIBuddy } from "@/lib/ai-actions";
 import { AddMasteryForm } from "@/components/AddMasteryForm";
 import { MasteryList } from "@/components/MasteryList";
@@ -171,6 +170,52 @@ function parseGradeToPercentage(gradeStr: string): number {
   return 0;
 }
 
+function startOfToday(): Date {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+/** Exams from today on, soonest first. */
+function upcomingExams(exams: ExamEvent[]): ExamEvent[] {
+  const today = startOfToday();
+  return exams
+    .filter((e) => new Date(e.date) >= today)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+}
+
+/** "Today", "Tomorrow", "In 5 days" - or "None coming" when there is no exam. */
+function examCountdown(exam: ExamEvent | null): string {
+  if (!exam) return "None coming";
+  const days = differenceInCalendarDays(new Date(exam.date), startOfToday());
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  return `In ${days} days`;
+}
+
+function shortDate(date: Date): string {
+  return format(new Date(date), "EEE d MMM");
+}
+
+function isOverdue(hw: Homework): boolean {
+  return !hw.isCompleted && new Date(hw.dueDate) < startOfToday();
+}
+
+/** Up to two letters that stand in for a subject's icon: "C programming" -> "CP". */
+function subjectInitials(name: string): string {
+  const words = name.replace(/\(.*?\)/g, "").trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "?";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
+/** Percentage points, without float noise ("7.1", not "7.099999"). */
+function points(value: number): string {
+  return String(Math.round(value * 10) / 10);
+}
+
+const NOTE_CONTEXT_LIMIT = 8000;
+
 export function SubjectsClient({
   initialSubjects,
   initialResources,
@@ -186,7 +231,6 @@ export function SubjectsClient({
   const [isMounted, setIsMounted] = useState(false);
   const [isRepairing, setIsRepairing] = useState(false);
   const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
-  
 
   // Dialog states
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -206,21 +250,14 @@ export function SubjectsClient({
   // Search filter
   const [searchQuery, setSearchQuery] = useState("");
 
-  // DB Synced copies of other data tables (for local mutation / refresh after actions)
   const resources = initialResources;
   const [goals, setGoals] = useState<SubjectGoal[]>(initialGoals);
 
-  // Workspace integration states
-  const [notes, setNotes] = useState<StudioNote[]>(initialNotes);
-  const [noteContent, setNoteContent] = useState("");
-  const [isNoteSaving, setIsNoteSaving] = useState(false);
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"notes" | "chat">("notes");
-  
-  // AI Coach chat states
+  // AI study buddy chat
   const [aiQuery, setAiQuery] = useState("");
   const [aiMessages, setAiMessages] = useState<Array<{ role: "user" | "model"; text: string }>>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const chatBottomRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   // Filtered Subjects List
   const filteredSubjects = useMemo(() => {
@@ -279,6 +316,12 @@ export function SubjectsClient({
     return goals.find((g) => isSubjectSimilar(g.subject, selectedSubject.name)) || null;
   }, [goals, selectedSubject]);
 
+  // Notes are written in the Deep work studio; here they are only context for the AI.
+  const subjectNote = useMemo(() => {
+    if (!selectedSubject) return "";
+    return initialNotes.find((n) => isSubjectSimilar(n.subject, selectedSubject.name))?.content.trim() ?? "";
+  }, [initialNotes, selectedSubject]);
+
   // Extract Growth Chart Data
   const chartData = useMemo(() => {
     if (!selectedSubject) return [];
@@ -315,83 +358,23 @@ export function SubjectsClient({
     setIsMounted(true);
   }, []);
 
-  // Load notes content when selected subject changes
-  useEffect(() => {
-    if (selectedSubject) {
-      const match = notes.find((n) => isSubjectSimilar(n.subject, selectedSubject.name));
-      setNoteContent(match?.content || "");
-      
-      // Reset active workspace tab to notes
-      setActiveWorkspaceTab("notes");
-      
-      // Initialize AI chat history with context
-      setAiMessages([
-        {
-          role: "model",
-          text: `Hi there! I am your AI Study Coach for **${selectedSubject.name}**. I have read your current course notes and stand ready to assist. Ask me any question, request a conceptual explanation, or ask for a study quiz!`,
-        },
-      ]);
-    } else {
-      setNoteContent("");
-    }
-  }, [selectedSubjectId]);
-
-  // Debounced notes autosave
+  // A new subject starts a new conversation.
   useEffect(() => {
     if (!selectedSubject) return;
-    // A finished year's notes are a record. Autosave is the one write here
-    // with no control to hide, so it is stopped at the source.
-    if (archived) return;
+    setAiMessages([
+      {
+        role: "model",
+        text: `Hi! I'm your study buddy for **${selectedSubject.name}**. I can see its syllabus topics, pending homework and upcoming exams${subjectNote ? ", plus your notes from the studio" : ""}. Ask me to explain something, quiz you, or plan what to revise next.`,
+      },
+    ]);
+  }, [selectedSubjectId]);
 
-    // Compare with current local notes copy to prevent redundant saves
-    const match = notes.find((n) => isSubjectSimilar(n.subject, selectedSubject.name));
-    const currentSaved = match?.content || "";
-    if (noteContent === currentSaved) return;
-
-    setIsNoteSaving(true);
-    const delay = setTimeout(async () => {
-      try {
-        const res = await saveStudioNote(selectedSubject.name, noteContent);
-        if (res.success) {
-          setNotes((prev) => {
-            const exists = prev.some((n) => isSubjectSimilar(n.subject, selectedSubject.name));
-            if (exists) {
-              return prev.map((n) =>
-                isSubjectSimilar(n.subject, selectedSubject.name)
-                  ? { ...n, content: noteContent, updatedAt: new Date() }
-                  : n
-              );
-            } else {
-              return [
-                ...prev,
-                {
-                  id: `note-${Date.now()}`,
-                  userId: "",
-                  subject: selectedSubject.name,
-                  content: noteContent,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                },
-              ];
-            }
-          });
-        }
-      } catch (err) {
-        console.error("Autosave error:", err);
-      } finally {
-        setIsNoteSaving(false);
-      }
-    }, 1000);
-
-    return () => clearTimeout(delay);
-  }, [noteContent, selectedSubject, notes]);
-
-  // Scroll to bottom of chat when messages change
+  // Keep the newest message in view. Scrolls the chat box only - scrollIntoView
+  // would also drag the whole page down to the chat on every subject open.
   useEffect(() => {
-    if (chatBottomRef.current) {
-      chatBottomRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [aiMessages]);
+    const box = chatScrollRef.current;
+    if (box) box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
+  }, [aiMessages, isAiLoading]);
 
   // Handlers
   const handleRepair = async () => {
@@ -522,15 +505,52 @@ export function SubjectsClient({
     }
   };
 
+  /** What the AI knows about the open subject, rebuilt from live data on every question. */
+  const buildBuddyPrompt = (subjectName: string) => {
+    const topics = subjectMastery.length
+      ? subjectMastery.map((m) => `- [${m.isCompleted ? "x" : " "}] ${m.title}`).join("\n")
+      : "(No syllabus topics listed yet.)";
+    const pending = subjectHomeworks.filter((h) => !h.isCompleted);
+    const homework = pending.length
+      ? pending.map((h) => `- ${h.title} (due ${format(new Date(h.dueDate), "EEE d MMM yyyy")})`).join("\n")
+      : "(No pending homework.)";
+    const exams = upcomingExams(subjectExams);
+    const examList = exams.length
+      ? exams.map((e) => `- ${e.title} on ${format(new Date(e.date), "EEE d MMM yyyy")}`).join("\n")
+      : "(No upcoming exams.)";
+    const note = subjectNote.length > NOTE_CONTEXT_LIMIT
+      ? `${subjectNote.slice(0, NOTE_CONTEXT_LIMIT)}\n[...notes truncated]`
+      : subjectNote;
+
+    return `You are an expert AI Study Coach helping the user pass their exams for the subject: ${subjectName}.
+Today is ${format(new Date(), "EEEE d MMMM yyyy")}.
+
+Syllabus topics ([x] = mastered, [ ] = not yet):
+${topics}
+
+Pending homework:
+${homework}
+
+Upcoming exams:
+${examList}
+
+The user's own notes for this subject (written in the Deep work studio):
+"""
+${note || "(No notes written yet.)"}
+"""
+
+Use this as context. Prioritise topics not yet mastered and anything due or examined soon.
+Explain concepts in clear, direct English. Break down tasks into easy steps. Create quizzes, active recall questions, or summaries if asked.`;
+  };
+
   const handleSendAiQuery = async (queryText?: string) => {
     if (!selectedSubject) return;
     const textToSend = queryText || aiQuery;
     if (!textToSend.trim()) return;
 
-    // Add user message to chat state
     const newMsg = { role: "user" as const, text: textToSend };
     setAiMessages((prev) => [...prev, newMsg]);
-    
+
     // Clear input if sending from input box
     if (!queryText) {
       setAiQuery("");
@@ -544,12 +564,7 @@ export function SubjectsClient({
         parts: [{ text: m.text }],
       }));
 
-      const systemPrompt = `You are an expert AI Study Coach helping the user pass their exams for the subject: ${selectedSubject.name}.
-Here are the user's current notes for this course to use as primary context:
-"""
-${noteContent || "(No notes written yet. Tell the user to write notes in the 'Course Notes' editor to give you context.)"}
-"""
-Explain concepts in clear, direct English. Break down tasks into easy steps. Create quizzes, active recall questions, or summaries if asked.`;
+      const systemPrompt = buildBuddyPrompt(selectedSubject.name);
 
       const res = await askAIBuddy(textToSend, history, undefined, undefined, systemPrompt);
       if (res.error) {
@@ -573,222 +588,276 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
     }
   };
 
-  return (
-    <div className="space-y-8">
+  // Section-wide facts for the hub tiles on the grid view.
+  const allUpcomingExams = upcomingExams(initialExams);
+  const nextExamOverall = allUpcomingExams[0] ?? null;
+  const allPendingHomework = initialHomeworks.filter((h) => !h.isCompleted);
+  const overdueCount = allPendingHomework.filter(isOverdue).length;
+  const nextDueOverall = allPendingHomework
+    .filter((h) => !isOverdue(h))
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0] ?? null;
+  const resourceSubjectCount = new Set(resources.map((r) => normalizeSubject(r.subject))).size;
 
-      {/* LANDING GRID VIEW (When selectedSubjectId is null) */}
+  const suggestions = [
+    { label: "Quiz me", prompt: "Quiz me with 5 active recall questions on my topics for this subject." },
+    { label: "What should I revise next?", prompt: "Given my topics, homework and exams, what should I revise next and why?" },
+    { label: "Explain a weak topic", prompt: "Pick a topic I have not mastered yet and explain it simply." },
+    ...(subjectNote ? [{ label: "Summarize my notes", prompt: "Summarize my notes for this subject." }] : []),
+  ];
+
+  return (
+    <div>
       {!selectedSubjectId ? (
-        <div className="space-y-8">
-          {/* Dashboard Control Bar */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border border-border/60 p-6 rounded-2xl shadow-sm">
-            <div className="flex items-center gap-4 flex-1">
-              <div className="relative flex-1 max-w-md">
-                <Search className="w-4.5 h-4.5 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <Input
-                  placeholder="Search subjects..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 rounded-xl h-11 bg-muted/30 border border-border/50 text-xs font-semibold"
-                />
-              </div>
-              <span className="text-xs font-medium text-muted-foreground hidden sm:inline-block">
-                Total courses: <span className="text-primary font-semibold">{subjects.length}</span>
-              </span>
-            </div>
-            <div className={cn("flex items-center gap-2 shrink-0", archived && "hidden")}>
-              {/* Tidying up used to happen invisibly on every page that listed
-                  subjects. It is a deliberate action now, and only here. */}
-              <Button
-                variant="outline"
-                onClick={handleRepair}
-                disabled={isRepairing}
-                title="Remove '(revision)' entries and merge duplicate subjects"
-                className="rounded-xl font-bold flex items-center gap-1.5"
-              >
-                <Wand2 className="w-4.5 h-4.5" />
-                {isRepairing ? "Tidying..." : "Tidy up"}
-              </Button>
-              <Button
-                onClick={() => setIsAddOpen(true)}
-                className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/95 flex items-center gap-1.5"
-              >
-                <Plus className="w-4.5 h-4.5" />
-                Add Subject
-              </Button>
-            </div>
+        /* GRID VIEW - the Subjects section's hub */
+        <div className="space-y-6">
+          <div data-tour="subjects-hero">
+            <PageHeader
+              className="pb-0"
+              title="Subjects"
+              description="Open a subject to see its homework, exams, marks, files and syllabus together."
+              actions={
+                !archived && (
+                  <>
+                    {/* Tidying up used to happen invisibly on every page that listed
+                        subjects. It is a deliberate action now, and only here. */}
+                    <Button
+                      variant="outline"
+                      onClick={handleRepair}
+                      disabled={isRepairing}
+                      title="Remove '(revision)' entries and merge duplicate subjects"
+                    >
+                      <Wand2 />
+                      {isRepairing ? "Tidying..." : "Tidy up"}
+                    </Button>
+                    <Button onClick={() => setIsAddOpen(true)}>
+                      <Plus />
+                      Add subject
+                    </Button>
+                  </>
+                )
+              }
+            />
           </div>
 
-          {/* Subjects Grid (12 Columns, each subject card takes 3 columns = 4 per row on large screens) */}
-          {filteredSubjects.length === 0 ? (
-            <div className="text-sm font-medium text-muted-foreground text-center py-16 bg-muted/50 rounded-2xl border border-border/50">
-              <BookOpenText className="w-10 h-10 text-muted-foreground/40 mx-auto mb-4" />
-              <p className="text-foreground font-semibold">No subjects yet</p>
-              <p className="mt-1">Add your first course to start tracking resources, grades, and goals.</p>
-              {!archived && (
-                <Button onClick={() => setIsAddOpen(true)} className="rounded-xl font-bold mt-4">
-                  Add a subject
-                </Button>
+          <nav aria-label="Across all subjects" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <HubTile
+              href="/exams"
+              icon={<CalendarClock />}
+              tone="orange"
+              label="Exams"
+              value={examCountdown(nextExamOverall)}
+              detail={
+                nextExamOverall
+                  ? `${nextExamOverall.title} · ${shortDate(nextExamOverall.date)}`
+                  : "Nothing scheduled"
+              }
+            />
+            <HubTile
+              href="/homeworks"
+              icon={<BookOpen />}
+              tone="blue"
+              label="Homework"
+              value={`${allPendingHomework.length} pending`}
+              detail={
+                overdueCount > 0
+                  ? `${overdueCount} overdue`
+                  : nextDueOverall
+                    ? `Next: ${nextDueOverall.title} · ${shortDate(nextDueOverall.dueDate)}`
+                    : "All caught up"
+              }
+            />
+            <HubTile
+              href="/resources"
+              icon={<FolderOpen />}
+              tone="teal"
+              label="Resources"
+              value={`${resources.length} ${resources.length === 1 ? "file" : "files"}`}
+              detail={
+                resources.length
+                  ? `Across ${resourceSubjectCount} ${resourceSubjectCount === 1 ? "subject" : "subjects"}`
+                  : "Nothing filed yet"
+              }
+            />
+          </nav>
+
+          <section aria-labelledby="subjects-list-heading" className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h2 id="subjects-list-heading" className="font-heading text-base font-semibold text-foreground">
+                Your subjects <span className="font-normal text-muted-foreground">({subjects.length})</span>
+              </h2>
+              {subjects.length > 0 && (
+                <div className="relative w-full sm:max-w-xs">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    aria-label="Search subjects"
+                    placeholder="Search subjects"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-9 pl-9"
+                  />
+                </div>
               )}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {filteredSubjects.map((s) => {
-                const normalizedName = normalizeSubject(s.name);
-                
-                // Fetch stats for this specific subject
-                const hwPending = initialHomeworks.filter(
-                  (h) => isSubjectSimilar(h.subject, s.name) && !h.isCompleted
-                ).length;
-                const resCount = resources.filter(
-                  (r) => isSubjectSimilar(r.subject, s.name)
-                ).length;
-                const targetGoal = goals.find(
-                  (g) => isSubjectSimilar(g.subject, s.name)
-                );
-                
-                // Get latest grade for this subject
-                const subjectGrades = initialReportCards
-                  .map((rc) => rc.grades.find((g) => isSubjectSimilar(g.subject, s.name)))
-                  .filter(Boolean) as SubjectGrade[];
-                const latestGrade = subjectGrades.length > 0 ? subjectGrades[subjectGrades.length - 1].grade : null;
 
-                const openCard = () => {
-                  openSubject(s.name);
-                  setRenameSubjectName(s.name);
-                };
+            {subjects.length === 0 ? (
+              <EmptyState
+                icon={<BookOpenText />}
+                title="No subjects yet"
+                description="Add your first course to start tracking its homework, exams, files and grades."
+                action={!archived && <Button onClick={() => setIsAddOpen(true)}><Plus />Add a subject</Button>}
+              />
+            ) : filteredSubjects.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No subjects match &ldquo;{searchQuery}&rdquo;.
+              </p>
+            ) : (
+              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredSubjects.map((s) => {
+                  const hwPending = initialHomeworks.filter(
+                    (h) => isSubjectSimilar(h.subject, s.name) && !h.isCompleted
+                  ).length;
+                  const resCount = resources.filter(
+                    (r) => isSubjectSimilar(r.subject, s.name)
+                  ).length;
+                  const targetGoal = goals.find(
+                    (g) => isSubjectSimilar(g.subject, s.name)
+                  );
 
-                return (
-                  <div
-                    key={s.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={openCard}
-                    onKeyDown={(e) => {
-                      if (e.target !== e.currentTarget) return;
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        openCard();
-                      }
-                    }}
-                    className="group bg-card border border-border/60 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer flex flex-col justify-between min-h-[220px]"
-                  >
-                    <div className="space-y-4">
-                      {/* Card Header */}
+                  const subjectGrades = initialReportCards
+                    .map((rc) => rc.grades.find((g) => isSubjectSimilar(g.subject, s.name)))
+                    .filter(Boolean) as SubjectGrade[];
+                  const latestGrade = subjectGrades.length > 0 ? subjectGrades[subjectGrades.length - 1].grade : null;
+
+                  const openCard = () => {
+                    openSubject(s.name);
+                    setRenameSubjectName(s.name);
+                  };
+
+                  const facts: Array<[string, string, boolean]> = [
+                    ["Homework", hwPending ? `${hwPending} pending` : "None pending", hwPending > 0],
+                    ["Files", String(resCount), resCount > 0],
+                    ["Target", targetGoal ? `${targetGoal.targetGrade}%` : "Not set", !!targetGoal],
+                    ["Latest grade", latestGrade ?? "None yet", !!latestGrade],
+                  ];
+
+                  return (
+                    <li
+                      key={s.id}
+                      className="group relative flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40 hover:bg-muted/30"
+                    >
+                      {/* The whole card opens the subject; the rename/delete
+                          buttons sit above this layer so they stay separate. */}
+                      <button
+                        type="button"
+                        onClick={openCard}
+                        aria-label={`Open ${s.name}`}
+                        className="absolute inset-0 cursor-pointer rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                      />
                       <div className="flex items-start justify-between gap-3">
-                        <div className="p-3 bg-primary/10 text-primary rounded-xl shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-200">
-                          <BookOpen className="w-5 h-5" />
-                        </div>
-                        <div className={cn(
-                          "flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200",
-                          archived && "hidden"
-                        )}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setTargetSubject(s);
-                              setRenameSubjectName(s.name);
-                              setIsRenameOpen(true);
-                            }}
-                            aria-label={`Rename ${s.name}`}
-                            className="p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors"
-                            title="Rename subject"
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span
+                            aria-hidden
+                            className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 font-heading text-sm font-semibold text-primary"
                           >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setTargetSubject(s);
-                              setIsDeleteOpen(true);
-                            }}
-                            aria-label={`Delete ${s.name}`}
-                            className="p-1.5 hover:bg-red-500/10 text-muted-foreground hover:text-red-500 rounded-lg transition-colors"
-                            title="Delete subject"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                            {subjectInitials(s.name)}
+                          </span>
+                          <h3 className="line-clamp-2 min-w-0 font-heading text-base font-semibold leading-snug text-foreground">
+                            {s.name}
+                          </h3>
                         </div>
+                        {!archived && (
+                          <div className="relative z-10 -mr-1.5 -mt-1.5 flex shrink-0 items-center transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => {
+                                setTargetSubject(s);
+                                setRenameSubjectName(s.name);
+                                setIsRenameOpen(true);
+                              }}
+                              aria-label={`Rename ${s.name}`}
+                              title="Rename subject"
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              <Edit3 />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => {
+                                setTargetSubject(s);
+                                setIsDeleteOpen(true);
+                              }}
+                              aria-label={`Delete ${s.name}`}
+                              title="Delete subject"
+                              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 />
+                            </Button>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Subject Name */}
-                      <div>
-                        <h3 className="font-heading font-bold text-lg text-foreground tracking-tight line-clamp-2 leading-snug">
-                          {s.name}
-                        </h3>
-                      </div>
-                    </div>
-
-                    {/* Stats Metrics Grid */}
-                    <div className="border-t border-border/40 pt-4 mt-4 grid grid-cols-2 gap-3 text-xs font-medium text-muted-foreground">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                        <span className="truncate">{hwPending} homeworks</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <Layers className="w-3.5 h-3.5 text-teal-500 shrink-0" />
-                        <span className="truncate">{resCount} assets</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <Target className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                        <span className="truncate">{targetGoal ? `Target ${targetGoal.targetGrade}%` : "No goal"}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <TrendingUp className="w-3.5 h-3.5 text-purple-500 shrink-0" />
-                        <span className="truncate text-foreground font-semibold">{latestGrade ? `Grade: ${latestGrade}` : "Ungraded"}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                      <dl className="mt-auto grid grid-cols-2 gap-x-3 gap-y-2.5 border-t border-border pt-4 text-xs">
+                        {facts.map(([label, value, present]) => (
+                          <div key={label} className="min-w-0">
+                            <dt className="text-muted-foreground">{label}</dt>
+                            <dd className={cn("truncate font-medium", present ? "text-foreground" : "text-muted-foreground")}>
+                              {value}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
         </div>
       ) : (
-        /* DEDICATED WORKSPACE VIEW (When a subject is selected) */
-        <div className="space-y-8">
-          
-          {/* Breadcrumb Nav Control */}
-          <div className="flex items-center">
-            <Button
+        /* SUBJECT WORKSPACE */
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <button
+              type="button"
               onClick={() => openSubject(null)}
-              variant="ghost"
-              className="rounded-xl font-bold text-xs hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center gap-1.5"
+              className="inline-flex items-center gap-1.5 rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Course Grid
-            </Button>
-          </div>
-
-          {/* Subject Control Header */}
-          <div className="bg-card border border-border/60 p-8 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6">
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-muted-foreground">Active subject workspace</p>
-              <h2 className="text-2xl md:text-3xl font-heading font-bold tracking-tight text-foreground mt-2 leading-tight select-all break-words">
-                {selectedSubject?.name}
-              </h2>
-            </div>
-            <div className={cn("flex gap-2 shrink-0 md:mt-2", archived && "hidden")}>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setRenameSubjectName(selectedSubject?.name || "");
-                  setIsRenameOpen(true);
-                }}
-                className="rounded-xl font-bold hover:bg-muted/80 text-foreground flex items-center gap-1.5"
-              >
-                <Edit3 className="w-4 h-4" />
-                Rename
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => setIsDeleteOpen(true)}
-                className="rounded-xl font-bold flex items-center gap-1.5"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete
-              </Button>
+              <ArrowLeft className="size-4" />
+              All subjects
+            </button>
+            <div data-tour="subjects-hero">
+              <PageHeader
+                className="pb-0"
+                title={<span className="break-words">{selectedSubject?.name}</span>}
+                description="Its homework, exams, files, marks and syllabus in one place."
+                actions={
+                  !archived && (
+                    <>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setRenameSubjectName(selectedSubject?.name || "");
+                          setIsRenameOpen(true);
+                        }}
+                      >
+                        <Edit3 />
+                        Rename
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => setIsDeleteOpen(true)}
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 />
+                        Delete
+                      </Button>
+                    </>
+                  )
+                }
+              />
             </div>
           </div>
 
@@ -803,424 +872,350 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
             />
           )}
 
-          {/* Split-Screen desktop-grade workstation grid (Left Span: 5, Right Span: 7) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            
-            {/* LEFT COLUMN: Mastery & Performance Radar (lg:col-span-5) */}
-            <div className="lg:col-span-5 space-y-6">
-              
-              {/* 1. Academic Growth Curve (Recharts) */}
-              <Card className="bg-card border border-border/60 p-6 rounded-2xl shadow-sm flex flex-col justify-between min-h-[340px]">
-                <div className="mb-4">
-                  <h3 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-primary" />
-                    Academic Growth Curve
-                  </h3>
-                  <p className="text-xs font-semibold text-muted-foreground mt-0.5">
-                    Historical standings from uploaded and manual term report cards.
-                  </p>
-                </div>
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
 
-                <div className="flex-1 min-h-[180px] w-full flex items-center justify-center relative">
-                  {isMounted && chartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart
-                        data={chartData}
-                        margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
-                      >
-                        <defs>
-                          <linearGradient id="colorGrade" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="var(--color-primary, #3b82f6)" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="var(--color-primary, #3b82f6)" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.08)" />
-                        <XAxis
-                          dataKey="term"
-                          axisLine={false}
-                          tickLine={false}
-                          tick={{ fontSize: 9, fontWeight: "bold", fill: "rgb(156, 163, 175)" }}
-                        />
-                        <YAxis
-                          domain={[0, 100]}
-                          axisLine={false}
-                          tickLine={false}
-                          tick={{ fontSize: 9, fontWeight: "bold", fill: "rgb(156, 163, 175)" }}
-                          unit="%"
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            borderRadius: "16px",
-                            border: "none",
-                            boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
-                            fontWeight: "bold",
-                            fontSize: "10px",
-                            background: "hsl(var(--popover))",
-                            color: "hsl(var(--popover-foreground))",
-                          }}
-                          formatter={(value: any, name: any, props: any) => [
-                            `${value}% (${props.payload.rawGrade})`,
-                            "Grade"
-                          ]}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="grade"
-                          stroke="var(--color-primary, #3b82f6)"
-                          strokeWidth={2.5}
-                          fillOpacity={1}
-                          fill="url(#colorGrade)"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="text-center space-y-2 p-6">
-                      <TrendingUp className="w-8 h-8 text-muted-foreground/30 mx-auto" />
-                      <p className="text-xs font-semibold text-muted-foreground">
-                        No grade history found. Upload your report card or add scores on the <a href="/marks" className="text-primary hover:underline font-bold">Marks</a> page.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </Card>
+            {/* LEFT COLUMN: grades, target, homework, syllabus */}
+            <div className="space-y-6 lg:col-span-5">
 
-              {/* 2. Target Goal & Gap Indicator Card */}
-              <Card className="bg-card border border-border/60 p-6 rounded-2xl shadow-sm flex flex-col justify-between">
-                <div>
-                  <h3 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
-                    <Target className="w-5 h-5 text-orange-500" />
-                    Target Goal & Gap Indicator
-                  </h3>
-                  <p className="text-xs font-semibold text-muted-foreground mt-0.5">
-                    Benchmark standing gap analysis.
-                  </p>
-                </div>
-
-                <div className="my-5 p-4 bg-muted/20 border border-border/30 rounded-2xl flex flex-col justify-center space-y-3">
-                  {subjectGoal ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground">Goal target</p>
-                          <p className="text-2xl font-heading font-black text-orange-500 mt-1">{subjectGoal.targetGrade}%</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs font-medium text-muted-foreground">Current average</p>
-                          <p className="text-2xl font-heading font-black text-primary mt-1">
-                            {currentAverage !== null ? `${currentAverage}%` : "N/A"}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Goal progress indicator bar */}
-                      {currentAverage !== null && (
-                        <div className="space-y-1.5">
-                          <div className="h-2 w-full bg-muted rounded-full overflow-hidden relative">
-                            <div 
-                              className={cn(
-                                "h-full rounded-full transition-all duration-500",
-                                currentAverage >= subjectGoal.targetGrade ? "bg-emerald-500" : "bg-primary"
-                              )} 
-                              style={{ width: `${Math.min(100, (currentAverage / subjectGoal.targetGrade) * 100)}%` }} 
-                            />
-                            {/* Target marker */}
-                            <div className="absolute right-[5%] top-0 h-full w-[2px] bg-orange-500" title="Target goal line" />
-                          </div>
-                          
-                          <p className="text-xs font-medium leading-normal">
-                            {currentAverage >= subjectGoal.targetGrade ? (
-                              <span className="text-emerald-500 flex items-center gap-1">
-                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Target achieved! You are {currentAverage - subjectGoal.targetGrade}% above benchmark.
-                              </span>
-                            ) : (
-                              <span className="text-amber-500 flex items-start gap-1">
-                                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" /> You need +{subjectGoal.targetGrade - currentAverage}% more to meet your targeted goal.
-                              </span>
-                            )}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-center py-4 space-y-2">
-                      <Target className="w-8 h-8 text-muted-foreground/20 mx-auto" />
-                      <p className="text-xs font-semibold text-muted-foreground">
-                        Set a clear performance goal percentage for this course.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {!archived && (
-                  <Button
-                    onClick={() => {
-                      setTargetGoalGrade(subjectGoal ? String(subjectGoal.targetGrade) : "");
-                      setIsGoalOpen(true);
-                    }}
-                    variant={subjectGoal ? "outline" : "default"}
-                    className="w-full rounded-xl font-bold text-xs h-10"
-                  >
-                    {subjectGoal ? "Modify Grade Goal" : "Set Target Goal"}
-                  </Button>
-                )}
-              </Card>
-
-              {/* 3. Homework Assignments Tracker List */}
-              <Card className="bg-card border border-border/60 p-6 rounded-2xl shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-blue-500" />
-                    Homework Tracker
-                  </h3>
-
-                  <div className="flex items-center gap-2">
-                    {subjectHomeworks.length > 0 && (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted border border-border/40 text-muted-foreground">
-                        {subjectHomeworks.filter(h => h.isCompleted).length}/{subjectHomeworks.length} done
+              <Panel className="space-y-4">
+                <PanelHeading
+                  icon={<TrendingUp />}
+                  title="Grade history"
+                  aside={
+                    currentAverage !== null && (
+                      <span>
+                        Average <span className="font-semibold text-foreground">{currentAverage}%</span>
                       </span>
-                    )}
-                    {selectedSubject && (
-                      <Link
-                        href={`/homeworks?subject=${encodeURIComponent(selectedSubject.name)}`}
-                        className="text-xs font-semibold text-primary hover:underline"
-                      >
-                        See all
-                      </Link>
+                    )
+                  }
+                />
+                {chartData.length > 0 ? (
+                  <div className="h-52 w-full">
+                    {isMounted && (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorGrade" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.25} />
+                              <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                          <XAxis
+                            dataKey="term"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+                          />
+                          <YAxis
+                            domain={[0, 100]}
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+                            unit="%"
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              borderRadius: "12px",
+                              border: "1px solid var(--color-border)",
+                              fontSize: "12px",
+                              background: "var(--color-popover)",
+                              color: "var(--color-popover-foreground)",
+                            }}
+                            formatter={(value: any, _name: any, props: any) => [
+                              `${value}% (${props.payload.rawGrade})`,
+                              "Grade"
+                            ]}
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="grade"
+                            stroke="var(--color-primary)"
+                            strokeWidth={2}
+                            fillOpacity={1}
+                            fill="url(#colorGrade)"
+                            dot={{ r: 3, fill: "var(--color-primary)", strokeWidth: 0 }}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
                     )}
                   </div>
-                </div>
-
-                {subjectHomeworks.length > 0 && (
-                  <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-blue-500 transition-all duration-500" 
-                      style={{ 
-                        width: `${(subjectHomeworks.filter(h => h.isCompleted).length / subjectHomeworks.length) * 100}%` 
-                      }} 
-                    />
-                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No marks yet. Add a report card or scores on{" "}
+                    <Link href="/marks" className="font-medium text-primary hover:underline">Marks</Link>
+                    {" "}and they will chart here.
+                  </p>
                 )}
+              </Panel>
 
-                <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
-                  {subjectHomeworks.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground italic text-xs font-semibold border border-dashed border-border/40 rounded-xl">
-                      No homework assignments found for this course.
-                    </div>
-                  ) : (
-                    subjectHomeworks.map((hw) => (
-                      <div
-                        key={hw.id}
-                        className={cn(
-                          "p-3 rounded-2xl border flex items-center justify-between text-xs transition-all",
-                          hw.isCompleted
-                            ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                            : "bg-muted/20 border-border/40 text-foreground"
-                        )}
+              <Panel className="space-y-4">
+                <PanelHeading
+                  icon={<Target />}
+                  title="Target"
+                  aside={
+                    !archived && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setTargetGoalGrade(subjectGoal ? String(subjectGoal.targetGrade) : "");
+                          setIsGoalOpen(true);
+                        }}
                       >
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold truncate leading-snug">{hw.title}</p>
-                          <p className="text-xs text-muted-foreground font-medium mt-0.5">
-                            Due: {new Date(hw.dueDate).toLocaleDateString()}
-                          </p>
+                        {subjectGoal ? "Change" : "Set target"}
+                      </Button>
+                    )
+                  }
+                />
+                {subjectGoal ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Stat label="Target" value={`${subjectGoal.targetGrade}%`} />
+                      <Stat
+                        label="Current average"
+                        value={currentAverage !== null ? `${currentAverage}%` : "No marks yet"}
+                        tone={currentAverage === null ? "default" : currentAverage >= subjectGoal.targetGrade ? "success" : "primary"}
+                      />
+                    </div>
+                    {currentAverage !== null && (
+                      <div className="space-y-2.5">
+                        {/* 0-100 scale: the fill is the average, the tick is the target. */}
+                        <div
+                          role="img"
+                          aria-label={`Average ${currentAverage}% against a target of ${subjectGoal.targetGrade}%`}
+                          className="relative h-2 w-full rounded-full bg-muted"
+                        >
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all duration-500",
+                              currentAverage >= subjectGoal.targetGrade ? "bg-success" : "bg-primary"
+                            )}
+                            style={{ width: `${Math.min(100, Math.max(0, currentAverage))}%` }}
+                          />
+                          <div
+                            aria-hidden
+                            className="absolute -top-1 h-4 w-0.5 -translate-x-1/2 rounded-full bg-foreground"
+                            style={{ left: `${Math.min(100, Math.max(0, subjectGoal.targetGrade))}%` }}
+                          />
                         </div>
-                        <span className={cn(
-                          "px-2 py-0.5 rounded-full font-medium text-xs ml-3 shrink-0",
-                          hw.isCompleted
-                            ? "bg-emerald-500/10 text-emerald-500"
-                            : "bg-amber-500/10 text-amber-500"
-                        )}>
-                          {hw.isCompleted ? "Done" : "Pending"}
-                        </span>
+                        {currentAverage >= subjectGoal.targetGrade ? (
+                          <p className="flex items-center gap-1.5 text-sm text-success">
+                            <CheckCircle2 className="size-4 shrink-0" />
+                            On target, {points(currentAverage - subjectGoal.targetGrade)} points above.
+                          </p>
+                        ) : (
+                          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <AlertTriangle className="size-4 shrink-0 text-amber-500" />
+                            {points(subjectGoal.targetGrade - currentAverage)} points below your target.
+                          </p>
+                        )}
                       </div>
-                    ))
-                  )}
-                </div>
-              </Card>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No target yet. Set one to see how far your average is from it.
+                  </p>
+                )}
+              </Panel>
 
-              {/* 4. Syllabus mastery - the topics this subject's exams cover */}
+              <Panel className="space-y-4">
+                <PanelHeading
+                  icon={<BookOpen />}
+                  title="Homework"
+                  aside={
+                    <>
+                      {subjectHomeworks.length > 0 && (
+                        <span>{subjectHomeworks.filter((h) => h.isCompleted).length}/{subjectHomeworks.length} done</span>
+                      )}
+                      {selectedSubject && (
+                        <Link
+                          href={`/homeworks?subject=${encodeURIComponent(selectedSubject.name)}`}
+                          className="rounded-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                        >
+                          See all
+                        </Link>
+                      )}
+                    </>
+                  }
+                />
+                {subjectHomeworks.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No homework for this subject yet.</p>
+                ) : (
+                  <>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-500"
+                        style={{
+                          width: `${(subjectHomeworks.filter((h) => h.isCompleted).length / subjectHomeworks.length) * 100}%`
+                        }}
+                      />
+                    </div>
+                    <ul className="-mx-1 max-h-64 divide-y divide-border overflow-y-auto px-1">
+                      {[...subjectHomeworks]
+                        .sort((a, b) => Number(a.isCompleted) - Number(b.isCompleted))
+                        .map((hw) => {
+                          const overdue = isOverdue(hw);
+                          return (
+                            <li key={hw.id} className="flex items-center justify-between gap-3 py-2.5">
+                              <div className="min-w-0">
+                                <p className={cn(
+                                  "truncate text-sm font-medium",
+                                  hw.isCompleted ? "text-muted-foreground line-through" : "text-foreground"
+                                )}>
+                                  {hw.title}
+                                </p>
+                                <p className={cn("text-xs", overdue ? "text-destructive" : "text-muted-foreground")}>
+                                  Due {shortDate(hw.dueDate)}
+                                </p>
+                              </div>
+                              <span className={cn(
+                                "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                                hw.isCompleted
+                                  ? "bg-success/10 text-success"
+                                  : overdue
+                                    ? "bg-destructive/10 text-destructive"
+                                    : "bg-muted text-muted-foreground"
+                              )}>
+                                {hw.isCompleted ? "Done" : overdue ? "Overdue" : "Pending"}
+                              </span>
+                            </li>
+                          );
+                        })}
+                    </ul>
+                  </>
+                )}
+              </Panel>
+
+              {/* Syllabus mastery - the topics this subject's exams cover */}
               {selectedSubject && (
-                <Card className="bg-card border border-border/60 p-6 rounded-2xl shadow-sm space-y-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
-                      <ListChecks className="w-5 h-5 text-emerald-500" />
-                      Syllabus Mastery
-                    </h3>
-                    <AddMasteryForm subject={selectedSubject.name} />
-                  </div>
+                <Panel className="space-y-4">
+                  <PanelHeading
+                    icon={<ListChecks />}
+                    title="Syllabus"
+                    aside={
+                      subjectMastery.length > 0 && (
+                        <span>
+                          {subjectMastery.filter((m) => m.isCompleted).length}/{subjectMastery.length} mastered
+                        </span>
+                      )
+                    }
+                  />
+                  <AddMasteryForm subject={selectedSubject.name} />
                   <MasteryList items={subjectMastery} subject={selectedSubject.name} />
-                </Card>
+                </Panel>
               )}
 
             </div>
 
-            {/* RIGHT COLUMN: notes and the AI study buddy (lg:col-span-7) */}
-            <Card className="lg:col-span-7 bg-card border border-border/60 rounded-2xl overflow-hidden flex flex-col h-[750px] shadow-sm">
-              
-              {/* Tab Header Selector */}
-              <div className="bg-muted/40 border-b border-border/50 p-4 shrink-0 flex items-center justify-between">
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => setActiveWorkspaceTab("notes")}
-                    className={cn(
-                      "px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all",
-                      activeWorkspaceTab === "notes"
-                        ? "bg-background text-foreground shadow-sm border border-border/40"
-                        : "text-muted-foreground hover:bg-background/40 hover:text-foreground"
-                    )}
-                  >
-                    <Notebook className="w-4 h-4" />
-                    Course Notes
-                  </button>
-                  <button
-                    onClick={() => setActiveWorkspaceTab("chat")}
-                    className={cn(
-                      "px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all",
-                      activeWorkspaceTab === "chat"
-                        ? "bg-background text-foreground shadow-sm border border-border/40"
-                        : "text-muted-foreground hover:bg-background/40 hover:text-foreground"
-                    )}
-                  >
-                    <BrainCircuit className="w-4 h-4" />
-                    AI Study Buddy
-                  </button>
-                </div>
-
-                {/* Additional dynamic status indicators on header */}
-                {activeWorkspaceTab === "notes" && (
-                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                    {isNoteSaving ? (
-                      <span className="flex items-center gap-1 text-amber-500 font-semibold animate-pulse">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-emerald-500 font-semibold">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Saved
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Tab Content Body (Unified height & scroll control) */}
-              <div className="flex-1 overflow-hidden p-6 flex flex-col min-h-0">
-                
-                {/* TAB 1: Live Course Notes Editor */}
-                {activeWorkspaceTab === "notes" && (
-                  <div className="flex-1 flex flex-col min-h-0 space-y-4">
-                    <div className="flex items-center justify-between text-xs font-bold text-muted-foreground border-b border-border/20 pb-2">
-                      <span>{archived ? "Course notes (read-only)" : "Live Note Editor (Auto-Saves)"}</span>
-                      <span>Words: {noteContent.trim().split(/\s+/).filter(Boolean).length}</span>
-                    </div>
-                    <textarea
-                      value={noteContent}
-                      readOnly={archived}
-                      onChange={(e) => setNoteContent(e.target.value)}
-                      placeholder="Type your course syllabus details, key formulas, lecture definitions, and exam reminders here. The AI Study Buddy will automatically parse these notes and use them as instant reference context..."
-                      className="w-full flex-1 bg-muted/10 border border-border/40 rounded-xl p-4 font-mono text-sm leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary overflow-y-auto"
-                    />
-                    <p className="text-xs text-muted-foreground/80 italic font-medium leading-relaxed">
-                      Type freely. Autosave saves your notes locally in the background. Markdown headers (#, ##), bullet points, and code snippets are supported.
+            {/* RIGHT COLUMN: the AI study buddy */}
+            <Panel
+              padded={false}
+              className="flex h-[560px] flex-col overflow-hidden lg:sticky lg:top-6 lg:col-span-7 lg:h-[calc(100dvh-9rem)] lg:min-h-[520px]"
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <BrainCircuit className="size-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className="font-heading text-base font-semibold text-foreground">AI Study Buddy</h2>
+                    <p className="truncate text-xs text-muted-foreground">
+                      Knows this subject&apos;s topics, homework and exams
                     </p>
                   </div>
+                </div>
+                {selectedSubject && (
+                  <Button asChild variant="ghost" size="sm" className="shrink-0 text-muted-foreground">
+                    <Link href={`/studio/${encodeURIComponent(selectedSubject.name)}`} title="Write notes in the Deep work studio">
+                      <NotebookPen />
+                      Notes
+                    </Link>
+                  </Button>
                 )}
-
-                {/* TAB 2: AI Study Coach chat module */}
-                {activeWorkspaceTab === "chat" && (
-                  <div className="flex-1 flex flex-col min-h-0 space-y-4">
-                    
-                    {/* Floating suggestions helper */}
-                    <div className="flex flex-wrap gap-1.5 shrink-0">
-                      <button
-                        onClick={() => handleSendAiQuery("Summarize my current course notes.")}
-                        disabled={isAiLoading}
-                        className="px-2.5 py-1 text-xs font-medium bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 rounded-lg hover:bg-purple-500/20 transition-colors duration-200"
-                      >
-                        Summarize notes
-                      </button>
-                      <button
-                        onClick={() => handleSendAiQuery("Quiz me on 5 key active recall questions based on my notes.")}
-                        disabled={isAiLoading}
-                        className="px-2.5 py-1 text-xs font-medium bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-500/20 transition-colors duration-200"
-                      >
-                        Quiz me
-                      </button>
-                      <button
-                        onClick={() => handleSendAiQuery("Explain the most critical core concept in these notes.")}
-                        disabled={isAiLoading}
-                        className="px-2.5 py-1 text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition-colors duration-200"
-                      >
-                        Explain core concept
-                      </button>
-                    </div>
-
-                    {/* Chat Messages Frame */}
-                    <div className="flex-1 overflow-y-auto border border-border/40 bg-muted/10 rounded-2xl p-4 space-y-4 min-h-0 flex flex-col">
-                      {aiMessages.map((msg, index) => (
-                        <div
-                          key={index}
-                          className={cn(
-                            "flex flex-col max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed break-words",
-                            msg.role === "user"
-                              ? "self-end bg-primary text-primary-foreground rounded-tr-none"
-                              : "self-start bg-muted/40 border border-border/40 text-foreground rounded-tl-none"
-                          )}
-                        >
-                          {/* Markdown rendering simulation (replaces bold markers) */}
-                          <div
-                            className="font-semibold whitespace-pre-wrap"
-                            dangerouslySetInnerHTML={{
-                              __html: msg.text
-                                .replace(/&/g, '&amp;')
-                                .replace(/</g, '&lt;')
-                                .replace(/>/g, '&gt;')
-                                .replace(/"/g, '&quot;')
-                                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                            }}
-                          />
-                        </div>
-                      ))}
-                      
-                      {isAiLoading && (
-                        <div className="self-start bg-muted/40 border border-border/40 rounded-2xl rounded-tl-none p-3 max-w-[85%] flex items-center gap-2 text-xs font-semibold text-muted-foreground animate-pulse shrink-0">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                          Study Coach is reviewing notes...
-                        </div>
-                      )}
-                      
-                      <div ref={chatBottomRef} />
-                    </div>
-
-                    {/* Chat input console */}
-                    <div className="shrink-0 flex items-center gap-2">
-                      <Input
-                        value={aiQuery}
-                        onChange={(e) => setAiQuery(e.target.value)}
-                        placeholder="Ask Study Buddy about course notes / explain concepts..."
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleSendAiQuery();
-                          }
-                        }}
-                        disabled={isAiLoading}
-                        className="rounded-xl border border-border bg-muted/20 font-bold text-xs h-10 flex-1"
-                      />
-                      <Button
-                        onClick={() => handleSendAiQuery()}
-                        disabled={isAiLoading || !aiQuery.trim()}
-                        className="rounded-xl font-bold bg-primary text-primary-foreground h-10 w-10 p-0 flex items-center justify-center shrink-0"
-                      >
-                        <Send className="w-4 h-4" />
-                      </Button>
-                    </div>
-
-                  </div>
-                )}
-
               </div>
 
-            </Card>
+              <div
+                ref={chatScrollRef}
+                aria-live="polite"
+                className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4"
+              >
+                {aiMessages.map((msg, index) => (
+                  <div
+                    key={index}
+                    className={cn(
+                      "max-w-[85%] break-words rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
+                      msg.role === "user"
+                        ? "self-end rounded-br-md bg-primary text-primary-foreground"
+                        : "self-start rounded-bl-md bg-muted text-foreground"
+                    )}
+                  >
+                    {/* Minimal markdown: escape everything, then allow bold and italics. */}
+                    <div
+                      className="whitespace-pre-wrap"
+                      dangerouslySetInnerHTML={{
+                        __html: msg.text
+                          .replace(/&/g, '&amp;')
+                          .replace(/</g, '&lt;')
+                          .replace(/>/g, '&gt;')
+                          .replace(/"/g, '&quot;')
+                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                      }}
+                    />
+                  </div>
+                ))}
+
+                {isAiLoading && (
+                  <div className="flex max-w-[85%] shrink-0 items-center gap-2 self-start rounded-2xl rounded-bl-md bg-muted px-3.5 py-2.5 text-sm text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin text-primary" />
+                    Thinking...
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3 border-t border-border p-4">
+                <div className="flex flex-wrap gap-2">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.label}
+                      type="button"
+                      onClick={() => handleSendAiQuery(s.prompt)}
+                      disabled={isAiLoading}
+                      className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+                <form
+                  className="flex items-center gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendAiQuery();
+                  }}
+                >
+                  <Input
+                    value={aiQuery}
+                    onChange={(e) => setAiQuery(e.target.value)}
+                    aria-label={`Ask about ${selectedSubject?.name ?? "this subject"}`}
+                    placeholder={`Ask about ${selectedSubject?.name ?? "this subject"}...`}
+                    disabled={isAiLoading}
+                    className="h-10 flex-1"
+                  />
+                  <Button
+                    type="submit"
+                    size="icon-lg"
+                    aria-label="Send"
+                    disabled={isAiLoading || !aiQuery.trim()}
+                    className="size-10 shrink-0"
+                  >
+                    <Send />
+                  </Button>
+                </form>
+              </div>
+            </Panel>
 
           </div>
 
@@ -1232,8 +1227,8 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
         <DialogContent className="rounded-3xl border border-border bg-popover max-w-sm p-6 shadow-2xl">
           <form onSubmit={handleAddSubject}>
             <DialogHeader className="space-y-2 mb-4">
-              <DialogTitle className="text-2xl font-heading font-black tracking-tight">Add New Subject</DialogTitle>
-              <DialogDescription className="text-xs font-semibold text-muted-foreground">
+              <DialogTitle className="text-lg font-heading font-semibold">Add New Subject</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
                 Register a new course in your master timetable workspace database.
               </DialogDescription>
             </DialogHeader>
@@ -1267,8 +1262,8 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
         <DialogContent className="rounded-3xl border border-border bg-popover max-w-sm p-6 shadow-2xl">
           <form onSubmit={handleRenameSubject}>
             <DialogHeader className="space-y-2 mb-4">
-              <DialogTitle className="text-2xl font-heading font-black tracking-tight">Rename Subject</DialogTitle>
-              <DialogDescription className="text-xs font-semibold text-muted-foreground">
+              <DialogTitle className="text-lg font-heading font-semibold">Rename Subject</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
                 Updates this subject name across all existing tables, schedules, history, and goals.
               </DialogDescription>
             </DialogHeader>
@@ -1303,11 +1298,11 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <DialogContent className="rounded-3xl border border-border bg-popover max-w-sm p-6 shadow-2xl">
           <DialogHeader className="space-y-2 mb-4">
-            <DialogTitle className="text-2xl font-heading font-black tracking-tight flex items-center gap-2 text-destructive">
+            <DialogTitle className="text-lg font-heading font-semibold flex items-center gap-2 text-destructive">
               <AlertTriangle className="w-5 h-5 shrink-0" />
               Delete Subject?
             </DialogTitle>
-            <DialogDescription className="text-xs font-semibold text-muted-foreground">
+            <DialogDescription className="text-sm text-muted-foreground">
               Are you sure you want to remove <span className="font-bold text-foreground">"{targetSubject?.name || selectedSubject?.name}"</span>?
             </DialogDescription>
           </DialogHeader>
@@ -1343,8 +1338,8 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
         <DialogContent className="rounded-3xl border border-border bg-popover max-w-sm p-6 shadow-2xl">
           <form onSubmit={handleSaveGoal}>
             <DialogHeader className="space-y-2 mb-4">
-              <DialogTitle className="text-2xl font-heading font-black tracking-tight">Set Academic Target</DialogTitle>
-              <DialogDescription className="text-xs font-semibold text-muted-foreground">
+              <DialogTitle className="text-lg font-heading font-semibold">Set Academic Target</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
                 Set a benchmark goal grade percentage for {selectedSubject?.name}.
               </DialogDescription>
             </DialogHeader>
@@ -1377,12 +1372,27 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
         </DialogContent>
       </Dialog>
 
-      {/* Hide ugly scrollbars globally in workspace */}
-      <style dangerouslySetInnerHTML={{__html: `
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none !important;
-        }
-      `}} />
+    </div>
+  );
+}
+
+/** The one heading style for every panel on the subject page. */
+function PanelHeading({
+  icon,
+  title,
+  aside,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  aside?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <h2 className="flex min-w-0 items-center gap-2 font-heading text-base font-semibold text-foreground">
+        <span aria-hidden className="text-primary [&_svg]:size-4">{icon}</span>
+        {title}
+      </h2>
+      {aside && <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">{aside}</div>}
     </div>
   );
 }
@@ -1400,87 +1410,54 @@ function SubjectLinks({
   exams: ExamEvent[];
 }) {
   const encoded = encodeURIComponent(subject);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
   const pending = homeworks.filter((h) => !h.isCompleted);
-  const nextDue = pending.reduce<Homework | null>(
-    (soonest, h) => (!soonest || new Date(h.dueDate) < new Date(soonest.dueDate) ? h : soonest),
-    null,
-  );
-  const upcoming = exams
-    .filter((e) => new Date(e.date) >= today)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const overdue = pending.filter(isOverdue).length;
+  const nextDue = pending
+    .filter((h) => !isOverdue(h))
+    .reduce<Homework | null>(
+      (soonest, h) => (!soonest || new Date(h.dueDate) < new Date(soonest.dueDate) ? h : soonest),
+      null,
+    );
+  const upcoming = upcomingExams(exams);
   const nextExam = upcoming[0] ?? null;
-  const daysToExam = nextExam ? differenceInCalendarDays(new Date(nextExam.date), today) : null;
 
   return (
     <nav aria-label={`${subject} pages`} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <SubjectLink
+      <HubTile
         href={`/resources/${encoded}`}
-        icon={<FolderOpen className="w-5 h-5" />}
-        tint="bg-teal-500/10 text-teal-600 dark:text-teal-400"
+        icon={<FolderOpen />}
+        tone="teal"
         label="Resources"
         value={`${resourceCount} ${resourceCount === 1 ? "file" : "files"}`}
         detail={`Open the ${subject} folder`}
       />
-      <SubjectLink
+      <HubTile
         href={`/homeworks?subject=${encoded}`}
-        icon={<BookOpen className="w-5 h-5" />}
-        tint="bg-blue-500/10 text-blue-600 dark:text-blue-400"
+        icon={<BookOpen />}
+        tone="blue"
         label="Homework"
         value={`${pending.length} pending`}
-        detail={nextDue ? `Next due ${format(new Date(nextDue.dueDate), "EEE d MMM")}` : "All caught up"}
-      />
-      <SubjectLink
-        href={`/exams?subject=${encoded}`}
-        icon={<CalendarClock className="w-5 h-5" />}
-        tint="bg-orange-500/10 text-orange-600 dark:text-orange-400"
-        label="Exams"
-        value={
-          daysToExam === null
-            ? "None coming"
-            : daysToExam === 0
-              ? "Today"
-              : `In ${daysToExam} ${daysToExam === 1 ? "day" : "days"}`
+        detail={
+          overdue > 0
+            ? `${overdue} overdue`
+            : nextDue
+              ? `Next due ${shortDate(nextDue.dueDate)}`
+              : "All caught up"
         }
+      />
+      <HubTile
+        href={`/exams?subject=${encoded}`}
+        icon={<CalendarClock />}
+        tone="orange"
+        label="Exams"
+        value={examCountdown(nextExam)}
         detail={
           nextExam
-            ? `${nextExam.title} · ${format(new Date(nextExam.date), "EEE d MMM")}${upcoming.length > 1 ? ` (+${upcoming.length - 1} more)` : ""}`
+            ? `${nextExam.title} · ${shortDate(nextExam.date)}${upcoming.length > 1 ? ` (+${upcoming.length - 1} more)` : ""}`
             : "Nothing scheduled"
         }
       />
     </nav>
-  );
-}
-
-function SubjectLink({
-  href,
-  icon,
-  tint,
-  label,
-  value,
-  detail,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  tint: string;
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group flex items-center gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-    >
-      <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl", tint)}>{icon}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-xs font-medium text-muted-foreground">{label}</span>
-        <span className="block font-heading text-lg font-bold leading-tight text-foreground">{value}</span>
-        <span className="block truncate text-xs text-muted-foreground">{detail}</span>
-      </span>
-      <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
-    </Link>
   );
 }

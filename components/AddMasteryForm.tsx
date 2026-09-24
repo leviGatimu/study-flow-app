@@ -31,15 +31,17 @@ export function AddMasteryForm({ subject }: { subject: string }) {
         value={title}
         onChange={e => setTitle(e.target.value)}
         placeholder="e.g. Chapter 1: Introduction"
-        className="h-10 rounded-xl bg-muted/30 border-border/60 font-medium px-4"
+        className="h-9 rounded-lg"
         disabled={isPending}
       />
       <Button 
         type="submit" 
         disabled={isPending || !title.trim()}
-        className="rounded-xl font-bold gap-2 shadow-sm"
+        variant="outline"
+        size="sm"
+        className="h-9 shrink-0 rounded-lg"
       >
-        <Plus className="w-4 h-4" /> Add Topic
+        <Plus /> Add
       </Button>
     </form>
   );

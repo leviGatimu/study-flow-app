@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 
 import { Sidebar } from "@/components/Sidebar";
 import { AppHeader } from "@/components/AppHeader";
+import { SectionTabs } from "@/components/SectionTabs";
 import { CommandMenu } from "@/components/CommandMenu";
 import { SyncWatcher } from "@/components/SyncWatcher";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
@@ -53,6 +54,7 @@ export function AppShell({
 
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader userProgress={userProgress} subjects={subjects} />
+          <SectionTabs />
           {/* Outside <main>, so it cannot scroll out of sight. */}
           <ArchiveBanner />
           <main className="app-scroll flex-1 overflow-y-auto bg-background">

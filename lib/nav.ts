@@ -13,6 +13,7 @@ import {
   Home,
   Layers,
   LayoutGrid,
+  LayoutDashboard,
   Library,
   Settings,
   Sparkles,
@@ -52,9 +53,10 @@ export const NAV: NavSection[] = [
   },
   {
     name: "Plan",
-    href: "/calendar",
+    href: "/plan",
     icon: Calendar,
     children: [
+      { name: "Overview", href: "/plan", icon: LayoutDashboard, keywords: "plan hub schedule overview" },
       { name: "Calendar", href: "/calendar", icon: Calendar, keywords: "month grid dates" },
       { name: "This Week", href: "/timetable", icon: LayoutGrid, keywords: "week schedule" },
       { name: "Weekly Timetable", href: "/manage", icon: Layers, keywords: "templates recurring manage schedule" },
@@ -74,9 +76,10 @@ export const NAV: NavSection[] = [
   },
   {
     name: "Progress",
-    href: "/insights",
+    href: "/progress",
     icon: Activity,
     children: [
+      { name: "Overview", href: "/progress", icon: LayoutDashboard, keywords: "progress hub overview" },
       { name: "Insights", href: "/insights", icon: Activity, keywords: "stats analytics charts" },
       { name: "History", href: "/history", icon: CheckCircle, keywords: "completed done log" },
       { name: "Marks", href: "/marks", icon: TrendingUp, keywords: "grades results report card" },
@@ -89,9 +92,10 @@ export const NAV: NavSection[] = [
   },
   {
     name: "Study",
-    href: "/ai",
+    href: "/study",
     icon: Sparkles,
     children: [
+      { name: "Overview", href: "/study", icon: LayoutDashboard, keywords: "study hub overview tools" },
       // One AI, not three. "AI Buddy", "AI Tutor" and "AI Notes" read as three
       // separate products a student had to choose between before they had even
       // asked their question; they were one assistant with three front doors.
@@ -164,8 +168,10 @@ export function resolveNav(pathname: string | null): {
 
   if (!best) return null;
   const { section, leaf } = best;
-  // A leaf that just repeats its section (e.g. Settings > Settings) adds noise.
-  return { section, leaf: leaf && leaf.name !== section.name ? leaf : undefined };
+  // A leaf that just repeats its section (Settings > Settings, or a hub's own
+  // "Overview") adds noise.
+  const repeats = leaf && (leaf.name === section.name || leaf.href === section.href);
+  return { section, leaf: repeats ? undefined : leaf };
 }
 
 /** Page title for the header, falling back to a tidied path segment. */
