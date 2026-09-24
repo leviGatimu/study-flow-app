@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { StreakCelebration } from '@/components/StreakCelebration';
 
 interface StreakStats {
@@ -19,13 +19,9 @@ interface DashboardClientProps {
 }
 
 export function DashboardClient({ streakData }: DashboardClientProps) {
-  const [showCelebration, setShowCelebration] = useState(false);
-
-  useEffect(() => {
-    if (streakData?.streakIncreased) {
-      setShowCelebration(true);
-    }
-  }, [streakData]);
+  // Decided once, from the data the page rendered with: the celebration is
+  // for this load only, and closing it must not be undone by a re-render.
+  const [showCelebration, setShowCelebration] = useState(() => Boolean(streakData?.streakIncreased));
 
   if (!showCelebration) return null;
 
