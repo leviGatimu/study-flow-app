@@ -78,23 +78,26 @@ export function SubjectGrid({
   const overdue = pending.filter(isOverdue).length;
   const nextExam = upcomingExams(exams)[0] ?? null;
 
-  const meta =
-    subjects.length > 0 &&
-    [
-      plural(pending.length, "homework task") + " open",
-      overdue > 0 ? `${overdue} overdue` : null,
-      nextExam ? `next exam ${countdown(nextExam.date).toLowerCase()}` : null,
-    ]
-      .filter(Boolean)
-      .join(" · ");
-
   return (
     <>
       <div data-tour="subjects-hero">
         <PageHeader
           title="Subjects"
           description="Each subject holds its homework, exams, files, marks and syllabus. Open one to work on it."
-          meta={meta || undefined}
+          meta={nextExam ? `Next exam ${countdown(nextExam.date).toLowerCase()}` : undefined}
+          highlight={
+            subjects.length > 0
+              ? {
+                  label: "Homework open",
+                  value: (
+                    <>
+                      {pending.length}
+                      {overdue > 0 && <span className="text-destructive font-bold text-lg"> · {overdue} overdue</span>}
+                    </>
+                  ),
+                }
+              : undefined
+          }
           actions={
             !archived && (
               <>

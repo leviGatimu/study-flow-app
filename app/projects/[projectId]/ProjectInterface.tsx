@@ -1,11 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import {
-  ArrowLeft,
   BrainCircuit,
   FileText,
   Gauge,
@@ -159,16 +157,12 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
   return (
     <Page>
       <PageHeader
+        back={{ href: '/projects', label: 'All projects' }}
         title={project.title}
         description={project.description || 'Plan it in docs and keep track of how far along it is.'}
+        highlight={{ label: 'Progress', value: `${projectProgress}%` }}
         actions={
           <>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/projects">
-                <ArrowLeft />
-                All projects
-              </Link>
-            </Button>
             {!archived && (
               <Button size="lg" onClick={handleCreateDoc} disabled={isCreating}>
                 {isCreating ? <Loader2 className="animate-spin" /> : <Plus />}

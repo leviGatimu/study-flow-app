@@ -74,6 +74,7 @@ export default async function StreakPage() {
       <PageHeader
         title="Streak"
         description="How many days in a row you have studied, and the level it has earned you."
+        highlight={{ label: paused ? 'Current streak (paused)' : 'Current streak', value: `${current} ${current === 1 ? 'day' : 'days'}` }}
         actions={
           <Button asChild size="lg">
             <Link href="/">

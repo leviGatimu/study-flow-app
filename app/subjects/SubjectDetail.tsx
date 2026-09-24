@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Brain, Edit3, MoreHorizontal, Timer, Trash2 } from "lucide-react";
+import { Brain, Edit3, MoreHorizontal, Timer, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -67,32 +67,23 @@ export function SubjectDetail({
   const overdue = pending.filter(isOverdue).length;
   const nextExam = upcomingExams(exams)[0] ?? null;
 
-  const meta = [
-    pending.length ? `${pending.length} homework open` : "No homework open",
-    overdue ? `${overdue} overdue` : null,
-    nextExam ? `${nextExam.title} ${countdown(nextExam.date).toLowerCase()}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
 
   return (
     <>
-      <div className="px-4 pt-6 md:px-8">
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-        >
-          <ArrowLeft className="size-4" />
-          All subjects
-        </button>
-      </div>
-
       <PageHeader
-        className="pt-3"
-        title={<span className="break-words">{subject.name}</span>}
+        back={{ onClick: onBack, label: "All subjects" }}
+        title={subject.name}
         description="Its homework, exams, files, marks and syllabus in one place."
-        meta={meta}
+        meta={nextExam ? `${nextExam.title} ${countdown(nextExam.date).toLowerCase()}` : undefined}
+        highlight={{
+          label: "Homework open",
+          value: (
+            <>
+              {pending.length}
+              {overdue > 0 && <span className="text-destructive font-bold text-lg"> · {overdue} overdue</span>}
+            </>
+          ),
+        }}
         actions={
           <>
             <Button asChild size="lg">

@@ -49,11 +49,7 @@ export default async function ProjectsPage() {
       <PageHeader
         title="Projects"
         description={DESCRIPTION}
-        meta={
-          projects.length > 0
-            ? `${projects.length} ${projects.length === 1 ? 'project' : 'projects'}`
-            : undefined
-        }
+        highlight={{ label: 'Projects', value: projects.length }}
         actions={<DialogTriggerButton size="lg" />}
       />
       <PageBody>

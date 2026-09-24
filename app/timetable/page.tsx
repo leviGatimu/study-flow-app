@@ -147,7 +147,7 @@ export default async function WeekPage({
       <PageHeader
         title="Week"
         description="Your study blocks and school day, Monday to Sunday."
-        meta={total > 0 ? `${done} of ${total} study blocks done this week` : undefined}
+        highlight={{ label: 'This week', value: total > 0 ? `${done} / ${total} done` : 'Nothing planned' }}
         actions={
           <QuickAddForm
             subjects={data?.subjects ?? []}

@@ -14,9 +14,10 @@ export function PageSkeleton({
 }) {
   return (
     <div className="flex flex-col max-w-[1600px] mx-auto w-full pb-16 skeleton-delayed">
-      <div className="px-4 md:px-8 pt-8 pb-6 border-b border-border/40 space-y-3">
-        <Skeleton className="h-9 w-64" />
+      <div className="px-4 md:px-8 pt-10 pb-6 border-b border-border/40 space-y-3">
+        <Skeleton className="h-10 w-64" />
         <Skeleton className="h-5 w-full max-w-md" />
+        <Skeleton className="h-8 w-72 rounded-full" />
       </div>
 
       <div className="px-4 md:px-8 pt-8">

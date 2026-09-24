@@ -65,7 +65,7 @@ export const TOUR_STEPS: TourStep[] = [
     route: '/',
     selector: '[data-tour="sidebar"]',
     title: 'Six places, and that is all',
-    body: 'Today, Schedule, Subjects, Study, Progress and Settings. Hover an icon — or tab to it — and the pages inside that section appear beside it; once you are in a section, its pages are the tabs under the top bar. Nothing is more than two clicks away.',
+    body: 'Today, Schedule, Subjects, Study, Progress and Settings. Hover an icon — or tab to it — and the pages inside that section appear beside it; once you are in a section, its pages are the pills under the page title. Nothing is more than two clicks away.',
     placement: 'right',
   },
   {

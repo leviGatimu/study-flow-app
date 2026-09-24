@@ -51,7 +51,7 @@ export type NavSection = NavLeaf & {
  *
  * A section's href IS its first page. There are no "overview" hub pages: a
  * hub that only links to its children is a page with nothing to do on it.
- * Every page is reachable from the sidebar, the section tabs under the header
+ * Every page is reachable from the sidebar, the section pills in its header
  * and the command palette (Cmd+K), which indexes this list.
  */
 export const NAV: NavSection[] = [

@@ -131,9 +131,19 @@ export function YearClient({ classes }: { classes: ClassRow[] }) {
       <PageHeader
         title="Year & terms"
         description="Your academic year, the terms inside it, and every year you have finished. Term dates only remind you; nothing starts or ends on its own."
-        meta={
+        highlight={
           active
-            ? `${active.label}${activeTerm ? ` · ${activeTerm.name} running` : active.pausedAt ? " · paused" : " · between terms"}`
+            ? {
+                label: "Currently in",
+                value: (
+                  <>
+                    {active.label}
+                    <span className="text-muted-foreground font-bold text-lg">
+                      {activeTerm ? ` · ${activeTerm.name}` : active.pausedAt ? " · paused" : " · between terms"}
+                    </span>
+                  </>
+                ),
+              }
             : undefined
         }
         actions={actions}

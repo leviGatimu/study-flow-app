@@ -98,10 +98,9 @@ export default async function FocusPage({
             ? matchCount > 0
               ? `Showing ${subject} first.`
               : `Nothing left on today's plan for ${subject}. A free session will be labelled with it.`
-            : tasks.length > 0
-              ? `${done} of ${tasks.length} done today`
-              : undefined
+            : undefined
         }
+        highlight={tasks.length > 0 ? { label: 'Done today', value: `${done} / ${tasks.length}` } : undefined}
         actions={
           next ? (
             <Button asChild size="lg">

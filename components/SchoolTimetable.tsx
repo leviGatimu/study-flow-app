@@ -150,7 +150,7 @@ export function SchoolTimetable({
             ? `The lessons you attend in ${yearLabel}. Upload a photo of your timetable and it is read for you - then fix anything that came out wrong.`
             : 'The lessons you attend. Upload a photo of your timetable and it is read for you - then fix anything that came out wrong.'
         }
-        meta={hasLessons ? `${attended} ${attended === 1 ? 'lesson' : 'lessons'} a week` : undefined}
+        highlight={hasLessons ? { label: 'Each week', value: `${attended} ${attended === 1 ? 'lesson' : 'lessons'}` } : undefined}
         actions={
           canEdit ? (
             hasLessons ? (

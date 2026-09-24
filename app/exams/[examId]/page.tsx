@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import { format, differenceInCalendarDays, startOfDay } from 'date-fns';
 import {
-  ArrowLeft,
   BarChart3,
   Brain,
   CalendarDays,
@@ -70,18 +69,17 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 
   return (
     <Page>
-      <div className="px-4 pt-6 md:px-8">
-        <Link
-          href="/exams"
-          className="inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-        >
-          <ArrowLeft className="size-4" /> All exams
-        </Link>
-      </div>
-
       <PageHeader
-        className="pt-3"
-        title={<span className="break-words">{exam.title}</span>}
+        back={{ href: "/exams", label: "All exams" }}
+        title={exam.title}
+        highlight={
+          isPast
+            ? { label: "Exam", value: "Finished" }
+            : {
+                label: "Time left",
+                value: daysRemaining === 0 ? "Today" : `${daysRemaining} ${daysRemaining === 1 ? "day" : "days"}`,
+              }
+        }
         description={[format(examDate, 'EEEE d MMMM yyyy'), subject].filter(Boolean).join(' · ')}
         meta={
           exam.priority === 'HIGH' ? (

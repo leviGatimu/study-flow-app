@@ -125,7 +125,7 @@ buttons.
 
 `lib/nav.ts` is the only list of destinations. A section's href is its first
 page; there are no hub/overview pages that only link to other pages. Sibling
-pages are reached through the section tabs under the header, so pages do not
+pages are reached through the section pills in every PageHeader, so pages do not
 add their own "Back to dashboard" links. Detail pages (an exam, a project)
 link back to their list.
 

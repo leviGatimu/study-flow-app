@@ -1,51 +1,82 @@
 import * as React from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+
 import { cn } from "@/lib/utils";
+import { SectionNav } from "@/components/SectionNav";
 
 /**
- * The single page title treatment, cut from the dashboard hero: the same
- * pt/pb, the same border-border/40 rule, the same gutter. The dashboard's own
- * h1 is a personal greeting in font-black; every other page's title is a label
- * and stays font-bold (docs/ui-contract.md).
+ * Every page's header, cut from the Home page's hero (app/page.tsx) so the
+ * whole app opens the same way: a big font-black title where Home has its
+ * greeting, a muted line under it where Home has the date, the section's
+ * pages as pills where Home has "Take a tour", and on the right a card like
+ * Home's "Currently in" card holding the page's one live fact and its actions.
  *
- * `description` says what the page is for in one sentence. `actions` holds the
- * page's primary action (and at most one or two secondary ones) on the right.
- * `meta` is an optional line under the description for live context, such as
- * "3 due this week".
+ * - `highlight` is that live fact ("Open homework", "3 · 1 overdue"). Without
+ *   it the actions sit on their own on the right.
+ * - `meta` is an extra muted line for context that is not a number
+ *   ("Showing Physics only. Show all").
+ * - `back` is for detail pages (an exam, a subject): one link to their list.
  */
 export function PageHeader({
   title,
   description,
   actions,
   meta,
+  highlight,
+  back,
   className,
 }: {
   title: React.ReactNode;
   description?: React.ReactNode;
   actions?: React.ReactNode;
   meta?: React.ReactNode;
+  highlight?: { label: React.ReactNode; value: React.ReactNode };
+  back?: { href?: string; onClick?: () => void; label: string };
   className?: string;
 }) {
+  const backClass =
+    "inline-flex items-center gap-1.5 text-xs font-bold text-primary/80 hover:text-primary transition-colors";
+
   return (
-    <header
+    <section
       className={cn(
-        "flex flex-col gap-4 px-4 md:px-8 pt-8 pb-6 border-b border-border/40 sm:flex-row sm:items-end sm:justify-between",
+        "flex flex-col xl:flex-row xl:items-center justify-between gap-6 px-4 md:px-8 pt-10 pb-6 border-b border-border/40",
         className
       )}
     >
-      <div className="min-w-0 space-y-1.5">
-        <h1 className="text-3xl font-heading font-bold tracking-tight text-foreground">
+      <div className="min-w-0 space-y-2">
+        {back &&
+          (back.href ? (
+            <Link href={back.href} className={backClass}>
+              <ArrowLeft className="size-3.5" /> {back.label}
+            </Link>
+          ) : (
+            <button type="button" onClick={back.onClick} className={backClass}>
+              <ArrowLeft className="size-3.5" /> {back.label}
+            </button>
+          ))}
+        <h1 className="text-4xl font-heading font-black tracking-tight text-foreground break-words">
           {title}
         </h1>
         {description && (
-          <p className="max-w-2xl text-base font-medium text-muted-foreground">
-            {description}
-          </p>
+          <p className="max-w-3xl text-base font-medium text-muted-foreground">{description}</p>
         )}
-        {meta && <div className="text-sm text-muted-foreground">{meta}</div>}
+        {meta && <div className="text-sm font-medium text-muted-foreground">{meta}</div>}
+        <SectionNav />
       </div>
-      {actions && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+
+      {highlight ? (
+        <div className="bg-card border border-border/60 rounded-2xl p-5 shadow-sm sm:min-w-72 shrink-0">
+          <p className="text-xs font-bold text-muted-foreground">{highlight.label}</p>
+          <div className="mt-1 flex flex-wrap items-center justify-between gap-x-5 gap-y-3">
+            <p className="font-heading font-bold text-2xl leading-tight">{highlight.value}</p>
+            {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+          </div>
+        </div>
+      ) : (
+        actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
       )}
-    </header>
+    </section>
   );
 }
