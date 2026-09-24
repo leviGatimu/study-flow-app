@@ -6,6 +6,18 @@ whole app, rebuild the IA and flows, one design system taken from the
 Dashboard, remove random features (named: Deep Study Studio), no dead ends.
 Levi called the 1.0.8 hubs/homework/subject restyle "shit" - superseded.
 
+## Latest (after 1.0.9)
+Levi hated the page headers + the full-width section tab strip ("stupid
+line"); wants the Home page UI everywhere. c5aab0c (LOCAL, NOT PUSHED, NOT
+PACKAGED): SectionTabs deleted; PageHeader now clones Home's hero
+(text-4xl font-black title, muted line, section pills via
+components/SectionNav.tsx, right-side "Currently in"-style card via
+`highlight={{label,value}}`, `back` prop for detail pages). Screenshots
+checked at 1440/390. NEXT: Levi's verdict, then package 1.0.10 + push
+(same steps as 1.0.9: stop dev server, bump desktop-app version, rm -rf
+.next, npm run build:desktop, npm run dist in desktop-app, gh release
+create with StudyTrackerSetup.exe + latest.yml, push main).
+
 ## Status
 RELEASED: desktop 1.0.9 at
 https://github.com/leviGatimu/study-flow-app/releases/tag/v1.0.9 (sha512 of
