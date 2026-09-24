@@ -7,8 +7,14 @@ is so shit", "remove course notes", "make the page for individual subject look
 better (not structure)". Then "package and push".
 
 ## Status
-BUILT AND VERIFIED (harness screenshots, tsc, 122/122 tests). Being released
-as desktop 1.0.8 + main pushed (web deploy) - see git log / releases.
+RELEASED: desktop 1.0.8 at
+https://github.com/leviGatimu/study-flow-app/releases/tag/v1.0.8 (sha512
+checked, releases/latest serves 1.0.8). main PUSHED (f3d9ae3..0c2fd1f) BUT
+THE WEB DID NOT DEPLOY: both Vercel projects (study-tracker, study-flow-app)
+report "Account is blocked." (vercel.com/knowledge/why-is-my-account-
+deployment-blocked). Account-level, not code - Levi must resolve it in the
+Vercel dashboard, then redeploy main. Live web is still f3d9ae3.
+No prisma changes in the pushed range, so no migration is pending.
 Built by a 5-agent workflow (wf_dc50c1c9-964) + a reviewer; I checked every
 screenshot and restyled MasteryList/AddMasteryForm myself.
 
