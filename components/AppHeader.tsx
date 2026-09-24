@@ -122,7 +122,7 @@ export function AppHeader({
                 variant="ghost"
                 size="icon-lg"
                 aria-label="Add a task"
-                className="[&_svg]:size-[18px] md:hidden"
+                className="[&_svg]:size-[18px]"
               >
                 <Plus />
               </Button>

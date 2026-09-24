@@ -2,12 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Lock, Plus, ShieldCheck, Trophy } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { NAV, NavSection, resolveNav } from "@/lib/nav";
-import { QuickAddForm } from "@/components/QuickAddForm";
-import { useArchiveReason } from "@/components/ArchiveContext";
 import { SafeUserProgress as UserProgress } from "@/lib/types";
 
 /**
@@ -22,127 +20,131 @@ const ADMIN_SECTION: NavSection = {
 };
 
 /**
- * Primary navigation: an ordinary, always-open sidebar.
+ * Primary navigation: an icon rail that opens on hover (or keyboard focus)
+ * to show each section's name.
  *
- * Levi rejected the hover-to-expand rail (2026-09-24): things grew and
- * appeared under the pointer, and the sub-pages that unfolded beneath a
- * section felt unlike a normal sidebar. So this is fixed-width, nothing moves
- * on hover, and it lists the six sections only - a section's own pages are
- * the pills in each page header (components/SectionNav.tsx).
+ * What Levi asked for, 2026-09-24, after two versions he disliked:
+ *   - icons only by default, the names appear on hover;
+ *   - nothing unfolds under a section (its pages are the pills in each page
+ *     header, components/SectionNav.tsx);
+ *   - no "Add task" here (it is the + in the app header).
  *
- * Shown from lg up. Between md and lg the same list collapses to icons so the
- * page keeps its width; below md the bottom tab bar takes over.
+ * The aside reserves the 72px rail; the panel inside it widens OVER the page
+ * rather than pushing it, so nothing on the page moves when the pointer
+ * crosses the sidebar. Every icon sits in the same fixed 48px slot at every
+ * width, so the icons stay perfectly still while the panel opens and only
+ * the labels fade in beside them. Pure CSS (group-hover / focus-within): no
+ * state, no hydration differences.
  */
 export function Sidebar({
   userProgress,
-  subjects,
   isAdmin = false,
 }: {
   userProgress: UserProgress | null;
-  subjects: { id: string; name: string }[];
   isAdmin?: boolean;
 }) {
   const pathname = usePathname();
   const activeSection = resolveNav(pathname)?.section;
-  const archiveReason = useArchiveReason();
-
-  const sections = isAdmin ? [...NAV, ADMIN_SECTION] : NAV;
 
   return (
-    <aside
-      data-tour="sidebar"
-      className="hidden md:flex w-16 lg:w-60 shrink-0 flex-col border-r border-border bg-sidebar"
-    >
-      <Link
-        href="/"
-        className="flex h-16 shrink-0 items-center gap-3 border-b border-border px-3.5 lg:px-5"
-        aria-label="Study Flow home"
-      >
-        <img src="/logo.png" alt="" className="size-9 shrink-0 rounded-xl object-cover" />
-        <span className="hidden lg:block font-heading text-lg font-bold text-foreground">Study Flow</span>
-      </Link>
-
-      <div className="px-3 pt-4 lg:px-4">
-        {archiveReason ? (
-          <button
-            type="button"
-            // aria-disabled rather than disabled, so the title tooltip that
-            // explains why it is off still shows.
-            aria-disabled="true"
-            aria-label="Add a task"
-            title={archiveReason}
-            className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-muted text-sm font-semibold text-muted-foreground"
-          >
-            <Lock className="size-4 shrink-0" />
-            <span className="hidden lg:inline">Read-only year</span>
-          </button>
-        ) : (
-          <QuickAddForm
-            subjects={subjects}
-            trigger={
-              <button
-                type="button"
-                aria-label="Add a task"
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <Plus className="size-4 shrink-0" />
-                <span className="hidden lg:inline">Add task</span>
-              </button>
-            }
-          />
+    <aside data-tour="sidebar" className="group/sidebar relative z-40 hidden w-[72px] shrink-0 md:block">
+      <div
+        className={cn(
+          "absolute inset-y-0 left-0 flex w-[72px] flex-col overflow-hidden border-r border-border bg-sidebar",
+          "transition-[width,box-shadow] duration-200 ease-out",
+          "group-hover/sidebar:w-60 group-hover/sidebar:shadow-2xl group-hover/sidebar:shadow-black/30",
+          "group-focus-within/sidebar:w-60 group-focus-within/sidebar:shadow-2xl group-focus-within/sidebar:shadow-black/30"
         )}
-      </div>
+      >
+        <Link
+          href="/"
+          aria-label="Study Flow home"
+          className="flex h-16 shrink-0 items-center gap-3 px-[14px] focus-visible:outline-none"
+        >
+          <img src="/logo.png" alt="" className="size-11 shrink-0 rounded-2xl object-cover" />
+          <Label className="font-heading text-lg font-black tracking-tight text-foreground">Study Flow</Label>
+        </Link>
 
-      <nav aria-label="Primary" className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 pt-4 lg:px-4">
-        {sections.map((section) => {
-          const Icon = section.icon;
-          const isActive =
-            section === ADMIN_SECTION
-              ? pathname?.startsWith("/admin") ?? false
-              : activeSection?.name === section.name;
-          return (
-            <Link
+        <nav aria-label="Primary" className="flex flex-1 flex-col gap-1.5 px-3 pt-4">
+          {NAV.map((section) => (
+            <RailLink
               key={section.name}
-              href={section.href}
-              title={section.name}
-              aria-current={isActive ? "page" : undefined}
-              // Anchor for the onboarding tour: [data-tour="nav-subjects"] etc.
-              data-tour={`nav-${section.name.toLowerCase().replace(/\s+/g, "-")}`}
-              className={cn(
-                "flex h-10 items-center justify-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors lg:justify-start",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-                isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <Icon className="size-5 shrink-0" />
-              <span className="hidden lg:inline truncate">{section.name}</span>
-            </Link>
-          );
-        })}
-      </nav>
+              section={section}
+              active={activeSection?.name === section.name}
+            />
+          ))}
 
-      {userProgress && (
-        <div className="border-t border-border p-3 lg:p-4">
+          {isAdmin && (
+            <>
+              <div className="mx-3 my-2 h-px bg-border" />
+              <RailLink section={ADMIN_SECTION} active={pathname?.startsWith("/admin") ?? false} />
+            </>
+          )}
+        </nav>
+
+        {userProgress && (
           <Link
             href="/streak"
             title={`Level ${userProgress.level}`}
-            className="flex items-center justify-center gap-3 rounded-xl p-2 transition-colors hover:bg-muted lg:justify-start"
+            className="m-3 flex shrink-0 items-center gap-3 rounded-2xl p-1 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 font-heading text-sm font-bold text-primary">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 font-heading text-sm font-black text-primary-foreground shadow-sm">
               {userProgress.level}
             </span>
-            <span className="hidden lg:block min-w-0">
-              <span className="block truncate text-sm font-semibold text-foreground">Level {userProgress.level}</span>
-              <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                <Trophy className="size-3" />
+            <Label className="min-w-0">
+              <span className="block truncate text-sm font-bold text-foreground">Level {userProgress.level}</span>
+              <span className="block truncate text-xs font-medium text-muted-foreground">
                 {userProgress.xp.toLocaleString()} XP
               </span>
-            </span>
+            </Label>
           </Link>
-        </div>
-      )}
+        )}
+      </div>
     </aside>
+  );
+}
+
+/** A label that is invisible on the rail and fades in once the panel opens. */
+function Label({ className, children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <span
+      className={cn(
+        "whitespace-nowrap opacity-0 transition-opacity duration-150",
+        "group-hover/sidebar:opacity-100 group-hover/sidebar:delay-75",
+        "group-focus-within/sidebar:opacity-100",
+        className
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function RailLink({ section, active }: { section: NavSection; active: boolean }) {
+  const Icon = section.icon;
+  return (
+    <Link
+      href={section.href}
+      aria-label={section.name}
+      aria-current={active ? "page" : undefined}
+      // Anchor for the onboarding tour: [data-tour="nav-subjects"] etc.
+      data-tour={`nav-${section.name.toLowerCase().replace(/\s+/g, "-")}`}
+      className={cn(
+        "relative flex h-12 items-center gap-3 rounded-2xl transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+        active
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      )}
+    >
+      {/* The active marker: a short bar on the rail's inner edge. */}
+      {active && (
+        <span aria-hidden className="absolute -left-3 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
+      )}
+      <span className="flex size-12 shrink-0 items-center justify-center">
+        <Icon className="size-[22px]" strokeWidth={active ? 2.25 : 2} />
+      </span>
+      <Label className="text-[15px] font-semibold">{section.name}</Label>
+    </Link>
   );
 }

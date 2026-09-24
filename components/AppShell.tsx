@@ -50,7 +50,7 @@ export function AppShell({
             the page under you and says so. Does nothing on the web build. */}
         <SyncWatcher />
 
-        <Sidebar userProgress={userProgress} subjects={subjects} isAdmin={isAdmin} />
+        <Sidebar userProgress={userProgress} isAdmin={isAdmin} />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader userProgress={userProgress} subjects={subjects} />
