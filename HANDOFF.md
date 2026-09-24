@@ -7,10 +7,13 @@ resources, homework and upcoming exams; the per-subject resources page should
 be a full-bleed file explorer with nothing under it.
 
 ## Status
-BUILT, NOT COMMITTED. tsc clean, 122/122 node tests, no new lint errors
-(the 14 in SubjectsClient are pre-existing `any`s). Verified in Electron
-against throwaway /welcome harness routes (deleted): hub links, URL sync,
-explorer fills <main> exactly (836px, no outer scroll). Not seen signed in.
+COMMITTED (c8a0173), DESKTOP 1.0.7 PUBLISHED at
+https://github.com/leviGatimu/study-flow-app/releases/tag/v1.0.7 (tag pushed,
+main NOT pushed - the website still runs f3d9ae3). Installer sha512 matched
+latest.yml; packaged server checked for the new hub/filter code, SQLite
+client, no .env, no harness routes; releases/latest serves 1.0.7.
+tsc clean, 122/122 node tests. Verified in Electron against throwaway
+/welcome harness routes (deleted). Not yet seen signed in.
 
 ## Progress
 - [x] /subjects: open subject lives in the URL (?subject=Math, pushState;
@@ -28,11 +31,14 @@ explorer fills <main> exactly (836px, no outer scroll). Not seen signed in.
       syllabus removed. Tab strip right end: "<subject> hub" + "Deep work
       studio" (new `tabStripEnd` prop on SubjectExplorer).
 - [x] Mastery actions also revalidate /subjects.
-- [ ] Levi to look at it signed in; then commit. Writes (mastery add/toggle
+- [ ] Levi to look at it signed in (Settings -> Desktop app -> Check for
+      updates). Push main once he is happy (deploys the web). Writes (mastery add/toggle
       from the hub) not exercised - harness is signed out.
 
 ## Working Notes
-Before any desktop build: rm -rf .next/dev (harness routes were used).
+Build steps used: stop dev server, rm -rf .next, npm run build:desktop,
+`npx electron-builder --publish never` in desktop-app/, verify, tag, push tag,
+`gh release create vX --repo leviGatimu/study-flow-app <exe> <latest.yml>`.
 /welcome/* renders INSIDE the AppShell (not bare) - a harness needs no fake
 header/main wrapper.
 
