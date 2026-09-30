@@ -21,6 +21,7 @@ import { grantXp } from './gamification';
 import { randomUUID } from 'node:crypto';
 import { computeWeeklyPerformance, computeDailyPerformance, type WeeklyPerformance } from './grading';
 import { getScheduleState, ensureDefaultClass } from './term';
+import { taskEndsAt } from './task-times';
 import {
   getViewScope,
   getActiveScope,
@@ -311,13 +312,9 @@ export async function checkAndMarkMissedTasks(userId: string) {
 
   for (const task of activeTasks) {
     if (!task.endTime || !task.endTime.includes(':')) continue;
-    
-    const [endH, endM] = task.endTime.split(':').map(Number);
-    const taskEndTime = new Date(task.date);
-    taskEndTime.setHours(endH, endM, 0, 0);
+    if (!task.startTime || !task.startTime.includes(':')) continue;
 
-    // If current time is past the end time of the task
-    if (now.getTime() > taskEndTime.getTime()) {
+    if (now.getTime() > taskEndsAt(task.date, task.startTime, task.endTime).getTime()) {
       tasksToMark.push(task.id);
     }
   }
