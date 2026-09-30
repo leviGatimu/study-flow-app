@@ -1,19 +1,34 @@
 # HANDOFF
 
 ## Current Task
-FULL PRODUCT REFACTOR (Levi, 2026-09-24, long brief pasted in chat): audit the
-whole app, rebuild the IA and flows, one design system taken from the
-Dashboard, remove random features (named: Deep Study Studio), no dead ends.
-Levi called the 1.0.8 hubs/homework/subject restyle "shit" - superseded.
+Study routine (/manage) UI revamp + cross-midnight "missed" bug (Levi,
+2026-09-30: "looks really bad, barely can understand... but i like it showing
+how much hour each has"; "revision Monday 10pm to 1am ... immediately counts
+it as not done").
 
 ## Latest
-RELEASED desktop 1.0.13 (School lessons page rebuilt, streak celebration dialog) after 1.0.12 (hover icon rail) and 1.0.11 after 1.0.10 (https://github.com/leviGatimu/study-flow-app/releases/tag/v1.0.10,
-sha512 checked; releases/latest serves it) and main pushed (3a02181):
-Home-style PageHeader on every page (components/ui/page-header.tsx,
-components/SectionNav.tsx pills, `highlight` card, `back` link); the section
-tab strip is deleted. Web deploy still blocked on Vercel ("Account is
-blocked"). Open: 9 misdated future task rows from local verification (see
-Open below).
+RELEASED desktop 1.0.14 (https://github.com/leviGatimu/study-flow-app/releases/tag/v1.0.14)
+- Study routine rebuilt + past-midnight missed fix. main pushed. Releases go
+to leviGatimu/study-flow-app (setup/README.txt still says Study-Flow - stale,
+that repo is gone). Levi's dev server was stopped for the build (he said so)
+and restarted afterwards.
+Work in this release:
+- /manage rebuilt around hours: header highlight = weekly total; "Hours each
+  day" stacked bar chart (homework blue / revision orange) that doubles as
+  the day picker; picked day as a timeline (time column, accent edge solid
+  homework / dashed revision, big duration, clash warning, "next day" for
+  past-midnight ends); "Hours per subject" (revision folded into its subject
+  via "(revision)" suffix). Files: app/manage/{ManageClient.tsx,page.tsx,
+  routine-hours.ts}; ManageForm gained size/label/defaultDay props.
+- Bug: checkAndMarkMissedTasks pinned endTime to the task's own date, so
+  22:00-01:00 "ended" 01:00 that morning and was marked missed at once. Now
+  uses lib/task-times.ts taskEndsAt (end <= start => next day);
+  test/task-times.test.mjs. Every other duration calc already wrapped.
+  Already-mis-marked tasks are NOT auto-repaired - Levi can un-mark them.
+- Verified: tsc clean, eslint clean on touched files, 69/69 node tests,
+  screenshots via a throwaway /welcome harness (deleted) at 1440 light/dark
+  and 390 - no horizontal overflow. Server actions (add/edit/delete) not
+  exercised - unchanged apart from ManageForm's trigger props.
 
 ## Status
 RELEASED: desktop 1.0.9 at
