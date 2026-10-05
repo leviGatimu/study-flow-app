@@ -238,6 +238,31 @@
 }
 .flow-notes hr { @apply my-7; border-color: rgba(255, 255, 255, 0.1); }
 
+/* AI chat answers (components/ChatMarkdown.tsx). Theme tokens only, so the
+   same answer reads in light and dark. */
+.chat-md { @apply text-[15px] leading-7 text-foreground break-words; }
+.chat-md > *:first-child { @apply mt-0; }
+.chat-md > *:last-child { @apply mb-0; }
+.chat-md h1, .chat-md h2 { @apply font-heading text-lg font-bold tracking-tight mt-6 mb-2; }
+.chat-md h3, .chat-md h4 { @apply font-heading text-base font-semibold mt-5 mb-1.5; }
+.chat-md p { @apply my-3; }
+.chat-md strong { @apply font-semibold; }
+.chat-md a { @apply text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary; }
+.chat-md ul { @apply my-3 space-y-1.5 pl-6 list-disc marker:text-primary/70; }
+.chat-md ol { @apply my-3 space-y-1.5 pl-6 list-decimal marker:text-muted-foreground marker:font-semibold; }
+.chat-md li { @apply pl-1; }
+.chat-md li > ul, .chat-md li > ol { @apply mt-1.5 mb-0; }
+.chat-md blockquote { @apply my-4 rounded-xl border-l-4 border-primary/50 bg-primary/5 px-4 py-2 text-foreground/90; }
+.chat-md code { @apply rounded-md bg-muted px-1.5 py-0.5 font-mono text-[0.85em]; }
+.chat-md pre { @apply my-4 overflow-x-auto rounded-xl border border-border bg-muted/60 p-4 text-sm leading-6; }
+.chat-md pre code { @apply bg-transparent p-0 text-[13px]; }
+.chat-md .chat-md-table { @apply my-4 overflow-x-auto rounded-xl border border-border; }
+.chat-md table { @apply w-full border-collapse text-sm; }
+.chat-md thead th { @apply bg-muted/60 px-3 py-2 text-left font-semibold; }
+.chat-md tbody td { @apply border-t border-border px-3 py-2 align-top; }
+.chat-md hr { @apply my-6 border-border; }
+.chat-md .katex-display { @apply my-4 overflow-x-auto overflow-y-hidden py-1; }
+
 /* Delayed-appearance skeletons.
    Skeleton fallbacks stay fully invisible for ~300ms, then fade in only if the
    page/component is still loading. If the real content arrives first (a fast

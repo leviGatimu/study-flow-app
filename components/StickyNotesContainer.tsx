@@ -221,13 +221,18 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
 
     setIsPromoting(true);
     try {
-      await createQuickTask({
+      // No date: today in the user's own timezone, decided by the server.
+      const result = await createQuickTask({
         subject: promoteSubject,
         startTime: promoteStartTime,
         endTime: promoteEndTime,
         type: "HOMEWORK",
-        date: new Date(),
       });
+      // The note leaves the board only once its task really exists.
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
       // The note has become a task, so it leaves the board.
       await handleDeleteNote(promoteNote.id);
       setPromoteNote(null);

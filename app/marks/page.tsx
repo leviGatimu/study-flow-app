@@ -8,14 +8,22 @@ import { Page, PageBody } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState } from "@/components/ui/error-state";
 import { MarksClient } from "./MarksClient";
+import { GoalsView } from "../goals/GoalsView";
+import { marksTabs } from "@/components/PageTabs";
 import type { ReportCardType } from "./marks-model";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function MarksPage() {
+/**
+ * Marks: report cards, and (?view=goals) the target mark for each subject -
+ * formerly two pages.
+ */
+export default async function MarksPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
+
+  if ((await searchParams).view === 'goals') return <GoalsView tabs={marksTabs('goals')} />;
 
   let data: [
     Awaited<ReturnType<typeof getReportCards>>,
@@ -31,6 +39,7 @@ export default async function MarksPage() {
     return (
       <Page>
         <PageHeader title="Marks" description="Your report cards, term by term, with each subject's mark and how to improve it." />
+        {marksTabs('marks')}
         <PageBody>
           <ErrorState
             title="Your marks could not be loaded"
@@ -48,6 +57,7 @@ export default async function MarksPage() {
       currentTermSetting={settingsData?.currentTerm || "Term 1"}
       subjects={subjects}
       goals={goals.map((g) => ({ subject: g.subject, targetGrade: g.targetGrade }))}
+      tabs={marksTabs('marks')}
     />
   );
 }

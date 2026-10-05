@@ -5,7 +5,7 @@ import { Readable } from 'stream';
 /**
  * Stream a file off the local disk as an HTTP response, with Range support.
  *
- * Shared by app/uploads/[...path] (the flat upload store) and
+ * Shared by app/api/uploads/[...path] (the flat upload store) and
  * app/library/[...path] (the desktop's per-subject library folders). Both
  * routes decide WHAT may be read - authentication and path containment - and
  * hand the resolved absolute path here to decide HOW it goes out.

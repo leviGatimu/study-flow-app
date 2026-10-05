@@ -269,7 +269,7 @@ Rules:
       }`
     : `Here is the school timetable as text. Produce the JSON now.\n"""\n${text}\n"""`;
 
-  const result = await askAIBuddy(prompt, [], undefined, input.image, systemInstruction);
+  const result = await askAIBuddy(prompt, [], undefined, input.image, systemInstruction, { tools: false, xp: false });
   if (result.error) return { error: result.error };
 
   const parsed = parseJsonLoose(result.text || '');

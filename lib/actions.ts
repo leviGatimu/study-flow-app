@@ -22,6 +22,8 @@ import { randomUUID } from 'node:crypto';
 import { computeWeeklyPerformance, computeDailyPerformance, type WeeklyPerformance } from './grading';
 import { getScheduleState, ensureDefaultClass } from './term';
 import { taskEndsAt } from './task-times';
+import { validateQuickTask } from './task-input';
+import { holidaysBetween } from './holidays';
 import {
   getViewScope,
   getActiveScope,
@@ -213,6 +215,12 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
   const start = startOfDay(startDate);
   const end = endOfDay(endDate);
 
+  const dateKeyOf = (date: Date) => {
+    const d = new Date(date);
+    d.setUTCMinutes(d.getUTCMinutes() + tzOffsetMinutes);
+    return d.toISOString().split('T')[0];
+  };
+
   // Deliberately NOT year-scoped. This is the dedupe key for generation, and
   // its only job is "has a task already been made from this template on this
   // day". A task whose termId was never set - a one-off from before the scope
@@ -233,24 +241,44 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
   const lookup = new Set(
     existingTasks
       .filter(t => t.templateId !== null)
-      .map(t => {
-        const d = new Date(t.date);
-        d.setUTCMinutes(d.getUTCMinutes() + tzOffsetMinutes);
-        return `${t.templateId}|${d.toISOString().split('T')[0]}`;
-      })
+      .map(t => `${t.templateId}|${dateKeyOf(t.date)}`)
   );
+
+  // The routine is off on public holidays. A block made before this knew
+  // about a holiday (the month view generates weeks ahead) is withdrawn too -
+  // but only one the student never touched: anything done, written up or
+  // added by hand stays theirs. Callers only generate from today onward, so
+  // this never rewrites a past day's record.
+  const holidays = holidaysBetween(tz, dateKeyOf(start), dateKeyOf(end));
+  if (holidays.size > 0) {
+    const stale = await prisma.task.findMany({
+      where: {
+        userId,
+        date: { gte: start, lte: end },
+        templateId: { not: null },
+        isDone: false,
+        workDescription: null,
+        proofPdfUrl: null,
+      },
+      select: { id: true, date: true },
+    });
+    const ids = stale.filter(t => holidays.has(dateKeyOf(t.date))).map(t => t.id);
+    if (ids.length > 0) await softDelete(prisma, 'task', { id: { in: ids } });
+  }
 
   const tasksToCreate = [];
   let currentDate = start;
 
   while (currentDate <= end) {
+    const dateKey = dateKeyOf(currentDate);
+    if (holidays.has(dateKey)) {
+      currentDate = addDays(currentDate, 1);
+      continue;
+    }
+
     const dayOfWeek = currentDate.getDay();
     const dayTemplates = templates.filter(t => t.dayOfWeek === dayOfWeek);
-    
-    const d = new Date(currentDate);
-    d.setUTCMinutes(d.getUTCMinutes() + tzOffsetMinutes);
-    const dateKey = d.toISOString().split('T')[0];
-    
+
     for (const template of dayTemplates) {
       const compositeKey = `${template.id}|${dateKey}`;
       if (!lookup.has(compositeKey)) {
@@ -973,7 +1001,15 @@ const syncStreakFor = cache(async function syncStreakFor(userId: string) {
     const diff = differenceInDays(today, lastDate);
     let newStreak = 1;
 
-    if (diff === 1) {
+    // Days off on public holidays are not a broken streak: the gap only
+    // counts if a day in it was an ordinary one.
+    const gapIsHolidays = diff > 1 && holidaysBetween(
+      tz,
+      format(addDays(lastDate, 1), 'yyyy-MM-dd'),
+      format(addDays(today, -1), 'yyyy-MM-dd')
+    ).size === diff - 1;
+
+    if (diff === 1 || gapIsHolidays) {
       newStreak = cls.currentStreak + 1;
       streakIncreased = true;
       // Keyed on the class and the day the streak advanced TO, so re-running
@@ -1497,43 +1533,63 @@ export async function deleteEvent(id: string) {
 /**
  * Create a quick task
  */
-export async function createQuickTask(data: { subject: string, startTime: string, endTime: string, type: string, date?: string | Date }) {
+/**
+ * Add a one-off study block. Times are saved exactly as entered (there used
+ * to be a hidden 3-minute "prep buffer" that turned 23:57 into "24:00") and
+ * every field is validated here, at the boundary (audit D09). Returns the new
+ * task's id, or an error the form can show - callers must check it.
+ *
+ * `date` is "YYYY-MM-DD"; without it the block goes on today in the user's
+ * own timezone.
+ */
+export async function createQuickTask(data: {
+  subject: string;
+  startTime: string;
+  endTime: string;
+  type: string;
+  date?: string;
+}): Promise<{ success: true; id: string } | { error: string }> {
   const userId = await getUserId();
-  if (!userId) return;
+  if (!userId) return { error: 'You are signed out. Sign in and try again.' };
 
-  // Add 3-minute prep buffer
-  const [h, m] = data.startTime.split(':').map(Number);
-  let startMins = h * 60 + m + 3;
-  const newH = Math.floor(startMins / 60);
-  const newM = startMins % 60;
-  const adjustedStartTime = `${newH.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`;
+  const checked = validateQuickTask(data);
+  if (!checked.ok) return { error: checked.error };
+  const { subject, startTime, endTime, type, dateKey } = checked.value;
 
   let date: Date;
-  if (typeof data.date === 'string') {
-    const [y, m, d] = data.date.split('-').map(Number);
+  if (dateKey) {
+    const [y, m, d] = dateKey.split('-').map(Number);
     date = new Date(y, m - 1, d);
-  } else if (data.date instanceof Date) {
-    date = startOfDay(data.date);
   } else {
     date = startOfDay(getZonedNow(await getUserTimezone(userId)));
   }
 
-  await prisma.task.create({
+  let stamp: { termId?: string };
+  try {
+    stamp = await requireTermStamp(userId);
+  } catch {
+    return { error: 'You are viewing a finished year. Switch back to this year to add tasks.' };
+  }
+
+  const task = await prisma.task.create({
     data: {
       userId,
-      subject: data.subject,
-      startTime: adjustedStartTime,
-      endTime: data.endTime,
-      type: data.type,
+      subject,
+      startTime,
+      endTime,
+      type,
       date,
       isDone: false,
       isMissed: false,
       isDeleted: false,
-      ...(await requireTermStamp(userId))
-    }
+      ...stamp,
+    },
+    select: { id: true },
   });
   revalidatePath('/');
   revalidatePath('/calendar');
+  revalidatePath('/timetable');
+  return { success: true, id: task.id };
 }
 
 /**

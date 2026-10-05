@@ -30,7 +30,7 @@ import { writeFile, unlink, mkdir } from 'fs/promises';
  * every PDF, proof of work and track the user had uploaded.
  *
  * Files stored outside public/ are not static assets any more, so they are
- * served by app/uploads/[...path]/route.ts.
+ * served by app/api/uploads/[...path]/route.ts.
  */
 export const UPLOAD_DIR =
   process.env.UPLOADS_DIR || join(process.cwd(), 'public', 'uploads');

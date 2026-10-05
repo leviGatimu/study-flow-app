@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Flag,
+  PartyPopper,
   GraduationCap,
   Pencil,
   Plus,
@@ -72,6 +73,8 @@ export type CalendarData = {
   exams: { id: string; title: string; startTime: string | null; priority: string; dateKey: string }[];
   homework: { id: string; subject: string; title: string; isCompleted: boolean; dateKey: string }[];
   markedDays: string[];
+  /** Public holidays in view, date key -> name. The routine is off on these. */
+  holidays: Record<string, string>;
   /** The running term of the active year, or null (none, or an archive is open). */
   term: { name: string | null; start: string | null; end: string | null } | null;
 };
@@ -142,6 +145,7 @@ export function CalendarGrid({
       isMarked: marked.has(key),
       isTermEnd: key === termEndKey,
       isToday: key === todayKey,
+      holiday: data.holidays[key] ?? null,
     };
   };
 
@@ -200,6 +204,7 @@ export function CalendarGrid({
                       <DayDots summary={s} />
                       {count > 0 ? `${count} ${count === 1 ? 'item' : 'items'}` : 'Nothing planned'}
                       {s.isTermEnd && <Pill tone="warning">Term ends</Pill>}
+                      {s.holiday && <Pill tone="success">{s.holiday}</Pill>}
                     </span>
                   </span>
                 </button>
@@ -233,7 +238,7 @@ export function CalendarGrid({
                   key={key}
                   type="button"
                   onClick={() => setSelectedKey(key)}
-                  aria-label={`${format(date, 'EEEE d MMMM')}, ${count} ${count === 1 ? 'item' : 'items'}`}
+                  aria-label={`${format(date, 'EEEE d MMMM')}${s.holiday ? `, ${s.holiday}` : ''}, ${count} ${count === 1 ? 'item' : 'items'}`}
                   className={cn(
                     'flex min-h-28 w-full flex-col gap-2 bg-card p-2 text-left transition-colors hover:bg-muted/50 focus-visible:relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50 lg:min-h-32 lg:p-3',
                     !inMonth && 'bg-muted/30 text-muted-foreground',
@@ -247,6 +252,12 @@ export function CalendarGrid({
                   {s.isTermEnd && (
                     <span className="flex items-center gap-1 text-xs font-semibold text-orange-600 dark:text-orange-400">
                       <Flag aria-hidden="true" className="size-3" /> Term ends
+                    </span>
+                  )}
+                  {s.holiday && (
+                    <span className="flex min-w-0 items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      <PartyPopper aria-hidden="true" className="size-3 shrink-0" />
+                      <span className="truncate">{s.holiday}</span>
                     </span>
                   )}
                   <span className="hidden w-full flex-col gap-1 md:flex">
@@ -320,6 +331,7 @@ type DaySummary = {
   isMarked: boolean;
   isTermEnd: boolean;
   isToday: boolean;
+  holiday: string | null;
 };
 
 function DayNumber({
@@ -452,9 +464,15 @@ function DayDialog({
                   {format(date, 'EEEE d MMMM')}
                   {summary.isToday && <Pill tone="primary">Today</Pill>}
                   {summary.isTermEnd && <Pill tone="warning">Last day of term</Pill>}
+                  {summary.holiday && <Pill tone="success">{summary.holiday}</Pill>}
                 </DialogTitle>
                 <DialogDescription>
-                  {counts.length > 0 ? counts.join(' · ') : 'Nothing is planned on this day yet.'}
+                  {summary.holiday && 'Public holiday - your study routine is off. '}
+                  {counts.length > 0
+                    ? counts.join(' · ')
+                    : summary.holiday
+                      ? ''
+                      : 'Nothing is planned on this day yet.'}
                 </DialogDescription>
               </DialogHeader>
 

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Award, Download, Plus, PlusCircle, Target, Trash2, Upload } from "lucide-react";
+import { Award, Download, Plus, PlusCircle, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Page, PageBody } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
@@ -22,7 +22,9 @@ export function MarksClient({
   currentTermSetting,
   subjects = [],
   goals = [],
+  tabs,
 }: {
+  tabs?: React.ReactNode;
   initialReportCards: ReportCardType[];
   currentTermSetting: string;
   subjects?: { id: string; name: string }[];
@@ -72,12 +74,6 @@ export function MarksClient({
         description="Your report cards, term by term, with each subject's mark and how to improve it."
         actions={
           <>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/goals">
-                <Target />
-                Goals
-              </Link>
-            </Button>
             {!archived && (
               <>
                 <Button variant="outline" size="lg" onClick={() => setCreateOpen(true)}>
@@ -93,6 +89,7 @@ export function MarksClient({
           </>
         }
       />
+      {tabs}
 
       <PageBody>
         <div className="flex flex-wrap items-center gap-3">
@@ -202,7 +199,7 @@ export function MarksClient({
                   {goals.length === 0 && (
                     <p className="pt-2 text-sm text-muted-foreground">
                       Know what you are aiming for?{" "}
-                      <Link href="/goals" className="font-medium text-primary hover:underline">
+                      <Link href="/marks?view=goals" className="font-medium text-primary hover:underline">
                         Set a target for each subject
                       </Link>
                       .

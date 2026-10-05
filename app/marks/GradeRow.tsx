@@ -172,7 +172,7 @@ export function GradeRow({
               </p>
               <p className="text-right text-sm text-muted-foreground">
                 {target === undefined ? (
-                  <Link href="/goals" className="font-medium text-primary hover:underline">Set a target</Link>
+                  <Link href="/marks?view=goals" className="font-medium text-primary hover:underline">Set a target</Link>
                 ) : belowTarget ? (
                   <>{(target - (score ?? 0)).toFixed(1)}% below your {target}% target</>
                 ) : score === null ? (

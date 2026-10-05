@@ -81,7 +81,7 @@ function peakTimeOfDay(done: TaskWithTemplate[]): string | null {
   return buckets.reduce((a, b) => (b.count > a.count ? b : a)).label;
 }
 
-export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
+export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps & { tabs?: React.ReactNode }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<TabType>("ALL");
   const [timeRange, setTimeRange] = useState<PeriodType>("ALL");
@@ -223,6 +223,7 @@ export function HistoryClient({ tasks, userProgress }: HistoryClientProps) {
           }
         />
       </div>
+      {tabs}
 
       <PageBody>
         {tasks.length === 0 ? (

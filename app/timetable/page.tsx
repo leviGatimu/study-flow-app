@@ -19,39 +19,23 @@ import { getScheduleState } from '@/lib/term';
 import { byClass, byTerm, getViewScope } from '@/lib/scope';
 import { getSchoolLessons } from '@/lib/school-actions';
 import { listSubjects } from '@/lib/subject-actions';
-import { lessonsOn, schoolDayBounds, toMinutes, type SchoolLesson } from '@/lib/school';
 import { getZonedNow } from '@/lib/utils';
+import { holidaysBetween } from '@/lib/holidays';
 
 import { Page, PageBody } from '@/components/ui/page';
 import { PageHeader } from '@/components/ui/page-header';
-import { Panel } from '@/components/ui/panel';
 import { Section } from '@/components/ui/section';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Button } from '@/components/ui/button';
 import { QuickAddForm } from '@/components/QuickAddForm';
-import { cn } from '@/lib/utils';
+import { WeekGrid } from './WeekGrid';
 
-import { parseDayKey, weekHref } from './schedule-dates';
-import { StudyLegend, StudyTypeIcon, StudyTypePill, statusOf, studyBlockClass } from './study-block';
+import { dayKey, parseDayKey, weekHref } from './schedule-dates';
+import { StudyLegend } from './study-block';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-type WeekTask = {
-  id: string;
-  subject: string;
-  type: string;
-  startTime: string;
-  endTime: string;
-  isDone: boolean;
-  isMissed: boolean;
-  date: Date;
-};
-
-type DayItem =
-  | { kind: 'school'; start: string; end: string; lessons: number }
-  | { kind: 'task'; start: string; task: WeekTask };
 
 async function loadWeek(userId: string, weekStart: Date, weekEnd: Date, today: Date) {
   const scope = await getViewScope(userId);
@@ -92,23 +76,6 @@ async function loadWeek(userId: string, weekStart: Date, weekEnd: Date, today: D
   return { tasks, lessons, subjects, routineCount };
 }
 
-function dayItems(date: Date, tasks: WeekTask[], lessons: SchoolLesson[]): DayItem[] {
-  const items: DayItem[] = tasks
-    .filter((t) => isSameDay(t.date, date))
-    .map((task) => ({ kind: 'task' as const, start: task.startTime, task }));
-
-  const school = schoolDayBounds(lessons, date.getDay());
-  if (school) {
-    items.push({
-      kind: 'school',
-      start: school.start,
-      end: school.end,
-      lessons: lessonsOn(lessons, date.getDay()).filter((l) => !l.isBreak).length,
-    });
-  }
-  return items.sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
-}
-
 /**
  * Week: the section's landing page. The seven days from Monday, each with the
  * school day as one band and the study blocks the routine (or a quick add)
@@ -137,6 +104,7 @@ export default async function WeekPage({
   }
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const holidays = holidaysBetween(tz, dayKey(weekStart), dayKey(weekEnd));
   const done = data?.tasks.filter((t) => t.isDone).length ?? 0;
   const total = data?.tasks.length ?? 0;
   const sameMonth = weekStart.getMonth() === weekEnd.getMonth();
@@ -232,92 +200,7 @@ export default async function WeekPage({
                 }
               />
 
-              <div className="space-y-3">
-                {days.map((date) => {
-                  const items = dayItems(date, data.tasks, data.lessons);
-                  const isToday = isSameDay(date, today);
-                  return (
-                    <Panel
-                      key={date.toISOString()}
-                      padded={false}
-                      className={cn(
-                        'flex flex-col gap-4 p-4 md:flex-row md:p-5',
-                        isToday && 'border-primary/50'
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-3 md:w-32 md:shrink-0 md:flex-col md:items-start md:justify-start">
-                        <div>
-                          <p className="font-heading text-lg font-bold text-foreground">
-                            {format(date, 'EEEE')}
-                          </p>
-                          <p className="text-sm font-medium text-muted-foreground">
-                            {format(date, 'd MMM')}
-                          </p>
-                        </div>
-                        {isToday && (
-                          <Button asChild variant="outline" size="sm">
-                            <Link href="/">Today</Link>
-                          </Button>
-                        )}
-                      </div>
-
-                      {items.length === 0 ? (
-                        <p className="self-center text-sm font-medium text-muted-foreground">
-                          Nothing planned.
-                        </p>
-                      ) : (
-                        <ul className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                          {items.map((item) =>
-                            item.kind === 'school' ? (
-                              <li key="school">
-                                <Link
-                                  href="/school-timetable"
-                                  className="flex h-full flex-col gap-1 rounded-xl border border-border bg-muted/50 p-3 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                                >
-                                  <span className="text-xs font-medium tabular-nums text-muted-foreground">
-                                    {item.start} – {item.end}
-                                  </span>
-                                  <span className="flex items-center gap-2 font-bold text-foreground">
-                                    <GraduationCap aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-                                    School
-                                  </span>
-                                  <span className="text-xs font-medium text-muted-foreground">
-                                    {item.lessons} {item.lessons === 1 ? 'lesson' : 'lessons'}
-                                  </span>
-                                </Link>
-                              </li>
-                            ) : (
-                              <li
-                                key={item.task.id}
-                                className={cn(
-                                  'flex flex-col gap-1 p-3',
-                                  studyBlockClass(item.task.type, statusOf(item.task))
-                                )}
-                              >
-                                <span className="text-xs font-medium tabular-nums text-muted-foreground">
-                                  {item.task.startTime} – {item.task.endTime}
-                                </span>
-                                <span
-                                  className={cn(
-                                    'flex min-w-0 items-center gap-2 font-bold text-foreground',
-                                    item.task.isDone && 'line-through decoration-2 opacity-70'
-                                  )}
-                                >
-                                  <StudyTypeIcon type={item.task.type} />
-                                  <span className="truncate">{item.task.subject}</span>
-                                </span>
-                                <span>
-                                  <StudyTypePill type={item.task.type} status={statusOf(item.task)} />
-                                </span>
-                              </li>
-                            )
-                          )}
-                        </ul>
-                      )}
-                    </Panel>
-                  );
-                })}
-              </div>
+              <WeekGrid days={days} today={today} tasks={data.tasks} lessons={data.lessons} holidays={holidays} />
 
               {total === 0 && data.routineCount > 0 && weekEnd >= today && (
                 <p className="text-sm text-muted-foreground">

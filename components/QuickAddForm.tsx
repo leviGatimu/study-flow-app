@@ -26,13 +26,23 @@ export function QuickAddForm({ initialDate, trigger, subjects = [] }: { initialD
     date: initialDate ? format(initialDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
   });
 
+  const [error, setError] = useState<string | null>(null);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     startTransition(async () => {
-      await createQuickTask({
-        ...formData,
-        date: formData.date // Send as string
-      });
+      let result: Awaited<ReturnType<typeof createQuickTask>>;
+      try {
+        result = await createQuickTask({ ...formData, date: formData.date });
+      } catch {
+        result = { error: 'Could not reach the server. Check your connection and try again.' };
+      }
+      // Keep the form open with what was typed when saving fails.
+      if ('error' in result) {
+        setError(result.error);
+        return;
+      }
       setFormData({ 
         subject: '', 
         startTime: '', 
@@ -141,6 +151,11 @@ export function QuickAddForm({ initialDate, trigger, subjects = [] }: { initialD
             </Select>
           </div>
 
+          {error && (
+            <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          )}
           <Button disabled={isPending} type="submit" size="lg" className="w-full h-11">{isPending ? 'Adding...' : 'Add task'}</Button>
         </form>
       </DialogContent>

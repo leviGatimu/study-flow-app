@@ -52,7 +52,7 @@ export async function saveGoal(subject: string, targetGrade: number) {
     },
   });
 
-  revalidatePath('/goals');
+  revalidatePath('/marks');
   revalidatePath('/marks');
   return { success: true, goal };
 }
@@ -68,7 +68,7 @@ export async function deleteGoal(id: string) {
 
   await softDelete(prisma, 'subjectGoal', { id, userId });
 
-  revalidatePath('/goals');
+  revalidatePath('/marks');
   revalidatePath('/marks');
   return { success: true };
 }

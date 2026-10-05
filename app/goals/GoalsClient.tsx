@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { CheckCircle2, Plus, Target, TrendingUp } from 'lucide-react';
@@ -31,7 +30,7 @@ interface GoalsClientProps {
   uniqueSubjects: string[];
 }
 
-export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects }: GoalsClientProps) {
+export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects, tabs }: GoalsClientProps & { tabs?: React.ReactNode }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   // A finished year's targets are a record, not something to set.
@@ -77,16 +76,10 @@ export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects }
   return (
     <Page>
       <PageHeader
-        title="Goals"
-        description="A target mark for each subject, next to your latest mark from Marks."
+        title="Marks"
+        description="A target mark for each subject, next to your latest mark."
         actions={
           <>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/marks">
-                <TrendingUp />
-                Marks
-              </Link>
-            </Button>
             {!archived && (
               <Button size="lg" onClick={() => { setEditingGoal(null); requestAnimationFrame(focusForm); }}>
                 <Plus />
@@ -96,6 +89,7 @@ export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects }
           </>
         }
       />
+      {tabs}
 
       <PageBody>
         {initialGoals.length > 0 && (

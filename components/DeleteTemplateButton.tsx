@@ -23,7 +23,7 @@ import { useIsArchived } from '@/components/ArchiveContext';
  * detaches completed tasks before removing the block, so history survives
  * either way - the confirmation explains that rather than threatening it.
  */
-export function DeleteTemplateButton({ id }: { id: string }) {
+export function DeleteTemplateButton({ id, subject }: { id: string; /** Names the block for screen readers. */ subject?: string }) {
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [impact, setImpact] = useState<{ completed: number; pending: number; subject: string } | null>(null);
@@ -67,7 +67,7 @@ export function DeleteTemplateButton({ id }: { id: string }) {
       <Button
         variant="ghost"
         size="icon"
-        aria-label="Remove from study routine"
+        aria-label={subject ? `Remove ${subject} from study routine` : 'Remove from study routine'}
         title="Remove from study routine"
         disabled={isPending}
         onClick={openDialog}

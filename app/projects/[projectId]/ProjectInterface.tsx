@@ -147,7 +147,7 @@ export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
     const context = `Context: I am working on a project titled "${project.title}". ${
       project.description ? `Description: ${project.description}` : ''
     }. Existing docs: ${project.docs.map((d) => d.title).join(', ')}.`;
-    const result = await askAIBuddy(`${context}\n\nUser Question: ${aiInput}`, []);
+    const result = await askAIBuddy(`${context}\n\nUser Question: ${aiInput}`, [], undefined, undefined, undefined, { tools: false, xp: false });
     setIsAiLoading(false);
     if (result.text) setAiResponse(result.text);
     else if (result.error) setAiResponse(`Error: ${result.error}`);

@@ -1,9 +1,11 @@
 import { getUserId, userIdFromBearer } from '@/lib/auth';
 import { resolveUploadPath, readRemoteUpload } from '@/lib/upload';
 import { mimeFor, serveLocalFile } from '@/lib/serve-file';
+import { ownsUpload } from '@/lib/file-access';
 
 /**
- * Serve a locally-stored upload.
+ * Serve a locally-stored upload. Reached as /uploads/<name>: proxy.ts rewrites
+ * every such URL here, so a copy in public/uploads is never served statically.
  *
  * On the web build, uploads sit in public/uploads and Next serves them as
  * static assets before this route is ever consulted - or they live in Supabase
@@ -33,6 +35,11 @@ export async function GET(
   const { path } = await params;
   // Uploads are stored flat, so only the last segment can name a real file.
   const name = path[path.length - 1] ?? '';
+
+  // Signed in is not enough: the file must belong to one of YOUR records.
+  // 404 rather than 403, so the route does not confirm another user's file
+  // exists.
+  if (!(await ownsUpload(userId, name))) return new Response('Not found', { status: 404 });
 
   // Object storage (the web build, once configured) holds the bytes remotely.
   const remote = await readRemoteUpload(name);

@@ -62,7 +62,7 @@ const nextConfig: NextConfig = {
     return [
       { source: '/plan', destination: '/timetable', permanent: false },
       { source: '/progress', destination: '/insights', permanent: false },
-      { source: '/study', destination: '/ai', permanent: false },
+      { source: '/study', destination: '/ask', permanent: false },
       { source: '/studio/:path*', destination: '/subjects', permanent: false },
       { source: '/daily-summary', destination: '/summaries', permanent: false },
       { source: '/ranks', destination: '/streak', permanent: false },

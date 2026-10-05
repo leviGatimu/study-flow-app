@@ -1,5 +1,6 @@
 'use server';
 
+import { parseGradeToPercentage } from '@/lib/grades';
 import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/lib/auth';
 import { getViewScope, byClass, byTerm } from '@/lib/scope';
@@ -25,21 +26,14 @@ function taskMinutes(startTime: string, endTime: string): number {
   }
 }
 
-/** Best-effort conversion of a grade string ("85", "85%", "A-") into a 0-100 number. */
-function gradeToNumber(grade?: string | null): number | null {
-  if (!grade) return null;
-  const g = grade.trim();
-  const num = parseFloat(g.replace('%', ''));
-  if (!isNaN(num) && /\d/.test(g)) return Math.min(100, Math.max(0, num));
-  const map: Record<string, number> = {
-    'A+': 97, A: 92, 'A-': 88,
-    'B+': 85, B: 82, 'B-': 78,
-    'C+': 75, C: 72, 'C-': 68,
-    'D+': 65, D: 62, 'D-': 58,
-    E: 50, F: 40,
-  };
-  const v = map[g.toUpperCase()];
-  return v != null ? v : null;
+/** False while any answer in an attempt is still UNMARKED. */
+function isFullyMarked(feedback: string): boolean {
+  try {
+    const answers = JSON.parse(feedback);
+    return !Array.isArray(answers) || !answers.some((a) => a && a.status === 'UNMARKED');
+  } catch {
+    return true;
+  }
 }
 
 export interface SubjectInsight {
@@ -163,7 +157,12 @@ export async function getInsightsData(
   goals.forEach((g) => ensure(g.subject));
   latestCard?.grades.forEach((g) => ensure(g.subject));
 
+  // Only blocks that have had their chance count towards completion: done,
+  // marked missed, or from a day already over. Counting the term's FUTURE
+  // blocks (the Month view generates weeks ahead) as "not done" put every
+  // subject at a low completion rate and flagged them all for attention.
   tasks.forEach((t) => {
+    if (!t.isDone && !t.isMissed && new Date(t.date) >= today) return;
     const acc = ensure(t.subject);
     acc.totalTasks += 1;
     if (t.isDone) {
@@ -178,7 +177,12 @@ export async function getInsightsData(
     if (m.isCompleted) acc.masteryDone += 1;
   });
 
-  attempts.forEach((a) => {
+  // Only fully-marked attempts are evidence. One whose written answers are
+  // still waiting for the marker has a provisional score that must not make a
+  // subject look weak (audit S02).
+  const finalAttempts = attempts.filter((a) => isFullyMarked(a.feedback));
+
+  finalAttempts.forEach((a) => {
     const acc = ensure(a.module.subject);
     acc.quizScores.push(a.score);
   });
@@ -188,7 +192,7 @@ export async function getInsightsData(
 
   const gradeMap = new Map<string, { num: number | null; label: string }>();
   latestCard?.grades.forEach((g) => {
-    gradeMap.set(normalizeSubject(g.subject), { num: gradeToNumber(g.grade), label: g.grade });
+    gradeMap.set(normalizeSubject(g.subject), { num: parseGradeToPercentage(g.grade), label: g.grade });
   });
 
   const subjects: SubjectInsight[] = [];
@@ -269,7 +273,7 @@ export async function getInsightsData(
     .filter((c) => c.overallAverage != null)
     .map((c) => ({ term: c.term, average: Math.round((c.overallAverage as number) * 10) / 10 }));
 
-  const quizTrend = attempts.map((a, i) => ({
+  const quizTrend = finalAttempts.map((a, i) => ({
     label: `#${i + 1}`,
     score: a.score,
     subject: normalizeSubject(a.module.subject),

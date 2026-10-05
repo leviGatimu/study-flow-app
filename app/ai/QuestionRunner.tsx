@@ -18,6 +18,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ArrowLeft,
   ArrowRight,
   Check,
   ChevronDown,
@@ -35,173 +36,264 @@ import { Panel } from '@/components/ui/panel';
 import { Pill } from '@/components/ui/list-row';
 import { cn } from '@/lib/utils';
 import type { StudyItem } from '@/lib/study-actions';
+import type { RunDraft, RunSnapshot } from '@/lib/run-draft';
+import { decodeOrder, decodePairs, decodeSelection, encodeAnswer, formatAnswer, normalise, previewVerdict } from '@/lib/marking';
 
 export type RunnerMode = 'PRACTICE' | 'EXAM';
-
-/** Lowercase, drop punctuation, collapse spaces — mirrors the server marker. */
-function normalise(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[.,;:!?'"()]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/**
- * Whether the answer is right, or null when this component should not say.
- *
- * Null for everything written, and for matching and ordering where the server
- * awards partial credit that a simple comparison here would misreport.
- */
-function looksCorrect(item: StudyItem, given: string): boolean | null {
-  if (!given.trim()) return false;
-  switch (item.type) {
-    case 'MULTIPLE_CHOICE':
-    case 'TRUE_FALSE':
-      return normalise(given) === normalise(item.answer);
-    case 'MULTIPLE_SELECT': {
-      const want = new Set(item.answer.split(',').map(normalise).filter(Boolean));
-      const got = new Set(given.split(',').map(normalise).filter(Boolean));
-      return want.size === got.size && [...want].every((w) => got.has(w));
-    }
-    case 'FILL_IN_THE_BLANK': {
-      const want = normalise(item.answer);
-      const got = normalise(given);
-      return Boolean(want) && (got === want || got.includes(want) || want.includes(got));
-    }
-    default:
-      return null;
-  }
-}
 
 export function QuestionRunner({
   items,
   mode,
-  minutes,
+  initial,
+  onProgress,
   onFinish,
   onQuit,
   busy,
 }: {
   items: StudyItem[];
   mode: RunnerMode;
-  /** Exam only. The paper submits itself when this runs out. */
-  minutes?: number;
+  /** The saved run to pick up: answers, flags, position and an exam deadline. */
+  initial?: RunDraft;
+  /** Called after every change, so the caller can autosave the run. */
+  onProgress?: (snapshot: RunSnapshot) => void;
   onFinish: (answers: { id: string; answer: string }[], durationSec: number) => void;
   onQuit: () => void;
   busy: boolean;
 }) {
-  const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [index, setIndex] = useState(() => Math.min(initial?.position ?? 0, Math.max(0, items.length - 1)));
+  const [answers, setAnswers] = useState<Record<string, string>>(() => initial?.answers ?? {});
+  const [flags, setFlags] = useState<Set<string>>(() => new Set(initial?.flags ?? []));
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
+  // Exam only: the hand-in screen listing unanswered and flagged questions.
+  const [reviewing, setReviewing] = useState(false);
   // Set on mount rather than during render: reading the clock while rendering
-  // is impure, and the value wanted here is "when did this run begin", which
-  // happens once.
+  // is impure, and the value wanted here is "when did this run begin".
   const startedAt = useRef(0);
   useEffect(() => {
     startedAt.current = Date.now();
   }, []);
-  const [secondsLeft, setSecondsLeft] = useState((minutes ?? 0) * 60);
+
+  const deadline = mode === 'EXAM' && initial?.deadlineAt ? new Date(initial.deadlineAt).getTime() : null;
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
 
   const item = items[index];
   const given = answers[item?.id] ?? '';
   const isRevealed = mode === 'PRACTICE' && revealed[item?.id];
   const isLast = index === items.length - 1;
 
+  // Autosave: every change after the first render is reported to the caller.
+  const firstRender = useRef(true);
+  const progressRef = useRef(onProgress);
+  useEffect(() => {
+    progressRef.current = onProgress;
+  }, [onProgress]);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    progressRef.current?.({ answers, flags: [...flags], position: index });
+  }, [answers, flags, index]);
+
+  // The latest answers, read at submit time. Submit must not CHANGE with every
+  // keystroke: the exam clock depends on it, and a changing submit restarted
+  // the clock's interval on each answer - typing steadily stopped time (S03).
+  const latestAnswers = useRef(answers);
+  useEffect(() => {
+    latestAnswers.current = answers;
+  }, [answers]);
+
   const submit = useCallback(() => {
     onFinish(
-      items.map((q) => ({ id: q.id, answer: answers[q.id] ?? '' })),
+      items.map((q) => ({ id: q.id, answer: latestAnswers.current[q.id] ?? '' })),
       startedAt.current ? Math.round((Date.now() - startedAt.current) / 1000) : 0
     );
-  }, [answers, items, onFinish]);
-
-  // The exam clock. Runs only when a limit was set, and submits the paper
-  // itself rather than leaving the student staring at 00:00.
+  }, [items, onFinish]);
+  const submitRef = useRef(submit);
   useEffect(() => {
-    if (mode !== 'EXAM' || !minutes) return;
-    const timer = setInterval(() => {
-      setSecondsLeft((left) => {
-        if (left <= 1) {
-          clearInterval(timer);
-          submit();
-          return 0;
-        }
-        return left - 1;
-      });
-    }, 1000);
+    submitRef.current = submit;
+  }, [submit]);
+
+  // The exam clock runs against the deadline the server fixed when the paper
+  // first started, so neither a background tab, a sleeping laptop nor a reload
+  // buys time. The paper hands itself in exactly once - immediately, if the
+  // deadline passed while the student was away.
+  useEffect(() => {
+    if (deadline === null) return;
+    let handedIn = false;
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setSecondsLeft(left);
+      if (left === 0 && !handedIn) {
+        handedIn = true;
+        clearInterval(timer);
+        submitRef.current();
+      }
+    };
+    const timer = setInterval(tick, 500);
+    tick();
     return () => clearInterval(timer);
-  }, [mode, minutes, submit]);
+  }, [deadline]);
 
   if (!item) return null;
 
-  const answeredCount = items.filter((q) => (answers[q.id] ?? '').trim()).length;
+  const isAnswered = (q: StudyItem) => Boolean((answers[q.id] ?? '').trim());
+  const answeredCount = items.filter(isAnswered).length;
+  const unanswered = items.map((q, i) => ({ q, i })).filter(({ q }) => !isAnswered(q));
+  const flagged = items.map((q, i) => ({ q, i })).filter(({ q }) => flags.has(q.id));
   const set = (value: string) => setAnswers((a) => ({ ...a, [item.id]: value }));
+  const toggleFlag = () =>
+    setFlags((current) => {
+      const next = new Set(current);
+      if (next.has(item.id)) next.delete(item.id);
+      else next.add(item.id);
+      return next;
+    });
+  const goTo = (i: number) => {
+    setReviewing(false);
+    setIndex(i);
+  };
 
   const advance = () => {
-    if (isLast) submit();
-    else setIndex((i) => i + 1);
+    if (!isLast) return setIndex((i) => i + 1);
+    // An exam gets a last look at what is unanswered or flagged; practice has
+    // already shown every answer, so it hands in directly.
+    if (mode === 'EXAM') setReviewing(true);
+    else submit();
   };
+
+  const clock =
+    deadline !== null && secondsLeft !== null ? (
+      <Pill tone={secondsLeft < 60 ? 'danger' : 'default'} aria-label={`Time left: ${Math.floor(secondsLeft / 60)} minutes ${secondsLeft % 60} seconds`}>
+        <Clock />
+        {String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:{String(secondsLeft % 60).padStart(2, '0')}
+      </Pill>
+    ) : null;
+
+  const navigator = (
+    <nav aria-label="Questions" className="flex flex-wrap gap-1.5">
+      {items.map((q, i) => {
+        const answered = isAnswered(q);
+        const isFlagged = flags.has(q.id);
+        return (
+          <button
+            key={q.id}
+            type="button"
+            onClick={() => goTo(i)}
+            aria-current={i === index && !reviewing ? 'step' : undefined}
+            aria-label={`Question ${i + 1}${answered ? ', answered' : ', not answered'}${isFlagged ? ', flagged' : ''}`}
+            className={cn(
+              'relative flex size-8 items-center justify-center rounded-lg border text-xs font-semibold tabular-nums transition-colors',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+              i === index && !reviewing
+                ? 'border-primary bg-primary text-primary-foreground'
+                : answered
+                  ? 'border-primary/30 bg-primary/10 text-foreground hover:bg-primary/15'
+                  : 'border-border bg-card text-muted-foreground hover:bg-muted'
+            )}
+          >
+            {i + 1}
+            {isFlagged && (
+              <span aria-hidden="true" className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-card bg-orange-500" />
+            )}
+          </button>
+        );
+      })}
+    </nav>
+  );
+
+  if (reviewing) {
+    return (
+      <Panel className="p-5 md:p-8">
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <h2 className="font-heading text-xl font-bold">Hand in your paper?</h2>
+          {clock}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {answeredCount} of {items.length} answered. Answers are marked only after you hand in.
+        </p>
+        {(unanswered.length > 0 || flagged.length > 0) && (
+          <div className="mt-5 space-y-3">
+            {unanswered.length > 0 && (
+              <ReviewList label="Not answered" entries={unanswered} onPick={goTo} />
+            )}
+            {flagged.length > 0 && <ReviewList label="Flagged" entries={flagged} onPick={goTo} />}
+          </div>
+        )}
+        <div className="mt-6">{navigator}</div>
+        <div className="mt-8 flex flex-wrap justify-between gap-3 border-t border-border/60 pt-6">
+          <Button variant="outline" size="lg" onClick={() => goTo(index)}>
+            <ArrowLeft />
+            Keep working
+          </Button>
+          <Button size="lg" onClick={submit} disabled={busy}>
+            {busy ? (
+              <>
+                Marking…
+                <Loader2 className="animate-spin" />
+              </>
+            ) : (
+              <>
+                Hand in
+                <Flag />
+              </>
+            )}
+          </Button>
+        </div>
+      </Panel>
+    );
+  }
 
   return (
     <Panel className="p-5 md:p-8">
-      {/* Progress. In an exam this is the only thing on screen that changes
-          between questions, so it carries the clock too. */}
-      <div className="mb-8">
+      {/* Progress, the clock, and the way back out. */}
+      <div className="mb-6 space-y-4">
         <div className="flex items-center justify-between gap-4 text-sm font-medium text-muted-foreground">
           <span className="tabular-nums">
-            Question {index + 1} of {items.length}
+            Question {index + 1} of {items.length} · {answeredCount} answered
           </span>
           <span className="flex items-center gap-3">
-            {mode === 'EXAM' && minutes ? (
-              <Pill tone={secondsLeft < 60 ? 'danger' : 'default'} aria-label="Time left">
-                <Clock />
-                {String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:
-                {String(secondsLeft % 60).padStart(2, '0')}
-              </Pill>
-            ) : (
-              <span className="tabular-nums">{answeredCount} answered</span>
-            )}
+            {clock}
             <Button variant="ghost" size="sm" onClick={onQuit}>
               <X />
-              Quit
+              {mode === 'EXAM' ? 'Leave (saved)' : 'Quit'}
             </Button>
           </span>
         </div>
-        <div
-          className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
-          role="progressbar"
-          aria-label="Progress through the questions"
-          aria-valuemin={0}
-          aria-valuemax={items.length}
-          aria-valuenow={index + (isRevealed ? 1 : 0)}
-        >
-          <div
-            className="h-full rounded-full bg-primary transition-[width] duration-300"
-            style={{ width: `${((index + (isRevealed ? 1 : 0)) / items.length) * 100}%` }}
-          />
-        </div>
+        {navigator}
       </div>
 
       <div key={item.id} className="animate-in fade-in duration-200">
-        <p className="text-sm font-medium text-primary">{TYPE_LABEL[item.type] ?? 'Question'}</p>
-        <h2 className="mt-1.5 font-heading text-xl font-bold leading-snug md:text-2xl">
-          {item.question}
-        </h2>
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm font-medium text-primary">{TYPE_LABEL[item.type] ?? 'Question'}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-pressed={flags.has(item.id)}
+            onClick={toggleFlag}
+            className={cn(flags.has(item.id) && 'text-orange-600 dark:text-orange-400')}
+          >
+            <Flag />
+            {flags.has(item.id) ? 'Flagged' : 'Flag'}
+          </Button>
+        </div>
+        <h2 className="mt-1.5 font-heading text-xl font-bold leading-snug md:text-2xl">{item.question}</h2>
 
         <div className="mt-6">
           <AnswerWidget item={item} given={given} onChange={set} locked={Boolean(isRevealed)} />
         </div>
 
-        {isRevealed && <Verdict item={item} given={given} />}
+        <div aria-live="polite">{isRevealed && <Verdict item={item} given={given} />}</div>
 
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-6">
-          <span className="text-xs font-medium text-muted-foreground">
-            {mode === 'EXAM'
-              ? 'Marked when you finish the paper.'
-              : isRevealed
-                ? ''
-                : 'Answer, then check.'}
-          </span>
-          <div className="flex gap-2">
+          <Button variant="outline" size="lg" onClick={() => setIndex((i) => i - 1)} disabled={index === 0}>
+            <ArrowLeft />
+            Previous
+          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="hidden text-xs font-medium text-muted-foreground sm:inline">
+              {mode === 'EXAM' ? 'Saved as you go · marked when you hand in' : isRevealed ? '' : 'Answer, then check'}
+            </span>
             {mode === 'PRACTICE' && !isRevealed && (
               <Button
                 size="lg"
@@ -221,7 +313,7 @@ export function QuestionRunner({
                   </>
                 ) : isLast ? (
                   <>
-                    Finish
+                    {mode === 'EXAM' ? 'Review & hand in' : 'Finish'}
                     <Flag />
                   </>
                 ) : (
@@ -239,6 +331,31 @@ export function QuestionRunner({
   );
 }
 
+function ReviewList({
+  label,
+  entries,
+  onPick,
+}: {
+  label: string;
+  entries: { q: StudyItem; i: number }[];
+  onPick: (i: number) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-sm font-semibold text-foreground">
+        {label} ({entries.length})
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {entries.map(({ q, i }) => (
+          <Button key={q.id} variant="outline" size="sm" onClick={() => onPick(i)}>
+            Question {i + 1}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const TYPE_LABEL: Record<string, string> = {
   MULTIPLE_CHOICE: 'Pick one',
   MULTIPLE_SELECT: 'Pick every correct answer',
@@ -252,7 +369,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 /** What the student saw after pressing Check, in practice mode. */
 function Verdict({ item, given }: { item: StudyItem; given: string }) {
-  const correct = looksCorrect(item, given);
+  const correct = previewVerdict(item, given);
 
   return (
     <div
@@ -293,7 +410,7 @@ function Verdict({ item, given }: { item: StudyItem; given: string }) {
       {correct !== true && (
         <p className="mt-2 text-sm">
           <span className="font-bold">Answer: </span>
-          <span className="text-muted-foreground">{item.answer}</span>
+          <span className="text-muted-foreground">{formatAnswer(item.answer)}</span>
         </p>
       )}
 
@@ -312,10 +429,10 @@ function Verdict({ item, given }: { item: StudyItem; given: string }) {
 /**
  * One widget per question type.
  *
- * Every one of them writes a STRING, in the exact format the server marker
- * parses: comma-separated for multi-select, " | " for ordering, "Term: value;"
- * for matching. Keeping the encoding here rather than in the caller means there
- * is one place to look when a mark comes back wrong.
+ * Every one of them writes a STRING the shared marker (lib/marking.ts) reads:
+ * plain text for single answers, JSON for structured ones - the chosen
+ * options, the order, the term-to-definition map - because options can
+ * themselves contain commas, pipes and colons.
  */
 function AnswerWidget({
   item,
@@ -455,10 +572,7 @@ function MultiSelect({
   onChange: (v: string) => void;
   locked: boolean;
 }) {
-  const chosen = useMemo(
-    () => new Set(given.split(',').map((s) => s.trim()).filter(Boolean)),
-    [given]
-  );
+  const chosen = useMemo(() => new Set(given ? decodeSelection(item, given) : []), [given, item]);
 
   return (
     <div className="space-y-3">
@@ -474,7 +588,8 @@ function MultiSelect({
               const next = new Set(chosen);
               if (next.has(option)) next.delete(option);
               else next.add(option);
-              onChange([...next].join(', '));
+              // Structured, in option order: an option may contain a comma.
+              onChange(next.size ? encodeAnswer(item.options.filter((o) => next.has(o))) : '');
             }}
             className={optionRow(picked ? 'picked' : 'idle')}
           >
@@ -508,19 +623,33 @@ function Ordering({
   // The working order lives in the answer string so nothing is lost when the
   // student moves between questions and comes back.
   const order = useMemo(() => {
-    const current = given.split('|').map((s) => s.trim()).filter(Boolean);
+    const current = given ? decodeOrder(item, given) : [];
     return current.length === item.items.length ? current : item.items;
-  }, [given, item.items]);
+  }, [given, item]);
 
   const move = (from: number, to: number) => {
     if (to < 0 || to >= order.length) return;
     const next = [...order];
     const [row] = next.splice(from, 1);
     next.splice(to, 0, row);
-    onChange(next.join(' | '));
+    onChange(encodeAnswer(next));
   };
 
+  // The starting order is only a suggestion until the student moves something
+  // or says it is right - otherwise "I agree with this order" saved nothing
+  // and the question counted as unanswered (S10).
+  const confirmed = Boolean(given);
+
   return (
+    <div className="space-y-3">
+    {!confirmed && !locked && (
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed border-border px-3 py-2">
+        <span className="text-sm text-muted-foreground">Move the items, or keep this order if you think it is right.</span>
+        <Button type="button" variant="outline" size="sm" onClick={() => onChange(encodeAnswer(order))}>
+          Keep this order
+        </Button>
+      </div>
+    )}
     <ol className="space-y-2">
       {order.map((row, i) => (
         <li
@@ -554,6 +683,7 @@ function Ordering({
         </li>
       ))}
     </ol>
+    </div>
   );
 }
 
@@ -568,24 +698,13 @@ function Matching({
   onChange: (v: string) => void;
   locked: boolean;
 }) {
-  const pairs = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const pair of given.split(';')) {
-      const [term, definition] = pair.split(':');
-      if (term?.trim()) map.set(term.trim(), (definition ?? '').trim());
-    }
-    return map;
-  }, [given]);
+  const pairs = useMemo(() => new Map(Object.entries(given ? decodePairs(item, given) : {})), [given, item]);
 
   const setPair = (term: string, definition: string) => {
     const next = new Map(pairs);
-    next.set(term, definition);
-    onChange(
-      item.items
-        .map((t) => `${t}: ${next.get(t) ?? ''}`)
-        .filter((row) => !row.endsWith(': '))
-        .join('; ')
-    );
+    if (definition) next.set(term, definition);
+    else next.delete(term);
+    onChange(next.size ? encodeAnswer(Object.fromEntries(item.items.filter((t) => next.has(t)).map((t) => [t, next.get(t)!]))) : '');
   };
 
   return (

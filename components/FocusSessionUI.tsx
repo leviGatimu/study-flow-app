@@ -12,7 +12,8 @@ import {
   Upload, Trash2, ImagePlus, Loader2,
   Droplets, PersonStanding, Coffee, CalendarClock, ScrollText, GraduationCap,
   ListPlus, Pencil, Check, FolderPlus, LayoutGrid, Target, RotateCcw,
-  Search, Globe, WifiOff, Settings, Palette, ImageIcon, Sparkles
+  Search, Globe, WifiOff, Settings, Palette, ImageIcon, Sparkles,
+  Infinity as InfinityIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -128,6 +129,8 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
   const {
     activeTask, timeLeft, isActive, isPaused, step, sessionXP, intensity,
     initialDurationMinutes = 25,
+    openEnded,
+    secondsFocused,
     startFocus, pauseFocus, resumeFocus, completeFocus, resetFocus,
     setIntensity
   } = focusContext;
@@ -136,6 +139,8 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
   const [completedGoals, setCompletedGoals] = useState<boolean[]>([]);
   const [newGoalInput, setNewGoalInput] = useState('');
   const [customDuration, setCustomDuration] = useState(60);
+  // "No limit": run until the student ends it rather than for a set length.
+  const [noLimit, setNoLimit] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isZenMode, setIsZenMode] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -196,8 +201,11 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
   // The phase is derived purely from elapsed time, so pausing, the widget
   // window and storage syncs all keep working without extra timer state.
   const totalDurationSeconds = initialDurationMinutes * 60;
-  const remainingSeconds = timeLeft.h * 3600 + timeLeft.m * 60 + timeLeft.s;
-  const elapsedSeconds = Math.max(0, totalDurationSeconds - remainingSeconds);
+  // In an open-ended session timeLeft counts UP, so it IS the elapsed time and
+  // there is no end to be near.
+  const shownSeconds = timeLeft.h * 3600 + timeLeft.m * 60 + timeLeft.s;
+  const remainingSeconds = openEnded ? Number.POSITIVE_INFINITY : shownSeconds;
+  const elapsedSeconds = openEnded ? shownSeconds : Math.max(0, totalDurationSeconds - remainingSeconds);
 
   let onBreak = false;
   let breakRemainingSeconds = 0;
@@ -468,6 +476,10 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
   };
 
   const handleStartFocus = () => {
+    if (noLimit && (task.id === 'free' || !isSyncedWithTimetable)) {
+      startFocus(task, null);
+      return;
+    }
     let duration = customDuration;
     if (isSyncedWithTimetable && task.id !== 'free' && task.endTime) {
       const [endH, endM] = task.endTime.split(':').map(Number);
@@ -492,10 +504,12 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
   };
 
   useEffect(() => {
-    if (step === 'FOCUS' && timeLeft.h === 0 && timeLeft.m === 0 && timeLeft.s === 0 && isActive) {
+    // An open-ended session starts at 0:00 and counts up - that zero is the
+    // beginning, not the end.
+    if (step === 'FOCUS' && !openEnded && timeLeft.h === 0 && timeLeft.m === 0 && timeLeft.s === 0 && isActive) {
       handleSessionComplete();
     }
-  }, [step, timeLeft, isActive, handleSessionComplete]);
+  }, [step, timeLeft, isActive, openEnded, handleSessionComplete]);
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -636,7 +650,10 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
   // dash offset shrinks from a full circumference down to zero.
   const TIMER_RADIUS = 210;
   const TIMER_CIRCUMFERENCE = 2 * Math.PI * TIMER_RADIUS;
-  const elapsedFraction = totalDurationSeconds > 0
+  // Open-ended: the ring laps once an hour instead of filling toward an end.
+  const elapsedFraction = openEnded
+    ? (elapsedSeconds % 3600) / 3600
+    : totalDurationSeconds > 0
     ? Math.min(1, Math.max(0, elapsedSeconds / totalDurationSeconds))
     : 0;
   const timerCircleProgress = TIMER_CIRCUMFERENCE * (1 - elapsedFraction);
@@ -670,21 +687,22 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                   <Clock className="w-3.5 h-3.5" /> Session Duration
                 </Label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {presets.map((mins) => (
                     <button
                       key={mins}
-                      onClick={() => setCustomDuration(mins)}
+                      onClick={() => { setCustomDuration(mins); setNoLimit(false); }}
                       className={cn(
                         "p-4 rounded-2xl border-2 transition-all font-bold text-sm",
-                        customDuration === mins ? "bg-primary/5 border-primary text-primary shadow-md" : "bg-card border-border/40 text-muted-foreground hover:border-primary/20"
+                        !noLimit && customDuration === mins ? "bg-primary/5 border-primary text-primary shadow-md" : "bg-card border-border/40 text-muted-foreground hover:border-primary/20"
                       )}
                     >
                       {mins}m
                     </button>
                   ))}
+                  <NoLimitButton active={noLimit} onClick={() => setNoLimit(true)} size="text-sm p-4" />
                 </div>
-                <div className="space-y-4 pt-2">
+                {noLimit ? <NoLimitHint /> : <div className="space-y-4 pt-2">
                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
                      <span>Custom Minutes</span>
                      <span>{customDuration} min</span>
@@ -697,7 +715,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                      step={5}
                      className="py-2"
                    />
-                </div>
+                </div>}
               </div>
             ) : (
               <div className="space-y-6">
@@ -748,21 +766,22 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5 animate-pulse" /> Override Duration
                     </Label>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                       {presets.map((mins) => (
                         <button
                           key={mins}
-                          onClick={() => setCustomDuration(mins)}
+                          onClick={() => { setCustomDuration(mins); setNoLimit(false); }}
                           className={cn(
                             "p-3 rounded-2xl border-2 transition-all font-bold text-xs",
-                            customDuration === mins ? "bg-primary/5 border-primary text-primary shadow-md" : "bg-muted/30 border-border/40 text-muted-foreground hover:border-primary/20"
+                            !noLimit && customDuration === mins ? "bg-primary/5 border-primary text-primary shadow-md" : "bg-muted/30 border-border/40 text-muted-foreground hover:border-primary/20"
                           )}
                         >
                           {mins}m
                         </button>
                       ))}
+                      <NoLimitButton active={noLimit} onClick={() => setNoLimit(true)} size="text-xs p-3" />
                     </div>
-                    <div className="space-y-4 pt-2">
+                    {noLimit ? <NoLimitHint /> : <div className="space-y-4 pt-2">
                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
                          <span>Custom Minutes</span>
                          <span>{customDuration} min</span>
@@ -775,7 +794,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                          step={5}
                          className="py-2"
                        />
-                    </div>
+                    </div>}
                   </motion.div>
                 )}
 
@@ -2683,7 +2702,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
   }
 
   if (currentStep === 'DONE') {
-    const focusedMinutes = Math.max(1, Math.round(initialDurationMinutes));
+    const focusedMinutes = Math.max(1, Math.round(openEnded ? secondsFocused / 60 : initialDurationMinutes));
     const goalsTotal = goals.filter((g) => g.trim()).length;
     const goalsDone = goals.filter((g, i) => g.trim() && completedGoals[i]).length;
     const pal = VICTORY_PALETTE;
@@ -2801,4 +2820,30 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
   }
 
   return null;
+}
+
+/** The fourth duration choice: no set length, end the session yourself. */
+function NoLimitButton({ active, onClick, size }: { active: boolean; onClick: () => void; size: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "flex items-center justify-center gap-1.5 rounded-2xl border-2 font-bold transition-all",
+        size,
+        active ? "bg-primary/5 border-primary text-primary shadow-md" : "bg-card border-border/40 text-muted-foreground hover:border-primary/20"
+      )}
+    >
+      <InfinityIcon className="size-4" /> No limit
+    </button>
+  );
+}
+
+function NoLimitHint() {
+  return (
+    <p className="rounded-2xl border border-border/40 bg-muted/30 px-4 py-3 text-sm font-medium text-muted-foreground">
+      The timer counts up from 0:00 and keeps going until you finish the session yourself.
+    </p>
+  );
 }

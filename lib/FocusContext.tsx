@@ -16,7 +16,13 @@ interface FocusContextType {
   endTime: number | null;
   initialDurationMinutes: number;
   secondsFocused: number;
-  startFocus: (task: TaskWithTemplate, durationMinutes: number) => void;
+  /**
+   * No set length: the session runs until the student ends it. `timeLeft`
+   * then counts UP (time focused so far) and nothing completes on its own.
+   */
+  openEnded: boolean;
+  /** Pass null for an open-ended session. */
+  startFocus: (task: TaskWithTemplate, durationMinutes: number | null) => void;
   pauseFocus: () => void;
   resumeFocus: () => void;
   completeFocus: () => void;
@@ -40,6 +46,10 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
   const [endTime, setEndTime] = useState<number | null>(null);
   const [initialDurationMinutes, setInitialDurationMinutes] = useState(0);
   const [secondsFocused, setSecondsFocused] = useState(0);
+  const [openEnded, setOpenEnded] = useState(false);
+  // Open-ended sessions run from a start instant instead of toward an end
+  // one. Null while paused, exactly like endTime.
+  const [startedAt, setStartedAt] = useState<number | null>(null);
 
   // Refs mirror state the 1s ticker needs, so the interval effect can keep a
   // minimal dependency list. With objects like activeTask in the deps, every
@@ -98,6 +108,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
           setEndTime(data.endTime);
           setInitialDurationMinutes(data.initialDurationMinutes || 0);
           setSecondsFocused(data.secondsFocused || 0);
+          setOpenEnded(Boolean(data.openEnded));
+          setStartedAt(data.startedAt ?? null);
         } catch (e) {
           console.error("Failed to parse focus session", e);
         }
@@ -146,7 +158,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             intensity,
             endTime,
             initialDurationMinutes,
-            secondsFocused: currentStorage.secondsFocused || secondsFocused
+            secondsFocused: currentStorage.secondsFocused || secondsFocused,
+            openEnded,
+            startedAt
           });
         } catch (e) {
           // Fallback
@@ -166,19 +180,36 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         intensity,
         endTime,
         initialDurationMinutes,
-        secondsFocused
+        secondsFocused,
+        openEnded,
+        startedAt
       });
     } else {
       localStorage.removeItem('study-flow-focus');
     }
-  }, [activeTask, timeLeft, isActive, isPaused, step, sessionXP, intensity, endTime, initialDurationMinutes, secondsFocused]);
+  }, [activeTask, timeLeft, isActive, isPaused, step, sessionXP, intensity, endTime, initialDurationMinutes, secondsFocused, openEnded, startedAt]);
 
   // Main Ticker. Deps must stay minimal and stable — anything that changes
   // every second (or on every storage sync) here would reset the interval
   // before it can fire. Everything else the tick needs comes through refs.
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isActive && !isPaused && endTime) {
+    if (isActive && !isPaused && startedAt) {
+      // Open-ended: count up from the start, never finish on our own.
+      const isWidget = typeof window !== 'undefined' && window.location.pathname.includes('/focus/widget');
+      interval = setInterval(() => {
+        const totalSeconds = Math.max(0, Math.floor((getRwandaTime().getTime() - startedAt) / 1000));
+        setTimeLeft({
+          h: Math.floor(totalSeconds / 3600),
+          m: Math.floor((totalSeconds % 3600) / 60),
+          s: totalSeconds % 60
+        });
+        if (!isWidget) {
+          setSecondsFocused(prev => prev + 1);
+          setSessionXP(prev => prev + (intensityRef.current === 'INTENSE' ? 2 : 1));
+        }
+      }, 1000);
+    } else if (isActive && !isPaused && endTime) {
       const isWidget = typeof window !== 'undefined' && window.location.pathname.includes('/focus/widget');
 
       interval = setInterval(() => {
@@ -218,21 +249,30 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isActive, isPaused, endTime]);
+  }, [isActive, isPaused, endTime, startedAt]);
 
-  const startFocus = useCallback((task: TaskWithTemplate, durationMinutes: number) => {
+  const startFocus = useCallback((task: TaskWithTemplate, durationMinutes: number | null) => {
     const now = getRwandaTime().getTime();
-    const durationMs = durationMinutes * 60 * 1000;
-    
+
     setActiveTask(task);
-    setEndTime(now + durationMs);
-    setInitialDurationMinutes(durationMinutes);
     setSecondsFocused(0);
-    setTimeLeft({
-      h: Math.floor(durationMinutes / 60),
-      m: durationMinutes % 60,
-      s: 0
-    });
+    if (durationMinutes === null) {
+      setOpenEnded(true);
+      setStartedAt(now);
+      setEndTime(null);
+      setInitialDurationMinutes(0);
+      setTimeLeft({ h: 0, m: 0, s: 0 });
+    } else {
+      setOpenEnded(false);
+      setStartedAt(null);
+      setEndTime(now + durationMinutes * 60 * 1000);
+      setInitialDurationMinutes(durationMinutes);
+      setTimeLeft({
+        h: Math.floor(durationMinutes / 60),
+        m: durationMinutes % 60,
+        s: 0
+      });
+    }
     setStep('FOCUS');
     setIsActive(true);
     setIsPaused(false);
@@ -241,6 +281,11 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
   const pauseFocus = useCallback(() => {
     setIsPaused(true);
+    if (openEnded) {
+      // timeLeft already holds the time focused so far; keep it.
+      setStartedAt(null);
+      return;
+    }
     if (endTime) {
       const remainingMs = endTime - getRwandaTime().getTime();
       const totalSeconds = Math.max(0, Math.floor(remainingMs / 1000));
@@ -251,13 +296,18 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
       });
     }
     setEndTime(null);
-  }, [endTime]);
+  }, [endTime, openEnded]);
 
   const resumeFocus = useCallback(() => {
     setIsPaused(false);
     const totalSeconds = timeLeft.h * 3600 + timeLeft.m * 60 + timeLeft.s;
+    if (openEnded) {
+      // Carry on counting from where the pause left it.
+      setStartedAt(getRwandaTime().getTime() - totalSeconds * 1000);
+      return;
+    }
     setEndTime(getRwandaTime().getTime() + totalSeconds * 1000);
-  }, [timeLeft]);
+  }, [timeLeft, openEnded]);
 
   const completeFocus = useCallback(async () => {
     if (isActive && activeTask) {
@@ -274,6 +324,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     }
     setIsActive(false);
     setEndTime(null);
+    setStartedAt(null);
     setStep('DONE');
   }, [isActive, activeTask, secondsFocused, sessionXP]);
 
@@ -283,6 +334,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     setIsActive(false);
     setIsPaused(false);
     setEndTime(null);
+    setStartedAt(null);
+    setOpenEnded(false);
     setStep('PREP');
     setSessionXP(0);
   }, []);
@@ -301,6 +354,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
       endTime,
       initialDurationMinutes,
       secondsFocused,
+      openEnded,
       startFocus,
       pauseFocus,
       resumeFocus,

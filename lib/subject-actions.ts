@@ -407,7 +407,7 @@ export async function renameSubject(id: string, newName: string) {
   ]);
 
   revalidatePath('/subjects');
-  revalidatePath('/goals');
+  revalidatePath('/marks');
   revalidatePath('/marks');
   revalidatePath('/timetable');
   revalidatePath('/homeworks');
@@ -457,7 +457,7 @@ export async function deleteSubject(id: string, cleanRelatedData: boolean = fals
   }
 
   revalidatePath('/subjects');
-  revalidatePath('/goals');
+  revalidatePath('/marks');
   revalidatePath('/marks');
   revalidatePath('/timetable');
   revalidatePath('/homeworks');

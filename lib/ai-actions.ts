@@ -4,7 +4,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '@/lib/prisma';
 import { softDelete } from '@/lib/soft-delete';
 import { getUserId } from '@/lib/auth';
-import { createQuickTask, getAllTasks, getEvents, syncStreak } from '@/lib/actions';
+import { createQuickTask, getAllTasks, getCurrentUserTimezone, getEvents, syncStreak } from '@/lib/actions';
+import { getZonedNow } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';
 import { grantXp } from './gamification';
 import { randomUUID } from 'node:crypto';
@@ -37,12 +38,20 @@ type DetectedProvider = {
   models: string[];
 };
 
-const SYSTEM_INSTRUCTION = `You are a helpful study buddy. Help the user plan study time, understand workload, and stay consistent.
+/**
+ * A function, not a constant: as a module-level string its "today" was fixed
+ * when the server started, and the desktop app's server runs for days - so
+ * the AI answered deadline questions from a stale date. askAIBuddy passes the
+ * date in the user's own timezone.
+ */
+function defaultSystemInstruction(today: string = new Date().toDateString()) {
+  return `You are a helpful study buddy. Help the user plan study time, understand workload, and stay consistent.
 Keep your answers in clear, simple, and direct English. Break down tasks into easy steps.
 You can analyze images (graphs, equations, handwritten notes, etc.) to help the user.
 If the user asks you to schedule something and any required detail is missing, ask specifically for it.
 When you use tools, only call them with precise arguments.
-Today's date is ${new Date().toDateString()}.`;
+Today's date is ${today}.`;
+}
 
 const FUNCTION_TOOLS = [
   {
@@ -292,7 +301,7 @@ async function askOllama(
   prompt: string,
   history: PersistedMessage[],
   file?: { data: string; mimeType: string },
-  systemInstruction: string = SYSTEM_INSTRUCTION,
+  systemInstruction: string = defaultSystemInstruction(),
   allowTools: boolean = true
 ) {
   const url = normalizeOllamaUrl(baseUrl);
@@ -456,16 +465,18 @@ async function buildSchoolTimetable(forUserId?: string): Promise<string> {
 async function executeTool(name: string, args: unknown) {
   if (name === 'scheduleTask') {
     const payload = args as ToolArgs;
-    await createQuickTask({
+    const result = await createQuickTask({
       subject: payload.subject,
       startTime: payload.startTime,
       endTime: payload.endTime,
       type: payload.type,
-      date: payload.date ? new Date(payload.date) : undefined,
+      date: payload.date,
     });
-
+    // Report what actually happened: never "scheduled" after a refusal.
+    if ('error' in result) return { success: false, message: result.error };
     return {
       success: true,
+      taskId: result.id,
       message: `Scheduled ${payload.subject} from ${payload.startTime} to ${payload.endTime}.`,
     };
   }
@@ -497,7 +508,7 @@ async function askGemini(
   prompt: string,
   history: PersistedMessage[],
   file?: { data: string; mimeType: string },
-  systemInstruction: string = SYSTEM_INSTRUCTION,
+  systemInstruction: string = defaultSystemInstruction(),
   useTools: boolean = true
 ) {
   const genAI = new GoogleGenerativeAI(apiKey);
@@ -581,7 +592,7 @@ async function askOpenAI(
   prompt: string,
   history: PersistedMessage[],
   file?: string,
-  systemInstruction: string = SYSTEM_INSTRUCTION,
+  systemInstruction: string = defaultSystemInstruction(),
   useTools: boolean = true
 ) {
   const inputList: any[] = [];
@@ -676,7 +687,7 @@ async function askAnthropic(
   prompt: string,
   history: PersistedMessage[],
   file?: string,
-  systemInstruction: string = SYSTEM_INSTRUCTION,
+  systemInstruction: string = defaultSystemInstruction(),
   useTools: boolean = true
 ) {
   const messages: any[] = [];
@@ -782,7 +793,7 @@ async function askGroq(
   model: string,
   prompt: string,
   history: PersistedMessage[],
-  systemInstruction: string = SYSTEM_INSTRUCTION
+  systemInstruction: string = defaultSystemInstruction()
 ) {
   const messages = [
     { role: 'system', content: systemInstruction },
@@ -1134,6 +1145,9 @@ export async function askAIBuddy(prompt: string, history: HistoryMessage[], sess
   }
 
   const plainHistory = toPlainHistory(history);
+  const systemInstruction =
+    systemInstructionOverride ??
+    defaultSystemInstruction(getZonedNow(await getCurrentUserTimezone()).toDateString());
   let lastError = 'Failed to communicate with AI.';
 
   // Persist the AI reply + award XP. Shared by every successful attempt.
@@ -1177,8 +1191,8 @@ export async function askAIBuddy(prompt: string, history: HistoryMessage[], sess
           try {
             const result =
               detected.provider === 'gemini'
-                ? await askGemini(key, modelToUse, prompt, plainHistory, file, systemInstructionOverride, useTools)
-                : await askOpenAI(key, modelToUse, prompt, plainHistory, file?.data, systemInstructionOverride, useTools);
+                ? await askGemini(key, modelToUse, prompt, plainHistory, file, systemInstruction, useTools)
+                : await askOpenAI(key, modelToUse, prompt, plainHistory, file?.data, systemInstruction, useTools);
             return await finalize(result.text, detected.label, modelToUse);
           } catch (error: any) {
             lastError = error.message || String(error);
@@ -1198,7 +1212,7 @@ export async function askAIBuddy(prompt: string, history: HistoryMessage[], sess
     if (!ollamaConfig) return null;
     try {
       const model = file && ollamaConfig.visionModel ? ollamaConfig.visionModel : ollamaConfig.model;
-      const result = await askOllama(ollamaConfig.baseUrl, model, prompt, plainHistory, file, systemInstructionOverride, useTools);
+      const result = await askOllama(ollamaConfig.baseUrl, model, prompt, plainHistory, file, systemInstruction, useTools);
       return await finalize(result.text, 'Ollama (offline)', model);
     } catch (error: any) {
       lastError = error.message || String(error);
@@ -1232,7 +1246,7 @@ export async function organizeStickyNotes() {
   const notesText = notes.map(n => `- Title: ${n.title}\n  Content: ${n.content}`).join('\n\n');
   const prompt = `Please review these sticky notes and provide a structured summary and study action plan. Group related notes together logically.\n\n${notesText}`;
 
-  const result = await askAIBuddy(prompt, []);
+  const result = await askAIBuddy(prompt, [], undefined, undefined, undefined, { tools: false, xp: false });
   
   if (result.error) return { error: result.error };
   return { success: true, plan: result.text };
@@ -1359,7 +1373,7 @@ ${trimmed ? `Material:\n"""\n${trimmed}\n"""` : ''}
 
 Write the full Markdown study guide now.`;
 
-  const result = await askAIBuddy(prompt, [], undefined, file, systemInstruction);
+  const result = await askAIBuddy(prompt, [], undefined, file, systemInstruction, { tools: false, xp: false });
   if (result.error) return { error: result.error };
 
   const notes = (result.text || '').trim();
@@ -1391,7 +1405,7 @@ THE STUDENT'S CURRENT NOTES:
 ${(notes || '').slice(0, 16000)}
 """`;
 
-  const result = await askAIBuddy(question, history, undefined, file, systemInstruction);
+  const result = await askAIBuddy(question, history, undefined, file, systemInstruction, { tools: false, xp: false });
   if (result.error) return { error: result.error };
   return { text: result.text || '' };
 }
@@ -1426,7 +1440,7 @@ ${source}
 """
 Produce the JSON now.`;
 
-  const result = await askAIBuddy(prompt, [], undefined, undefined, systemInstruction);
+  const result = await askAIBuddy(prompt, [], undefined, undefined, systemInstruction, { tools: false, xp: false });
   if (result.error) return { error: result.error };
 
   const parsed = parseJsonLoose(result.text || '');
@@ -1491,7 +1505,7 @@ Your goal is to parse raw text documents and convert them into beautifully struc
 Ensure you use headers (h1, h2, h3), bold text, tables, lists, and spacing to make it look premium and easy to study.
 Do not talk back or add chat pleasantries. Answer ONLY in Markdown content.`;
 
-  const result = await askAIBuddy(prompt, [], undefined, undefined, systemInstruction);
+  const result = await askAIBuddy(prompt, [], undefined, undefined, systemInstruction, { tools: false, xp: false });
   if (result.error) {
     throw new Error(result.error);
   }
@@ -1620,7 +1634,7 @@ Rules:
     ? `Read the exam timetable in the attached image and produce the JSON plan now.${text ? `\n\nExtra context:\n"""\n${text}\n"""` : ''}`
     : `Here is the exam timetable text. Produce the JSON plan now.\n"""\n${text}\n"""`;
 
-  const result = await askAIBuddy(prompt, [], undefined, input.image, systemInstruction);
+  const result = await askAIBuddy(prompt, [], undefined, input.image, systemInstruction, { tools: false, xp: false });
   if (result.error) return { error: result.error };
 
   const parsed = parseJsonLoose(result.text || '');

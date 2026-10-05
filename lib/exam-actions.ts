@@ -28,7 +28,7 @@ function refresh() {
   revalidatePath('/');
   revalidatePath('/calendar');
   revalidatePath('/marks');
-  revalidatePath('/insights');
+  revalidatePath('/history');
 }
 
 /** Minutes since midnight, for overlap checks. */

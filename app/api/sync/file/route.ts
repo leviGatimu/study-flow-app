@@ -22,6 +22,7 @@ import { mkdir, writeFile } from 'fs/promises';
 import { dirname } from 'path';
 
 import { getUserId, userIdFromBearer } from '@/lib/auth';
+import { ownsUpload } from '@/lib/file-access';
 import {
   MAX_AUDIO_UPLOAD_BYTES,
   resolveUploadPath,
@@ -44,6 +45,10 @@ export async function HEAD(request: NextRequest) {
   const name = request.nextUrl.searchParams.get('name');
   const path = name ? resolveUploadPath(name) : null;
   if (!path) return new NextResponse(null, { status: 400 });
+  // Rows are pushed before their files, so the server already knows whether
+  // one of this user's records names this file. Anyone else's is not theirs to
+  // probe for.
+  if (!(await ownsUpload(userId, name!))) return new NextResponse(null, { status: 404 });
 
   // With remote storage configured the local filesystem says nothing useful, so
   // the honest answer is "ask by trying" - reported as absent, which makes the
@@ -78,6 +83,10 @@ export async function POST(request: NextRequest) {
   // directory; a null here is an attack or a bug, and either way it stops.
   const path = resolveUploadPath(name);
   if (!path) return NextResponse.json({ error: 'Invalid file name' }, { status: 400 });
+  // Only a file one of this user's synced records points at may be written.
+  if (!(await ownsUpload(userId, name))) {
+    return NextResponse.json({ error: 'No record of yours uses that file' }, { status: 403 });
+  }
 
   if (usesRemoteStorage()) {
     // Phase 8's storage backend takes a File and mints its own name, which

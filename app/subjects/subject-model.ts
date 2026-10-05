@@ -87,34 +87,8 @@ export interface GradePoint {
 // Midpoints of the usual letter bands. The modifier is applied after the
 // letter is read, so "A-" can never be mistaken for "A" (the old parser tested
 // startsWith("A") before startsWith("A-") and read every A- as 93).
-const LETTER_BASE: Record<string, number> = { A: 93, B: 83, C: 73, D: 63, E: 55, F: 50 };
-const MODIFIER: Record<string, number> = { "+": 4, "-": -3, "": 0 };
-
-/**
- * A report-card grade as a percentage, or null when it cannot be read. Accepts
- * "78", "78%", "78.5 %", "18/20", "18 / 20", "A", "A-", "b+".
- *
- * Returns null rather than 0 for anything else, so an unreadable grade is left
- * out of an average instead of dragging it to zero.
- */
-export function parseGradeToPercentage(raw: string): number | null {
-  const grade = raw.trim();
-  if (!grade) return null;
-
-  const fraction = grade.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
-  if (fraction) {
-    const [score, out] = [Number(fraction[1]), Number(fraction[2])];
-    return out > 0 ? Math.round((score / out) * 1000) / 10 : null;
-  }
-
-  const percent = grade.match(/^(\d+(?:\.\d+)?)\s*%?$/);
-  if (percent) return Number(percent[1]);
-
-  const letter = grade.toUpperCase().match(/^([A-F])\s*([+-]?)$/);
-  if (letter) return LETTER_BASE[letter[1]] + MODIFIER[letter[2]];
-
-  return null;
-}
+/** One grade parser for the whole app; see lib/grades.ts. */
+export { parseGradeToPercentage } from "@/lib/grades";
 
 export function startOfToday(): Date {
   const today = new Date();

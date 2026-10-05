@@ -56,7 +56,9 @@ export function InsightsClient({
   scope,
   classLabel,
   week,
+  tabs,
 }: {
+  tabs?: React.ReactNode;
   data: InsightsData;
   scope: "class" | "lifetime";
   classLabel: string | null;
@@ -74,7 +76,7 @@ export function InsightsClient({
   return (
     <Page>
       <PageHeader
-        title="Insights"
+        title="History"
         description={
           scope === "lifetime"
             ? "Every year you have studied, added together."
@@ -92,19 +94,22 @@ export function InsightsClient({
               label="Insights period"
               value={scope}
               options={[
-                { value: "class", label: classLabel ?? "This year", href: "/insights" },
-                { value: "lifetime", label: "All time", href: "/insights?scope=lifetime" },
+                { value: "class", label: classLabel ?? "This year", href: "/history?view=overview" },
+                { value: "lifetime", label: "All time", href: "/history?view=overview&scope=lifetime" },
               ]}
             />
-            <Button asChild size="lg">
-              <Link href={weakest ? practiceHref(weakest.subject) : "/ai"}>
-                <BrainCircuit />
-                {weakest ? `Practice ${weakest.subject}` : "Open practice"}
-              </Link>
-            </Button>
+            {weakest && (
+              <Button asChild size="lg" variant="outline">
+                <Link href={subjectHref(weakest.subject)}>
+                  <Library />
+                  Open {weakest.subject}
+                </Link>
+              </Button>
+            )}
           </>
         }
       />
+      {tabs}
 
       <PageBody>
         {/* The four numbers worth knowing before anything else. Each opens the
@@ -136,7 +141,7 @@ export function InsightsClient({
               hint={latestAverage ? latestAverage.term : "Add a report card in Marks"}
             />
           </HeadlineLink>
-          <HeadlineLink href="/goals">
+          <HeadlineLink href="/marks?view=goals">
             <Stat
               icon={<Target />}
               tone={graded.length > 0 && onTarget === graded.length ? "success" : "default"}
@@ -173,18 +178,13 @@ export function InsightsClient({
           <>
             <Section
               title="Needs your attention"
-              description="Ranked by gaps in completion, practice scores and grade targets, and by how close the next exam is."
+              description="Ranked by missed blocks, topic mastery, grade targets and how close the next exam is. Practice scores count only if you use Practice."
             >
               {attentionList.length === 0 ? (
                 <EmptyState
                   icon={<CheckCircle2 />}
                   title="Every subject is on track"
-                  description="Nothing is falling behind right now. A practice set keeps it that way."
-                  action={
-                    <Button asChild variant="outline">
-                      <Link href="/ai">Open practice</Link>
-                    </Button>
-                  }
+                  description="Nothing is falling behind right now."
                 />
               ) : (
                 <Panel padded={false} className="divide-y divide-border/40">
@@ -264,7 +264,7 @@ export function InsightsClient({
                   icon={<Target />}
                   action={
                     <Button asChild variant="ghost" size="sm">
-                      <Link href="/goals">Edit goals</Link>
+                      <Link href="/marks?view=goals">Edit goals</Link>
                     </Button>
                   }
                 >
@@ -343,13 +343,13 @@ function AttentionRow({ s }: { s: SubjectInsight }) {
       </div>
       <div className="flex shrink-0 gap-2">
         <Button asChild size="sm">
+          <Link href={subjectHref(s.subject)}>Open subject</Link>
+        </Button>
+        <Button asChild size="sm" variant="ghost">
           <Link href={practiceHref(s.subject)}>
             <BrainCircuit />
             Practice
           </Link>
-        </Button>
-        <Button asChild size="sm" variant="outline">
-          <Link href={subjectHref(s.subject)}>Open subject</Link>
         </Button>
       </div>
     </div>

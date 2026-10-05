@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { format, startOfDay } from 'date-fns';
+import { addDays, format, startOfDay } from 'date-fns';
 import { CalendarDays, CheckCircle2, History } from 'lucide-react';
 
 import { getTodayTasks, syncStreak, getEvents, getTomorrowTasks, getYesterdayTasks } from '@/lib/actions';
@@ -29,6 +29,8 @@ import { Panel, PanelTitle } from '@/components/ui/panel';
 import { ListRow, Pill } from '@/components/ui/list-row';
 import { EmptyState } from '@/components/ui/empty-state';
 import { DashboardClient } from './DashboardClient';
+import { HolidayBanner } from '@/components/HolidayBanner';
+import { holidayOn } from '@/lib/holidays';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -56,6 +58,8 @@ export default async function Dashboard() {
   const zonedNow = getZonedNow(timezone);
   const today = startOfDay(zonedNow);
   const todayKey = format(zonedNow, 'yyyy-MM-dd');
+  const todayHoliday = holidayOn(timezone, todayKey);
+  const tomorrowHoliday = holidayOn(timezone, format(addDays(zonedNow, 1), 'yyyy-MM-dd'));
 
   // Only for an account that has never finished (or dismissed) setup. Every
   // account that existed before the wizard was backfilled as done, so this is
@@ -116,6 +120,8 @@ export default async function Dashboard() {
             term is simply running. */}
         <TermStatusBanner state={schedule} />
 
+        <HolidayBanner holiday={todayHoliday} />
+
         {/* What is happening right now: the block in progress, the next one,
             a school lesson, or the break between. The page's strongest element
             on purpose - it answers "what should I do now". */}
@@ -123,7 +129,7 @@ export default async function Dashboard() {
           todayTasks={todayTasks as TaskWithTemplate[]}
           tomorrowTasks={tomorrowTasks as TaskWithTemplate[]}
           yesterdayTasks={yesterdayTasks as TaskWithTemplate[]}
-          schoolLessons={schoolLessons}
+          schoolLessons={todayHoliday ? [] : schoolLessons}
           timezone={timezone}
         />
 
@@ -161,8 +167,12 @@ export default async function Dashboard() {
               </PanelTitle>
               {tomorrowTasks.length === 0 ? (
                 <EmptyState
-                  title="Nothing scheduled for tomorrow"
-                  description="A free day, or a gap in your routine you may want to fill."
+                  title={tomorrowHoliday ? `Tomorrow is ${tomorrowHoliday.name}` : "Nothing scheduled for tomorrow"}
+                  description={
+                    tomorrowHoliday
+                      ? "A public holiday - your routine takes the day off."
+                      : "A free day, or a gap in your routine you may want to fill."
+                  }
                 />
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

@@ -3,17 +3,17 @@
 import { useMemo } from 'react';
 import { Layers } from 'lucide-react';
 
-import { Panel, PanelTitle } from '@/components/ui/panel';
+import { Panel } from '@/components/ui/panel';
 import { Stat } from '@/components/ui/stat';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ManageForm } from '@/components/ManageForm';
 import { DeleteTemplateButton } from '@/components/DeleteTemplateButton';
 import { EditTemplateForm } from '@/components/EditTemplateForm';
 import { useIsArchived } from '@/components/ArchiveContext';
-import { cn } from '@/lib/utils';
 import { DAY_NAMES, toMinutes } from '@/lib/school';
 
 import { StudyLegend } from '../timetable/study-block';
+import { DayBlock, DayColumns, blockMinutes, formatMinutes } from '@/components/DayColumns';
 
 type TemplateType = {
   id: string;
@@ -27,20 +27,6 @@ type TemplateType = {
 
 /** Monday first, as the schema's 0=Sunday dayOfWeek values. */
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
-
-const blockMinutes = (start: string, end: string) => {
-  const s = toMinutes(start);
-  let e = toMinutes(end);
-  if (e < s) e += 24 * 60; // a block that runs past midnight
-  return e - s;
-};
-
-const formatMinutes = (mins: number) => {
-  const hrs = Math.floor(mins / 60);
-  const rem = mins % 60;
-  if (hrs > 0) return `${hrs}h${rem > 0 ? ` ${rem}m` : ''}`;
-  return `${rem}m`;
-};
 
 export function ManageClient({
   initialTemplates,
@@ -126,79 +112,48 @@ export function ManageClient({
 
       <div className="space-y-4">
         <StudyLegend />
-        {WEEK.map((day) => {
-          const blocks = byDay.get(day) ?? [];
-          const minutes = blocks.reduce((sum, t) => sum + blockMinutes(t.startTime, t.endTime), 0);
-          return (
-            <Panel key={day}>
-              <PanelTitle
-                className={cn(blocks.length === 0 && 'mb-0')}
-                action={
-                  blocks.length > 0 ? (
-                    <span className="flex items-baseline gap-2">
-                      <span className="text-sm font-medium text-muted-foreground">
-                        {blocks.length} {blocks.length === 1 ? 'block' : 'blocks'}
-                      </span>
-                      <span className="font-heading text-lg font-bold tabular-nums text-foreground">
-                        {formatMinutes(minutes)}
-                      </span>
-                    </span>
-                  ) : (
-                    <span className="text-sm font-medium text-muted-foreground">Free</span>
-                  )
-                }
-              >
-                {DAY_NAMES[day]}
-              </PanelTitle>
-
-              {blocks.length > 0 && (
-                <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3">
-                  {blocks.map((t) => {
-                    const revision = t.type === 'REVISION';
-                    return (
-                      <li
-                        key={t.id}
-                        className="relative flex items-center justify-between gap-3 rounded-2xl border border-border/40 bg-muted/40 py-3 pl-5 pr-1.5 transition-colors hover:bg-muted"
-                      >
-                        <span
-                          aria-hidden="true"
-                          className={cn(
-                            'absolute inset-y-3 left-0 rounded-full border-l-4',
-                            revision ? 'border-dashed border-orange-500' : 'border-primary'
-                          )}
-                        />
-                        <div className="min-w-0">
-                          <p className="break-words font-bold leading-snug text-foreground sm:truncate">{t.subject}</p>
-                          <p className="mt-0.5 flex flex-wrap gap-x-1.5 text-xs font-medium tabular-nums text-muted-foreground">
-                            <span
-                              className={cn(
-                                'whitespace-nowrap font-semibold',
-                                revision ? 'text-orange-600 dark:text-orange-400' : 'text-primary'
-                              )}
-                            >
-                              {revision ? 'Revision' : 'Homework'}
-                            </span>
-                            <span className="whitespace-nowrap">
-                              · {t.startTime} – {t.endTime}
-                            </span>
-                            {t.deadlineDay && <span className="whitespace-nowrap">· Due {t.deadlineDay}</span>}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-0.5">
-                          <span className="mr-1.5 font-heading text-base font-bold tabular-nums text-foreground">
-                            {formatMinutes(blockMinutes(t.startTime, t.endTime))}
-                          </span>
-                          <EditTemplateForm template={t} subjects={subjects} />
-                          <DeleteTemplateButton id={t.id} />
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </Panel>
-          );
-        })}
+        <DayColumns
+          label="Weekly study routine, Monday to Sunday"
+          days={WEEK.map((day) => {
+            const blocks = byDay.get(day) ?? [];
+            const minutes = blocks.reduce((sum, t) => sum + blockMinutes(t.startTime, t.endTime), 0);
+            return {
+              key: String(day),
+              title: DAY_NAMES[day],
+              empty: 'Free',
+              summary:
+                blocks.length > 0
+                  ? { label: `${blocks.length} ${blocks.length === 1 ? 'block' : 'blocks'}`, value: formatMinutes(minutes) }
+                  : null,
+              items: blocks.map((t) => {
+                const revision = t.type === 'REVISION';
+                return (
+                  <DayBlock
+                    key={t.id}
+                    accent={revision ? 'revision' : 'homework'}
+                    srLabel={revision ? 'Revision' : 'Homework'}
+                    time={`${t.startTime} – ${t.endTime}`}
+                    title={t.subject}
+                    meta={
+                      <>
+                        <span className="font-semibold tabular-nums text-foreground">
+                          {formatMinutes(blockMinutes(t.startTime, t.endTime))}
+                        </span>
+                        {t.deadlineDay && <span>· Due {t.deadlineDay}</span>}
+                      </>
+                    }
+                    actions={
+                      <>
+                        <EditTemplateForm template={t} subjects={subjects} />
+                        <DeleteTemplateButton id={t.id} subject={t.subject} />
+                      </>
+                    }
+                  />
+                );
+              }),
+            };
+          })}
+        />
       </div>
     </>
   );

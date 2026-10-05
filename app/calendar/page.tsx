@@ -10,6 +10,7 @@ import { getCurrentScheduleState } from '@/lib/term-actions';
 import { listSubjects } from '@/lib/subject-actions';
 import { byTerm, getViewScope } from '@/lib/scope';
 import { getZonedNow } from '@/lib/utils';
+import { holidaysBetween } from '@/lib/holidays';
 
 import { Page, PageBody } from '@/components/ui/page';
 import { PageHeader } from '@/components/ui/page-header';
@@ -31,7 +32,7 @@ export const revalidate = 0;
  * stored, so a browser in another timezone cannot shift a block onto the
  * neighbouring day.
  */
-async function loadMonth(userId: string, month: Date): Promise<CalendarData> {
+async function loadMonth(userId: string, month: Date, tz: string): Promise<CalendarData> {
   const from = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
   const to = endOfWeek(endOfMonth(month), { weekStartsOn: 1 });
   const scope = await getViewScope(userId);
@@ -79,6 +80,9 @@ async function loadMonth(userId: string, month: Date): Promise<CalendarData> {
       dateKey: dayKey(h.dueDate),
     })),
     markedDays: markedDays.filter(inRange).map(dayKey),
+    holidays: Object.fromEntries(
+      [...holidaysBetween(tz, dayKey(from), dayKey(to))].map(([key, h]) => [key, h.name])
+    ),
     term:
       schedule?.termId && !scope?.isArchive
         ? {
@@ -109,7 +113,7 @@ export default async function MonthPage({
   let data: CalendarData | null = null;
   let subjects: { id: string; name: string }[] = [];
   try {
-    [data, subjects] = await Promise.all([loadMonth(userId, month), listSubjects()]);
+    [data, subjects] = await Promise.all([loadMonth(userId, month, tz), listSubjects()]);
   } catch (error) {
     console.error('Month page failed to load', error);
   }

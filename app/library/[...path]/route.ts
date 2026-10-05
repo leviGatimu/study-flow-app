@@ -1,6 +1,7 @@
 import { getUserId, userIdFromBearer } from '@/lib/auth';
 import { resolveLibraryUrl } from '@/lib/library';
 import { serveLocalFile } from '@/lib/serve-file';
+import { ownsLibraryFile } from '@/lib/file-access';
 
 /**
  * Serve a file out of the desktop's library folder.
@@ -25,8 +26,12 @@ export async function GET(request: Request) {
   // The raw pathname keeps the percent-encoding the row stores; Next would
   // hand us decoded params, and a file literally named "a%2Fb" must not be
   // read as a directory boundary.
-  const full = resolveLibraryUrl(new URL(request.url).pathname);
+  const pathname = new URL(request.url).pathname;
+  const full = resolveLibraryUrl(pathname);
   if (!full) return new Response('Not found', { status: 404 });
+  // One desktop can hold several accounts sharing one Documents folder: only
+  // a file one of YOUR resource rows records is yours to read.
+  if (!(await ownsLibraryFile(userId, pathname))) return new Response('Not found', { status: 404 });
 
   return serveLocalFile(full, request, { immutable: false });
 }

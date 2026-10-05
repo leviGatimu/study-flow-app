@@ -14,6 +14,7 @@ import {
   Home,
   Layers,
   LayoutGrid,
+  MessageSquare,
   Library,
   Settings,
   Sparkles,
@@ -46,7 +47,7 @@ export type NavSection = NavLeaf & {
  *             timetables (study routine, school lessons) that fill them
  *   Subjects  what you study - each subject, and its homework, exams, files
  *   Study     doing the work - practice sets, focus sessions, notes, projects
- *   Progress  how it is going - insights, history, marks, goals, reports
+ *   Progress  how it is going - history (with its overview), marks (with goals), reports
  *   Settings  the account, and the academic year it is organised by
  *
  * A section's href IS its first page. There are no "overview" hub pages: a
@@ -85,9 +86,17 @@ export const NAV: NavSection[] = [
   },
   {
     name: "Study",
-    href: "/ai",
+    // The chat workspace is where studying starts (docs/STUDY_WORKSPACE_PLAN.md);
+    // Practice keeps its own entry and URL.
+    href: "/ask",
     icon: Sparkles,
     children: [
+      {
+        name: "Ask AI",
+        href: "/ask",
+        icon: MessageSquare,
+        keywords: "ai chat copilot tutor explain question help deadline urgent assistant marks study workspace",
+      },
       {
         name: "Practice",
         href: "/ai",
@@ -103,13 +112,11 @@ export const NAV: NavSection[] = [
   },
   {
     name: "Progress",
-    href: "/insights",
+    href: "/history",
     icon: Activity,
     children: [
-      { name: "Insights", href: "/insights", icon: Activity, keywords: "progress stats analytics charts attention" },
-      { name: "History", href: "/history", icon: CheckCircle, keywords: "completed done log" },
-      { name: "Marks", href: "/marks", icon: TrendingUp, keywords: "grades results report card" },
-      { name: "Goals", href: "/goals", icon: Target, keywords: "targets" },
+      { name: "History", href: "/history", icon: CheckCircle, keywords: "completed done log insights overview progress stats analytics charts attention" },
+      { name: "Marks", href: "/marks", icon: TrendingUp, keywords: "grades results report card goals targets" },
       { name: "Reports", href: "/summaries", icon: FileText, keywords: "daily summary weekly review report pdf" },
       { name: "Streak", href: "/streak", icon: Trophy, keywords: "consistency days xp level rank badges" },
     ],

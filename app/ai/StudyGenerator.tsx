@@ -16,7 +16,7 @@
  * and it means nothing private is left lying in an uploads directory.
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -25,6 +25,7 @@ import {
   ArrowRight,
   BookOpenCheck,
   BrainCircuit,
+  CalendarClock,
   ChevronRight,
   Clock,
   FileText,
@@ -53,6 +54,8 @@ import { ListRow, Pill } from '@/components/ui/list-row';
 import { Stat } from '@/components/ui/stat';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { cn } from '@/lib/utils';
+import { formatAnswer } from '@/lib/marking';
+import type { RunDraft, RunSnapshot } from '@/lib/run-draft';
 import { readStudyDocument, type StudyDocument } from '@/lib/file-extract';
 import {
   deleteStudySet,
@@ -60,6 +63,10 @@ import {
   generateStudySet,
   getStudySet,
   submitAttempt,
+  retryAttemptMarking,
+  saveStudyRun,
+  startStudyRun,
+  type RetryMarkingResult,
   type AttemptResult,
   type StudySetDetail,
   type StudySetSummary,
@@ -125,6 +132,9 @@ export function StudyGenerator({
   const [detail, setDetail] = useState<StudySetDetail | null>(initialDetail);
   const [result, setResult] = useState<AttemptResult | null>(null);
   const [runnerMode, setRunnerMode] = useState<RunnerMode>('PRACTICE');
+  // The saved run being worked on: answers so far and an exam's deadline.
+  const [draft, setDraft] = useState<RunDraft | null>(null);
+  const [runKey, setRunKey] = useState(0);
   const [configSubject, setConfigSubject] = useState<string | null>(initialSubject);
   const [busy, setBusy] = useState(false);
 
@@ -159,27 +169,103 @@ export function StudyGenerator({
     syncUrl(null);
   };
 
-  const startRun = (mode: RunnerMode) => {
-    setRunnerMode(mode);
-    setResult(null);
-    setStage('running');
+  // Autosave. Debounced so typing does not send a request per keystroke, and
+  // flushed when the run ends or the tab is hidden, so leaving loses nothing.
+  const pendingSave = useRef<{ setId: string; mode: RunnerMode; snapshot: RunSnapshot } | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveWarned = useRef(false);
+
+  const flushSave = useCallback(async () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = null;
+    const pending = pendingSave.current;
+    pendingSave.current = null;
+    if (!pending) return;
+    try {
+      const res = await saveStudyRun(pending.setId, pending.mode, pending.snapshot);
+      if ('error' in res) throw new Error(res.error);
+      saveWarned.current = false;
+    } catch {
+      // The answers are still on screen; say so once rather than per keystroke.
+      if (!saveWarned.current) toast.error('Your progress could not be saved just now. Keep going - it will retry.');
+      saveWarned.current = true;
+      pendingSave.current = pendingSave.current ?? pending;
+    }
+  }, []);
+
+  const queueSave = useCallback(
+    (snapshot: RunSnapshot) => {
+      if (!detail) return;
+      pendingSave.current = { setId: detail.id, mode: runnerMode, snapshot };
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => void flushSave(), 700);
+    },
+    [detail, runnerMode, flushSave]
+  );
+
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') void flushSave();
+    };
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      void flushSave();
+    };
+  }, [flushSave]);
+
+  const startRun = async (mode: RunnerMode, fresh = false) => {
+    if (!detail) return;
+    setBusy(true);
+    try {
+      const res = await startStudyRun(detail.id, mode, fresh);
+      if ('error' in res) {
+        toast.error(res.error);
+        return;
+      }
+      setDraft(res.draft);
+      setRunnerMode(mode);
+      setResult(null);
+      setRunKey((k) => k + 1);
+      setStage('running');
+    } catch {
+      toast.error('Could not start the run. Check your connection and try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const leaveRun = async () => {
+    await flushSave();
+    if (detail) await openSet(detail.id);
+    else setStage('set');
   };
 
   const finish = async (answers: { id: string; answer: string }[], durationSec: number) => {
     if (!detail) return;
+    // Anything typed in the last moments is saved first, so a failed hand-in
+    // still leaves the run resumable.
+    await flushSave();
     setBusy(true);
-    const res = await submitAttempt({
-      setId: detail.id,
-      mode: runnerMode,
-      answers,
-      durationSec,
-    });
-    setBusy(false);
+    let res: Awaited<ReturnType<typeof submitAttempt>>;
+    try {
+      res = await submitAttempt({
+        setId: detail.id,
+        mode: runnerMode,
+        answers,
+        durationSec,
+      });
+    } catch {
+      res = { error: 'Could not reach the marker. Your answers are saved - try handing in again.' };
+    } finally {
+      setBusy(false);
+    }
 
     if ('error' in res) {
       toast.error(res.error);
       return;
     }
+    setDraft(null);
     setResult(res);
     setStage('results');
     router.refresh();
@@ -249,12 +335,14 @@ export function StudyGenerator({
         <PageBody>
           <div className="mx-auto w-full max-w-3xl">
             <QuestionRunner
+              key={runKey}
               items={detail.items}
               mode={runnerMode}
-              minutes={runnerMode === 'EXAM' ? Math.max(5, detail.items.length * 2) : undefined}
+              initial={draft ?? undefined}
+              onProgress={queueSave}
               busy={busy}
               onFinish={finish}
-              onQuit={() => setStage('set')}
+              onQuit={() => void leaveRun()}
             />
           </div>
         </PageBody>
@@ -288,6 +376,7 @@ export function StudyGenerator({
     return (
       <Results
         result={result}
+        onRemarked={(next) => setResult((prev) => (prev ? { ...prev, ...next } : prev))}
         detail={detail}
         mode={runnerMode}
         onRetake={() => startRun(runnerMode)}
@@ -808,7 +897,7 @@ function SetOverview({
   detail: StudySetDetail;
   busy: boolean;
   onBack: () => void;
-  onStart: (mode: RunnerMode) => void;
+  onStart: (mode: RunnerMode, fresh?: boolean) => void;
   onCards: () => void;
   onMakeCards: () => void;
 }) {
@@ -848,6 +937,8 @@ function SetOverview({
                   blurb="Marked as you go, with an explanation after each question."
                   icon={<BookOpenCheck />}
                   onClick={() => onStart('PRACTICE')}
+                  onRestart={() => onStart('PRACTICE', true)}
+                  resume={detail.drafts.find((d) => d.mode === 'PRACTICE')}
                   disabled={busy || empty}
                 />
                 <ModeCard
@@ -855,6 +946,8 @@ function SetOverview({
                   blurb="Timed. No feedback at all until you hand it in."
                   icon={<Clock />}
                   onClick={() => onStart('EXAM')}
+                  onRestart={() => onStart('EXAM', true)}
+                  resume={detail.drafts.find((d) => d.mode === 'EXAM')}
                   disabled={busy || empty}
                 />
                 {detail.cards.length > 0 ? (
@@ -920,29 +1013,47 @@ function ModeCard({
   blurb,
   icon,
   onClick,
+  onRestart,
+  resume,
   disabled,
 }: {
   title: string;
   blurb: string;
   icon: React.ReactNode;
   onClick: () => void;
+  /** Throw the unfinished run away and start again. */
+  onRestart?: () => void;
+  /** An unfinished run of this mode, saved earlier. */
+  resume?: { answered: number; total: number; deadlineAt: string | null };
   disabled: boolean;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="group rounded-2xl border border-border/40 bg-muted/40 p-5 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
-    >
-      <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary [&_svg]:size-5">
-        {icon}
-      </span>
-      <p className="mt-3 font-heading text-base font-bold transition-colors group-hover:text-primary">
-        {title}
-      </p>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{blurb}</p>
-    </button>
+    <div className="flex flex-col rounded-2xl border border-border/40 bg-muted/40 transition-colors hover:bg-muted">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className="group flex-1 rounded-2xl p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
+      >
+        <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary [&_svg]:size-5">
+          {icon}
+        </span>
+        <p className="mt-3 font-heading text-base font-bold transition-colors group-hover:text-primary">
+          {resume ? `Continue ${title.toLowerCase()}` : title}
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          {resume ? `${resume.answered} of ${resume.total} answered, saved.` : blurb}
+        </p>
+      </button>
+      {resume && onRestart && (
+        <div className="border-t border-border/40 px-3 py-2">
+          <Button variant="ghost" size="sm" onClick={onRestart} disabled={disabled} className="h-8 px-2 text-xs">
+            <RotateCcw />
+            Start over
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -950,6 +1061,7 @@ function ModeCard({
 
 function Results({
   result,
+  onRemarked,
   detail,
   mode,
   onRetake,
@@ -958,6 +1070,7 @@ function Results({
   onLibrary,
 }: {
   result: AttemptResult;
+  onRemarked: (next: RetryMarkingResult) => void;
   detail: StudySetDetail;
   mode: RunnerMode;
   onRetake: () => void;
@@ -966,8 +1079,26 @@ function Results({
   onLibrary: () => void;
 }) {
   const [wrongOnly, setWrongOnly] = useState(false);
+  const [remarking, setRemarking] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
-  const mistakes = result.answers.filter((a) => !a.isCorrect).length;
+  const mistakes = result.answers.filter((a) => !a.isCorrect && a.status !== 'UNMARKED').length;
+
+  const remark = async () => {
+    setRemarking(true);
+    try {
+      const next = await retryAttemptMarking(result.attemptId);
+      if ('error' in next) toast.error(next.error);
+      else {
+        onRemarked(next);
+        if (next.markingStatus === 'FINAL') toast.success('Everything is marked.');
+        else toast.error('Some answers still could not be marked. They are saved - try again later.');
+      }
+    } catch {
+      toast.error('Could not reach the marker. Your answers are saved - try again.');
+    } finally {
+      setRemarking(false);
+    }
+  };
   const shown = wrongOnly ? result.answers.filter((a) => !a.isCorrect) : result.answers;
 
   const reviewMistakes = () => {
@@ -1003,13 +1134,21 @@ function Results({
           <div className="space-y-6 lg:col-span-4">
             <Panel>
               <Stat
-                label="Score"
-                value={`${result.score}%`}
-                tone={scoreTone(result.score)}
-                hint={`${result.correct} of ${result.total} correct${
-                  result.xp ? ` · +${result.xp.granted} XP` : ''
-                }`}
+                label={result.markingStatus === 'FINAL' ? 'Score' : 'Score so far'}
+                value={result.markingStatus === 'PENDING' ? 'Not marked' : `${result.score}%`}
+                tone={result.markingStatus === 'FINAL' ? scoreTone(result.score) : 'default'}
+                hint={
+                  result.markingStatus === 'FINAL'
+                    ? `${result.correct} of ${result.total} correct${result.xp ? ` · +${result.xp.granted} XP` : ''}`
+                    : `${result.unmarked} of ${result.total} waiting to be marked`
+                }
               />
+              {result.markingStatus !== 'FINAL' && (
+                <Button variant="outline" className="mt-4 w-full" onClick={remark} disabled={remarking}>
+                  {remarking ? <Loader2 className="animate-spin" /> : <RotateCcw />}
+                  {remarking ? 'Marking…' : 'Mark again'}
+                </Button>
+              )}
               {result.xp?.leveledUp && (
                 <p className="mt-3 text-sm font-bold text-primary">You levelled up.</p>
               )}
@@ -1023,6 +1162,26 @@ function Results({
             <Panel>
               <PanelTitle icon={<ArrowRight />}>What next</PanelTitle>
               <div className="flex flex-col gap-2">
+                {result.revisit !== undefined && (
+                  <Link
+                    href={result.revisit ? result.revisit.weekHref : '/manage'}
+                    className="mb-1 flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  >
+                    <CalendarClock className="mt-0.5 size-4 shrink-0 text-primary" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-foreground">
+                        {result.revisit
+                          ? `Fix the gaps: ${result.revisit.day}, ${result.revisit.startTime}–${result.revisit.endTime}`
+                          : `Make time for ${detail.subject}`}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {result.revisit
+                          ? `Your next ${detail.subject} block. Go over the mistakes below then.`
+                          : `${detail.subject} has no block in your study routine yet. Add one.`}
+                      </span>
+                    </span>
+                  </Link>
+                )}
                 {mistakes > 0 && (
                   <Button variant="outline" className="justify-start" onClick={reviewMistakes}>
                     <ListChecks />
@@ -1068,13 +1227,22 @@ function Results({
                     key={a.id}
                     className={cn(
                       'rounded-2xl border px-5 py-4',
-                      a.isCorrect ? 'border-success/20 bg-success/5' : 'border-destructive/20 bg-destructive/5'
+                      a.status === 'UNMARKED'
+                        ? 'border-border bg-muted/40'
+                        : a.isCorrect
+                          ? 'border-success/20 bg-success/5'
+                          : 'border-destructive/20 bg-destructive/5'
                     )}
                   >
-                    <p className="font-bold">{a.question}</p>
+                    <p className="font-bold">
+                      {a.question}
+                      {a.status === 'UNMARKED' && (
+                        <Pill className="ml-2 align-middle">Waiting to be marked</Pill>
+                      )}
+                    </p>
                     <p className="mt-2 text-sm">
                       <span className="text-muted-foreground">You: </span>
-                      {a.given || <span className="italic text-muted-foreground">no answer</span>}
+                      {a.given ? formatAnswer(a.given) : <span className="italic text-muted-foreground">no answer</span>}
                       {a.score > 0 && a.score < 100 && (
                         <Pill tone="warning" className="ml-2">
                           {a.score}% credit
@@ -1084,7 +1252,7 @@ function Results({
                     {!a.isCorrect && (
                       <p className="mt-1 text-sm">
                         <span className="text-muted-foreground">Answer: </span>
-                        {a.expected}
+                        {formatAnswer(a.expected)}
                       </p>
                     )}
                     {(a.feedback || a.explanation) && (

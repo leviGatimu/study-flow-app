@@ -27,7 +27,15 @@ import { revalidatePath } from 'next/cache';
 
 import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/lib/auth';
-import { byClass, getViewScope, requireClassStamp, ARCHIVE_WRITE_ERROR } from '@/lib/scope';
+import { byClass, getActiveScope, getViewScope, requireClassStamp, ARCHIVE_WRITE_ERROR } from '@/lib/scope';
+import { getCurrentUserTimezone } from '@/lib/actions';
+import { holidaysBetween } from '@/lib/holidays';
+import { nextRoutineSlot } from '@/lib/routine';
+import { getZonedNow } from '@/lib/utils';
+import { applyWrittenMarks, markObjective, summariseAttempt, type MarkingStatus } from '@/lib/marking';
+import { answeredCount, cleanSnapshot, examMinutes, readDraft, type RunDraft, type RunMode } from '@/lib/run-draft';
+import { INCLUDE_DELETED, softDelete } from '@/lib/soft-delete';
+import { addDays, format, startOfWeek } from 'date-fns';
 import { askAIBuddy } from '@/lib/ai-actions';
 import { parseJsonLoose, sanitizeQuestions, OBJECTIVE_TYPES, type ParsedQuestion } from '@/lib/ai-parse';
 import { grantXp } from '@/lib/gamification';
@@ -68,6 +76,8 @@ export type StudySetDetail = {
     score: number;
     createdAt: Date;
   }[];
+  /** Unfinished runs of this set, one per mode, for "Continue" (S05). */
+  drafts: { mode: RunMode; answered: number; total: number; deadlineAt: string | null }[];
 };
 
 export type Flashcard = {
@@ -310,7 +320,7 @@ export async function getStudySet(setId: string): Promise<StudySetDetail | null>
   if (!userId) return null;
 
   const set = await prisma.tutorModule.findFirst({
-    where: { id: setId, userId },
+    where: { id: setId, userId, ...byClass(await getViewScope(userId)) },
     select: {
       id: true,
       title: true,
@@ -340,7 +350,107 @@ export async function getStudySet(setId: string): Promise<StudySetDetail | null>
     cards: dueFirst(readCards(set.flashcards)),
     hasSourceText: Boolean(set.sourceText?.trim()),
     attempts: set.attempts,
+    drafts: await draftSummaries(userId, set.id, readItems(set.questions).map((q) => q.id)),
   };
+}
+
+async function draftSummaries(userId: string, setId: string, questionIds: string[]): Promise<StudySetDetail['drafts']> {
+  const rows = await prisma.attemptDraft.findMany({
+    where: { userId, moduleId: setId },
+    select: { mode: true, answers: true, flags: true, position: true, deadlineAt: true },
+  });
+  return rows.map((row) => {
+    const draft = readDraft(row, questionIds);
+    return {
+      mode: row.mode === 'EXAM' ? 'EXAM' : 'PRACTICE',
+      answered: answeredCount(draft),
+      total: questionIds.length,
+      deadlineAt: draft.deadlineAt,
+    };
+  });
+}
+
+/* ------------------------------------------------------------- saved runs */
+
+/**
+ * Start a run, or pick up the one already in progress (S05, S03).
+ *
+ * `fresh` throws away an unfinished run and starts again. A mock exam's
+ * deadline is fixed here, on the server, the first time it starts - resuming
+ * keeps it, so a reload cannot buy time, and a deadline that passed while the
+ * student was away means the paper hands itself in as soon as it reopens.
+ */
+export async function startStudyRun(
+  setId: string,
+  mode: RunMode,
+  fresh = false
+): Promise<{ draft: RunDraft } | { error: string }> {
+  const userId = await getUserId();
+  if (!userId) return { error: 'Unauthorized' };
+  if (mode !== 'PRACTICE' && mode !== 'EXAM') return { error: 'Unknown mode.' };
+
+  const set = await writableSet(userId, setId, { id: true, questions: true });
+  if ('error' in set) return set;
+  const ids = readItems(set.questions).map((q) => q.id);
+  if (ids.length === 0) return { error: 'That set has no questions.' };
+
+  // Tombstones included: one draft row per set and mode (unique), so a
+  // finished run's row is revived rather than duplicated.
+  const existing = await prisma.attemptDraft.findFirst({
+    where: { userId, moduleId: setId, mode, ...INCLUDE_DELETED },
+  });
+
+  if (existing && !existing.deletedAt && !fresh) {
+    if (mode === 'EXAM' && !existing.deadlineAt) {
+      const deadlineAt = new Date(Date.now() + examMinutes(ids.length) * 60_000);
+      const updated = await prisma.attemptDraft.update({ where: { id: existing.id }, data: { deadlineAt } });
+      return { draft: readDraft(updated, ids) };
+    }
+    return { draft: readDraft(existing, ids) };
+  }
+
+  const blank = {
+    answers: '{}',
+    flags: '[]',
+    position: 0,
+    deadlineAt: mode === 'EXAM' ? new Date(Date.now() + examMinutes(ids.length) * 60_000) : null,
+    deletedAt: null,
+    classId: set.classId,
+  };
+  const row = existing
+    ? await prisma.attemptDraft.update({ where: { id: existing.id }, data: blank })
+    : await prisma.attemptDraft.create({ data: { userId, moduleId: setId, mode, ...blank } });
+  return { draft: readDraft(row, ids) };
+}
+
+/** Autosave: called (debounced) as the student answers, flags and moves. */
+export async function saveStudyRun(
+  setId: string,
+  mode: RunMode,
+  snapshot: unknown
+): Promise<{ success: true } | { error: string }> {
+  const userId = await getUserId();
+  if (!userId) return { error: 'Unauthorized' };
+
+  const set = await writableSet(userId, setId, { id: true, questions: true });
+  if ('error' in set) return set;
+  const clean = cleanSnapshot(snapshot, readItems(set.questions).map((q) => q.id));
+
+  const { count } = await prisma.attemptDraft.updateMany({
+    where: { userId, moduleId: setId, mode, deletedAt: null },
+    data: { answers: JSON.stringify(clean.answers), flags: JSON.stringify(clean.flags), position: clean.position },
+  });
+  return count > 0 ? { success: true } : { error: 'This run was finished or discarded elsewhere.' };
+}
+
+/** "Start over" without starting: the unfinished run is thrown away. */
+export async function discardStudyRun(setId: string, mode: RunMode): Promise<{ success: true } | { error: string }> {
+  const userId = await getUserId();
+  if (!userId) return { error: 'Unauthorized' };
+  const set = await writableSet(userId, setId, { id: true });
+  if ('error' in set) return set;
+  await softDelete(prisma, 'attemptDraft', { userId, moduleId: setId, mode });
+  return { success: true };
 }
 
 function readItems(raw: string): StudyItem[] {
@@ -391,7 +501,9 @@ export async function deleteStudySet(setId: string) {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
 
-  const { softDelete } = await import('@/lib/soft-delete');
+  const set = await writableSet(userId, setId, { id: true });
+  if ('error' in set) return set;
+
   await softDelete(prisma, 'tutorModule', { id: setId, userId });
 
   revalidatePath('/ai');
@@ -408,10 +520,18 @@ export type MarkedAnswer = {
   expected: string;
   explanation: string;
   isCorrect: boolean;
-  /** 0-100 for written answers; 0 or 100 for objective ones. */
+  /** 0-100. Meaningless while `status` is UNMARKED. */
   score: number;
   feedback: string;
+  /**
+   * UNMARKED: answered, but the written marker could not judge it (no AI,
+   * offline, a timeout, or it skipped the item). Such an answer is excluded
+   * from the score - it is not a zero - and can be re-marked later (S02).
+   * Absent on attempts saved before this existed, which count as marked.
+   */
+  status?: 'MARKED' | 'UNMARKED';
 };
+
 
 export type AttemptResult = {
   attemptId: string;
@@ -419,84 +539,19 @@ export type AttemptResult = {
   correct: number;
   total: number;
   answers: MarkedAnswer[];
+  markingStatus: MarkingStatus;
+  /** Answers still waiting for the written marker. */
+  unmarked: number;
   /** Set when written answers could not be marked because there is no AI. */
   notice: string | null;
   xp: { granted: number; leveledUp: boolean } | null;
+  /**
+   * Where to fix the gaps: the next routine block for this subject, or null
+   * when it has none (the results then offer to add one). Absent on a perfect
+   * score - there is nothing to revisit.
+   */
+  revisit?: { day: string; startTime: string; endTime: string; type: string; weekHref: string } | null;
 };
-
-/** Lowercase, collapse whitespace, drop punctuation that never changes meaning. */
-function normalise(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[.,;:!?'"()]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/** Split an answer that lists several things. */
-function parts(value: string, separator: RegExp): string[] {
-  return value
-    .split(separator)
-    .map((p) => normalise(p))
-    .filter(Boolean);
-}
-
-/**
- * Mark one objective answer without asking anybody.
- *
- * Returns a 0-100 score rather than a boolean because MATCHING and ORDERING are
- * genuinely partial - getting three pairs right out of four is not the same as
- * getting none, and marking it wrong outright teaches the student nothing.
- */
-function markObjective(item: StudyItem, given: string): number {
-  const expected = item.answer;
-
-  switch (item.type) {
-    case 'MULTIPLE_SELECT': {
-      const want = new Set(parts(expected, /,/));
-      const got = new Set(parts(given, /,/));
-      if (want.size === 0) return 0;
-      // All of them and none extra: a partly-right multi-select is wrong.
-      const same = want.size === got.size && [...want].every((w) => got.has(w));
-      return same ? 100 : 0;
-    }
-    case 'ORDERING': {
-      const want = parts(expected, /\|/);
-      const got = parts(given, /\|/);
-      if (want.length === 0) return 0;
-      const right = want.filter((w, i) => got[i] === w).length;
-      return Math.round((right / want.length) * 100);
-    }
-    case 'MATCHING': {
-      const want = new Map(
-        parts(expected, /;/).map((pair) => {
-          const [term, definition] = pair.split(':');
-          return [normalise(term ?? ''), normalise(definition ?? '')];
-        })
-      );
-      const got = new Map(
-        parts(given, /;/).map((pair) => {
-          const [term, definition] = pair.split(':');
-          return [normalise(term ?? ''), normalise(definition ?? '')];
-        })
-      );
-      if (want.size === 0) return 0;
-      let right = 0;
-      for (const [term, definition] of want) if (got.get(term) === definition) right++;
-      return Math.round((right / want.size) * 100);
-    }
-    case 'FILL_IN_THE_BLANK': {
-      const want = normalise(expected);
-      const got = normalise(given);
-      // A blank is one word or a short phrase; accept it inside a fuller answer
-      // so "the mitochondrion" is not marked wrong against "mitochondrion".
-      return want && (got === want || got.includes(want) || want.includes(got)) ? 100 : 0;
-    }
-    default:
-      // MULTIPLE_CHOICE and TRUE_FALSE: exact, after normalising.
-      return normalise(given) === normalise(expected) ? 100 : 0;
-  }
-}
 
 /**
  * Mark a run and record it.
@@ -516,18 +571,14 @@ export async function submitAttempt(input: {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
 
-  const set = await prisma.tutorModule.findFirst({
-    where: { id: input.setId, userId },
-    select: { id: true, subject: true, questions: true, classId: true },
-  });
-  if (!set) return { error: 'That set is gone.' };
+  const set = await writableSet(userId, input.setId, { id: true, subject: true, questions: true });
+  if ('error' in set) return set;
 
   const items = readItems(set.questions);
   if (items.length === 0) return { error: 'That set has no questions.' };
 
   const givenBy = new Map(input.answers.map((a) => [a.id, a.answer]));
   const marked: MarkedAnswer[] = [];
-  const written: StudyItem[] = [];
 
   for (const item of items) {
     const given = (givenBy.get(item.id) ?? '').trim();
@@ -538,11 +589,10 @@ export async function submitAttempt(input: {
     // model with the written answers - it costs nothing extra, the call is
     // already being made, and marking a correct answer wrong is the one
     // mistake a quiz app never recovers from. A hit is still marked here.
-    const uncertainBlank =
-      item.type === 'FILL_IN_THE_BLANK' && given !== '' && markObjective(item, given) === 0;
+    const mark = OBJECTIVE_TYPES.has(item.type) ? markObjective(item, given) : null;
 
-    if (OBJECTIVE_TYPES.has(item.type) && !uncertainBlank) {
-      const score = given ? markObjective(item, given) : 0;
+    if (mark && mark.status === 'MARKED') {
+      const score = mark.score;
       marked.push({
         id: item.id,
         question: item.question,
@@ -553,9 +603,9 @@ export async function submitAttempt(input: {
         isCorrect: score >= 100,
         score,
         feedback: '',
+        status: 'MARKED',
       });
     } else {
-      written.push(item);
       marked.push({
         id: item.id,
         question: item.question,
@@ -566,64 +616,16 @@ export async function submitAttempt(input: {
         isCorrect: false,
         score: 0,
         feedback: '',
+        // Unanswered is a real zero; answered waits for the written marker.
+        status: given ? 'UNMARKED' : 'MARKED',
       });
     }
   }
 
-  let notice: string | null = null;
-
-  if (written.length > 0) {
-    const answered = written.filter((w) => (givenBy.get(w.id) ?? '').trim());
-    if (answered.length === 0) {
-      notice = null; // nothing written was attempted; nothing to mark
-    } else {
-      const payload = answered.map((w) => ({
-        id: w.id,
-        question: w.question,
-        expectedAnswer: w.answer,
-        studentAnswer: givenBy.get(w.id) ?? '',
-      }));
-
-      const system = `You mark a student's written answers. Be fair but not generous: reward understanding, not keywords.
-
-Return ONLY this JSON, no prose:
-{ "results": [ { "id": string, "score": number 0-100, "feedback": string } ] }
-
-Judge each answer against the model answer on conceptual accuracy and completeness. A correct idea in clumsy words scores well; fluent words with the wrong idea do not. "feedback" is one or two sentences addressed to the student, saying what was missing or wrong. Never just repeat the model answer.`;
-
-      const result = await askAIBuddy(
-        `Mark these:\n${JSON.stringify(payload, null, 2)}`,
-        [],
-        undefined,
-        undefined,
-        system,
-        { tools: false, xp: false }
-      );
-
-      const parsed = result.error ? null : parseJsonLoose(result.text || '');
-      const results = Array.isArray(parsed?.results) ? parsed.results : null;
-
-      if (!results) {
-        notice =
-          written.length === items.length
-            ? 'Your written answers could not be marked automatically — the AI was unavailable. Compare them with the model answers below.'
-            : 'The written questions could not be marked automatically. Everything else is scored.';
-      } else {
-        for (const row of results) {
-          const target = marked.find((m) => m.id === String(row?.id));
-          if (!target) continue;
-          const score = Math.max(0, Math.min(100, Number(row?.score) || 0));
-          target.score = score;
-          target.isCorrect = score >= 60;
-          target.feedback = String(row?.feedback ?? '').slice(0, 1000);
-        }
-      }
-    }
-  }
-
+  const notice = await markWritten(marked);
+  const summary = summariseAttempt(marked);
   const total = marked.length;
-  const score = Math.round(marked.reduce((sum, m) => sum + m.score, 0) / total);
-  const correct = marked.filter((m) => m.isCorrect).length;
+  const { score, correct } = summary;
 
   const attempt = await prisma.quizAttempt.create({
     data: {
@@ -637,16 +639,9 @@ Judge each answer against the model answer on conceptual accuracy and completene
     select: { id: true },
   });
 
-  await prisma.tutorModule.update({
-    where: { id: set.id },
-    data: {
-      score,
-      understanding: score >= 86 ? 'Master' : score >= 51 ? 'Intermediate' : 'Beginner',
-      lastReviewedAt: new Date(),
-      // The weaker the result, the sooner it should come back.
-      nextReviewAt: new Date(Date.now() + (score >= 90 ? 7 : score >= 60 ? 3 : 1) * 86400000),
-    },
-  });
+  if (summary.status === 'FINAL') await recordFinalResult(set.id, score);
+  // The run is handed in: its draft is done.
+  await softDelete(prisma, 'attemptDraft', { userId, moduleId: set.id, mode: input.mode });
 
   // Keyed on the attempt row, so a replay or a sync merge cannot pay twice.
   //
@@ -662,17 +657,183 @@ Judge each answer against the model answer on conceptual accuracy and completene
   );
 
   revalidatePath('/ai');
-  revalidatePath('/insights');
+  revalidatePath('/history');
+
+  const revisit = score < 100 || summary.status !== 'FINAL' ? await findRevisitSlot(userId, set.subject) : undefined;
 
   return {
+    revisit,
     attemptId: attempt.id,
     score,
     correct,
     total,
     answers: marked,
+    markingStatus: summary.status,
+    unmarked: summary.unmarked,
     notice,
     xp: xpInfo ? { granted: xpInfo.granted, leveledUp: xpInfo.leveledUp } : null,
   };
+}
+
+const WRITTEN_MARKER = `You mark a student's written answers. Be fair but not generous: reward understanding, not keywords.
+
+Return ONLY this JSON, no prose:
+{ "results": [ { "id": string, "score": number 0-100, "feedback": string } ] }
+
+Judge each answer against the model answer on conceptual accuracy and completeness. A correct idea in clumsy words scores well; fluent words with the wrong idea do not. "feedback" is one or two sentences addressed to the student, saying what was missing or wrong. Never just repeat the model answer.`;
+
+/**
+ * Mark the UNMARKED answers in place with one batched AI call. Anything the
+ * marker does not return a numeric score for stays UNMARKED - never zero.
+ * Returns a notice for the student while anything is left, else null.
+ */
+async function markWritten(answers: MarkedAnswer[]): Promise<string | null> {
+  const pending = answers.filter((a) => a.status === 'UNMARKED');
+  if (pending.length === 0) return null;
+
+  const payload = pending.map((w) => ({
+    id: w.id,
+    question: w.question,
+    expectedAnswer: w.expected,
+    studentAnswer: w.given,
+  }));
+
+  try {
+    const result = await askAIBuddy(
+      `Mark these:\n${JSON.stringify(payload, null, 2)}`,
+      [],
+      undefined,
+      undefined,
+      WRITTEN_MARKER,
+      { tools: false, xp: false }
+    );
+    const parsed = result.error ? null : parseJsonLoose(result.text || '');
+    applyWrittenMarks(pending, parsed?.results);
+  } catch (error) {
+    // A thrown provider error leaves everything unmarked, never failed.
+    console.error('Written marking failed', error);
+  }
+
+  const left = pending.filter((a) => a.status === 'UNMARKED').length;
+  if (left === 0) return null;
+  return left === answers.length
+    ? 'Your answers could not be marked yet - the AI was unavailable. They are saved; mark them again when you are online.'
+    : `${left} written ${left === 1 ? 'answer is' : 'answers are'} waiting to be marked. The score covers the rest; mark again when the AI is available.`;
+}
+
+/** A finished, fully-marked run moves the set's level and next review. */
+async function recordFinalResult(setId: string, score: number) {
+  await prisma.tutorModule.update({
+    where: { id: setId },
+    data: {
+      score,
+      understanding: score >= 86 ? 'Master' : score >= 51 ? 'Intermediate' : 'Beginner',
+      lastReviewedAt: new Date(),
+      // The weaker the result, the sooner it should come back.
+      nextReviewAt: new Date(Date.now() + (score >= 90 ? 7 : score >= 60 ? 3 : 1) * 86400000),
+    },
+  });
+}
+
+export type RetryMarkingResult = Pick<
+  AttemptResult,
+  'score' | 'correct' | 'total' | 'answers' | 'markingStatus' | 'unmarked' | 'notice'
+>;
+
+/**
+ * Try the written marker again for an attempt saved with unmarked answers.
+ * Updates the same attempt - never a second one - so neither the history nor
+ * the XP (keyed on the attempt) doubles.
+ */
+export async function retryAttemptMarking(attemptId: string): Promise<RetryMarkingResult | { error: string }> {
+  const userId = await getUserId();
+  if (!userId) return { error: 'Unauthorized' };
+
+  const attempt = await prisma.quizAttempt.findFirst({
+    where: { id: attemptId, module: { userId } },
+    select: { id: true, feedback: true, moduleId: true },
+  });
+  if (!attempt) return { error: 'That attempt is gone.' };
+  const set = await writableSet(userId, attempt.moduleId, { id: true });
+  if ('error' in set) return set;
+
+  let answers: MarkedAnswer[];
+  try {
+    const parsed = JSON.parse(attempt.feedback);
+    answers = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return { error: 'That attempt could not be read.' };
+  }
+
+  const notice = await markWritten(answers);
+  const summary = summariseAttempt(answers);
+  await prisma.quizAttempt.update({
+    where: { id: attempt.id },
+    data: { score: summary.score, feedback: JSON.stringify(answers) },
+  });
+  if (summary.status === 'FINAL') await recordFinalResult(attempt.moduleId, summary.score);
+
+  revalidatePath('/ai');
+  revalidatePath('/history');
+  return {
+    score: summary.score,
+    correct: summary.correct,
+    total: answers.length,
+    answers,
+    markingStatus: summary.status,
+    unmarked: summary.unmarked,
+    notice,
+  };
+}
+
+/**
+ * A set the student may write to: their own, in the year they are in (S04).
+ * Reading may browse an archived year; attempts, cards and reviews may not
+ * change one.
+ */
+async function writableSet<S extends Record<string, true>>(userId: string, setId: string, select: S) {
+  const view = await getViewScope(userId);
+  if (view?.isArchive) return { error: ARCHIVE_WRITE_ERROR } as const;
+  const set = await prisma.tutorModule.findFirst({
+    where: { id: setId, userId },
+    select: { ...select, classId: true },
+  });
+  if (!set) return { error: 'That set is gone.' } as const;
+  const active = await getActiveScope(userId);
+  const classId = (set as { classId: string | null }).classId;
+  if (classId && active && classId !== active.classId) return { error: ARCHIVE_WRITE_ERROR } as const;
+  return set;
+}
+
+/** The next routine block for a subject, in the student's own timezone. */
+async function findRevisitSlot(userId: string, subject: string): Promise<AttemptResult['revisit']> {
+  try {
+    const tz = await getCurrentUserTimezone();
+    const now = getZonedNow(tz);
+    const templates = await prisma.scheduleTemplate.findMany({
+      where: { userId, ...byClass(await getActiveScope(userId)) },
+      select: { dayOfWeek: true, subject: true, startTime: true, endTime: true, type: true },
+    });
+    const today = format(now, 'yyyy-MM-dd');
+    const holidays = holidaysBetween(tz, today, format(addDays(now, 14), 'yyyy-MM-dd'));
+    const slot = nextRoutineSlot(
+      templates,
+      subject,
+      today,
+      now.getHours() * 60 + now.getMinutes(),
+      (d) => holidays.has(d)
+    );
+    if (!slot) return null;
+
+    const date = new Date(`${slot.date}T12:00:00`);
+    const day = slot.daysAway === 0 ? 'Today' : slot.daysAway === 1 ? 'Tomorrow' : format(date, 'EEEE d MMM');
+    const weekStart = format(startOfWeek(date, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    return { day, startTime: slot.startTime, endTime: slot.endTime, type: slot.type, weekHref: `/timetable?week=${weekStart}` };
+  } catch (error) {
+    // A pointer is a bonus; it must never cost the student their result.
+    console.error('Revisit lookup failed', error);
+    return null;
+  }
 }
 
 /* --------------------------------------------------------------- flashcards */
@@ -681,11 +842,8 @@ export async function generateFlashcards(setId: string) {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
 
-  const set = await prisma.tutorModule.findFirst({
-    where: { id: setId, userId },
-    select: { id: true, subject: true, sourceText: true, questions: true },
-  });
-  if (!set) return { error: 'That set is gone.' };
+  const set = await writableSet(userId, setId, { id: true, subject: true, sourceText: true, questions: true });
+  if ('error' in set) return set;
 
   // Cards come from the source material where it is still there, and from the
   // questions otherwise - a card made from a question is a worse card, but it
@@ -757,11 +915,8 @@ export async function saveFlashcardReview(
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
 
-  const set = await prisma.tutorModule.findFirst({
-    where: { id: setId, userId },
-    select: { id: true, flashcards: true },
-  });
-  if (!set) return { error: 'That set is gone.' };
+  const set = await writableSet(userId, setId, { id: true, flashcards: true });
+  if ('error' in set) return set;
 
   const cards = readCards(set.flashcards);
   const byId = new Map(reviews.map((r) => [r.id, Math.max(0, Math.min(5, Math.round(r.quality)))]));

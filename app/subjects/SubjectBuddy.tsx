@@ -7,6 +7,7 @@ import { BrainCircuit, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Panel, PanelTitle } from "@/components/ui/panel";
+import { ChatMarkdown } from "@/components/ChatMarkdown";
 import { askAIBuddy } from "@/lib/ai-actions";
 import { cn } from "@/lib/utils";
 import { upcomingExams, type ExamEvent, type Homework, type MasteryItem } from "./subject-model";
@@ -20,17 +21,6 @@ const SUGGESTIONS = [
   { label: "What should I revise next?", prompt: "Given my topics, homework and exams, what should I revise next and why?" },
   { label: "Explain a weak topic", prompt: "Pick a topic I have not mastered yet and explain it simply." },
 ];
-
-/** Escape everything, then allow **bold** and *italics*. */
-function renderMarkdown(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.*?)\*/g, "<em>$1</em>");
-}
 
 /**
  * A chat that already knows this subject: its syllabus, open homework and
@@ -113,7 +103,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
     setLoading(true);
 
     try {
-      const res = await askAIBuddy(text, history, undefined, undefined, buildPrompt());
+      const res = await askAIBuddy(text, history, undefined, undefined, buildPrompt(), { tools: false, xp: false });
       if (res.error) {
         console.error("Study buddy:", res.error);
         setMessages((prev) => [
@@ -151,7 +141,11 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
                 : "self-start rounded-bl-md bg-muted text-foreground"
             )}
           >
-            <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.text) }} />
+            {msg.role === "user" ? (
+              <p className="whitespace-pre-wrap">{msg.text}</p>
+            ) : (
+              <ChatMarkdown className="text-sm leading-relaxed [&_p]:my-2">{msg.text}</ChatMarkdown>
+            )}
           </div>
         ))}
         {loading && (

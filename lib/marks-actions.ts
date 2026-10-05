@@ -1,5 +1,7 @@
 'use server';
 
+import { averageGrades } from '@/lib/grades';
+
 import { prisma } from '@/lib/prisma';
 import { softDelete } from '@/lib/soft-delete';
 import { getUserId } from '@/lib/auth';
@@ -69,7 +71,7 @@ Return ONLY the JSON object. Do not include markdown code blocks.`;
   }
 
   try {
-    const result = await askAIBuddy(prompt, [], undefined, inlineData);
+    const result = await askAIBuddy(prompt, [], undefined, inlineData, undefined, { tools: false, xp: false });
     
     if (result.error) return { error: result.error };
 
@@ -109,7 +111,7 @@ Return ONLY the JSON object. Do not include markdown code blocks.`;
     // `dropped` is surfaced rather than swallowed: a subject that silently
     // failed to parse would otherwise just be missing from the report card.
     return { success: true, reportCardId: reportCard.id, saved: grades.length, dropped };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Report Card Analysis Error:", error);
     return { error: "Failed to analyze report card. Please check your AI key and file format." };
   }
@@ -140,7 +142,7 @@ export async function deleteReportCard(id: string) {
     await softDelete(prisma, 'reportCard', { id, userId });
     revalidatePath('/marks');
     return { success: true };
-  } catch (error) {
+  } catch {
     return { error: "Failed to delete report card." };
   }
 }
@@ -163,7 +165,7 @@ export async function createManualReportCard(term: string) {
     data: {
       userId,
       term,
-      overallAverage: 0,
+      overallAverage: null,
       aiSummary: "Manual Entry Report Card. Add subject grades below.",
       fileUrl: "Manual Entry",
       ...stamp,
@@ -208,11 +210,8 @@ export async function addSubjectGrade(reportCardId: string, data: { subject: str
     where: { reportCardId }
   });
 
-  const parsedGrades = allGrades.map(g => {
-    const num = parseFloat(g.grade.replace(/[^0-9.]/g, ''));
-    return isNaN(num) ? 0 : num;
-  });
-  const avg = parsedGrades.length > 0 ? parseFloat((parsedGrades.reduce((a, b) => a + b, 0) / parsedGrades.length).toFixed(1)) : 0;
+  // One parser for every page (lib/grades.ts); unreadable grades are left out.
+  const avg = averageGrades(allGrades.map((g) => g.grade));
 
   await prisma.reportCard.update({
     where: { id: reportCardId },
@@ -253,11 +252,8 @@ export async function updateSubjectGrade(id: string, data: { subject: string; gr
     where: { reportCardId }
   });
 
-  const parsedGrades = allGrades.map(g => {
-    const num = parseFloat(g.grade.replace(/[^0-9.]/g, ''));
-    return isNaN(num) ? 0 : num;
-  });
-  const avg = parsedGrades.length > 0 ? parseFloat((parsedGrades.reduce((a, b) => a + b, 0) / parsedGrades.length).toFixed(1)) : 0;
+  // One parser for every page (lib/grades.ts); unreadable grades are left out.
+  const avg = averageGrades(allGrades.map((g) => g.grade));
 
   await prisma.reportCard.update({
     where: { id: reportCardId },
@@ -291,11 +287,8 @@ export async function deleteSubjectGrade(id: string) {
     where: { reportCardId }
   });
 
-  const parsedGrades = allGrades.map(g => {
-    const num = parseFloat(g.grade.replace(/[^0-9.]/g, ''));
-    return isNaN(num) ? 0 : num;
-  });
-  const avg = parsedGrades.length > 0 ? parseFloat((parsedGrades.reduce((a, b) => a + b, 0) / parsedGrades.length).toFixed(1)) : 0;
+  // One parser for every page (lib/grades.ts); unreadable grades are left out.
+  const avg = averageGrades(allGrades.map((g) => g.grade));
 
   await prisma.reportCard.update({
     where: { id: reportCardId },

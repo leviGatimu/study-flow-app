@@ -14,6 +14,16 @@ const PUBLIC_PATHS = ['/welcome', '/login', '/register', '/api/auth'];
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Uploaded files are private. On a dev or web build they can sit in
+  // public/uploads, where Next would serve them as static files to anyone -
+  // even signed out, since the rule below lets any path with a dot through.
+  // Middleware runs before static files, so every /uploads URL is rewritten to
+  // the route that checks the session (cookie or device bearer) AND that the
+  // file belongs to one of the caller's records. The public URL is unchanged.
+  if (pathname.startsWith('/uploads/')) {
+    return NextResponse.rewrite(new URL(`/api${pathname}${request.nextUrl.search}`, request.url));
+  }
+
   // Allow static assets and public paths
   if (
     pathname.startsWith('/_next') ||
@@ -34,7 +44,7 @@ export async function proxy(request: NextRequest) {
   try {
     await jwtVerify(session, SECRET);
     return NextResponse.next();
-  } catch (error) {
+  } catch {
     return NextResponse.redirect(new URL('/welcome', request.url));
   }
 }
