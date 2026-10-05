@@ -75,6 +75,12 @@ export const APPLY_ORDER = [
   'reportCard',
   'subjectGrade',
   'xpEvent',
+  'tutorModule',
+  'quizAttempt',
+  'chatSession',
+  'chatMessage',
+  'attemptDraft',
+  'aiAction',
 ] as const;
 
 /**

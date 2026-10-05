@@ -76,7 +76,7 @@ describe('the sync stamp extension', () => {
 
   test('models that do not sync are passed through untouched', async () => {
     const seen = await run(device, {
-      model: 'ChatMessage',
+      model: 'StickyNote', // local-only (chats sync since the study workspace)
       operation: 'create',
       args: { data: { content: 'hello' } },
     });
@@ -145,7 +145,7 @@ describe('what wakes the scheduler', () => {
   test('a local-only model does not wake it either', async () => {
     const calls = countingListener();
     await run(device, {
-      model: 'ChatMessage',
+      model: 'StickyNote', // local-only (chats sync since the study workspace)
       operation: 'create',
       args: { data: { content: 'hello' } },
     });

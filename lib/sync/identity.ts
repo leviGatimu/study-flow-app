@@ -278,16 +278,54 @@ export const SYNC_RULES: Record<string, SyncRule> = {
       'own position. Empty on the server, which has no cursor to keep.',
   },
 
-  chatSession: { match: 'LOCAL_ONLY', why: 'AI chat scratchpad; no academic continuity.' },
-  chatMessage: { match: 'LOCAL_ONLY', why: 'Unbounded prompt/response text - the heaviest table.' },
   song: { match: 'LOCAL_ONLY', why: 'Real audio files up to 60MB behind audioUrl.' },
   playlist: { match: 'LOCAL_ONLY', why: 'Meaningless without song, which is local-only.' },
   aiNote: { match: 'LOCAL_ONLY', why: 'Generated notes; sourceName is a filename, not a stored file.' },
   stickyNote: { match: 'LOCAL_ONLY', why: 'Desktop-canvas scratchpad, tied to no academic model.' },
   project: { match: 'LOCAL_ONLY', why: 'Personal side projects, not school-issued work.' },
   projectDoc: { match: 'LOCAL_ONLY', why: 'Travels with its local-only parent project.' },
-  tutorModule: { match: 'LOCAL_ONLY', why: 'sourcePdfUrl is a filename only; quiz content is regenerable.' },
-  quizAttempt: { match: 'LOCAL_ONLY', why: 'Child of tutorModule, which is local-only.' },
+
+  // ------------------------------------------------- study workspace (2026-10)
+  //
+  // The owner chose to have chats, branches and practice follow them between
+  // desktop and web (docs/STUDY_WORKSPACE_PLAN.md, D-2). All are created with
+  // cuids on one device and edited there, so identity is the id - except where
+  // a unique constraint means two devices can each mint "the same" row.
+
+  chatSession: {
+    match: 'ID',
+    why:
+      'Conversations and their branches. parentSessionId/artifactId are plain ' +
+      'ids, not foreign keys, so a branch may arrive before its parent.',
+  },
+  chatMessage: {
+    match: 'ID',
+    why:
+      'Heaviest table (unbounded text) - accepted for cross-device chats. No ' +
+      'userId column: owned through its session, which the push checks.',
+  },
+  tutorModule: {
+    match: 'ID',
+    why: 'A practice set. sourcePdfUrl is a filename only; the questions are the payload.',
+  },
+  quizAttempt: {
+    match: 'ID',
+    why: 'Owned through its set (no userId column), which the push checks.',
+  },
+  attemptDraft: {
+    match: 'NATURAL_KEY',
+    key: ['userId', 'moduleId', 'mode'],
+    why:
+      '@@unique on these three: two devices that each start the same set in ' +
+      'the same mode mint two ids for one draft. Last writer wins the answers.',
+  },
+  aiAction: {
+    match: 'NATURAL_KEY',
+    key: ['idempotencyKey'],
+    why:
+      'The key IS the identity of one requested change; it is @unique, so a ' +
+      'receipt minted twice must merge rather than fail the push.',
+  },
 };
 
 /** Models that actually move between devices in v1. */

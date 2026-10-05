@@ -99,10 +99,13 @@ describe('identity map', () => {
     assert.deepEqual(
       [...SYNCED_MODELS].sort(),
       [
-        'class', 'examEvent', 'homework', 'markedDay', 'masteryItem', 'reportCard',
+        'aiAction', 'attemptDraft', 'chatMessage', 'chatSession',
+        'class', 'examEvent', 'homework', 'markedDay', 'masteryItem', 'quizAttempt', 'reportCard',
         'resource', 'scheduleTemplate', 'schoolLesson', 'studioNote', 'subject', 'subjectGoal',
-        'subjectGrade', 'task', 'term', 'user', 'userProgress', 'xpEvent',
+        'subjectGrade', 'task', 'term', 'tutorModule', 'user', 'userProgress', 'xpEvent',
       ],
+      // 2026-10-05: chats, branches and practice joined the synced set by the
+      // owner's decision (docs/STUDY_WORKSPACE_PLAN.md, D-2).
       'the synced set changed - if that was deliberate, update this test and HANDOFF.md'
     );
     assert.deepEqual([...DERIVED_MODELS].sort(), ['dailySummary', 'weeklySummary']);

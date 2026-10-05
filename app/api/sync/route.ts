@@ -20,6 +20,7 @@ import { prisma, IS_SQLITE } from '@/lib/prisma';
 import { getUserId, userIdFromBearer } from '@/lib/auth';
 import { SYNC_RULES } from '@/lib/sync/identity';
 import { applyRows, scrub, APPLY_ORDER, type SyncRow } from '@/lib/sync/merge';
+import { OWNED_THROUGH, keepOwnedRows } from '@/lib/sync/ownership';
 import {
   afterCursor,
   CURSOR_ORDER,
@@ -64,7 +65,8 @@ const SERVER_DEVICE = 'server';
  * back to "no filter".
  */
 function ownedBy(model: string, userId: string): Record<string, unknown> {
-  if (model === 'subjectGrade') return { reportCard: { userId } };
+  const parent = OWNED_THROUGH[model];
+  if (parent) return { [parent.relation]: { userId } };
   if (model === 'user') return { id: userId };
   return { userId };
 }
@@ -172,7 +174,8 @@ export async function POST(request: NextRequest) {
   }
 
   const now = new Date();
-  const outcome = await applyRows(prisma, rows, {
+  const owned = await keepOwnedRows(prisma, rows, userId);
+  const outcome = await applyRows(prisma, owned.rows, {
     stamp: now,
     localDevice: SERVER_DEVICE,
     incomingDevice: deviceId,

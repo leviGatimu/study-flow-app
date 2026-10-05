@@ -26,7 +26,7 @@
  */
 
 import { PrismaClient, Prisma } from '../node_modules/.prisma/client-custom-v8/index.js';
-import { purgeTombstones, TOMBSTONE_RETENTION_DAYS } from '../lib/soft-delete.ts';
+import { purgeTombstones, tombstoneModels, TOMBSTONE_RETENTION_DAYS } from '../lib/soft-delete.ts';
 
 const DRY = process.argv.includes('--dry-run') || process.argv.includes('--dry');
 
@@ -44,9 +44,8 @@ const prisma = new PrismaClient();
 // The raw client, deliberately - purging has to SEE tombstones, and the
 // extension in lib/prisma.ts exists to hide them. Model names come off the
 // client's own metadata so a new model is swept the day it is added.
-const models = Prisma.dmmf.datamodel.models.map(
-  (m) => m.name.charAt(0).toLowerCase() + m.name.slice(1)
-);
+// Only models with a deletedAt column - the dry run and the real purge alike.
+const models = tombstoneModels(Prisma.dmmf.datamodel.models);
 
 const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 console.log(`${DRY ? 'Would purge' : 'Purging'} tombstones deleted before ${cutoff.toISOString()}`);

@@ -1,5 +1,5 @@
 import { PrismaClient, Prisma } from '../node_modules/.prisma/client-custom-v8';
-import { softDeleteExtension } from './soft-delete';
+import { softDeleteExtension, tombstoneModels } from './soft-delete';
 import { syncStampExtension } from './sync/stamp';
 import { connectionRetryExtension } from './db-retry';
 
@@ -129,4 +129,9 @@ export function containsInsensitive(value: string) {
  */
 export const PRISMA_MODELS: string[] = Prisma.dmmf.datamodel.models.map(
   (m) => m.name.charAt(0).toLowerCase() + m.name.slice(1)
+);
+
+/** The models with a deletedAt column - the only ones the purge may sweep. */
+export const TOMBSTONE_MODELS: string[] = tombstoneModels(
+  Prisma.dmmf.datamodel.models as unknown as { name: string; fields: { name: string }[] }[]
 );

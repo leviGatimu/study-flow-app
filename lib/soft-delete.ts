@@ -46,9 +46,14 @@
  * this by hand to work around a failure - fix the schema or the test.
  */
 export const SOFT_DELETE_CASCADES: Record<string, { model: string; fk: string }[]> = {
-  chatSession: [{ model: 'chatMessage', fk: 'sessionId' }],
+  chatSession: [
+    { model: 'aiAction', fk: 'sessionId' },
+    { model: 'chatMessage', fk: 'sessionId' },
+  ],
   class: [
+    { model: 'aiAction', fk: 'classId' },
     { model: 'aiNote', fk: 'classId' },
+    { model: 'attemptDraft', fk: 'classId' },
     { model: 'chatSession', fk: 'classId' },
     { model: 'masteryItem', fk: 'classId' },
     { model: 'project', fk: 'classId' },
@@ -76,9 +81,14 @@ export const SOFT_DELETE_CASCADES: Record<string, { model: string; fk: string }[
     { model: 'task', fk: 'termId' },
     { model: 'weeklySummary', fk: 'termId' },
   ],
-  tutorModule: [{ model: 'quizAttempt', fk: 'moduleId' }],
+  tutorModule: [
+    { model: 'attemptDraft', fk: 'moduleId' },
+    { model: 'quizAttempt', fk: 'moduleId' },
+  ],
   user: [
+    { model: 'aiAction', fk: 'userId' },
     { model: 'aiNote', fk: 'userId' },
+    { model: 'attemptDraft', fk: 'userId' },
     { model: 'chatSession', fk: 'userId' },
     { model: 'class', fk: 'userId' },
     { model: 'dailySummary', fk: 'userId' },
@@ -296,6 +306,18 @@ async function cascade(db: Db, model: string, ids: string[], when: Date): Promis
  * trade every replicated system makes here.
  */
 export const TOMBSTONE_RETENTION_DAYS = 90;
+
+/**
+ * The models that can hold tombstones: those with a `deletedAt` column. The
+ * purge and its dry run must both use this. Sweeping every model failed on
+ * SyncState, which has no such column - Prisma rejected the query part-way
+ * through the sweep (audit D16).
+ */
+export function tombstoneModels(models: { name: string; fields: { name: string }[] }[]): string[] {
+  return models
+    .filter((m) => m.fields.some((f) => f.name === 'deletedAt'))
+    .map((m) => m.name.charAt(0).toLowerCase() + m.name.slice(1));
+}
 
 /**
  * Drop tombstones nobody needs any more.

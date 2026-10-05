@@ -51,6 +51,8 @@ model User {
   classes         Class[]
   xpEvents        XpEvent[]
   schoolLessons   SchoolLesson[]
+  attemptDrafts   AttemptDraft[]
+  aiActions       AiAction[]
 
   @@index([syncedAt])
 }
@@ -220,41 +222,51 @@ model StudioNote {
 /// It is LOCAL_ONLY in the sync registry: a set is regenerable from its source
 /// text, so it is not worth carrying between devices.
 model TutorModule {
-  id             String        @id @default(cuid())
-  userId         String
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subject        String
-  title          String
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject String
+  title   String
 
   /// The NAME of the file this was generated from. Never a stored file - the
   /// document is read in the browser and thrown away.
-  sourcePdfUrl   String?
+  sourcePdfUrl String?
 
   /// The extracted text, capped, so more questions can be generated later
   /// without asking the student to find and upload the same PDF again.
-  sourceText     String?
+  sourceText String?
 
   /// JSON: what was asked for - question count, chosen types, focus notes.
   /// Kept so "10 more like these" can repeat the request exactly.
-  config         String?
+  config String?
 
-  notes          String        @default("") // Markdown (Legacy/Optional)
-  videos         String        @default("") // JSON array (Legacy/Optional)
-  flashcards     String        @default("[]") // JSON array of cards with SM-2 fields
-  exercises      String        @default("") // JSON array (Legacy/Optional)
-  questions      String        @default("[]") // JSON array of generated items
-  score          Int?
-  understanding  String? // "Beginner", "Intermediate", "Master"
-  lastReviewedAt DateTime?
-  nextReviewAt   DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime?     @updatedAt
-  attempts       QuizAttempt[]
-  deletedAt      DateTime?
-  classId        String?
-  class          Class?        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  notes            String         @default("") // Markdown (Legacy/Optional)
+  videos           String         @default("") // JSON array (Legacy/Optional)
+  flashcards       String         @default("[]") // JSON array of cards with SM-2 fields
+  exercises        String         @default("") // JSON array (Legacy/Optional)
+  questions        String         @default("[]") // JSON array of generated items
+  score            Int?
+  understanding    String? // "Beginner", "Intermediate", "Master"
+  lastReviewedAt   DateTime?
+  nextReviewAt     DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime?      @updatedAt
+  attempts         QuizAttempt[]
+  drafts           AttemptDraft[]
+  /// The Resource the questions were generated from, when it came from the
+  /// student's own library rather than an upload. Plain id, no foreign key:
+  /// deleting the file must not delete the questions made from it.
+  sourceResourceId String?
+  /// JSON { usedChars, totalChars, truncated }: how much of the source the
+  /// generator actually saw, so the student is told when it was cut short.
+  coverage         String?
+  deletedAt        DateTime?
+  syncedAt         DateTime?
+  classId          String?
+  class            Class?         @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@index([classId])
+  @@index([syncedAt])
 }
 
 /// One run through a study set.
@@ -265,26 +277,32 @@ model TutorModule {
 /// written one since the tutor was removed, so that signal has been null for
 /// every user; the generator is what brings it back.
 model QuizAttempt {
-  id        String      @id @default(cuid())
-  moduleId  String
-  module    TutorModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  id       String      @id @default(cuid())
+  moduleId String
+  module   TutorModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
   /// "PRACTICE" (marked as you go) or "EXAM" (timed, silent until the end).
   /// The results screen and the history read differently for each.
-  mode      String      @default("PRACTICE")
+  mode String @default("PRACTICE")
 
   /// 0-100. Insights averages this, so it must stay a percentage even when the
   /// set has an awkward number of questions.
-  score     Int
-  feedback  String // JSON array: { questionId, studentAnswer, isCorrect, aiFeedback }
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @default(now()) @updatedAt
-  deletedAt DateTime?
+  score         Int
+  feedback      String // JSON array: { questionId, studentAnswer, isCorrect, aiFeedback }
+  /// FINAL | PARTIAL | PENDING. Only FINAL attempts count as evidence of
+  /// weakness or mastery: PARTIAL/PENDING have written answers the marker has
+  /// not judged yet, and those are not zeros (audit S02).
+  markingStatus String    @default("FINAL")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+  deletedAt     DateTime?
+  syncedAt      DateTime?
   /// Inherited from the module the attempt belongs to.
-  classId   String?
-  class     Class?      @relation(fields: [classId], references: [id], onDelete: Cascade)
+  classId       String?
+  class         Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@index([classId])
+  @@index([syncedAt])
 }
 
 model Project {
@@ -317,10 +335,10 @@ model ProjectDoc {
 }
 
 model ChatSession {
-  id        String        @id @default(cuid())
-  userId    String
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String        @default("New Chat")
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title  String @default("New Chat")
 
   /// Which of AI Study's modes this session is running in: ASK, LEARN,
   /// PRACTICE, EXAM or REVIEW.
@@ -330,22 +348,41 @@ model ChatSession {
   /// and renaming it would strand every 1.0.x desktop install mid-conversation
   /// for a cosmetic gain. The name is a historical fact; the column is what
   /// the app reads.
-  mode      String        @default("ASK")
+  mode String @default("ASK")
 
   /// The subject the session is about, when the student named one. Null for an
   /// open-ended question, which is most of them.
-  subject   String?
+  subject String?
+
+  /// A branch: the conversation it grew from and the message it branched at.
+  /// It inherits the parent's messages up to and including parentMessageId,
+  /// never later ones. Plain ids, no foreign keys, so sync can deliver a branch
+  /// and its parent in either order; ancestry (same user, same year) is
+  /// checked by the app when a branch is created.
+  parentSessionId String?
+  parentMessageId String?
+  /// EXPLAIN | QUIZ | MOCK_EXAM | FLASHCARDS. Null for an ordinary chat.
+  branchKind      String?
+  /// The practice set (TutorModule) this branch produced.
+  artifactId      String?
+  /// The grounded summary posted back into the parent when the branch's work
+  /// is done.
+  resultSummary   String?
 
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   messages  ChatMessage[]
+  actions   AiAction[]
   deletedAt DateTime?
+  syncedAt  DateTime?
   /// The academic year the conversation happened in. ChatMessage deliberately
   /// has no column of its own: it is scoped through its session.
   classId   String?
   class     Class?        @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@index([classId])
+  @@index([parentSessionId])
+  @@index([syncedAt])
 }
 
 model ChatMessage {
@@ -354,9 +391,92 @@ model ChatMessage {
   session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   role      String // "user" or "model"
   content   String
+  /// Client-minted id for one send. Retrying the same send finds this row
+  /// instead of writing a second user turn.
+  requestId String?
+  /// DONE | PENDING | FAILED. A FAILED reply is retried in place.
+  status    String      @default("DONE")
+  /// TEXT | ACTION (a proposed/applied change card) | RESULT (a branch's
+  /// summary returned to its parent).
+  kind      String      @default("TEXT")
+  /// JSON [{ label, href, kind }]: the records an answer relied on.
+  sources   String?
   createdAt DateTime    @default(now())
   updatedAt DateTime    @default(now()) @updatedAt
   deletedAt DateTime?
+  syncedAt  DateTime?
+
+  @@unique([sessionId, requestId])
+  @@index([syncedAt])
+}
+
+/// An in-progress run through a practice set: answers so far, flags, where
+/// the student was, and an exam's absolute deadline. Survives navigation,
+/// refresh and a crash (audit S05/S03). One per set and mode; handing in
+/// tombstones it, and the next start revives the same row.
+model AttemptDraft {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleId   String
+  module     TutorModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  /// PRACTICE | EXAM
+  mode       String
+  /// JSON { [questionId]: answer }
+  answers    String      @default("{}")
+  /// JSON questionId[] the student flagged to come back to
+  flags      String      @default("[]")
+  position   Int         @default(0)
+  /// EXAM only: the moment the paper hands itself in, whatever the clock on
+  /// screen was doing.
+  deadlineAt DateTime?
+  /// The branch conversation this run belongs to, when started from a chat.
+  sessionId  String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @default(now()) @updatedAt
+  deletedAt  DateTime?
+  syncedAt   DateTime?
+  classId    String?
+  class      Class?      @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleId, mode])
+  @@index([classId])
+  @@index([syncedAt])
+}
+
+/// A change the assistant proposed or made to the student's records, with its
+/// receipt. PROPOSED -> APPLIED | REJECTED | FAILED, APPLIED -> UNDONE. The
+/// idempotency key makes a retried message or tool call find this row instead
+/// of applying twice; the receipt outlives a failed follow-up reply.
+model AiAction {
+  id             String      @id @default(cuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId      String
+  session        ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  messageId      String?
+  /// Registry name, e.g. "createStudyBlock".
+  tool           String
+  /// JSON input as validated when proposed.
+  input          String
+  /// PROPOSED | APPLIED | REJECTED | FAILED | UNDONE
+  status         String      @default("PROPOSED")
+  /// JSON { recordIds, changed, links } on success.
+  result         String?
+  error          String?
+  idempotencyKey String      @unique
+  appliedAt      DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @default(now()) @updatedAt
+  deletedAt      DateTime?
+  syncedAt       DateTime?
+  classId        String?
+  class          Class?      @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([sessionId])
+  @@index([classId])
+  @@index([syncedAt])
 }
 
 model ScheduleTemplate {
@@ -527,9 +647,9 @@ model UserProgress {
   /// Backfilled for existing accounts: they configured themselves by hand long
   /// before a wizard existed, and being sent through one now would be noise.
   setupCompletedAt DateTime?
-  updatedAt   DateTime  @default(now()) @updatedAt
-  deletedAt   DateTime?
-  syncedAt    DateTime?
+  updatedAt        DateTime  @default(now()) @updatedAt
+  deletedAt        DateTime?
+  syncedAt         DateTime?
 
   @@index([syncedAt])
 }
@@ -782,6 +902,8 @@ model Class {
   chatSessions      ChatSession[]
   stickyNotes       StickyNote[]
   schoolLessons     SchoolLesson[]
+  attemptDrafts     AttemptDraft[]
+  aiActions         AiAction[]
 
   @@index([userId, status])
   @@index([syncedAt])

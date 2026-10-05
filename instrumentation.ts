@@ -21,11 +21,11 @@ export async function register() {
   // instance, which would mean sweeping the shared database from many places at
   // once for no benefit; the web side purges from scripts/purge-tombstones.mjs.
   try {
-    const [{ prisma, PRISMA_MODELS }, { purgeTombstones }] = await Promise.all([
+    const [{ prisma, TOMBSTONE_MODELS }, { purgeTombstones }] = await Promise.all([
       import('@/lib/prisma'),
       import('@/lib/soft-delete'),
     ]);
-    const removed = await purgeTombstones(prisma, PRISMA_MODELS);
+    const removed = await purgeTombstones(prisma, TOMBSTONE_MODELS);
     const total = Object.values(removed).reduce((a, b) => a + b, 0);
     if (total > 0) console.log(`[purge] removed ${total} expired tombstones`);
   } catch (error) {
