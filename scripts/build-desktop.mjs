@@ -152,6 +152,23 @@ const MUST_NOT_SHIP = [
   "test",
   "public/uploads",
   "node_modules/.prisma/client-sqlite-test",
+  // Turbopack can trace the project root through upload handling. These are
+  // local diagnostics, screenshots and planning files, never runtime assets.
+  "AGENTS.md",
+  "CLAUDE.md",
+  "HANDOFF.md",
+  "FIX_PROMPT.md",
+  "UI_AUDIT_REPORT.md",
+  "broken.png",
+  "UI-website.jpg",
+  "Screenshot 2026-05-17 201113.png",
+  "Video_Analysis.pdf",
+  "process_list.txt",
+  "process_list_utf8.txt",
+  "recovered_source.tsx",
+  "recovered_source_utf8.tsx",
+  "electron_output.txt",
+  "history_results.txt",
 ];
 
 /** A standalone server bigger than this means something is nesting again. */
@@ -194,7 +211,7 @@ function pruneStandalone() {
     for (const entry of readdirSync(current, { withFileTypes: true })) {
       const full = join(current, entry.name);
       if (entry.isDirectory()) sweep(full);
-      else if (/\.(db|zip)$|\.db\.bak/.test(entry.name)) {
+      else if (/^\.env($|\.)|\.(db|zip)$|\.db\.bak/.test(entry.name)) {
         rmSync(full, { force: true });
         console.log(`   pruned ${full.slice(standaloneRoot.length + 1)}`);
       }
