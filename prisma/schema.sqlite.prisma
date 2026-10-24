@@ -494,7 +494,7 @@ model UserProgress {
   totalFocusMinutes Int       @default(0)
   xp                Int       @default(0)
   level             Int       @default(1)
-  dailySummaryTime  String    @default("21:00") // "HH:MM" local time-of-day to auto-generate the daily summary
+  dailySummaryTime  String    @default("23:58") // "HH:MM" local time-of-day to auto-generate the daily summary
   timezone          String    @default("Africa/Kigali") // IANA timezone used for "today" math, the clock, and greetings
 
   /// When this account finished (or skipped) the welcome tour.

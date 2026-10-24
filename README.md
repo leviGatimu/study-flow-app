@@ -40,6 +40,11 @@ session survives — the timer lives in app state, not in the page.
 | **Insights** | Hours studied, completion rate, streaks and per-subject mastery, with an end-of-term report card |
 | **Ranks & XP** | An XP ledger with idempotency keys, so the same action can never pay twice |
 
+Daily reports default to **11:58 PM in the account's configured timezone**. Change the time on
+Reports. Opening that page generates due reports and catches up the previous two weeks; it does
+not run a timer while the app is closed. The report-time upgrade moves saved `21:00` values to
+`23:58` and leaves other custom times unchanged.
+
 <table>
 <tr>
 <td width="50%"><img src="docs/images/ai-tutor.jpg" alt="AI tutor"></td>
