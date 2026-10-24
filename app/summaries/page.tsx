@@ -4,6 +4,7 @@ import { CalendarDays, FileText } from 'lucide-react';
 
 import { getDailySummaries, getSettingsData, getWeeklySummaries } from '@/lib/actions';
 import { getUserId } from '@/lib/auth';
+import { DEFAULT_DAILY_SUMMARY_TIME, dailySummaryTime as resolveDailySummaryTime } from '@/lib/daily-summary-time';
 import { Page, PageBody } from '@/components/ui/page';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -38,7 +39,7 @@ export default async function ReportsPage({
   const { view: raw } = await searchParams;
   const view: View = raw === 'weekly' ? 'weekly' : 'daily';
 
-  let dailySummaryTime = '21:00';
+  let dailySummaryTime = DEFAULT_DAILY_SUMMARY_TIME;
   let daily: Awaited<ReturnType<typeof getDailySummaries>> = [];
   let weekly: Awaited<ReturnType<typeof getWeeklySummaries>> = [];
   let failed = false;
@@ -54,7 +55,7 @@ export default async function ReportsPage({
     ]);
     daily = dailyList;
     weekly = weeklyList;
-    dailySummaryTime = settings?.progress?.dailySummaryTime ?? '21:00';
+    dailySummaryTime = resolveDailySummaryTime(settings?.progress?.dailySummaryTime);
   } catch (error) {
     console.error('Reports failed to load', error);
     failed = true;

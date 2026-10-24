@@ -23,6 +23,7 @@ import { computeWeeklyPerformance, computeDailyPerformance, type WeeklyPerforman
 import { getScheduleState, ensureDefaultClass } from './term';
 import { taskEndsAt } from './task-times';
 import { validateQuickTask } from './task-input';
+import { isDailySummaryDue } from './daily-summary-time';
 import { holidaysBetween } from './holidays';
 import {
   getViewScope,
@@ -2035,14 +2036,9 @@ export async function syncDailySummaries() {
   if (await isViewingArchive(userId)) return;
 
   const progress = await prisma.userProgress.findUnique({ where: { userId }, select: { dailySummaryTime: true, timezone: true } });
-  const summaryTime = progress?.dailySummaryTime || "21:00";
-  const [sh, sm] = summaryTime.split(':').map(Number);
-
   const now = getZonedNow(progress?.timezone || DEFAULT_TIMEZONE);
   const today = startOfDay(now);
-  const generationMoment = new Date(today);
-  generationMoment.setHours(sh || 0, sm || 0, 0, 0);
-  const includeToday = now >= generationMoment;
+  const includeToday = isDailySummaryDue(now, progress?.dailySummaryTime);
 
   // Backfill the last two weeks, plus today once its generation time has passed.
   for (let i = includeToday ? 0 : 1; i <= 13; i++) {
