@@ -12,9 +12,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { createEvent, deleteEvent } from '@/lib/actions';
+import { validateExamTimes } from '@/lib/exam-time';
 import { useIsArchived } from '@/components/ArchiveContext';
 
-const EMPTY = { title: '', date: '', priority: 'NORMAL' };
+const EMPTY = { title: '', date: '', priority: 'NORMAL', startTime: '', endTime: '' };
 
 /** The Exams page's primary action: add an exam. Hidden in an archived year. */
 export function ExamsClient({ variant = 'default' }: { variant?: 'default' | 'outline' } = {}) {
@@ -26,12 +27,16 @@ export function ExamsClient({ variant = 'default' }: { variant?: 'default' | 'ou
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
+    const error = validateExamTimes(formData.startTime, formData.endTime);
+    if (error) return toast.error(error);
     startTransition(async () => {
       try {
         await createEvent({
           title: formData.title.trim(),
           date: new Date(formData.date),
           priority: formData.priority,
+          startTime: formData.startTime || null,
+          endTime: formData.endTime || null,
         });
         toast.success(`${formData.title.trim()} added. Open it to link its subject and plan revision.`);
         setFormData(EMPTY);
@@ -39,7 +44,7 @@ export function ExamsClient({ variant = 'default' }: { variant?: 'default' | 'ou
         router.refresh();
       } catch (err) {
         console.error('Add exam:', err);
-        toast.error('Could not add the exam. Try again.');
+        toast.error(err instanceof Error ? err.message : 'Could not add the exam. Try again.');
       }
     });
   };
@@ -99,6 +104,11 @@ export function ExamsClient({ variant = 'default' }: { variant?: 'default' | 'ou
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5"><Label htmlFor="exam-start">Starts</Label><Input id="exam-start" type="time" value={formData.startTime} onChange={(e) => setFormData({ ...formData, startTime: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label htmlFor="exam-end">Ends</Label><Input id="exam-end" type="time" value={formData.endTime} onChange={(e) => setFormData({ ...formData, endTime: e.target.value })} /></div>
+          </div>
+          <p className="text-xs text-muted-foreground">Optional. Uses your profile timezone. An earlier end time means the next day. The exam is done at its end time, with marks pending.</p>
           <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isPending} className="h-10">
               Cancel

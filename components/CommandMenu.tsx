@@ -15,12 +15,10 @@ import {
   Brain,
   BookOpen,
   FileText,
-  FolderOpen,
   GraduationCap,
   Layers,
   Library,
   Loader2,
-  StickyNote,
   TrendingUp,
   Zap,
 } from "lucide-react";
@@ -74,6 +72,7 @@ export function CommandMenu() {
   // alias because that is what the app used to advertise.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (document.querySelector('.practice-workspace')) return;
       const key = e.key.toLowerCase();
       if ((key === "k" || key === "e") && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
@@ -131,7 +130,7 @@ export function CommandMenu() {
   };
 
   const hasResults = useMemo(
-    () => Object.values(shown).some((group) => group.length > 0),
+    () => Object.entries(shown).some(([name, group]) => name !== "projects" && name !== "stickyNotes" && group.length > 0),
     [shown]
   );
 
@@ -139,7 +138,7 @@ export function CommandMenu() {
     <CommandDialog open={open} onOpenChange={setOpen}>
       <div className="relative">
         <CommandInput
-          placeholder="Search tasks, notes, subjects..."
+          placeholder="Search tasks, subjects..."
           value={query}
           onValueChange={(value) => {
             setQuery(value);
@@ -204,36 +203,6 @@ export function CommandMenu() {
               >
                 <Zap className="mr-2 size-4 text-muted-foreground" />
                 <span className="truncate">{t.subject}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
-
-        {shown.stickyNotes.length > 0 && (
-          <CommandGroup heading="Sticky notes">
-            {shown.stickyNotes.map((n) => (
-              <CommandItem
-                key={n.id}
-                value={`note-${n.id}-${n.title}`}
-                onSelect={() => go("/notes")}
-              >
-                <StickyNote className="mr-2 size-4 text-muted-foreground" />
-                <span className="truncate">{n.title}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
-
-        {shown.projects.length > 0 && (
-          <CommandGroup heading="Projects">
-            {shown.projects.map((p) => (
-              <CommandItem
-                key={p.id}
-                value={`project-${p.id}-${p.title}`}
-                onSelect={() => go(`/projects/${p.id}`)}
-              >
-                <FolderOpen className="mr-2 size-4 text-muted-foreground" />
-                <span className="truncate">{p.title}</span>
               </CommandItem>
             ))}
           </CommandGroup>

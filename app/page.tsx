@@ -202,7 +202,7 @@ export default async function Dashboard() {
 
             <DueHomework homework={homework} todayKey={todayKey} />
 
-            <ExamCountdown events={events as ExamEvent[]} today={today} />
+            <ExamCountdown events={events as ExamEvent[]} timezone={timezone} />
 
             <Panel interactive>
               <PanelTitle

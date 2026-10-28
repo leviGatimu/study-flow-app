@@ -47,7 +47,6 @@ export function QuestionRunner({
   initial,
   onProgress,
   onFinish,
-  onQuit,
   busy,
 }: {
   items: StudyItem[];
@@ -57,7 +56,6 @@ export function QuestionRunner({
   /** Called after every change, so the caller can autosave the run. */
   onProgress?: (snapshot: RunSnapshot) => void;
   onFinish: (answers: { id: string; answer: string }[], durationSec: number) => void;
-  onQuit: () => void;
   busy: boolean;
 }) {
   const [index, setIndex] = useState(() => Math.min(initial?.position ?? 0, Math.max(0, items.length - 1)));
@@ -66,6 +64,7 @@ export function QuestionRunner({
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   // Exam only: the hand-in screen listing unanswered and flagged questions.
   const [reviewing, setReviewing] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'unanswered' | 'flagged'>('all');
   // Set on mount rather than during render: reading the clock while rendering
   // is impure, and the value wanted here is "when did this run begin".
   const startedAt = useRef(0);
@@ -156,10 +155,8 @@ export function QuestionRunner({
 
   const advance = () => {
     if (!isLast) return setIndex((i) => i + 1);
-    // An exam gets a last look at what is unanswered or flagged; practice has
-    // already shown every answer, so it hands in directly.
-    if (mode === 'EXAM') setReviewing(true);
-    else submit();
+    // Both modes allow a final look at unanswered and flagged questions.
+    setReviewing(true);
   };
 
   const clock =
@@ -171,19 +168,21 @@ export function QuestionRunner({
     ) : null;
 
   const navigator = (
-    <nav aria-label="Questions" className="flex flex-wrap gap-1.5">
+    <nav aria-label="Questions" className="space-y-1">
       {items.map((q, i) => {
         const answered = isAnswered(q);
         const isFlagged = flags.has(q.id);
+        if (filter === 'unanswered' && answered || filter === 'flagged' && !isFlagged) return null;
         return (
           <button
             key={q.id}
             type="button"
             onClick={() => goTo(i)}
+            disabled={busy}
             aria-current={i === index && !reviewing ? 'step' : undefined}
             aria-label={`Question ${i + 1}${answered ? ', answered' : ', not answered'}${isFlagged ? ', flagged' : ''}`}
             className={cn(
-              'relative flex size-8 items-center justify-center rounded-lg border text-xs font-semibold tabular-nums transition-colors',
+              'relative flex min-h-12 w-full items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
               i === index && !reviewing
                 ? 'border-primary bg-primary text-primary-foreground'
@@ -192,7 +191,9 @@ export function QuestionRunner({
                   : 'border-border bg-card text-muted-foreground hover:bg-muted'
             )}
           >
-            {i + 1}
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-current/20 text-xs font-semibold tabular-nums">{i + 1}</span>
+            <span className="min-w-0 flex-1 truncate">{q.question}</span>
+            {answered && <Check className="size-4 shrink-0" aria-hidden />}
             {isFlagged && (
               <span aria-hidden="true" className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-card bg-orange-500" />
             )}
@@ -202,15 +203,29 @@ export function QuestionRunner({
     </nav>
   );
 
+  const questionList = <>
+    <div className="mb-4 flex items-baseline justify-between"><h2 className="font-heading text-lg font-semibold">Questions</h2><span className="text-xs text-muted-foreground">{answeredCount}/{items.length} answered</span></div>
+    <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Answered questions" aria-valuenow={answeredCount} aria-valuemax={items.length} aria-valuemin={0}><div className="h-full bg-primary" style={{ width: (answeredCount / items.length * 100) + '%' }} /></div>
+    <div className="mb-4 flex flex-wrap gap-1" aria-label="Filter questions">{(['all', 'unanswered', 'flagged'] as const).map((value) => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)} className={cn('rounded-md px-2 py-2 text-xs focus-visible:ring-2 focus-visible:ring-ring', filter === value ? 'bg-primary/10 font-semibold text-primary' : 'text-muted-foreground hover:bg-muted')}>{value === 'all' ? 'All' : value === 'flagged' ? 'Flagged' : 'Unanswered'}</button>)}</div>
+    {navigator}
+    {filter === 'flagged' && flagged.length === 0 && <p className="py-4 text-sm text-muted-foreground">Flag a question to come back to it.</p>}
+    {filter === 'unanswered' && unanswered.length === 0 && <p className="py-4 text-sm text-muted-foreground">Every question has an answer.</p>}
+    <Button className="mt-6 w-full" variant="outline" onClick={() => setReviewing(true)} disabled={busy}>Review & finish</Button>
+  </>;
+  const workspace = (content: React.ReactNode) => <div className="mx-auto grid max-w-[1440px] items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)] xl:gap-10">
+    <aside className="sticky top-0 hidden max-h-[calc(100dvh-11rem)] overflow-y-auto rounded-2xl border border-border bg-card p-5 lg:block">{questionList}</aside>
+    <div className="min-w-0 space-y-4"><details className="rounded-xl border border-border bg-card p-4 lg:hidden"><summary className="cursor-pointer font-semibold">Questions · {answeredCount}/{items.length} answered</summary><div className="mt-4">{questionList}</div></details>{content}</div>
+  </div>;
+
   if (reviewing) {
-    return (
+    return workspace(
       <Panel className="p-5 md:p-8">
         <div className="mb-6 flex items-center justify-between gap-4">
-          <h2 className="font-heading text-xl font-bold">Hand in your paper?</h2>
+          <h2 className="font-heading text-xl font-bold">Review your answers</h2>
           {clock}
         </div>
         <p className="text-sm text-muted-foreground">
-          {answeredCount} of {items.length} answered. Answers are marked only after you hand in.
+          {answeredCount} of {items.length} answered. You can revisit any question before finishing.
         </p>
         {(unanswered.length > 0 || flagged.length > 0) && (
           <div className="mt-5 space-y-3">
@@ -220,7 +235,7 @@ export function QuestionRunner({
             {flagged.length > 0 && <ReviewList label="Flagged" entries={flagged} onPick={goTo} />}
           </div>
         )}
-        <div className="mt-6">{navigator}</div>
+
         <div className="mt-8 flex flex-wrap justify-between gap-3 border-t border-border/60 pt-6">
           <Button variant="outline" size="lg" onClick={() => goTo(index)}>
             <ArrowLeft />
@@ -244,8 +259,8 @@ export function QuestionRunner({
     );
   }
 
-  return (
-    <Panel className="p-5 md:p-8">
+  return workspace(
+    <Panel className="min-h-[65dvh] rounded-none border-0 bg-transparent p-5 shadow-none md:p-10">
       {/* Progress, the clock, and the way back out. */}
       <div className="mb-6 space-y-4">
         <div className="flex items-center justify-between gap-4 text-sm font-medium text-muted-foreground">
@@ -254,16 +269,12 @@ export function QuestionRunner({
           </span>
           <span className="flex items-center gap-3">
             {clock}
-            <Button variant="ghost" size="sm" onClick={onQuit}>
-              <X />
-              {mode === 'EXAM' ? 'Leave (saved)' : 'Quit'}
-            </Button>
+
           </span>
         </div>
-        {navigator}
       </div>
 
-      <div key={item.id} className="animate-in fade-in duration-200">
+      <div key={item.id} className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm font-medium text-primary">{TYPE_LABEL[item.type] ?? 'Question'}</p>
           <Button
@@ -271,6 +282,7 @@ export function QuestionRunner({
             size="sm"
             aria-pressed={flags.has(item.id)}
             onClick={toggleFlag}
+            disabled={busy}
             className={cn(flags.has(item.id) && 'text-orange-600 dark:text-orange-400')}
           >
             <Flag />
@@ -280,13 +292,13 @@ export function QuestionRunner({
         <h2 className="mt-1.5 font-heading text-xl font-bold leading-snug md:text-2xl">{item.question}</h2>
 
         <div className="mt-6">
-          <AnswerWidget item={item} given={given} onChange={set} locked={Boolean(isRevealed)} />
+          <AnswerWidget item={item} given={given} onChange={set} locked={busy || Boolean(isRevealed)} />
         </div>
 
         <div aria-live="polite">{isRevealed && <Verdict item={item} given={given} />}</div>
 
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-6">
-          <Button variant="outline" size="lg" onClick={() => setIndex((i) => i - 1)} disabled={index === 0}>
+          <Button variant="outline" size="lg" onClick={() => setIndex((i) => i - 1)} disabled={busy || index === 0}>
             <ArrowLeft />
             Previous
           </Button>
@@ -304,8 +316,7 @@ export function QuestionRunner({
                 <Check />
               </Button>
             )}
-            {(mode === 'EXAM' || isRevealed) && (
-              <Button size="lg" onClick={advance} disabled={busy}>
+            <Button size="lg" onClick={advance} disabled={busy}>
                 {busy && isLast ? (
                   <>
                     Marking…
@@ -313,7 +324,7 @@ export function QuestionRunner({
                   </>
                 ) : isLast ? (
                   <>
-                    {mode === 'EXAM' ? 'Review & hand in' : 'Finish'}
+                    Review & finish
                     <Flag />
                   </>
                 ) : (
@@ -323,7 +334,6 @@ export function QuestionRunner({
                   </>
                 )}
               </Button>
-            )}
           </div>
         </div>
       </div>

@@ -8,12 +8,8 @@ export function GlobalShortcuts() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Alt + C for Calculator
-      if (e.altKey && e.key.toLowerCase() === "c") {
-        e.preventDefault();
-        router.push("/calculator");
-      }
-      
+      if (document.querySelector('.practice-workspace')) return;
+
       // Alt + F for Focus Mode
       if (e.altKey && e.key.toLowerCase() === "f") {
         e.preventDefault();

@@ -1,5 +1,7 @@
 import Link from 'next/link';
-import { format, differenceInCalendarDays } from 'date-fns';
+import { format } from 'date-fns';
+import { examStatus, examDaysAway, examTimeLabel } from '@/lib/exam-time';
+import { ExamStatusRefresh } from '@/components/ExamStatusRefresh';
 import { GraduationCap } from 'lucide-react';
 
 import { Panel, PanelTitle } from '@/components/ui/panel';
@@ -12,6 +14,8 @@ type ExamEvent = {
   title: string;
   date: Date;
   priority: string;
+  startTime?: string | null;
+  endTime?: string | null;
 };
 
 function daysLabel(days: number): string {
@@ -28,16 +32,18 @@ function daysLabel(days: number): string {
  * `today` is the start of the user's day in their own timezone, passed in by
  * the page so server and client agree on what "in 3 days" means.
  */
-export function ExamCountdown({ events, today }: { events: ExamEvent[]; today: Date }) {
+export function ExamCountdown({ events, timezone }: { events: ExamEvent[]; timezone: string }) {
+  const now = new Date();
   const upcoming = events
-    .map((e) => ({ ...e, days: differenceInCalendarDays(new Date(e.date), today) }))
-    .filter((e) => e.days >= 0)
-    .sort((a, b) => a.days - b.days);
+    .map((e) => ({ ...e, days: examDaysAway(e, timezone, now) }))
+    .filter((e) => examStatus(e, timezone, now) !== 'DONE')
+    .sort((a, b) => a.days - b.days || (a.startTime ?? '').localeCompare(b.startTime ?? ''));
 
   const [next, ...rest] = upcoming;
 
   return (
     <Panel interactive>
+      <ExamStatusRefresh exams={events} timezone={timezone} renderedAt={now.toISOString()} />
       <PanelTitle
         icon={<GraduationCap />}
         action={
@@ -70,14 +76,14 @@ export function ExamCountdown({ events, today }: { events: ExamEvent[]; today: D
             </p>
             <p className="mt-1 flex items-baseline gap-2">
               <span className="font-heading text-5xl font-black tracking-tight tabular-nums">
-                {next.days}
+                {examStatus(next, timezone, now) === 'IN_PROGRESS' ? 'Now' : next.days === 0 ? 'Today' : next.days}
               </span>
               <span className="text-lg font-bold text-muted-foreground">
-                {next.days === 1 ? 'day' : 'days'} left
+                {next.days > 0 ? `${next.days === 1 ? 'day' : 'days'} left` : ''}
               </span>
             </p>
             <p className="mt-1 text-xs font-semibold text-muted-foreground">
-              {format(new Date(next.date), 'EEEE, MMMM do')}
+              {format(new Date(next.date), 'EEEE, MMMM do')} · {examTimeLabel(next)}
             </p>
           </Link>
 

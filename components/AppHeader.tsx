@@ -7,6 +7,7 @@ import {
   Plus,
   Search,
   Settings,
+  UserRound,
   Trophy,
   Zap,
 } from "lucide-react";
@@ -14,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { pageTitle, resolveNav } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { QuickAddForm } from "@/components/QuickAddForm";
 import { HeaderStats } from "@/components/HeaderStats";
@@ -53,7 +55,6 @@ export function AppHeader({
   const parent = match?.leaf ? match.section.name : null;
 
   const name = userProgress?.name || "Student";
-  const initial = name.trim().charAt(0).toUpperCase() || "S";
 
   return (
     <>
@@ -81,7 +82,7 @@ export function AppHeader({
             )}
           >
             <Search className="size-[18px] shrink-0" />
-            <span className="truncate">Search tasks, notes, subjects...</span>
+            <span className="truncate">Search tasks, subjects...</span>
             <kbd className="ml-auto hidden shrink-0 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium md:inline">
               Ctrl K
             </kbd>
@@ -138,7 +139,7 @@ export function AppHeader({
                 aria-label="Account"
                 className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
               >
-                {initial}
+                <ProfileAvatar name={name} url={userProgress?.avatarUrl} className="size-9" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -151,6 +152,7 @@ export function AppHeader({
                 )}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem asChild><Link href="/profile"><UserRound /> Your profile</Link></DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/streak">
                   <Trophy /> Streak and level

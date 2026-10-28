@@ -2,6 +2,7 @@
 
 import { addDays, startOfDay, endOfDay } from 'date-fns';
 
+import { validateExamTimes } from '@/lib/exam-time';
 import { prisma } from '@/lib/prisma';
 import { softDelete } from '@/lib/soft-delete';
 import { getUserId } from '@/lib/auth';
@@ -106,7 +107,15 @@ export async function updateExamDetails(
 
   if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
-  await prisma.examEvent.update({ where: { id: examId }, data });
+  const start = data.startTime === undefined ? exam.startTime : data.startTime;
+  const end = data.endTime === undefined ? exam.endTime : data.endTime;
+  const invalid = validateExamTimes(start, end);
+  if (invalid) return { error: invalid };
+  if (data.date && !Number.isFinite(new Date(data.date).getTime())) return { error: 'Enter a valid exam date.' };
+  await prisma.examEvent.update({ where: { id: examId }, data: {
+    title: data.title, date: data.date, startTime: data.startTime, endTime: data.endTime,
+    room: data.room, kind: data.kind, weight: data.weight, notes: data.notes,
+  } });
   refresh();
   return { success: true };
 }

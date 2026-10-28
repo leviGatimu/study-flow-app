@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { differenceInCalendarDays, format, startOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { Brain, CalendarClock, CheckCircle2, Clock, FolderOpen, History, ListChecks, Target } from 'lucide-react';
 
-import { getEvents, getSubjectStats, getMasteryItems } from '@/lib/actions';
+import { getEvents, getSubjectStats, getMasteryItems, getCurrentUserTimezone } from '@/lib/actions';
 import { getUserId } from '@/lib/auth';
+import { examStatus, examDaysAway, examTimeLabel } from '@/lib/exam-time';
+import { ExamStatusRefresh } from '@/components/ExamStatusRefresh';
 import { isSubjectSimilar } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Page, PageBody } from '@/components/ui/page';
@@ -47,7 +49,7 @@ export default async function ExamsPage({
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
-  const [events, params] = await Promise.all([getEvents(), searchParams]);
+  const [events, params, timezone] = await Promise.all([getEvents(), searchParams, getCurrentUserTimezone()]);
 
   // ?subject= narrows the page to one subject; its page in Subjects links here.
   // An exam not yet linked to a subject is matched on its title, for the
@@ -57,10 +59,10 @@ export default async function ExamsPage({
     ? events.filter((e) => isSubjectSimilar(e.subject?.name ?? e.title, subjectFilter))
     : events;
 
-  const today = startOfDay(new Date());
-  const daysUntil = (e: Exam) => differenceInCalendarDays(startOfDay(new Date(e.date)), today);
-  const upcoming = shown.filter((e) => daysUntil(e) >= 0).sort((a, b) => +new Date(a.date) - +new Date(b.date));
-  const past = shown.filter((e) => daysUntil(e) < 0).sort((a, b) => +new Date(b.date) - +new Date(a.date));
+  const now = new Date();
+  const daysUntil = (e: Exam) => examDaysAway(e, timezone, now);
+  const upcoming = shown.filter((e) => examStatus(e, timezone, now) !== 'DONE').sort((a, b) => +new Date(a.date) - +new Date(b.date) || (a.startTime ?? '').localeCompare(b.startTime ?? ''));
+  const past = shown.filter((e) => examStatus(e, timezone, now) === 'DONE').sort((a, b) => +new Date(b.date) - +new Date(a.date));
 
   const next = upcoming[0] ?? null;
   const nextSubject = next?.subject?.name ?? null;
@@ -71,6 +73,7 @@ export default async function ExamsPage({
 
   return (
     <Page>
+      <ExamStatusRefresh exams={shown} timezone={timezone} renderedAt={now.toISOString()} />
       <PageHeader
         title="Exams"
         description="Every exam coming up, soonest first. Open one to plan its revision and record how it went."
@@ -109,13 +112,13 @@ export default async function ExamsPage({
                     </p>
                   </Link>
                   <p className="text-sm font-medium text-muted-foreground">
-                    {format(new Date(next.date), 'EEEE d MMMM yyyy')}
+                    {format(new Date(next.date), 'EEEE d MMMM yyyy')} · {examTimeLabel(next)}
                     {nextSubject && ` · ${nextSubject}`}
                   </p>
                 </div>
                 <div className="shrink-0 md:text-right">
                   <p className="font-heading text-5xl font-black tracking-tight tabular-nums text-foreground">
-                    {daysUntil(next) === 0 ? 'Today' : daysUntil(next)}
+                    {examStatus(next, timezone, now) === 'IN_PROGRESS' ? 'In progress' : daysUntil(next) === 0 ? 'Today' : daysUntil(next)}
                   </p>
                   {daysUntil(next) > 0 && (
                     <p className="text-sm font-bold text-muted-foreground">
@@ -209,7 +212,7 @@ export default async function ExamsPage({
         )}
 
         {past.length > 0 && (
-          <Section title="Past exams" description="Record a result on any exam that does not have one yet.">
+          <Section title="Done exams" description="Record a result on any exam that does not have one yet.">
             <Panel>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {past.slice(0, 12).map((exam) => (
@@ -218,14 +221,14 @@ export default async function ExamsPage({
                     href={`/exams/${exam.id}`}
                     leading={<History className="size-5 shrink-0 text-muted-foreground" />}
                     title={exam.title}
-                    subtitle={format(new Date(exam.date), 'd MMM yyyy')}
+                    subtitle={`${format(new Date(exam.date), 'd MMM yyyy')} · ${examTimeLabel(exam)}`}
                     trailing={
                       exam.score !== null && exam.maxScore ? (
                         <Pill tone="success">
                           <CheckCircle2 /> {Math.round((exam.score / exam.maxScore) * 100)}%
                         </Pill>
                       ) : (
-                        <Pill>Add result</Pill>
+                        <Pill tone="warning">Done · Pending marks</Pill>
                       )
                     }
                   />
@@ -247,7 +250,7 @@ function ExamRow({ exam, days }: { exam: Exam; days: number }) {
           {exam.title}
         </Link>
       }
-      subtitle={[format(new Date(exam.date), 'EEE d MMM'), exam.subject?.name].filter(Boolean).join(' · ')}
+      subtitle={[format(new Date(exam.date), 'EEE d MMM'), examTimeLabel(exam), exam.subject?.name].filter(Boolean).join(' · ')}
       trailing={
         <>
           <span className="hidden sm:contents">{priorityPill(exam.priority)}</span>

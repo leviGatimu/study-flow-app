@@ -22,6 +22,7 @@ import { randomUUID } from 'node:crypto';
 import { computeWeeklyPerformance, computeDailyPerformance, type WeeklyPerformance } from './grading';
 import { getScheduleState, ensureDefaultClass } from './term';
 import { taskEndsAt } from './task-times';
+import { validateExamTimes } from './exam-time';
 import { validateQuickTask } from './task-input';
 import { isDailySummaryDue } from './daily-summary-time';
 import { holidaysBetween } from './holidays';
@@ -897,6 +898,9 @@ const PROGRESS_WITHOUT_KEYS = {
   id: true,
   userId: true,
   name: true,
+  bio: true,
+  school: true,
+  avatarUrl: true,
   currentStreak: true,
   longestStreak: true,
   lastActiveDate: true,
@@ -1503,19 +1507,28 @@ export async function getSubjectSessions(subject: string) {
 /**
  * Create an exam event
  */
-export async function createEvent(data: { title: string, date: Date, priority: string }) {
+export async function createEvent(data: { title: string, date: Date, priority: string, startTime?: string | null, endTime?: string | null }) {
   const userId = await getUserId();
-  if (!userId) return;
+  if (!userId) throw new Error('Sign in to add an exam.');
+
+  const invalid = validateExamTimes(data.startTime, data.endTime);
+  if (invalid) throw new Error(invalid);
+  if (!data.title.trim() || !Number.isFinite(new Date(data.date).getTime())) throw new Error('Enter an exam title and valid date.');
 
   await prisma.examEvent.create({
     data: {
-      ...data,
+      title: data.title.trim(),
+      priority: data.priority,
+      startTime: data.startTime || null,
+      endTime: data.endTime || null,
       userId,
-      date: startOfDay(data.date),
+      date: new Date(`${data.date.toISOString().slice(0, 10)}T00:00:00Z`),
       ...(await requireTermStamp(userId)),
     }
   });
   revalidatePath('/');
+  revalidatePath('/exams');
+  revalidatePath('/calendar');
 }
 
 /**

@@ -596,6 +596,9 @@ model UserProgress {
   userId            String    @unique
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   name              String    @default("Student") // For personalized greeting
+  bio               String?
+  school            String?
+  avatarUrl         String? // Private normalized photo, served through /uploads
   currentStreak     Int       @default(0)
   longestStreak     Int       @default(0)
   lastActiveDate    DateTime?

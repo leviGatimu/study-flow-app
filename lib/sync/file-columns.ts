@@ -23,6 +23,7 @@
  * compile error.
  */
 export const FILE_COLUMNS: Record<string, string[]> = {
+  userProgress: ['avatarUrl'],
   task: ['proofPdfUrl'],
   resource: ['url'],
   reportCard: ['fileUrl'],

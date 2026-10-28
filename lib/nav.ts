@@ -3,12 +3,10 @@ import {
   BookOpen,
   BrainCircuit,
   Book,
-  Calculator,
   Calendar,
   CalendarClock,
   CheckCircle,
   FileText,
-  FolderKanban,
   FolderOpen,
   GraduationCap,
   Home,
@@ -17,9 +15,8 @@ import {
   MessageSquare,
   Library,
   Settings,
+  UserRound,
   Sparkles,
-  StickyNote,
-  Target,
   Timer,
   Trophy,
   TrendingUp,
@@ -46,7 +43,7 @@ export type NavSection = NavLeaf & {
  *   Schedule  when things happen - the week, the month, and the two recurring
  *             timetables (study routine, school lessons) that fill them
  *   Subjects  what you study - each subject, and its homework, exams, files
- *   Study     doing the work - practice sets, focus sessions, notes, projects
+ *   Study     doing the work - practice sets, focus sessions, and AI help
  *   Progress  how it is going - history (with its overview), marks (with goals), reports
  *   Settings  the account, and the academic year it is organised by
  *
@@ -104,9 +101,6 @@ export const NAV: NavSection[] = [
         keywords: "ai study quiz flashcards mock exam generate questions pdf word document revision test me",
       },
       { name: "Focus", href: "/focus", icon: Timer, keywords: "focus mode timer pomodoro concentrate music" },
-      { name: "Notes", href: "/notes", icon: StickyNote, keywords: "sticky notes scratch reminders" },
-      { name: "Projects", href: "/projects", icon: FolderKanban, keywords: "coursework docs" },
-      { name: "Calculator", href: "/calculator", icon: Calculator, keywords: "maths compute" },
       { name: "Bible", href: "/bible", icon: Book, keywords: "verse scripture" },
     ],
   },
@@ -126,6 +120,7 @@ export const NAV: NavSection[] = [
     href: "/settings",
     icon: Settings,
     children: [
+      { name: "Profile", href: "/profile", icon: UserRound, keywords: "account name photo avatar biography school" },
       { name: "Settings", href: "/settings", icon: Settings, keywords: "preferences account timezone ai keys sync" },
       { name: "Year & terms", href: "/year", icon: CalendarClock, keywords: "class term semester pause archive academic year" },
     ],

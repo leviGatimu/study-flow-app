@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, PasswordField, SettingRow, SettingsPanel, reportError, type SettingsData } from "./settings-ui";
 
-export function ProfileSettings({ data }: { data: SettingsData }) {
+export function ProfileSettings({ data, showDetails = true }: { data: SettingsData; showDetails?: boolean }) {
   const router = useRouter();
   const savedName = data.progress?.name ?? "";
   const [name, setName] = useState(savedName);
@@ -62,7 +62,7 @@ export function ProfileSettings({ data }: { data: SettingsData }) {
 
   return (
     <div className="space-y-6">
-      <SettingsPanel
+      {showDetails && <SettingsPanel
         title="Your details"
         icon={<User />}
         description={`Signed in as ${data.username} since ${format(new Date(data.createdAt), "d MMMM yyyy")}. Your username is how you log in and cannot be changed.`}
@@ -88,7 +88,8 @@ export function ProfileSettings({ data }: { data: SettingsData }) {
             {savingName ? "Saving…" : "Save name"}
           </Button>
         </form>
-      </SettingsPanel>
+        <Button asChild variant="link" className="mt-3 px-0"><Link href="/profile">Edit your full profile and photo</Link></Button>
+      </SettingsPanel>}
 
       <SettingsPanel
         title="Password"

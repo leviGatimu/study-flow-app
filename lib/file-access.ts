@@ -19,7 +19,8 @@ export async function ownsUpload(userId: string, name: string): Promise<boolean>
 
   // The soft-delete extension hides tombstoned rows, so a deleted record no
   // longer grants access to its file.
-  const [task, homework, resource, song] = await Promise.all([
+  const [profile, task, homework, resource, song] = await Promise.all([
+    prisma.userProgress.count({ where: { userId, avatarUrl: { endsWith: tail } } }),
     prisma.task.count({ where: { userId, proofPdfUrl: { endsWith: tail } } }),
     prisma.homework.count({ where: { userId, proofUrl: { endsWith: tail } } }),
     prisma.resource.count({ where: { userId, url: { endsWith: tail } } }),
@@ -27,7 +28,7 @@ export async function ownsUpload(userId: string, name: string): Promise<boolean>
       where: { userId, OR: [{ audioUrl: { endsWith: tail } }, { coverUrl: { endsWith: tail } }] },
     }),
   ]);
-  return task + homework + resource + song > 0;
+  return task + homework + resource + song + profile > 0;
 }
 
 /**

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
-import { format, differenceInCalendarDays, startOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import {
   BarChart3,
   Brain,
@@ -15,7 +15,10 @@ import {
   XCircle,
 } from 'lucide-react';
 
-import { getEventById, getSubjectStats, getMasteryItems, getSubjectSessions } from '@/lib/actions';
+import { getCurrentUserTimezone, getEventById, getSubjectStats, getMasteryItems, getSubjectSessions } from '@/lib/actions';
+import { examStatus, examDaysAway, examTimeLabel } from '@/lib/exam-time';
+import { ExamStatusRefresh } from '@/components/ExamStatusRefresh';
+import { ExamTimingForm } from '@/components/ExamTimingForm';
 import { getExamWithPrep } from '@/lib/exam-actions';
 import { getUserId } from '@/lib/auth';
 import { MasteryItem } from '@/lib/types';
@@ -57,10 +60,12 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
     getExamWithPrep(examId),
   ]);
 
-  const today = startOfDay(new Date());
-  const examDate = startOfDay(new Date(exam.date));
-  const daysRemaining = differenceInCalendarDays(examDate, today);
-  const isPast = daysRemaining < 0;
+  const timezone = await getCurrentUserTimezone();
+  const now = new Date();
+  const examDate = new Date(exam.date);
+  const daysRemaining = examDaysAway(exam, timezone, now);
+  const status = examStatus(exam, timezone, now);
+  const isPast = status === 'DONE';
 
   const completionRate = stats?.completionRate ?? 0;
   const topicsTotal = masteryItems.length;
@@ -69,18 +74,19 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 
   return (
     <Page>
+      <ExamStatusRefresh exams={[exam]} timezone={timezone} renderedAt={now.toISOString()} />
       <PageHeader
         back={{ href: "/exams", label: "All exams" }}
         title={exam.title}
         highlight={
           isPast
-            ? { label: "Exam", value: "Finished" }
+            ? { label: "Done", value: exam.score !== null && exam.maxScore ? "Result recorded" : "Pending marks" }
             : {
                 label: "Time left",
-                value: daysRemaining === 0 ? "Today" : `${daysRemaining} ${daysRemaining === 1 ? "day" : "days"}`,
+                value: status === "IN_PROGRESS" ? "In progress" : daysRemaining === 0 ? "Today" : `${daysRemaining} ${daysRemaining === 1 ? "day" : "days"}`,
               }
         }
-        description={[format(examDate, 'EEEE d MMMM yyyy'), subject].filter(Boolean).join(' · ')}
+        description={[format(examDate, 'EEEE d MMMM yyyy'), examTimeLabel(exam), subject].filter(Boolean).join(' · ')}
         meta={
           exam.priority === 'HIGH' ? (
             <Pill tone="danger">High priority</Pill>
@@ -119,6 +125,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
       <PageBody>
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
           <div className="min-w-0 space-y-6 lg:col-span-7">
+            <ExamTimingForm exam={exam} timezone={timezone} />
             {prep && (
               <ExamPlanner
                 examId={examId}
@@ -179,11 +186,13 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
               <PanelTitle icon={<Target />}>{isPast ? 'This exam' : 'Countdown'}</PanelTitle>
               <div className="grid grid-cols-2 gap-4">
                 <Stat
-                  label={isPast ? 'Sat' : 'Time left'}
+                  label={isPast ? 'Exam' : 'Status'}
                   value={
                     isPast
-                      ? `${-daysRemaining}d ago`
-                      : daysRemaining === 0
+                      ? 'Done'
+                      : status === 'IN_PROGRESS'
+                        ? 'In progress'
+                        : daysRemaining === 0
                         ? 'Today'
                         : `${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'}`
                   }

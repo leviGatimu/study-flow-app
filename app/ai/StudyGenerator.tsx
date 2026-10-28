@@ -54,6 +54,7 @@ import { ListRow, Pill } from '@/components/ui/list-row';
 import { Stat } from '@/components/ui/stat';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { cn } from '@/lib/utils';
+import { createRunSaveQueue } from '@/lib/run-save-queue';
 import { formatAnswer } from '@/lib/marking';
 import type { RunDraft, RunSnapshot } from '@/lib/run-draft';
 import { readStudyDocument, type StudyDocument } from '@/lib/file-extract';
@@ -72,6 +73,7 @@ import {
   type StudySetSummary,
   type StudyStyle,
 } from '@/lib/study-actions';
+import { PracticeWorkspace, type SaveStatus } from './PracticeWorkspace';
 import { QuestionRunner, type RunnerMode } from './QuestionRunner';
 import { FlashcardRunner } from './FlashcardRunner';
 
@@ -137,6 +139,7 @@ export function StudyGenerator({
   const [runKey, setRunKey] = useState(0);
   const [configSubject, setConfigSubject] = useState<string | null>(initialSubject);
   const [busy, setBusy] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
 
   const openSet = useCallback(
     async (setId: string) => {
@@ -171,37 +174,26 @@ export function StudyGenerator({
 
   // Autosave. Debounced so typing does not send a request per keystroke, and
   // flushed when the run ends or the tab is hidden, so leaving loses nothing.
-  const pendingSave = useRef<{ setId: string; mode: RunnerMode; snapshot: RunSnapshot } | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const saveWarned = useRef(false);
+  const [saveQueue] = useState(() => createRunSaveQueue<{
+    setId: string; mode: RunnerMode; snapshot: RunSnapshot;
+  }>(async (pending) => {
+    const res = await saveStudyRun(pending.setId, pending.mode, pending.snapshot);
+    if ('error' in res) throw new Error(res.error);
+  }, setSaveStatus));
 
   const flushSave = useCallback(async () => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = null;
-    const pending = pendingSave.current;
-    pendingSave.current = null;
-    if (!pending) return;
-    try {
-      const res = await saveStudyRun(pending.setId, pending.mode, pending.snapshot);
-      if ('error' in res) throw new Error(res.error);
-      saveWarned.current = false;
-    } catch {
-      // The answers are still on screen; say so once rather than per keystroke.
-      if (!saveWarned.current) toast.error('Your progress could not be saved just now. Keep going - it will retry.');
-      saveWarned.current = true;
-      pendingSave.current = pendingSave.current ?? pending;
-    }
-  }, []);
+    return saveQueue.flush();
+  }, [saveQueue]);
 
-  const queueSave = useCallback(
-    (snapshot: RunSnapshot) => {
-      if (!detail) return;
-      pendingSave.current = { setId: detail.id, mode: runnerMode, snapshot };
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => void flushSave(), 700);
-    },
-    [detail, runnerMode, flushSave]
-  );
+  const queueSave = useCallback((snapshot: RunSnapshot) => {
+    if (!detail) return;
+    saveQueue.queue({ setId: detail.id, mode: runnerMode, snapshot });
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => void flushSave(), 700);
+  }, [detail, runnerMode, flushSave, saveQueue]);
 
   useEffect(() => {
     const onHide = () => {
@@ -224,6 +216,7 @@ export function StudyGenerator({
         return;
       }
       setDraft(res.draft);
+      setSaveStatus('saved');
       setRunnerMode(mode);
       setResult(null);
       setRunKey((k) => k + 1);
@@ -236,17 +229,19 @@ export function StudyGenerator({
   };
 
   const leaveRun = async () => {
-    await flushSave();
+    if (!(await flushSave())) return;
     if (detail) await openSet(detail.id);
     else setStage('set');
   };
 
+  const submitting = useRef(false);
   const finish = async (answers: { id: string; answer: string }[], durationSec: number) => {
-    if (!detail) return;
+    if (!detail || submitting.current) return;
+    submitting.current = true;
+    setBusy(true);
     // Anything typed in the last moments is saved first, so a failed hand-in
     // still leaves the run resumable.
     await flushSave();
-    setBusy(true);
     let res: Awaited<ReturnType<typeof submitAttempt>>;
     try {
       res = await submitAttempt({
@@ -259,12 +254,14 @@ export function StudyGenerator({
       res = { error: 'Could not reach the marker. Your answers are saved - try handing in again.' };
     } finally {
       setBusy(false);
+      submitting.current = false;
     }
 
     if ('error' in res) {
       toast.error(res.error);
       return;
     }
+    saveQueue.clear();
     setDraft(null);
     setResult(res);
     setStage('results');
@@ -323,52 +320,17 @@ export function StudyGenerator({
 
   if (stage === 'running' && detail) {
     return (
-      <Page>
-        <PageHeader
-          title={detail.title}
-          description={
-            runnerMode === 'EXAM'
-              ? 'Mock exam. Timed, and marked only when you hand it in.'
-              : 'Practice. Check each answer as you go.'
-          }
-        />
-        <PageBody>
-          <div className="mx-auto w-full max-w-3xl">
-            <QuestionRunner
-              key={runKey}
-              items={detail.items}
-              mode={runnerMode}
-              initial={draft ?? undefined}
-              onProgress={queueSave}
-              busy={busy}
-              onFinish={finish}
-              onQuit={() => void leaveRun()}
-            />
-          </div>
-        </PageBody>
-      </Page>
+      <PracticeWorkspace title={detail.title} subject={detail.subject} mode={MODE_LABEL[runnerMode]} saveStatus={saveStatus} busy={busy} onLeave={() => void leaveRun()} onRetry={() => void flushSave()}>
+        <QuestionRunner key={runKey} items={detail.items} mode={runnerMode} initial={draft ?? undefined} onProgress={queueSave} busy={busy} onFinish={finish} />
+      </PracticeWorkspace>
     );
   }
 
   if (stage === 'cards' && detail) {
     return (
-      <Page>
-        <PageHeader
-          title={detail.title}
-          description="Flashcards. Show the answer, then grade how well you remembered it."
-        />
-        <PageBody>
-          <div className="mx-auto w-full max-w-2xl">
-            <FlashcardRunner
-              setId={detail.id}
-              cards={detail.cards}
-              onDone={async () => {
-                await openSet(detail.id);
-              }}
-            />
-          </div>
-        </PageBody>
-      </Page>
+      <PracticeWorkspace title={detail.title} subject={detail.subject} mode="Flashcards">
+        <div className="mx-auto max-w-3xl"><FlashcardRunner setId={detail.id} cards={detail.cards} onDone={async () => { await openSet(detail.id); }} /></div>
+      </PracticeWorkspace>
     );
   }
 
