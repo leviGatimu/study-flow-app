@@ -1,6 +1,6 @@
 # Exam timing, practice workspace and profiles
 
-Implemented on `codex/exam-practice-profile`. Production profile migration applied with owner approval on 2026-10-29; desktop 1.0.17 release in preparation.
+Implemented on `codex/exam-practice-profile`. Production profile migration applied with owner approval on 2026-10-29. Desktop [1.0.17](https://github.com/leviGatimu/study-flow-app/releases/tag/v1.0.17) is published as the stable latest release, with the Windows installer and updater metadata. Update through Settings → Desktop app → Check for updates.
 
 ## Behavior
 
