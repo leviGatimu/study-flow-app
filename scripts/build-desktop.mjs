@@ -169,6 +169,13 @@ const MUST_NOT_SHIP = [
   "recovered_source_utf8.tsx",
   "electron_output.txt",
   "history_results.txt",
+  ".agents",
+  ".codex",
+  ".claude",
+  "CLAUDE_FIX_PROMPT_2026-10-05.md",
+  "skills-lock.json",
+  "start-server-hidden.vbs",
+  "start-server.bat",
 ];
 
 /** A standalone server bigger than this means something is nesting again. */
@@ -211,7 +218,7 @@ function pruneStandalone() {
     for (const entry of readdirSync(current, { withFileTypes: true })) {
       const full = join(current, entry.name);
       if (entry.isDirectory()) sweep(full);
-      else if (/^\.env($|\.)|\.(db|zip)$|\.db\.bak/.test(entry.name)) {
+      else if (/^\.env($|\.)|\.(db|zip|log)$|\.db\.bak/.test(entry.name)) {
         rmSync(full, { force: true });
         console.log(`   pruned ${full.slice(standaloneRoot.length + 1)}`);
       }
