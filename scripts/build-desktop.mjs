@@ -64,6 +64,7 @@ const STANDALONE_CLIENT = join(
 );
 
 const skipBuild = process.argv.includes("--no-build");
+const prepareBundleOnly = process.argv.includes("--prepare-bundle");
 
 function step(label) {
   console.log(`\n── ${label}`);
@@ -247,6 +248,42 @@ function pruneStandalone() {
   }
 }
 
+/** NFT traces Sharp's .node entry but omits the adjacent Windows libvips DLLs. */
+function prepareImageRuntime() {
+  if (process.platform !== "win32" || process.arch !== "x64") return;
+  const name = "@img/sharp-win32-x64";
+  const source = join(root, "node_modules", name);
+  const destination = join(root, ".next/standalone/node_modules", name);
+  if (!existsSync(join(source, "lib/libvips-42.dll"))) {
+    throw new Error("Sharp's Windows image runtime is missing. Run npm ci with optional dependencies.");
+  }
+  cpSync(source, destination, { recursive: true });
+  console.log("   copied complete Sharp Windows runtime, including libvips DLLs");
+}
+
+function verifyImageRuntime() {
+  const result = spawnSync(process.execPath, ["-e", `
+    const sharp = require('./node_modules/sharp');
+    sharp({ create: { width: 2, height: 2, channels: 3, background: '#456789' } })
+      .webp().toBuffer()
+      .then(bytes => { if (!bytes.length) throw new Error('Empty image'); console.log('   verified: bundled image encoding'); })
+      .catch(error => { console.error(error); process.exitCode = 1; });
+  `], { cwd: join(root, ".next/standalone"), stdio: "inherit" });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error("Bundled Sharp runtime cannot encode a profile photo.");
+}
+
+// Recheck an already compiled bundle without regenerating its application code.
+if (prepareBundleOnly) {
+  assertProvider(STANDALONE_CLIENT, "sqlite", "compiled desktop bundle");
+  assertProvider(DESKTOP_SNAPSHOT, "sqlite", "packaging snapshot");
+  prepareImageRuntime();
+  pruneStandalone();
+  verifyImageRuntime();
+  console.log("Desktop bundle verified and ready for packaging.");
+  process.exit(0);
+}
+
 let failure = null;
 
 try {
@@ -281,9 +318,11 @@ try {
     step("3/4  next build");
     run("npx --no-install next build");
     removeOrphanedEngines(STANDALONE_CLIENT);
+    prepareImageRuntime();
 
     console.log("\n   pruning what must never ship");
     pruneStandalone();
+    verifyImageRuntime();
   }
 } catch (error) {
   failure = error;
