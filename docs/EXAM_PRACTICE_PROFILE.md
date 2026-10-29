@@ -24,7 +24,7 @@ ALTER TABLE "UserProgress" ADD COLUMN "avatarUrl" TEXT;
 
 Files: `prisma/migrations/20261028000000_profile/migration.sql` and its `migrations-sqlite` twin. All fields are nullable; existing data is untouched. PostgreSQL has an explicit destructive `down.sql` for manual use only. SQLite rollback deliberately keeps these additive nullable columns: downgrade the application rather than rebuilding the table or discarding profile data.
 
-Deploy the migration before any web build that reads the new columns. Desktop upgrades apply the SQLite migration through the existing launcher. Restore the PostgreSQL Prisma client for a web build; the isolated preview worktree currently uses its own SQLite client and fixture-only `.env.local`.
+Deploy the migration before any web build that reads the new columns. Desktop upgrades apply the SQLite migration through the existing migration runner. The build script snapshots the SQLite client for packaging and restores the PostgreSQL client for web development. Preview fixtures and logs are kept outside the application bundle.
 
 ## Verification
 
@@ -33,6 +33,9 @@ Deploy the migration before any web build that reads the new columns. Desktop up
 - Real Next server with an isolated SQLite fixture: profile edit and photo upload; photo access owner 200, other user 404, signed out 401; retired route redirects; exam and practice pages HTTP 200.
 - Browser: answer, flag, jump, save/exit, reload/resume, fullscreen, review/hand-in and a saved 67% result; profile edits and synthetic photo in the header; 390px mobile and desktop layouts; light/dark themes; exam automatically changed from In progress to Done / Pending marks at its scheduled end.
 - Screenshots: `docs/screenshots/2026-10-28/`. Fixtures contain synthetic data only.
-- Production build, live AI-provider marking, actual two-device photo transfer and production storage upload were not run. Machine memory headroom was approximately 1.2 GB, so a production build was deferred. No production data was accessed or changed for verification.
+- Production desktop build passed. The installer includes Sharp's complete Windows image runtime and verifies image encoding before packaging.
+- Packaged 1.0.16 database upgrade: existing users, profile XP, classes, terms, subjects, exams, tasks and practice sets preserved; new migrations applied; SQLite integrity and foreign keys pass. Packaged profile, exams, practice and Ask pages return 200; saved practice resumes; native image encoding and private-photo access pass.
+- Both Vercel deployments succeeded. A read-only production sync request verified support for the new profile fields. The approved production migration preserved all 11 profiles and existing field values, and retained row-level security.
+- Live AI-provider marking, actual two-device photo transfer and production storage upload were not exercised.
 
 Re-run: `npm run test:sync:setup`, then `node --test --test-concurrency=2 "test/*.test.mjs" "test/sync/*.test.mjs"`. Type check: `npx tsc -p tsconfig.check.json --noEmit --incremental false`.
