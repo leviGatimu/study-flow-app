@@ -1,6 +1,6 @@
 {
   "name": "study-tracker-desktop",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "main": "main.js",
   "description": "Desktop wrapper for Study Tracker",
   "author": "User",
