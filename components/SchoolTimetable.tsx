@@ -15,14 +15,13 @@ import { useState, useEffect, useTransition } from 'react';
 import {
   Zap,
   School,
-  Coffee,
   Plus,
   Pencil,
   Trash2,
   Upload,
 } from 'lucide-react';
 import { startOfWeek, addDays, isSameDay } from 'date-fns';
-import { cn, getZonedNow } from '@/lib/utils';
+import { getZonedNow } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,9 +29,7 @@ import { Label } from '@/components/ui/label';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { PageBody } from '@/components/ui/page';
-import { Panel } from '@/components/ui/panel';
-import { DayBlock, DayColumns } from '@/components/DayColumns';
-import { Pill } from '@/components/ui/list-row';
+import { ScheduleBoard } from '@/components/ScheduleBoard';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { useTimetableSync } from '@/components/useTimetableSync';
 import { UploadSchoolTimetableDialog } from '@/components/UploadSchoolTimetableDialog';
@@ -68,6 +65,8 @@ import {
   deleteSchoolLesson,
   type SchoolLessonInput,
 } from '@/lib/school-actions';
+import { addSubject } from '@/lib/subject-actions';
+import { canonicalSubject, normalizeSubject } from '@/lib/subject-match';
 
 /** Monday through Sunday, as dayOfWeek values. */
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
@@ -75,19 +74,25 @@ const WEEK = [1, 2, 3, 4, 5, 6, 0];
 
 export function SchoolTimetable({
   lessons,
+  subjects,
   canEdit,
   timezone,
   yearLabel,
+  initialNow,
 }: {
   lessons: SchoolLesson[];
+  /** This year's subjects; lessons are picked from these so names stay consistent. */
+  subjects: string[];
   /** False while a finished year is open - an archive is a record, not a workspace. */
   canEdit: boolean;
   /** The user's own timezone, so "now" is their school day and not the server's. */
   timezone: string;
   /** The academic year these lessons belong to, for the description. */
   yearLabel: string | null;
+  /** Local wall time without a UTC suffix, shared by SSR and hydration. */
+  initialNow: string;
 }) {
-  const [now, setNow] = useState(() => getZonedNow(timezone));
+  const [now, setNow] = useState(() => new Date(initialNow));
   const [isTimetableSynced, setIsTimetableSynced] = useTimetableSync();
   const [editing, setEditing] = useState<SchoolLesson | 'new' | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -97,7 +102,7 @@ export function SchoolTimetable({
   // The day a new lesson defaults to: today, unless today has no lessons -
   // then the first day that does.
   const [activeDay] = useState(() => {
-    const today = getZonedNow(timezone).getDay();
+    const today = new Date(initialNow).getDay();
     if (lessons.some((l) => l.dayOfWeek === today)) return today;
     return WEEK.find((day) => lessons.some((l) => l.dayOfWeek === day)) ?? 1;
   });
@@ -131,13 +136,14 @@ export function SchoolTimetable({
   const header = (
     <div data-tour="school-timetable-intro">
       <PageHeader
+        className="pt-7 pb-5 [&_h1]:text-3xl [&_h1]:font-semibold"
         title="School lessons"
         description={
           yearLabel
-            ? `The lessons you attend in ${yearLabel}. Upload a photo of your timetable and it is read for you - then fix anything that came out wrong.`
-            : 'The lessons you attend. Upload a photo of your timetable and it is read for you - then fix anything that came out wrong.'
+            ? `The lessons you attend in ${yearLabel}. Upload your timetable or add lessons by hand.`
+            : 'The lessons you attend. Upload your timetable or add lessons by hand.'
         }
-        highlight={hasLessons ? { label: 'Each week', value: `${attended} ${attended === 1 ? 'lesson' : 'lessons'}` } : undefined}
+        meta={hasLessons ? `${attended} ${attended === 1 ? 'lesson' : 'lessons'} each week` : undefined}
         actions={
           canEdit ? (
             hasLessons ? (
@@ -167,6 +173,7 @@ export function SchoolTimetable({
           key={editing === 'new' ? 'new' : editing.id}
           lesson={editing === 'new' ? null : editing}
           defaultDay={activeDay}
+          subjects={subjects}
           onClose={() => setEditing(null)}
         />
       )}
@@ -220,72 +227,10 @@ export function SchoolTimetable({
   const current = isTimetableSynced ? lessonAt(lessons, todayDow, nowMinutes) : null;
   const next = nextLessonAfter(lessons, todayDow, nowMinutes);
   const todayBounds = schoolDayBounds(lessons, todayDow);
-  const lessonRow = (lesson: SchoolLesson) => {
-    const start = toMinutes(lesson.startTime);
-    const end = toMinutes(lesson.endTime);
-    const isToday = lesson.dayOfWeek === todayDow;
-    const isActive = isTimetableSynced && isToday && nowMinutes >= start && nowMinutes < end;
-    const isPast = isToday && nowMinutes >= end;
-    const actions = canEdit && (
-      <div className="flex shrink-0 items-center gap-0.5">
-        <Button variant="ghost" size="icon" aria-label={`Edit ${lesson.subject}`} onClick={() => setEditing(lesson)}>
-          <Pencil />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground hover:text-destructive"
-          aria-label={`Delete ${lesson.subject}`}
-          disabled={pending}
-          onClick={() => setRemoving(lesson)}
-        >
-          <Trash2 />
-        </Button>
-      </div>
-    );
-
-    // A break is a pause in the day, not an item in it: a thin divider row.
-    if (lesson.isBreak) {
-      return (
-        <li key={lesson.id} className={cn('flex items-center gap-2 px-1', isPast && 'opacity-50')}>
-          <span className="h-px flex-1 bg-border" />
-          <span className="flex min-w-0 items-center gap-1 text-xs font-semibold text-muted-foreground">
-            <Coffee className="size-3.5 shrink-0" />
-            <span className="truncate">{lesson.subject} · {lesson.startTime} · {formatDuration(end - start)}</span>
-          </span>
-          <span className="h-px flex-1 bg-border" />
-          <span className="[&_button]:size-7 [&_svg]:size-3.5">{actions}</span>
-        </li>
-      );
-    }
-
-    return (
-      <DayBlock
-        key={lesson.id}
-        accent="school"
-        state={isActive ? 'active' : 'open'}
-        className={cn(isPast && 'opacity-60')}
-        time={`${lesson.startTime} – ${lesson.endTime}`}
-        title={lesson.subject}
-        titleClassName={cn(isPast && 'line-through decoration-muted-foreground/50')}
-        meta={
-          isActive ? (
-            <Pill tone="primary">
-              <Zap /> {timeLeft(lesson.endTime)}
-            </Pill>
-          ) : (
-            <span className="tabular-nums">{formatDuration(end - start)}</span>
-          )
-        }
-        actions={actions}
-      />
-    );
-  };
-
   return (
     <>
       {header}
-      <PageBody>
+      <PageBody className="space-y-6 pt-6">
         <NowCard
           current={current}
           next={next}
@@ -295,13 +240,13 @@ export function SchoolTimetable({
           timeLeft={timeLeft}
         />
 
-        <label className="flex cursor-pointer flex-col gap-2 rounded-2xl border border-border/60 bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <label className="flex cursor-pointer items-center justify-between gap-4 border-b border-border/60 pb-5">
           <span className="flex items-center gap-2">
             <Zap className="size-4 shrink-0 text-primary" />
             <span>
               <span className="block text-sm font-semibold text-foreground">Follow my school day</span>
               <span id="lesson-tracking-help" className="block text-xs text-muted-foreground">
-                The lesson happening now is highlighted here and on your dashboard, with a countdown to the bell.
+                Highlight the current lesson and show the time left until the bell.
               </span>
             </span>
           </span>
@@ -312,28 +257,41 @@ export function SchoolTimetable({
           />
         </label>
 
-        <DayColumns
-          label="School week, Monday to Sunday"
+        <ScheduleBoard
+          title="Your school week"
+          description="Select a lesson or break for details and editing"
+          emptyLabel="No lessons"
+          schoolWeek
+          nowMinutes={isTimetableSynced ? nowMinutes : undefined}
           days={WEEK.map((day) => {
             const dayLessons = lessonsOn(lessons, day);
-            const count = dayLessons.filter((l) => !l.isBreak).length;
+            const count = dayLessons.filter((lesson) => !lesson.isBreak).length;
             const bounds = schoolDayBounds(lessons, day);
             return {
               key: String(day),
               title: DAY_NAMES[day],
-              subtitle: bounds ? `${bounds.start} – ${bounds.end}` : undefined,
               isToday: isSameDay(dateOf(day), now),
-              empty: 'No school',
-              summary:
-                count > 0 && bounds
-                  ? {
-                      label: count === 1 ? '1 lesson' : `${count} lessons`,
-                      value: formatDuration(toMinutes(bounds.end) - toMinutes(bounds.start)),
-                    }
-                  : null,
-              items: dayLessons.map(lessonRow),
+              isWeekend: day === 0 || day === 6,
+              summary: count && bounds ? `${count} lessons · ${formatDuration(toMinutes(bounds.end) - toMinutes(bounds.start))}` : 'Day off',
             };
           })}
+          entries={lessons.map((lesson) => ({
+            id: lesson.id,
+            day: String(lesson.dayOfWeek),
+            title: lesson.subject,
+            startTime: lesson.startTime,
+            endTime: lesson.endTime,
+            kind: lesson.isBreak ? 'break' : 'school',
+            state: current?.id === lesson.id ? 'active' : undefined,
+            detail: current?.id === lesson.id ? timeLeft(lesson.endTime) ?? undefined : undefined,
+          }))}
+          renderActions={canEdit ? (entry) => {
+            const lesson = lessons.find((item) => item.id === entry.id);
+            return lesson && <>
+              <Button variant="outline" onClick={() => setEditing(lesson)}><Pencil /> Edit lesson</Button>
+              <Button variant="destructive" disabled={pending} onClick={() => setRemoving(lesson)}><Trash2 /> Remove lesson</Button>
+            </>;
+          } : undefined}
         />
       </PageBody>
       {dialogs}
@@ -349,8 +307,7 @@ function formatDuration(minutes: number): string {
 }
 
 /**
- * What school is doing right now, as the page's hero - the same blue card the
- * dashboard shows while a lesson is on, and a plain panel otherwise.
+ * A compact status strip leaves the timetable as the page's main surface.
  */
 function NowCard({
   current,
@@ -367,61 +324,25 @@ function NowCard({
   tracking: boolean;
   timeLeft: (endTime: string) => string | null;
 }) {
-  if (current) {
-    const start = toMinutes(current.startTime);
-    const end = toMinutes(current.endTime);
-    const pct = Math.min(100, Math.max(0, ((nowMinutes - start) / (end - start)) * 100));
-    return (
-      <div className="rounded-3xl bg-primary p-6 md:p-8 text-primary-foreground shadow-lg shadow-primary/20">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="min-w-0 space-y-2">
-            <p className="text-sm font-bold text-primary-foreground/80">
-              {current.isBreak ? 'On a break' : 'In class now'} · {current.startTime} – {current.endTime}
-            </p>
-            <p className="font-heading text-3xl md:text-4xl font-black tracking-tight break-words">{current.subject}</p>
-            {next && (
-              <p className="text-sm font-medium text-primary-foreground/80">
-                Then {next.subject} at {next.startTime}
-              </p>
-            )}
-          </div>
-          <div className="shrink-0 md:text-right">
-            <p className="text-sm font-bold text-primary-foreground/80">Bell in</p>
-            <p className="font-heading text-4xl font-black tabular-nums">{timeLeft(current.endTime)?.replace(' left', '') ?? '0m'}</p>
-          </div>
-        </div>
-        <div className="mt-6 h-2 overflow-hidden rounded-full bg-primary-foreground/20">
-          <div className="h-full rounded-full bg-primary-foreground transition-[width] duration-700" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
-    );
-  }
-
-  const title = next
-    ? `${next.subject} at ${next.startTime}`
-    : bounds && nowMinutes >= toMinutes(bounds.end)
-      ? "School's out for today"
-      : bounds
-        ? 'School has not started yet'
-        : 'No school today';
-  const label = next ? 'Next lesson' : 'Today';
-  const detail = !tracking
-    ? 'Turn on live tracking to follow each lesson as it happens.'
-    : bounds
-      ? `School today runs ${bounds.start} – ${bounds.end}.`
-      : 'Enjoy the free day.';
-
+  const title = current?.subject ?? (next ? next.subject : bounds && nowMinutes >= toMinutes(bounds.end) ? "School’s out for today" : 'No school today');
+  const label = current ? (current.isBreak ? 'On a break' : 'In class now') : next ? 'Up next' : 'Today';
+  const detail = current
+    ? `${current.startTime} – ${current.endTime}${next ? ` · Next: ${next.subject} at ${next.startTime}` : ''}`
+    : next ? `${next.startTime} – ${next.endTime}` : bounds ? `School day · ${bounds.start} – ${bounds.end}` : 'A little breathing room in your week';
   return (
-    <Panel className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-      <div className="min-w-0">
-        <p className="text-xs font-bold text-muted-foreground">{label}</p>
-        <p className="mt-1 font-heading text-2xl font-bold break-words">{title}</p>
+    <section aria-label="School status" className="flex flex-wrap items-center justify-between gap-5 rounded-xl border border-border bg-card px-5 py-4">
+      <div className="flex min-w-0 items-center gap-4">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><School className="size-5" /></div>
+        <div className="min-w-0">
+          <p className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">{current && <span className="size-1.5 rounded-full bg-primary" />}{label}</p>
+          <p className="text-lg font-semibold leading-snug">{title}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+        </div>
       </div>
-      <p className="text-sm font-medium text-muted-foreground md:text-right">{detail}</p>
-    </Panel>
+      {current ? <div className="ml-14 shrink-0 sm:ml-0 sm:text-right"><p className="text-xl font-medium tabular-nums">{timeLeft(current.endTime)?.replace(' left', '') ?? '0m'}</p><p className="mt-1 text-xs text-muted-foreground">until the bell</p></div> : !tracking && <p className="text-xs text-muted-foreground">Live tracking is off</p>}
+    </section>
   );
 }
-
 /**
  * Add or edit one lesson.
  *
@@ -435,13 +356,17 @@ function NowCard({
  * lint config rejects, and it is the weaker design anyway: state that belongs
  * to one row should not outlive it.
  */
+const NEW_SUBJECT = '__new__';
+
 function LessonDialog({
   lesson,
   defaultDay,
+  subjects,
   onClose,
 }: {
   lesson: SchoolLesson | null;
   defaultDay: number;
+  subjects: string[];
   onClose: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -456,15 +381,39 @@ function LessonDialog({
           subject: lesson.subject,
           isBreak: lesson.isBreak,
         }
-      : { dayOfWeek: defaultDay, startTime: '09:00', endTime: '10:00', subject: '', isBreak: false }
+      : { dayOfWeek: defaultDay, startTime: '09:00', endTime: '10:00', subject: subjects[0] ?? '', isBreak: false }
   );
+  // A lesson saved before this picker existed may name something that is not
+  // in the subject list; keep it selectable rather than silently changing it.
+  const legacy = lesson && !lesson.isBreak && !subjects.some((s) => normalizeSubject(s) === normalizeSubject(lesson.subject)) ? lesson.subject : null;
+  const [choice, setChoice] = useState<string>(() => (form.isBreak ? subjects[0] ?? '' : form.subject) || (subjects.length === 0 ? NEW_SUBJECT : ''));
+  const [newName, setNewName] = useState('');
+  const creating = !form.isBreak && choice === NEW_SUBJECT;
+  const subjectToSave = form.isBreak ? form.subject : creating ? newName : choice;
 
   const submit = () => {
     setError(null);
     startTransition(async () => {
+      let subject = subjectToSave.trim();
+      if (creating && subject) {
+        const existing = canonicalSubject(subject, subjects);
+        if (subjects.includes(existing)) subject = existing;
+        else {
+          try {
+            await addSubject(subject);
+          } catch (e) {
+            // Already a subject (e.g. in another year) is fine; anything else is not.
+            if (!(e instanceof Error && /already exists/i.test(e.message))) {
+              setError(e instanceof Error ? e.message : 'That subject could not be added');
+              return;
+            }
+          }
+        }
+      }
+      const input = { ...form, subject };
       const result = lesson
-        ? await updateSchoolLesson(lesson.id, form)
-        : await createSchoolLesson(form);
+        ? await updateSchoolLesson(lesson.id, input)
+        : await createSchoolLesson(input);
       if (result?.error) setError(result.error);
       else onClose();
     });
@@ -482,13 +431,46 @@ function LessonDialog({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="lesson-subject">Lesson</Label>
-            <Input
-              id="lesson-subject"
-              value={form.subject}
-              placeholder="e.g. Mathematics"
-              onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
-            />
+            <Label htmlFor="lesson-subject">{form.isBreak ? 'Name' : 'Subject'}</Label>
+            {form.isBreak ? (
+              <Input
+                id="lesson-subject"
+                value={form.subject}
+                placeholder="e.g. Lunch"
+                onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+              />
+            ) : (
+              <>
+                <Select value={choice} onValueChange={setChoice}>
+                  <SelectTrigger id="lesson-subject">
+                    <SelectValue placeholder="Choose a subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjects.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                    {legacy && <SelectItem value={legacy}>{legacy} (not in your subjects)</SelectItem>}
+                    <SelectItem value={NEW_SUBJECT}>+ New subject…</SelectItem>
+                  </SelectContent>
+                </Select>
+                {creating && (
+                  <>
+                    <Input
+                      aria-label="New subject name"
+                      value={newName}
+                      placeholder="e.g. Kinyarwanda"
+                      autoFocus
+                      onChange={(e) => setNewName(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {newName.trim() && subjects.includes(canonicalSubject(newName, subjects))
+                        ? `You already have ${canonicalSubject(newName, subjects)}; the lesson will use it.`
+                        : 'It will be added to your subjects too.'}
+                    </p>
+                  </>
+                )}
+              </>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -546,7 +528,7 @@ function LessonDialog({
           <Button variant="ghost" onClick={onClose} disabled={pending}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={pending || !form.subject.trim()}>
+          <Button onClick={submit} disabled={pending || !subjectToSave.trim()}>
             {pending ? 'Saving…' : lesson ? 'Save changes' : 'Add lesson'}
           </Button>
         </DialogFooter>

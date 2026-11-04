@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { motion, useReducedMotion } from "framer-motion";
 import { ShieldCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { NAV, NavSection, resolveNav } from "@/lib/nav";
+import { getRankInfo, getXpForNextLevel } from "@/lib/levels";
 import { SafeUserProgress as UserProgress } from "@/lib/types";
 
 /**
@@ -18,6 +21,10 @@ const ADMIN_SECTION: NavSection = {
   href: "/admin",
   icon: ShieldCheck,
 };
+
+/** Settings sits under a divider, still in the top group (links stay at the top). */
+const MAIN = NAV.filter((s) => s.href !== "/settings");
+const SETTINGS = NAV.filter((s) => s.href === "/settings");
 
 /**
  * Primary navigation: an icon rail that opens on hover (or keyboard focus)
@@ -33,8 +40,8 @@ const ADMIN_SECTION: NavSection = {
  * rather than pushing it, so nothing on the page moves when the pointer
  * crosses the sidebar. Every icon sits in the same fixed 48px slot at every
  * width, so the icons stay perfectly still while the panel opens and only
- * the labels fade in beside them. Pure CSS (group-hover / focus-within): no
- * state, no hydration differences.
+ * the labels fade in beside them. Pure CSS (group-hover / focus-within) for
+ * the opening; the active marker slides between items with framer-motion.
  */
 export function Sidebar({
   userProgress,
@@ -45,60 +52,64 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const activeSection = resolveNav(pathname)?.section;
+  const isActive = (section: NavSection) =>
+    section === ADMIN_SECTION ? (pathname?.startsWith("/admin") ?? false) : activeSection?.name === section.name;
 
   return (
     <aside data-tour="sidebar" className="group/sidebar relative z-40 hidden w-[72px] shrink-0 md:block">
       <div
         className={cn(
-          "absolute inset-y-0 left-0 flex w-[72px] flex-col overflow-hidden border-r border-border bg-sidebar",
+          "absolute inset-y-0 left-0 flex w-[72px] flex-col overflow-hidden border-r border-sidebar-border bg-sidebar",
           "transition-[width,box-shadow] duration-200 ease-out",
-          "group-hover/sidebar:w-60 group-hover/sidebar:shadow-2xl group-hover/sidebar:shadow-black/30",
-          "group-focus-within/sidebar:w-60 group-focus-within/sidebar:shadow-2xl group-focus-within/sidebar:shadow-black/30"
+          "group-hover/sidebar:w-60 group-hover/sidebar:shadow-[8px_0_32px_-8px_rgb(0_0_0/0.45)]",
+          "group-focus-within/sidebar:w-60 group-focus-within/sidebar:shadow-[8px_0_32px_-8px_rgb(0_0_0/0.45)]"
         )}
       >
+        {/* Same height and rule as the app header, so the two read as one bar. */}
         <Link
           href="/"
           aria-label="Study Flow home"
-          className="flex h-16 shrink-0 items-center gap-3 px-[14px] focus-visible:outline-none"
+          className="flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-border px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
         >
-          <img src="/logo.png" alt="" className="size-11 shrink-0 rounded-2xl object-cover" />
-          <Label className="font-heading text-lg font-black tracking-tight text-foreground">Study Flow</Label>
+          <Image
+            src="/logo.png"
+            alt=""
+            width={40}
+            height={40}
+            className="size-10 shrink-0 rounded-xl object-cover shadow-md shadow-black/25 ring-1 ring-foreground/10"
+          />
+          <Label className="min-w-0">
+            <span className="block text-[15px] font-semibold leading-tight tracking-tight text-foreground">Study Flow</span>
+            <span className="block text-[11px] font-medium text-muted-foreground">Study planner</span>
+          </Label>
         </Link>
 
-        <nav aria-label="Primary" className="flex flex-1 flex-col gap-1.5 px-3 pt-4">
-          {NAV.map((section) => (
-            <RailLink
-              key={section.name}
-              section={section}
-              active={activeSection?.name === section.name}
-            />
-          ))}
+        <nav aria-label="Primary" className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-3 py-3">
+          <ul className="flex flex-col gap-1">
+            {MAIN.map((section) => (
+              <li key={section.name}>
+                <RailLink section={section} active={isActive(section)} />
+              </li>
+            ))}
+          </ul>
 
-          {isAdmin && (
-            <>
-              <div className="mx-3 my-2 h-px bg-border" />
-              <RailLink section={ADMIN_SECTION} active={pathname?.startsWith("/admin") ?? false} />
-            </>
-          )}
+          <div aria-hidden className="mx-2 my-3 h-px bg-sidebar-border" />
+
+          <ul className="flex flex-col gap-1">
+            {SETTINGS.map((section) => (
+              <li key={section.name}>
+                <RailLink section={section} active={isActive(section)} />
+              </li>
+            ))}
+            {isAdmin && (
+              <li>
+                <RailLink section={ADMIN_SECTION} active={isActive(ADMIN_SECTION)} />
+              </li>
+            )}
+          </ul>
         </nav>
 
-        {userProgress && (
-          <Link
-            href="/streak"
-            title={`Level ${userProgress.level}`}
-            className="m-3 flex shrink-0 items-center gap-3 rounded-2xl p-1 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          >
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 font-heading text-sm font-black text-primary-foreground shadow-sm">
-              {userProgress.level}
-            </span>
-            <Label className="min-w-0">
-              <span className="block truncate text-sm font-bold text-foreground">Level {userProgress.level}</span>
-              <span className="block truncate text-xs font-medium text-muted-foreground">
-                {userProgress.xp.toLocaleString()} XP
-              </span>
-            </Label>
-          </Link>
-        )}
+        {userProgress && <LevelCard level={userProgress.level} xp={userProgress.xp} />}
       </div>
     </aside>
   );
@@ -109,7 +120,7 @@ function Label({ className, children }: { className?: string; children: React.Re
   return (
     <span
       className={cn(
-        "whitespace-nowrap opacity-0 transition-opacity duration-150",
+        "block whitespace-nowrap opacity-0 transition-opacity duration-150",
         "group-hover/sidebar:opacity-100 group-hover/sidebar:delay-75",
         "group-focus-within/sidebar:opacity-100",
         className
@@ -122,6 +133,7 @@ function Label({ className, children }: { className?: string; children: React.Re
 
 function RailLink({ section, active }: { section: NavSection; active: boolean }) {
   const Icon = section.icon;
+  const reduceMotion = useReducedMotion();
   return (
     <Link
       href={section.href}
@@ -130,21 +142,81 @@ function RailLink({ section, active }: { section: NavSection; active: boolean })
       // Anchor for the onboarding tour: [data-tour="nav-subjects"] etc.
       data-tour={`nav-${section.name.toLowerCase().replace(/\s+/g, "-")}`}
       className={cn(
-        "relative flex h-12 items-center gap-3 rounded-2xl transition-colors",
+        "group/link relative flex h-12 shrink-0 items-center gap-2 rounded-xl transition-colors duration-150",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
         active
-          ? "bg-primary/10 text-primary"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          ? "text-foreground group-hover/sidebar:bg-primary/10"
+          : "text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground"
       )}
     >
-      {/* The active marker: a short bar on the rail's inner edge. */}
+      {/* The active marker: a bar on the rail's inner edge that slides between items. */}
       {active && (
-        <span aria-hidden className="absolute -left-3 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
+        <motion.span
+          layoutId="sidebar-active-marker"
+          aria-hidden
+          transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 42 }}
+          className="absolute -left-3 top-3 h-6 w-[3px] rounded-r-full bg-primary"
+        />
       )}
       <span className="flex size-12 shrink-0 items-center justify-center">
-        <Icon className="size-[22px]" strokeWidth={active ? 2.25 : 2} />
+        <span
+          className={cn(
+            "flex size-10 items-center justify-center rounded-lg transition-all duration-150",
+            active
+              ? "bg-primary text-primary-foreground shadow-[0_6px_16px_-6px_var(--primary),inset_0_1px_0_rgb(255_255_255/0.25)]"
+              : "group-hover/link:bg-foreground/[0.06]"
+          )}
+        >
+          <Icon className="size-[19px]" strokeWidth={active ? 2 : 1.75} />
+        </span>
       </span>
-      <Label className="text-[15px] font-semibold">{section.name}</Label>
+      <Label className={cn("text-sm", active ? "font-semibold" : "font-medium")}>{section.name}</Label>
     </Link>
+  );
+}
+
+/** Level badge with an XP ring; opens into level, rank and XP to go. */
+function LevelCard({ level, xp }: { level: number; xp: number }) {
+  const goal = getXpForNextLevel(level);
+  const ratio = goal > 0 ? Math.min(Math.max(xp / goal, 0), 1) : 0;
+  const rank = getRankInfo(level);
+  const radius = 17;
+  const circumference = 2 * Math.PI * radius;
+
+  return (
+    <div className="shrink-0 border-t border-sidebar-border p-3">
+      <Link
+        href="/streak"
+        aria-label={`Level ${level}, ${xp.toLocaleString()} of ${goal.toLocaleString()} XP`}
+        className="flex h-12 items-center gap-2 rounded-xl transition-colors hover:bg-foreground/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        <span className="relative flex size-12 shrink-0 items-center justify-center">
+          <svg viewBox="0 0 40 40" className="absolute size-10 -rotate-90" aria-hidden>
+            <circle cx="20" cy="20" r={radius} fill="none" strokeWidth="3" className="stroke-foreground/10" />
+            <circle
+              cx="20"
+              cy="20"
+              r={radius}
+              fill="none"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference * (1 - ratio)}
+              className="stroke-primary transition-[stroke-dashoffset] duration-700"
+            />
+          </svg>
+          <span className="text-sm font-bold tabular-nums text-foreground">{level}</span>
+        </span>
+        <Label className="min-w-0 flex-1 pr-3">
+          <span className="flex items-baseline justify-between gap-2">
+            <span className="text-sm font-semibold text-foreground">Level {level}</span>
+            <span className={cn("text-[11px] font-semibold", rank.color)}>{rank.name}</span>
+          </span>
+          <span className="mt-0.5 block text-xs tabular-nums text-muted-foreground">
+            {xp.toLocaleString()} / {goal.toLocaleString()} XP
+          </span>
+        </Label>
+      </Link>
+    </div>
   );
 }

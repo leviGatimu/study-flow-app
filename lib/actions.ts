@@ -16,8 +16,10 @@ import { subjectFolderPath } from '@/lib/library-reconcile';
 import { rm } from 'node:fs/promises';
 import { extname } from 'node:path';
 import bcrypt from 'bcryptjs';
+import { registrationInput } from './registration';
 import { getZonedNow, getTimeZoneOffsetMinutes, DEFAULT_TIMEZONE } from './utils';
-import { grantXp } from './gamification';
+import { grantXp, recomputeXp } from './gamification';
+import { recordFocus, type FocusMeasurement } from './focus-record';
 import { randomUUID } from 'node:crypto';
 import { computeWeeklyPerformance, computeDailyPerformance, type WeeklyPerformance } from './grading';
 import { getScheduleState, ensureDefaultClass } from './term';
@@ -65,8 +67,10 @@ export async function getCurrentUserTimezone(): Promise<string> {
  */
 export async function loginUser(formData: FormData) {
   try {
-    const username = formData.get('username') as string;
-    const password = formData.get('password') as string;
+    const rawUsername = formData.get('username');
+    const rawPassword = formData.get('password');
+    const username = typeof rawUsername === 'string' ? rawUsername.trim() : '';
+    const password = typeof rawPassword === 'string' ? rawPassword : '';
 
     if (!username || !password) return { error: 'Username and password are required' };
 
@@ -78,9 +82,9 @@ export async function loginUser(formData: FormData) {
 
     await login(user.id);
     return { success: true };
-  } catch (error: any) {
-    console.error('Login error:', error);
-    return { error: error.message || 'An unexpected error occurred during login' };
+  } catch {
+    console.error('Login failed');
+    return { error: 'Sign-in is unavailable right now. Please try again.' };
   }
 }
 
@@ -89,23 +93,16 @@ export async function loginUser(formData: FormData) {
  */
 export async function registerUser(formData: FormData) {
   try {
-    const username = formData.get('username') as string;
-    const password = formData.get('password') as string;
-
-    if (!username || !password) return { error: 'Username and password are required' };
+    const input = registrationInput(formData);
+    if ('error' in input) return { error: input.error };
+    const { username, password, profile } = input;
 
     const existing = await prisma.user.findUnique({ where: { username } });
     if (existing) return { error: 'Username already taken' };
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { username, passwordHash }
-    });
-
-    // Create initial progress for new user. New accounts start with a clean
-    // slate — no inherited timetable — so they build their own schedule.
-    await prisma.userProgress.create({
-      data: { userId: user.id, name: username }
+      data: { username, passwordHash, progress: { create: profile } }
     });
 
     // Without a class and an active term the schedule gate below would leave a
@@ -115,9 +112,11 @@ export async function registerUser(formData: FormData) {
     await login(user.id);
     return { success: true };
   } catch (error: unknown) {
-    console.error('Registration error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred during registration';
-    return { error: errorMessage };
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      return { error: 'Username already taken' };
+    }
+    console.error('Registration failed');
+    return { error: 'Your account could not be created. Please try again.' };
   }
 }
 
@@ -2329,34 +2328,15 @@ export async function clearAllTasks() {
 /**
  * Log a focus session completion
  */
-export async function logFocusSession(durationMinutes: number, earnedXp: number) {
+export async function logFocusSession(durationMinutes: number, earnedXp: number, measurement?: FocusMeasurement) {
   const userId = await getUserId();
-  if (!userId) return;
-
-  await prisma.userProgress.upsert({
-    where: { userId },
-    update: {
-      focusSessions: { increment: 1 },
-      totalFocusMinutes: { increment: durationMinutes }
-    },
-    create: {
-      userId,
-      focusSessions: 1,
-      totalFocusMinutes: durationMinutes
-    },
+  if (!userId) throw new Error('Sign in to save your focus session.');
+  await recordFocus(prisma, userId, durationMinutes, earnedXp, measurement ?? {
+    sessionId: randomUUID(), seconds: Math.round(durationMinutes * 60),
   });
-
-  // Grant the exact XP earned during the session. Each completed session is
-  // genuinely a separate event, so the key is minted here rather than derived
-  // - there is no existing row to key on.
-  await grantXp(
-    userId,
-    earnedXp,
-    'FOCUS',
-    `focus:${randomUUID()}`
-  );
-
+  await recomputeXp(userId);
   revalidatePath('/history');
+  if (measurement?.taskId && measurement.taskId !== 'free') revalidatePath(`/history/${measurement.taskId}`);
 }
 
 /**

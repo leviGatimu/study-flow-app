@@ -21,11 +21,15 @@ import { getUserId, userIdFromBearer } from '@/lib/auth';
 import { SYNC_RULES } from '@/lib/sync/identity';
 import { applyRows, scrub, APPLY_ORDER, type SyncRow } from '@/lib/sync/merge';
 import { OWNED_THROUGH, keepOwnedRows } from '@/lib/sync/ownership';
+import { recordDeviceStatus } from '@/lib/sync/device-status';
 import {
   afterCursor,
   CURSOR_ORDER,
   PULL_PAGE_SIZE,
   PUSH_LIMIT,
+  FOCUS_LOG_HEADER,
+  DEVICE_HEADER,
+  focusLogPayload,
   type Cursor,
   type PullResponse,
   type PushRequest,
@@ -116,13 +120,15 @@ export async function GET(request: NextRequest) {
 
   const response: PullResponse = {
     serverTime: new Date().toISOString(),
-    rows: page.map(({ model, row }) => ({ model, data: scrub(model, row, 'down') })),
+    rows: page.map(({ model, row }) => ({ model, data: focusLogPayload(model, scrub(model, row, 'down'), request.headers.get(FOCUS_LOG_HEADER) === '1') })),
     cursor: last
       ? { syncedAt: (last.row.syncedAt as Date).toISOString(), id: String(last.row.id) }
       : cursor,
     hasMore: collected.length > page.length,
   };
-  return NextResponse.json(response);
+  try { await recordDeviceStatus(prisma, userId, request.headers.get(DEVICE_HEADER), { pulled: page.length }); }
+  catch { console.warn('[sync] device status could not be recorded'); }
+  return NextResponse.json(response, { headers: { [FOCUS_LOG_HEADER]: '1' } });
 }
 
 /** Push: the device's local changes, merged into the server. */
@@ -190,7 +196,9 @@ export async function POST(request: NextRequest) {
     remapped: outcome.remapped,
     errors: outcome.errors,
   };
-  return NextResponse.json(response);
+  try { await recordDeviceStatus(prisma, userId, deviceId, { pushed: outcome.applied, error: outcome.errors.length ? `${outcome.errors.length} records could not sync.` : null }); }
+  catch { console.warn('[sync] device status could not be recorded'); }
+  return NextResponse.json(response, { headers: { [FOCUS_LOG_HEADER]: '1' } });
 }
 
 /** "<iso>|<id>", or null. Anything unparseable restarts from the beginning. */

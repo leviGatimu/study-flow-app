@@ -125,10 +125,10 @@ export function StudyGenerator({
   missingSet: boolean;
 }) {
   const router = useRouter();
-  // A returning student wants their sets first (retake, continue); somebody
-  // with nothing yet, or arriving from a subject, wants the generator.
+  // Keep the library and tool navigation visible until the student chooses
+  // to create a set, or follows an explicit subject link into the generator.
   const [stage, setStage] = useState<Stage>(() =>
-    initialDetail ? 'set' : initialSubject || sets.length === 0 ? 'configure' : 'library'
+    initialDetail ? 'set' : initialSubject ? 'configure' : 'library'
   );
   const [doc, setDoc] = useState<StudyDocument | null>(null);
   const [detail, setDetail] = useState<StudySetDetail | null>(initialDetail);
@@ -281,7 +281,7 @@ export function StudyGenerator({
         aiReady={aiReady}
         doc={doc}
         setDoc={setDoc}
-        onBack={sets.length > 0 ? toLibrary : undefined}
+        onBack={toLibrary}
         onGenerating={() => setStage('generating')}
         onDone={async (setId) => {
           setDoc(null);
@@ -366,14 +366,13 @@ export function StudyGenerator({
 function AiKeyNotice() {
   return (
     <Panel>
-      <PanelTitle icon={<KeyRound />}>Add an AI key first</PanelTitle>
+      <PanelTitle icon={<KeyRound />}>New question generation</PanelTitle>
       <p className="text-sm text-muted-foreground">
-        Writing questions is the one thing here that cannot be done on your device. Google&apos;s
-        key is free and takes a minute to set up.
+        Connect an AI provider to generate new questions. Your saved quizzes and flashcards work without one.
       </p>
       <Button asChild variant="outline" className="mt-4">
         <Link href="/settings?tab=ai">
-          Add a key
+          AI settings
           <ChevronRight />
         </Link>
       </Button>
@@ -428,8 +427,10 @@ function LibraryView({
   return (
     <Page>
       <PageHeader
-        title="Practice"
-        description="Turn a chapter or your notes into questions, then answer them one at a time."
+        tour="practice-intro"
+        title="Study"
+        className="pt-7 pb-5 [&_h1]:text-3xl [&_h1]:font-semibold"
+        description="Your quizzes, flashcards and mock exams. Choose what you want to work on."
         actions={
           <Button size="lg" onClick={onNew}>
             <Plus />
@@ -457,7 +458,7 @@ function LibraryView({
                   action={
                     <Button onClick={onNew}>
                       <Upload />
-                      Upload something
+                      Create a practice set
                     </Button>
                   }
                 />
@@ -513,7 +514,6 @@ function LibraryView({
                   <Stat
                     label="Average latest score"
                     value={totals.average !== null ? `${totals.average}%` : '–'}
-                    hint={totals.average === null ? 'Take a set to see one' : undefined}
                     tone={totals.average !== null ? scoreTone(totals.average) : 'default'}
                   />
                   <Stat label="Flashcards" value={totals.cards} />

@@ -1,0 +1,23 @@
+.fill { position:absolute; inset:0; background:color-mix(in oklch,var(--foreground) 75%,transparent); transform-origin:left; animation-name:fill; animation-timing-function:linear; animation-fill-mode:forwards; }
+@keyframes fill { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+
+.float { animation:float 7s ease-in-out infinite; }
+@keyframes float { 0%,100% { translate:0 0; } 50% { translate:0 -6px; } }
+
+.pulse { position:relative; width:6px; height:6px; border-radius:50%; background:currentColor; }
+.pulse::after { content:''; position:absolute; inset:0; border-radius:50%; background:currentColor; animation:ping 1.6s cubic-bezier(0,0,.2,1) infinite; }
+@keyframes ping { 75%,100% { transform:scale(2.6); opacity:0; } }
+
+.halo { position:absolute; inset:12px; border-radius:50%; background:radial-gradient(closest-side,color-mix(in oklch,var(--primary) 30%,transparent),transparent); filter:blur(18px); animation:breathe 4s ease-in-out infinite; }
+@keyframes breathe { 0%,100% { opacity:.5; transform:scale(.95); } 50% { opacity:1; transform:scale(1.08); } }
+
+.current { background:var(--primary); animation:blink 1.2s ease-in-out infinite; }
+@keyframes blink { 50% { opacity:.3; } }
+
+.today { box-shadow:0 0 0 2px var(--card),0 0 0 4px rgb(16 185 129 / .6); animation:glow 2s ease-in-out infinite; }
+@keyframes glow { 50% { box-shadow:0 0 0 2px var(--card),0 0 0 4px rgb(16 185 129 / .15),0 0 18px rgb(16 185 129 / .5); } }
+
+.flicker { animation:flicker 2.4s ease-in-out infinite; transform-origin:bottom center; }
+@keyframes flicker { 0%,100% { transform:scale(1) rotate(0); } 30% { transform:scale(1.08,1.12) rotate(-3deg); } 60% { transform:scale(.96,1.04) rotate(2deg); } }
+
+@media (prefers-reduced-motion:reduce) { .float,.pulse::after,.halo,.current,.today,.flicker { animation:none; } }

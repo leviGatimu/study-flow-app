@@ -13,6 +13,18 @@ export const PULL_PAGE_SIZE = 500;
 /** How many rows a device may push in one request. */
 export const PUSH_LIMIT = 2000;
 
+export const FOCUS_LOG_HEADER = 'x-study-flow-focus-log';
+export const DEVICE_HEADER = 'x-study-flow-device';
+
+/** Older desktop clients cannot write unknown Prisma columns on pull. */
+export function focusLogPayload(model: string, data: Record<string, unknown>, supported: boolean) {
+  if (model !== 'xpEvent' || supported) return data;
+  const legacy = { ...data };
+  delete legacy.focusSeconds;
+  delete legacy.taskId;
+  return legacy;
+}
+
 /**
  * Where a device got to, as the SERVER measures it.
  *

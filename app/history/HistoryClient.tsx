@@ -7,7 +7,7 @@ import {
   CartesianGrid, XAxis, YAxis,
 } from "recharts";
 import {
-  ArrowUpDown, BookOpen, CheckCircle2, ChevronDown, Clock, FileText,
+  ArrowUpDown, BookOpen, CheckCircle2, ChevronRight, Clock,
   History as HistoryIcon, ListChecks, Repeat, Search, Sparkles, Trophy, XCircle,
 } from "lucide-react";
 import { format, subDays, isAfter, startOfDay } from "date-fns";
@@ -86,7 +86,6 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
   const [activeTab, setActiveTab] = useState<TabType>("ALL");
   const [timeRange, setTimeRange] = useState<PeriodType>("ALL");
   const [sortBy, setSortBy] = useState<SortType>("DATE_DESC");
-  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
   // Dates are formatted in the viewer's time zone, which the server cannot
   // know, so the log renders after mount rather than risk a hydration mismatch.
@@ -230,7 +229,7 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
           <EmptyState
             icon={<HistoryIcon />}
             title="Nothing finished yet"
-            description="Tick off a study block on Today and it lands here, with the time you spent and any notes you added."
+            description="Finished study blocks appear here. Open one to see its notes, planned length and recorded focus sessions."
             action={
               <Button asChild>
                 <Link href="/">Go to today</Link>
@@ -242,7 +241,7 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
             <Panel className="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 xl:grid-cols-5">
               <Stat icon={<BookOpen />} tone="primary" label="Homework done" value={stats.homeworks} hint={periodLabel} />
               <Stat icon={<Repeat />} tone="warning" label="Revision done" value={stats.revisions} hint={periodLabel} />
-              <Stat icon={<Clock />} label="Time studied" value={formatMinutes(stats.totalMinutes)} hint="From finished blocks" />
+              <Stat icon={<Clock />} label="Planned time completed" value={formatMinutes(stats.totalMinutes)} hint="Scheduled length of finished blocks" />
               <Stat
                 icon={<CheckCircle2 />}
                 tone="success"
@@ -265,7 +264,7 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
               <Panel className="lg:col-span-5">
-                <PanelTitle icon={<Clock />}>Time by subject</PanelTitle>
+                <PanelTitle icon={<Clock />}>Planned time by subject</PanelTitle>
                 {subjectSplit.length > 0 ? (
                   <>
                     <div className="relative">
@@ -312,14 +311,14 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
               </Panel>
 
               <Panel className="lg:col-span-7">
-                <PanelTitle icon={<Sparkles />}>Daily study time</PanelTitle>
+                <PanelTitle icon={<Sparkles />}>Completed schedule time</PanelTitle>
                 <ChartFrame>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={dailyMinutes} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                       <XAxis dataKey="dateLabel" axisLine={false} tickLine={false} tick={AXIS_TICK} />
                       <YAxis axisLine={false} tickLine={false} tick={AXIS_TICK} unit="m" />
-                      <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value) => [`${value} min`, "Studied"]} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value) => [`${value} min`, "Scheduled minutes"]} />
                       <Area type="monotone" dataKey="minutes" stroke={CHART_PRIMARY} strokeWidth={2.5} fill={CHART_PRIMARY} fillOpacity={0.12} />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -328,7 +327,7 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
                   <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-border/40 pt-4 text-sm text-muted-foreground">
                     {patterns.peak && (
                       <span>
-                        You finish most in the <span className="font-semibold text-foreground">{patterns.peak.toLowerCase()}</span>
+                        Most completed blocks were planned for the <span className="font-semibold text-foreground">{patterns.peak.toLowerCase()}</span>
                       </span>
                     )}
                     {patterns.mostRevised && (
@@ -413,8 +412,6 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
                     <LogRow
                       key={task.id}
                       task={task}
-                      expanded={expandedTaskId === task.id}
-                      onToggle={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
                     />
                   ))}
                 </div>
@@ -427,85 +424,23 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
   );
 }
 
-/**
- * One logged block. The toggle and the delete button are siblings rather than
- * one nested inside the other - a button inside a button is invalid and
- * breaks keyboard and screen-reader use.
- */
-function LogRow({
-  task,
-  expanded,
-  onToggle,
-}: {
-  task: TaskWithTemplate;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
+/** The entry link and delete control remain siblings for keyboard access. */
+function LogRow({ task }: { task: TaskWithTemplate }) {
   const minutes = taskMinutes(task);
-  const panelId = `history-entry-${task.id}`;
-
-  return (
-    <Panel padded={false} className={cn("overflow-hidden", expanded && "border-primary/40")}>
-      <div className="flex items-center gap-2 pr-4">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={expanded}
-          aria-controls={panelId}
-          className="flex min-w-0 flex-1 items-center gap-4 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50 sm:p-5"
-        >
-          <span
-            className={cn(
-              "flex size-10 shrink-0 items-center justify-center rounded-xl border",
-              task.isDone
-                ? "border-success/20 bg-success/10 text-success"
-                : "border-destructive/20 bg-destructive/10 text-destructive"
-            )}
-          >
-            {task.isDone ? <CheckCircle2 className="size-5" aria-label="Done" /> : <XCircle className="size-5" aria-label="Missed" />}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="flex flex-wrap items-center gap-2">
-              <span className="truncate font-bold text-foreground">{task.subject}</span>
-              <Pill
-                tone={task.type === "HOMEWORK" ? "primary" : "warning"}
-                className={cn(task.type === "REVISION" && "border-dashed")}
-              >
-                {task.type === "HOMEWORK" ? "Homework" : "Revision"}
-              </Pill>
-            </span>
-            <span className="mt-0.5 block text-xs font-medium text-muted-foreground">
-              {format(new Date(task.date), "EEE d MMM yyyy")} · {task.startTime} to {task.endTime} · {minutes} min
-            </span>
-          </span>
-          <ChevronDown
-            className={cn("size-4 shrink-0 text-muted-foreground transition-transform", expanded && "rotate-180")}
-            aria-hidden="true"
-          />
-        </button>
-        <DeleteTaskButton taskId={task.id} className="size-9 shrink-0" />
-      </div>
-
-      {expanded && (
-        <div id={panelId} className="space-y-3 border-t border-border/40 bg-muted/20 p-5">
-          <p className="text-xs font-medium text-muted-foreground">What you did</p>
-          {task.workDescription ? (
-            <p className="border-l-2 border-primary pl-4 text-sm leading-relaxed text-foreground">
-              {task.workDescription}
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">No notes were added to this block.</p>
-          )}
-          {task.proofPdfUrl && (
-            <Button asChild variant="outline" size="sm">
-              <a href={task.proofPdfUrl} target="_blank" rel="noreferrer">
-                <FileText />
-                Open attached PDF
-              </a>
-            </Button>
-          )}
-        </div>
-      )}
-    </Panel>
-  );
+  return <Panel padded={false} className="overflow-hidden rounded-xl">
+    <div className="flex items-center gap-2 pr-4">
+      <Link href={`/history/${task.id}`} className="flex min-w-0 flex-1 items-center gap-4 p-4 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:p-5">
+        <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg',task.isDone?'bg-success/10 text-success':'bg-muted text-muted-foreground')}>
+          {task.isDone?<CheckCircle2 className="size-5" aria-label="Completed" />:<XCircle className="size-5" aria-label="Missed" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-2"><span className="break-words font-medium text-foreground">{task.subject}</span><Pill tone={task.type==='HOMEWORK'?'primary':'warning'}>{task.type==='HOMEWORK'?'Homework':'Revision'}</Pill></span>
+          <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{format(new Date(task.date),'EEE d MMM yyyy')} · {task.startTime}–{task.endTime} · {minutes} min planned</span>
+          {task.workDescription&&<span className="mt-2 block truncate text-xs text-muted-foreground">{task.workDescription}</span>}
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      </Link>
+      <DeleteTaskButton taskId={task.id} className="size-11 shrink-0" />
+    </div>
+  </Panel>;
 }

@@ -6,7 +6,7 @@ import {
   AreaChart, Area, LineChart, Line, Legend,
 } from "recharts";
 import {
-  BrainCircuit, CheckCircle, CheckCircle2, Flame, GraduationCap,
+  BrainCircuit, CheckCircle, Flame, GraduationCap,
   Library, Target, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,7 +31,6 @@ export type WeekSnapshot = {
   streakPaused: boolean;
 };
 
-const practiceHref = (subject: string) => `/ai?subject=${encodeURIComponent(subject)}`;
 const subjectHref = (subject: string) => `/subjects?subject=${encodeURIComponent(subject)}`;
 
 function formatMinutes(total: number): string {
@@ -45,11 +44,6 @@ function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
-function attentionTone(score: number): "danger" | "warning" | "default" {
-  if (score >= 60) return "danger";
-  if (score >= 35) return "warning";
-  return "default";
-}
 
 export function InsightsClient({
   data,
@@ -65,13 +59,12 @@ export function InsightsClient({
   week: WeekSnapshot;
 }) {
   const { headline, subjects, gradeTrajectory, quizTrend } = data;
-  const attentionList = subjects.filter((s) => s.attentionScore >= 20).slice(0, 5);
   const goalRows = subjects.filter((s) => s.target != null);
   const graded = goalRows.filter((s) => s.grade != null);
   const onTarget = graded.filter((s) => (s.grade as number) >= (s.target as number)).length;
   const latestAverage = gradeTrajectory.at(-1) ?? null;
   const hasAnyData = subjects.length > 0;
-  const weakest = attentionList[0];
+
 
   return (
     <Page>
@@ -80,7 +73,7 @@ export function InsightsClient({
         description={
           scope === "lifetime"
             ? "Every year you have studied, added together."
-            : `How ${classLabel ?? "this year"} is going, and what to work on next.`
+            : `Your recorded work and results for ${classLabel ?? "this year"}.`
         }
         actions={
           <>
@@ -98,14 +91,6 @@ export function InsightsClient({
                 { value: "lifetime", label: "All time", href: "/history?view=overview&scope=lifetime" },
               ]}
             />
-            {weakest && (
-              <Button asChild size="lg" variant="outline">
-                <Link href={subjectHref(weakest.subject)}>
-                  <Library />
-                  Open {weakest.subject}
-                </Link>
-              </Button>
-            )}
           </>
         }
       />
@@ -176,24 +161,7 @@ export function InsightsClient({
           />
         ) : (
           <>
-            <Section
-              title="Needs your attention"
-              description="Ranked by missed blocks, topic mastery, grade targets and how close the next exam is. Practice scores count only if you use Practice."
-            >
-              {attentionList.length === 0 ? (
-                <EmptyState
-                  icon={<CheckCircle2 />}
-                  title="Every subject is on track"
-                  description="Nothing is falling behind right now."
-                />
-              ) : (
-                <Panel padded={false} className="divide-y divide-border/40">
-                  {attentionList.map((s) => (
-                    <AttentionRow key={s.subject} s={s} />
-                  ))}
-                </Panel>
-              )}
-            </Section>
+
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <Panel>
@@ -247,12 +215,8 @@ export function InsightsClient({
                   <EmptyState
                     icon={<BrainCircuit />}
                     title="No practice attempts yet"
-                    description="Generate a practice set and your scores will chart here."
-                    action={
-                      <Button asChild variant="outline" size="sm">
-                        <Link href="/ai">Open practice</Link>
-                      </Button>
-                    }
+                    description="Scores appear here for practice attempts you choose to complete."
+
                   />
                 )}
               </Panel>
@@ -292,7 +256,7 @@ export function InsightsClient({
 
             <Section title="Every subject" description="Completion, topic mastery and practice average, side by side.">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {subjects.map((s) => (
+                {[...subjects].sort((a, b) => a.subject.localeCompare(b.subject)).map((s) => (
                   <SubjectCard key={s.subject} s={s} />
                 ))}
               </div>
@@ -315,47 +279,6 @@ function HeadlineLink({ href, children }: { href: string; children: React.ReactN
   );
 }
 
-/** One subject that needs work, with the two things you can do about it. */
-function AttentionRow({ s }: { s: SubjectInsight }) {
-  const facts = [
-    s.totalTasks > 0 ? `${s.completionRate}% of blocks done` : null,
-    s.masteryPct != null ? `mastery ${s.masteryPct}%` : null,
-    s.quizAvg != null ? `practice ${s.quizAvg}%` : null,
-    s.grade != null && s.target != null ? `mark ${s.grade}% of ${s.target}% target` : null,
-  ].filter(Boolean);
-
-  return (
-    <div className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0 space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="truncate font-bold text-foreground">{s.subject}</p>
-          <Pill tone={attentionTone(s.attentionScore)}>Attention {s.attentionScore}</Pill>
-          {s.nextExamDays != null && s.nextExamDays <= 14 && (
-            <Pill tone="danger">
-              Exam {s.nextExamDays === 0 ? "today" : `in ${plural(s.nextExamDays, "day")}`}
-            </Pill>
-          )}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {s.reason.charAt(0).toUpperCase() + s.reason.slice(1)}
-          {facts.length > 0 && <> · {facts.join(" · ")}</>}
-        </p>
-      </div>
-      <div className="flex shrink-0 gap-2">
-        <Button asChild size="sm">
-          <Link href={subjectHref(s.subject)}>Open subject</Link>
-        </Button>
-        <Button asChild size="sm" variant="ghost">
-          <Link href={practiceHref(s.subject)}>
-            <BrainCircuit />
-            Practice
-          </Link>
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function SubjectCard({ s }: { s: SubjectInsight }) {
   return (
     <Panel>
@@ -371,7 +294,7 @@ function SubjectCard({ s }: { s: SubjectInsight }) {
       <div className="space-y-4">
         <Meter label="Blocks done" value={s.totalTasks > 0 ? s.completionRate : null} barClass="bg-success" />
         <Meter label="Topic mastery" value={s.masteryPct} barClass="bg-primary" />
-        <Meter label="Practice average" value={s.quizAvg} barClass="bg-orange-500" />
+        {s.quizAvg != null && <Meter label="Practice average" value={s.quizAvg} barClass="bg-orange-500" />}
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-border/40 pt-4 text-xs font-medium text-muted-foreground">
         <span>{formatMinutes(s.minutes)} studied</span>

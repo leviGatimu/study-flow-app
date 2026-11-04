@@ -8,6 +8,7 @@ import { Page, PageBody } from '@/components/ui/page';
 import { PageHeader } from '@/components/ui/page-header';
 import { ErrorState } from '@/components/ui/error-state';
 import { AskClient } from './AskClient';
+import { SectionNav } from '@/components/SectionNav';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -54,6 +55,8 @@ export default async function AskPage({ searchParams }: { searchParams: Promise<
 
   return (
     <Page bleed>
+      <div className="shrink-0 border-b border-border px-4 pb-3 pt-1 md:px-6"><SectionNav /></div>
+      <div className="min-h-0 flex-1">
       {/* Keyed so opening another chat starts from that chat's own state. */}
       <AskClient
         key={data.activeSessionId ?? 'new'}
@@ -64,6 +67,7 @@ export default async function AskPage({ searchParams }: { searchParams: Promise<
         panel={data.panel}
         missingSession={Boolean(sessionId) && !data.activeSessionId}
       />
+      </div>
     </Page>
   );
 }

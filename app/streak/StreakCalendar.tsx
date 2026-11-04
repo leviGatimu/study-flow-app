@@ -1,98 +1,47 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
-import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  eachDayOfInterval,
-  isSameDay,
-  addMonths,
-  subMonths,
-} from 'date-fns';
+import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { addDays, addMonths, format, isSameMonth, startOfMonth, startOfWeek, subMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Panel, PanelTitle } from '@/components/ui/panel';
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-/**
- * A month of study days. `activeDays` are "yyyy-MM-dd" keys computed on the
- * server, so a day is active by its calendar date, not by a timestamp that
- * shifts with the browser's time zone.
- */
-export function StreakCalendar({ activeDays }: { activeDays: string[] }) {
-  const [currentMonth, setCurrentMonth] = useState(() => new Date());
-
+/** Calendar keys and the initial local date come from one server snapshot. */
+export function StreakCalendar({ activeDays, today }: { activeDays: string[]; today: string }) {
+  const [currentMonth, setCurrentMonth] = useState(() => new Date(`${today}T12:00:00`));
   const active = new Set(activeDays);
-  const today = new Date();
   const monthStart = startOfMonth(currentMonth);
-  const calendarDays = eachDayOfInterval({ start: monthStart, end: endOfMonth(currentMonth) });
-  const activeThisMonth = calendarDays.filter((d) => active.has(format(d, 'yyyy-MM-dd'))).length;
+  const first = startOfWeek(monthStart, { weekStartsOn: 1 });
+  const dates = Array.from({ length: 42 }, (_, index) => addDays(first, index));
+  const prefix = format(currentMonth, 'yyyy-MM');
+  const count = activeDays.filter((key) => key.startsWith(prefix)).length;
 
-  return (
-    <Panel className="h-full">
-      <PanelTitle
-        icon={<Calendar />}
-        action={
-          <>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
-              aria-label="Previous month"
-            >
-              <ChevronLeft />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
-              aria-label="Next month"
-            >
-              <ChevronRight />
-            </Button>
-          </>
-        }
-      >
-        {format(currentMonth, 'MMMM yyyy')}
-      </PanelTitle>
-
-      <p className="mb-4 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        <span className="size-2 rounded-full bg-orange-500" aria-hidden="true" />
-        {activeThisMonth === 0 ? 'No study days this month' : `Studied on ${activeThisMonth} ${activeThisMonth === 1 ? 'day' : 'days'} this month`}
-      </p>
-
-      <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-        {WEEKDAYS.map((day) => (
-          <div key={day} className="pb-1 text-center text-xs font-medium text-muted-foreground">
-            {day}
-          </div>
-        ))}
-
-        {Array.from({ length: monthStart.getDay() }).map((_, i) => (
-          <div key={`pad-${i}`} />
-        ))}
-
-        {calendarDays.map((date) => {
-          const isActive = active.has(format(date, 'yyyy-MM-dd'));
-          const isToday = isSameDay(date, today);
-          return (
-            <div
-              key={date.toISOString()}
-              className={cn(
-                'flex aspect-square items-center justify-center rounded-xl text-sm font-bold tabular-nums',
-                isActive ? 'bg-orange-500 text-white' : 'bg-muted/40 text-muted-foreground',
-                isToday && 'ring-2 ring-primary ring-offset-2 ring-offset-card'
-              )}
-            >
-              {format(date, 'd')}
-              <span className="sr-only">{isActive ? ', studied' : ''}{isToday ? ', today' : ''}</span>
-            </div>
-          );
-        })}
+  return <section className="h-full rounded-xl border border-border bg-card p-5 sm:p-7" aria-label="Study activity calendar">
+    <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div><p className="mb-1 text-xs text-muted-foreground">Study activity</p><h2 className="text-xl font-medium">{format(currentMonth,'MMMM yyyy')}</h2></div>
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" className="min-h-11" onClick={()=>setCurrentMonth(new Date(`${today}T12:00:00`))}>This month</Button>
+        <Button variant="outline" size="icon" className="size-11 rounded-lg" onClick={()=>setCurrentMonth(month=>subMonths(month,1))} aria-label="Previous month"><ChevronLeft /></Button>
+        <Button variant="outline" size="icon" className="size-11 rounded-lg" onClick={()=>setCurrentMonth(month=>addMonths(month,1))} aria-label="Next month"><ChevronRight /></Button>
       </div>
-    </Panel>
-  );
+    </header>
+    <div className="grid grid-cols-7 gap-1 sm:gap-2" aria-label={format(currentMonth,'MMMM yyyy')}>
+      {WEEKDAYS.map(day=><span key={day} className="pb-3 text-center text-xs text-muted-foreground">{day}</span>)}
+      {dates.map(date=>{
+        const key=format(date,'yyyy-MM-dd');
+        const studied=active.has(key);
+        const inMonth=isSameMonth(date,currentMonth);
+        const isToday=key===today;
+        return <div key={key} aria-label={`${format(date,'EEEE d MMMM yyyy')}${studied?', studied':''}${isToday?', today':''}`} className={cn('relative flex min-h-11 items-center justify-center rounded-lg border border-transparent py-4 text-sm tabular-nums sm:min-h-16',inMonth?'text-foreground':'text-muted-foreground/40',studied&&inMonth&&'bg-primary/10 font-semibold text-primary',isToday&&'border-primary')}>
+          {date.getDate()}{studied&&inMonth&&<span aria-hidden="true" className="absolute bottom-2 size-1 rounded-full bg-primary" />}
+        </div>;
+      })}
+    </div>
+    <footer className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5 text-xs text-muted-foreground">
+      <span>{count} {count===1?'study day':'study days'} this month</span>
+      <span className="flex items-center gap-2"><CalendarDays className="size-3.5" />Completed study blocks</span>
+    </footer>
+  </section>;
 }

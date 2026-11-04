@@ -28,6 +28,7 @@ import { revalidatePath } from 'next/cache';
 import { DAY_NAMES, toMinutes, weekdayOrder, type SchoolLesson } from '@/lib/school';
 import { askAIBuddy } from '@/lib/ai-actions';
 import { parseJsonLoose, asString } from '@/lib/ai-parse';
+import { canonicalSubject, unifyTimetableSubjects, type FoundSubject } from '@/lib/subject-match';
 import {
   getViewScope,
   byClass,
@@ -81,6 +82,20 @@ function validate(input: SchoolLessonInput): SchoolLessonInput {
 }
 
 /**
+ * Store lessons under the subject names the person already has, so "physics"
+ * typed (or read off a photo) lands on their existing "Physics" instead of
+ * becoming a second, slightly different subject. Breaks keep their own name.
+ */
+async function withKnownSubjects(userId: string, lessons: SchoolLessonInput[]): Promise<SchoolLessonInput[]> {
+  const subjects = await prisma.subject.findMany({
+    where: { userId, ...byClass(await getViewScope(userId)) },
+    select: { name: true },
+  });
+  const known = subjects.map((s) => s.name);
+  return lessons.map((lesson) => (lesson.isBreak ? lesson : { ...lesson, subject: canonicalSubject(lesson.subject, known) }));
+}
+
+/**
  * This year's school timetable, in the order a week runs.
  *
  * Monday first, not Sunday: dayOfWeek uses the schema's 0=Sunday convention so
@@ -122,6 +137,7 @@ export async function createSchoolLesson(input: SchoolLessonInput) {
     return { error: (error as Error).message };
   }
 
+  [clean] = await withKnownSubjects(userId, [clean]);
   await prisma.schoolLesson.create({
     data: { ...clean, userId, ...(await requireClassStamp(userId)) },
   });
@@ -142,6 +158,7 @@ export async function updateSchoolLesson(id: string, input: SchoolLessonInput) {
     return { error: (error as Error).message };
   }
 
+  [clean] = await withKnownSubjects(userId, [clean]);
   // updateMany, not update: `where: { id }` alone would let any signed-in user
   // rewrite anyone's timetable. The same hole was found on subject grades and
   // flashcard reviews in the academic-year pass; do not reintroduce it here.
@@ -189,6 +206,7 @@ export async function replaceSchoolTimetable(lessons: SchoolLessonInput[]) {
     return { error: (error as Error).message };
   }
   if (clean.length > 200) return { error: 'That is more lessons than a week can hold' };
+  clean = await withKnownSubjects(userId, clean);
 
   const stamp = await requireClassStamp(userId);
   const scope = byClass(await getViewScope(userId));
@@ -240,7 +258,7 @@ function revalidateSchool() {
 export async function extractSchoolTimetable(input: {
   text?: string;
   image?: { data: string; mimeType: string };
-}): Promise<{ success: true; lessons: SchoolLessonInput[]; dropped: number } | { error: string }> {
+}): Promise<{ success: true; lessons: SchoolLessonInput[]; dropped: number; subjects: FoundSubject[] } | { error: string }> {
   const userId = await getUserId();
   if (!userId) return { error: 'Not signed in' };
 
@@ -250,13 +268,14 @@ export async function extractSchoolTimetable(input: {
   const systemInstruction = `You read a school's weekly class timetable and turn it into structured data.
 
 Respond with ONLY one valid JSON object - no prose, no markdown fences:
-{ "lessons": [{ "day": string, "start": "HH:MM", "end": "HH:MM", "subject": string, "isBreak": boolean }] }
+{ "subjects": [string], "lessons": [{ "day": string, "start": "HH:MM", "end": "HH:MM", "subject": string, "isBreak": boolean }] }
 
 Rules:
 - One entry per period in the grid, for every day shown.
 - "day" is the full English weekday name: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday.
 - "start" and "end" are 24-hour times, zero-padded: "09:00", "14:30". Convert any am/pm times. A period ending at half past four in the afternoon is "16:30".
-- "subject" is the lesson name exactly as written on the timetable. Do not abbreviate, translate or tidy it.
+- "subjects" lists every distinct subject taught, ONCE each. A timetable repeats subjects across the week; "Math II" on Monday and "MATHS II" on Tuesday are the same subject and appear once. Keep genuinely different subjects separate (for example "Math I" and "Math II"). Never list breaks, lunch or assembly as subjects. Use the clearest spelling from the timetable; do not translate.
+- Each lesson's "subject" must be exactly one of the names in "subjects" (or the break's own name for a break).
 - "isBreak" is true for breaks, lunch, assembly and other non-teaching slots; false otherwise.
 - Include break and lunch rows - the day is wrong without them.
 - If a period spans two cells or repeats across days, emit it once per day it occurs on.
@@ -275,7 +294,14 @@ Rules:
   const parsed = parseJsonLoose(result.text || '');
   if (!parsed) return { error: 'That response could not be understood. Try a clearer photo.' };
 
-  return { success: true, ...sanitizeLessons(parsed?.lessons) };
+  const { lessons, dropped } = sanitizeLessons(parsed?.lessons);
+  // One entry per subject, matched to the subjects the person already has.
+  const existing = await prisma.subject.findMany({
+    where: { userId, ...byClass(await getViewScope(userId)) },
+    select: { name: true },
+  });
+  const unified = unifyTimetableSubjects(lessons, parsed?.subjects, existing.map((s) => s.name));
+  return { success: true, lessons: unified.lessons, dropped, subjects: unified.subjects };
 }
 
 const DAY_INDEX = new Map(DAY_NAMES.map((name, index) => [name.toLowerCase(), index]));

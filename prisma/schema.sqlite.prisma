@@ -91,12 +91,18 @@ model XpEvent {
   /// many times the code path runs or the row is re-synced.
   sourceKey String
 
+  /// Focus measurements are nullable for older grants whose duration was never recorded.
+  focusSeconds Int?
+  taskId       String?
+  task         Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now()) @updatedAt
   deletedAt DateTime?
   syncedAt  DateTime?
 
   @@unique([userId, sourceKey])
+  @@index([userId, taskId, createdAt])
   @@index([userId, createdAt])
   @@index([syncedAt])
 }
@@ -561,6 +567,7 @@ model Task {
   type            String // "HOMEWORK" or "REVISION"
   workDescription String? // Added for proof of work
   proofPdfUrl     String? // Added for PDF proof of work
+  focusEvents     XpEvent[]
   updatedAt       DateTime          @default(now()) @updatedAt
   deletedAt       DateTime?
   syncedAt        DateTime?

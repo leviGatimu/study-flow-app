@@ -40,9 +40,11 @@ const valuesOf = (t: TemplateType): TemplateFormValues => ({
 export function EditTemplateForm({
   template,
   subjects = [],
+  showLabel = false,
 }: {
   template: TemplateType;
   subjects?: { id: string; name: string }[];
+  showLabel?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -74,8 +76,8 @@ export function EditTemplateForm({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={`Edit ${template.subject}`}>
-          <Pencil />
+        <Button variant={showLabel ? 'outline' : 'ghost'} size={showLabel ? 'default' : 'icon'} aria-label={`Edit ${template.subject}`}>
+          <Pencil />{showLabel && 'Edit block'}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">

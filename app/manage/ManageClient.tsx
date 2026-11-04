@@ -3,8 +3,6 @@
 import { useMemo } from 'react';
 import { Layers } from 'lucide-react';
 
-import { Panel } from '@/components/ui/panel';
-import { Stat } from '@/components/ui/stat';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ManageForm } from '@/components/ManageForm';
 import { DeleteTemplateButton } from '@/components/DeleteTemplateButton';
@@ -13,7 +11,8 @@ import { useIsArchived } from '@/components/ArchiveContext';
 import { DAY_NAMES, toMinutes } from '@/lib/school';
 
 import { StudyLegend } from '../timetable/study-block';
-import { DayBlock, DayColumns, blockMinutes, formatMinutes } from '@/components/DayColumns';
+import { blockMinutes, formatMinutes } from '@/lib/schedule-layout';
+import { ScheduleBoard } from '@/components/ScheduleBoard';
 
 type TemplateType = {
   id: string;
@@ -90,71 +89,35 @@ export function ManageClient({
 
   return (
     <>
-      <Panel>
-        <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
-          <Stat label="Study time per week" value={formatMinutes(stats.total)} />
-          <Stat
-            label="Blocks"
-            value={initialTemplates.length}
-            hint={`${stats.homework} homework · ${stats.revision} revision`}
-          />
-          <Stat
-            label="Busiest day"
-            value={stats.busiest === null ? '-' : DAY_NAMES[stats.busiest]}
-            hint={stats.busiest === null ? undefined : formatMinutes(stats.busiestMinutes)}
-          />
-          <Stat
-            label="Days with study"
-            value={`${byDay.size} / 7`}
-          />
-        </div>
-      </Panel>
-
-      <div className="space-y-4">
-        <StudyLegend />
-        <DayColumns
-          label="Weekly study routine, Monday to Sunday"
-          days={WEEK.map((day) => {
-            const blocks = byDay.get(day) ?? [];
-            const minutes = blocks.reduce((sum, t) => sum + blockMinutes(t.startTime, t.endTime), 0);
-            return {
-              key: String(day),
-              title: DAY_NAMES[day],
-              empty: 'Free',
-              summary:
-                blocks.length > 0
-                  ? { label: `${blocks.length} ${blocks.length === 1 ? 'block' : 'blocks'}`, value: formatMinutes(minutes) }
-                  : null,
-              items: blocks.map((t) => {
-                const revision = t.type === 'REVISION';
-                return (
-                  <DayBlock
-                    key={t.id}
-                    accent={revision ? 'revision' : 'homework'}
-                    srLabel={revision ? 'Revision' : 'Homework'}
-                    time={`${t.startTime} – ${t.endTime}`}
-                    title={t.subject}
-                    meta={
-                      <>
-                        <span className="font-semibold tabular-nums text-foreground">
-                          {formatMinutes(blockMinutes(t.startTime, t.endTime))}
-                        </span>
-                        {t.deadlineDay && <span>· Due {t.deadlineDay}</span>}
-                      </>
-                    }
-                    actions={
-                      <>
-                        <EditTemplateForm template={t} subjects={subjects} />
-                        <DeleteTemplateButton id={t.id} subject={t.subject} />
-                      </>
-                    }
-                  />
-                );
-              }),
-            };
-          })}
-        />
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-4 border-b border-border/60 pb-6 text-sm">
+        <p><span className="mr-2 text-muted-foreground">Weekly study</span><strong className="font-medium tabular-nums">{formatMinutes(stats.total)}</strong></p>
+        <p><span className="mr-2 text-muted-foreground">Routine</span><strong className="font-medium">{initialTemplates.length} blocks across {byDay.size} days</strong></p>
+        {stats.busiest !== null && <p><span className="mr-2 text-muted-foreground">Busiest day</span><strong className="font-medium">{DAY_NAMES[stats.busiest]}</strong></p>}
       </div>
+      <StudyLegend />
+      <ScheduleBoard
+        title="Your recurring week"
+        description="Select a block to edit its time, subject or deadline"
+        emptyLabel="No study planned"
+        days={WEEK.map((day) => {
+          const blocks = byDay.get(day) ?? [];
+          const minutes = blocks.reduce((sum, block) => sum + blockMinutes(block.startTime, block.endTime), 0);
+          return { key: String(day), title: DAY_NAMES[day], summary: blocks.length ? `${blocks.length} blocks · ${formatMinutes(minutes)}` : 'Free evening' };
+        })}
+        entries={initialTemplates.map((template) => ({
+          id: template.id,
+          day: String(template.dayOfWeek),
+          title: template.subject,
+          startTime: template.startTime,
+          endTime: template.endTime,
+          kind: template.type === 'REVISION' ? 'revision' : 'homework',
+          detail: template.deadlineDay ? `Due ${template.deadlineDay} · Repeats every week` : 'Repeats every week',
+        }))}
+        renderActions={archived ? undefined : (entry) => {
+          const template = initialTemplates.find((item) => item.id === entry.id);
+          return template && <><EditTemplateForm template={template} subjects={subjects} showLabel /><DeleteTemplateButton id={template.id} subject={template.subject} showLabel /></>;
+        }}
+      />
     </>
   );
 }

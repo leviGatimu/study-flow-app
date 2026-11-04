@@ -48,6 +48,8 @@ export type ChecklistItem = {
   step: SetupStepId;
 };
 
+export type SetupBlock = { dayOfWeek: number; subject: string; startTime: string; endTime: string; type: string };
+
 export type SetupSnapshot = {
   username: string;
   name: string;
@@ -61,6 +63,8 @@ export type SetupSnapshot = {
   termEndDate: string | null;
   subjects: string[];
   templateCount: number;
+  /** The recurring week, for the wizard's live preview (bounded; count is authoritative). */
+  templates: SetupBlock[];
   schoolLessonCount: number;
   ai: { gemini: boolean; openai: boolean; ollama: boolean };
   /** Set once the user dismissed the dashboard checklist for good. */

@@ -83,7 +83,7 @@ export async function getSetupSnapshot(): Promise<SetupSnapshot | null> {
   // finished, and an open archive must report on the archive.
   const classFilter = byClass(await getViewScope(userId));
 
-  const [subjects, templateCount, schoolLessonCount] = await Promise.all([
+  const [subjects, templateCount, schoolLessonCount, templates] = await Promise.all([
     prisma.subject.findMany({
       where: { userId, ...classFilter },
       select: { name: true },
@@ -91,6 +91,12 @@ export async function getSetupSnapshot(): Promise<SetupSnapshot | null> {
     }),
     prisma.scheduleTemplate.count({ where: { userId, ...classFilter } }),
     prisma.schoolLesson.count({ where: { userId, ...classFilter } }),
+    prisma.scheduleTemplate.findMany({
+      where: { userId, ...classFilter },
+      select: { dayOfWeek: true, subject: true, startTime: true, endTime: true, type: true },
+      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+      take: 80,
+    }),
   ]);
 
   return {
@@ -105,6 +111,7 @@ export async function getSetupSnapshot(): Promise<SetupSnapshot | null> {
     termEndDate: toDateInput(schedule.termEndDate),
     subjects: subjects.map((s) => s.name),
     templateCount,
+    templates,
     schoolLessonCount,
     ai: {
       gemini: Boolean(progress?.geminiApiKey),

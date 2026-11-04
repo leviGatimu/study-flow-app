@@ -20,6 +20,13 @@ export const OWNED_THROUGH: Record<string, { relation: string; parentModel: stri
   quizAttempt: { relation: 'module', parentModel: 'tutorModule', fk: 'moduleId' },
 };
 
+/** Read ownership must follow the same parent paths on the device and server. */
+export function ownedBy(model: string, userId: string): Record<string, unknown> {
+  const parent = OWNED_THROUGH[model];
+  if (parent) return { [parent.relation]: { userId } };
+  return model === 'user' ? { id: userId } : { userId };
+}
+
 type CountDb = Record<string, { count: (args: unknown) => Promise<number> }>;
 
 /**
@@ -50,7 +57,11 @@ export async function keepOwnedRows(
       dropped++;
       continue;
     }
-    const rule = OWNED_THROUGH[row.model];
+    // Focus grants own userId, but their optional task must belong to that
+    // same account too. Free-focus and legacy grants have no task.
+    const rule = row.model === 'xpEvent' && row.data.taskId != null
+      ? { parentModel: 'task', fk: 'taskId' }
+      : OWNED_THROUGH[row.model];
     if (!rule) {
       kept.push(row);
       continue;

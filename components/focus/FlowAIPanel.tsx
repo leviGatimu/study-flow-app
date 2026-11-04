@@ -14,15 +14,6 @@ import ReactMarkdown from 'react-markdown';
 import * as mammoth from 'mammoth';
 import { generateFlowNotes, askFlowTutor, generateFlowQuiz, createAiNote } from '@/lib/ai-actions';
 
-// PDF.js worker setup (mirrors the AI chat interface)
-import * as pdfjsLib from 'pdfjs-dist';
-if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs',
-    import.meta.url
-  ).toString();
-}
-
 type QuizQuestion = { question: string; options: string[]; answer: number; explanation: string };
 type ChatMsg = { role: 'user' | 'model'; text: string };
 type AttachedFile = {
@@ -41,6 +32,10 @@ const TUTOR_SUGGESTIONS = [
 ];
 
 async function extractPdf(file: File): Promise<string> {
+  // PDF.js evaluates browser-only DOMMatrix code at import time. Load it only
+  // when a file is selected, so opening Focus can render on the server.
+  const pdfjsLib = await import('pdfjs-dist');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   let fullText = '';

@@ -33,8 +33,9 @@ export default async function StudyRoutinePage() {
     <Page>
       <div data-tour="manage-intro">
         <PageHeader
+          className="pt-7 pb-5 [&_h1]:text-3xl [&_h1]:font-semibold"
           title="Study routine"
-          description="The study blocks you repeat every week. They are added to your Week and Month automatically while a term is running."
+          description="Plan your recurring homework and revision. Your routine fills each week while a term is running."
           actions={
             <>
               {data && data.templates.length > 0 && (
@@ -49,7 +50,7 @@ export default async function StudyRoutinePage() {
           }
         />
       </div>
-      <PageBody>
+      <PageBody className="space-y-6 pt-6">
         {data ? (
           <ManageClient initialTemplates={data.templates} subjects={data.subjects} />
         ) : (

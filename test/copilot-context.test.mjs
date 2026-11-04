@@ -66,18 +66,23 @@ describe('buildCopilotPrompt', () => {
 });
 
 describe('suggestPrompts', () => {
-  test('come from the student\'s own data, at most four', () => {
+  test('offer neutral choices instead of assigning subjects or practice', () => {
     const labels = suggestPrompts(BUSY).map((s) => s.label);
     assert.deepEqual(labels, [
-      'Prep for Javascript',
-      'Start: Lab report',
-      'Plan for Math CAT',
-      'Quiz me on Physics',
+      'Explain a topic',
+      'Help with a question',
+      'My schedule today',
     ]);
   });
 
   test('an empty account still gets a useful starter', () => {
-    assert.deepEqual(suggestPrompts(EMPTY).map((s) => s.label), ['What is most urgent?']);
+    assert.deepEqual(suggestPrompts(EMPTY).map((s) => s.label), ['Explain a topic', 'Help with a question', 'My schedule today']);
+  });
+
+  test('low scores do not trigger quiz prompts or pressure to practise', () => {
+    assert.deepEqual(suggestPrompts(BUSY), suggestPrompts(EMPTY));
+    assert.doesNotMatch(JSON.stringify(suggestPrompts(BUSY)), /weakest|urgent|quiz me|practise/i);
+    assert.match(buildCopilotPrompt(BUSY), /Do not recommend practice, rank weak subjects, or add revision tasks unless explicitly asked/);
   });
 });
 

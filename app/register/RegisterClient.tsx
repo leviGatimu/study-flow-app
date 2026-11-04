@@ -1,214 +1,179 @@
 'use client';
-
-import { useState, useTransition, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { BrainCircuit, AlertCircle, ArrowRight, Loader2, Sparkles, Rocket } from 'lucide-react';
+import { passwordStrength } from '@/lib/password-strength';
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from 'react';
 import Link from 'next/link';
-import { registerUser } from '@/lib/actions';
 import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AlertCircle, ArrowLeft, ArrowRight, AtSign, Check, Clock, Globe, Loader2, School, User, X } from 'lucide-react';
+import { registerUser } from '@/lib/actions';
+import { Button } from '@/components/ui/button';
+import { AuthShell } from '@/components/auth/AuthShell';
+import { AuthPassword } from '@/components/auth/AuthPassword';
+import styles from '@/components/auth/AuthShell.module.css';
 
-export function RegisterClient() {
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+const subscribe=()=>()=>{};
+const browserZone=()=>Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Kigali';
+// A clock that ticks every 30 seconds; null while server rendering.
+const subscribeClock=(onTick:()=>void)=>{const t=setInterval(onTick,30_000);return ()=>clearInterval(t);};
+const clockSnapshot=()=>Math.floor(Date.now()/30_000);
+const USERNAME=/^[a-zA-Z0-9_.-]{3,32}$/;
+const BIO_MAX=400;
 
-  useEffect(() => {
-    const updateMousePosition = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-    window.addEventListener('mousemove', updateMousePosition);
-    return () => window.removeEventListener('mousemove', updateMousePosition);
-  }, []);
+function localTime(zone:string){
+  try{return new Intl.DateTimeFormat('en-GB',{timeZone:zone,hour:'2-digit',minute:'2-digit',weekday:'short'}).format(new Date());}
+  catch{return null;}
+}
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    const formData = new FormData(e.currentTarget);
-    
-    startTransition(async () => {
-      const result = await registerUser(formData);
-      if (result?.error) {
-        setError(result.error);
-        toast.error("Initialization Failed", {
-          description: result.error
-        });
-      } else {
-        toast.success("Workspace created", {
-          description: "Let's get it set up for you."
-        });
-        // Straight into setup rather than onto a dashboard with nothing on it.
-        // A brand-new account has no subjects, no timetable and no AI key, and
-        // the dashboard cannot explain any of that; /setup exists to ask.
-        router.push('/setup');
-        router.refresh();
-      }
+const initials=(name:string)=>name.trim().split(/\s+/).slice(0,2).map(part=>part[0]?.toUpperCase()).join('')||'?';
+
+export function RegisterClient({ zones }: {zones:string[]}) {
+  const reduced=useReducedMotion();
+  const headingRef=useRef<HTMLHeadingElement>(null);
+  const [step,setStep]=useState<'profile'|'account'>('profile');
+  const [profile,setProfile]=useState({name:'',school:'',bio:'',timezone:''});
+  const detected=useSyncExternalStore(subscribe,browserZone,()=> 'Africa/Kigali');
+  const tick=useSyncExternalStore(subscribeClock,clockSnapshot,()=>null);
+  const [zone,setZone]=useState('');
+  const [bioLength,setBioLength]=useState(0);
+  const [username,setUsername]=useState('');
+  const [password,setPassword]=useState('');
+  const [confirm,setConfirm]=useState('');
+  const [error,setError]=useState<string|null>(null);
+  const [pending,startTransition]=useTransition();
+  const router=useRouter();
+  const shown=useRef({step,error});
+  useEffect(()=>{
+    // Move focus only when the step or error changes, not on page load.
+    if(shown.current.step===step&&shown.current.error===error)return;
+    shown.current={step,error};
+    headingRef.current?.closest('main')?.scrollTo({top:0});
+    headingRef.current?.focus({preventScroll:true});
+  },[step,error]);
+
+  const selectedZone=zone||profile.timezone||detected;
+  const zoneTime=tick===null?null:localTime(selectedZone);
+  const meter=passwordStrength(password);
+  const usernameValid=USERNAME.test(username.trim());
+  const matches=confirm.length>0&&confirm===password;
+
+  const next=(event:React.FormEvent<HTMLFormElement>)=>{
+    event.preventDefault();const form=new FormData(event.currentTarget);
+    setProfile({name:String(form.get('name')??'').trim(),school:String(form.get('school')??'').trim(),bio:String(form.get('bio')??'').trim(),timezone:String(form.get('timezone')??detected)});
+    setError(null);setStep('account');
+  };
+  const back=()=>{setError(null);setPassword('');setConfirm('');setUsername('');setBioLength(profile.bio.length);setStep('profile');};
+  const submit=(event:React.FormEvent<HTMLFormElement>)=>{
+    event.preventDefault();setError(null);
+    if(confirm!==password){setError('Your passwords do not match.');return;}
+    const form=new FormData(event.currentTarget);
+    for(const [key,value] of Object.entries(profile))form.set(key,value);
+    startTransition(async()=>{
+      try{const result=await registerUser(form);if(result?.error)setError(result.error==='Username already taken'?'That username is taken. Try another one.':result.error);else{router.replace('/setup');router.refresh();}}
+      catch{setError('Your account could not be created. Check your connection and try again.');}
     });
   };
 
-  return (
-    <div className="flex min-h-screen w-full bg-background text-foreground font-sans selection:bg-primary/30 selection:text-primary">
-      
-      {/* Interactive Cursor Glow (Desktop Only) */}
-      <motion.div 
-        className="fixed top-0 left-0 w-[400px] h-[400px] rounded-full bg-emerald-500/10 dark:bg-emerald-500/5 blur-[120px] pointer-events-none z-0 hidden lg:block"
-        animate={{ x: mousePosition.x - 200, y: mousePosition.y - 200 }}
-        transition={{ type: 'spring', stiffness: 50, damping: 30, mass: 0.5 }}
-      />
+  const onAccount=step==='account';
+  const slide=reduced?{}:{initial:{opacity:0,x:onAccount?24:-24},animate:{opacity:1,x:0},exit:{opacity:0,x:onAccount?-24:24},transition:{duration:0.3,ease:[0.22,1,0.36,1] as const}};
 
-      {/* Left Panel: Visual/Story */}
-      <div className="relative hidden lg:flex flex-col w-1/2 h-screen overflow-hidden border-r border-border/40 bg-muted/30 dark:bg-neutral-950">
-        
-        {/* Abstract Animated Background */}
-        <div className="absolute inset-0 overflow-hidden bg-background dark:bg-black flex items-center justify-center">
-            {/* Animated glowing orbs */}
-            <motion.div 
-              animate={{ 
-                scale: [1, 1.2, 1],
-                rotate: [0, -90, 0],
-              }}
-              transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-              className="absolute w-[80vw] h-[80vw] max-w-[800px] max-h-[800px] bg-gradient-to-tr from-green-500/10 dark:from-green-600/20 to-blue-500/10 dark:to-blue-600/20 rounded-full blur-[120px]"
-            />
-            <motion.div 
-              animate={{ 
-                scale: [1, 1.5, 1],
-                x: [0, -100, 0],
-                y: [0, 100, 0]
-              }}
-              transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute w-[60vw] h-[60vw] max-w-[600px] max-h-[600px] bg-gradient-to-br from-emerald-500/5 dark:from-emerald-500/10 to-teal-500/5 dark:to-teal-500/10 rounded-full blur-[100px]"
-            />
-            
-            {/* Grid overlay with radial mask */}
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.03)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_20%,transparent_100%)]" />
-            
-            {/* 3D Floating Glass Panels */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none perspective-[1200px]">
-              <motion.div 
-                animate={{ rotateY: [10, -10, 10], rotateX: [-5, 5, -5], y: [20, -20, 20] }}
-                transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute w-[350px] h-[350px] bg-white/5 dark:bg-white/5 backdrop-blur-3xl border border-black/5 dark:border-white/10 rounded-full shadow-2xl transform-gpu -translate-x-32 -translate-y-32"
-              />
-              <motion.div 
-                animate={{ rotateY: [-10, 10, -10], rotateX: [5, -5, 5], y: [-20, 20, -20] }}
-                transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute w-[250px] h-[400px] bg-white/5 dark:bg-white/5 backdrop-blur-3xl border border-black/5 dark:border-white/10 rounded-[40px] shadow-2xl transform-gpu translate-x-20 translate-y-20"
-              />
-            </div>
-        </div>
-
-        {/* Content */}
-        <div className="relative z-10 flex flex-col h-full p-16 justify-between pointer-events-none">
-          <Link href="/" className="inline-flex items-center gap-3 font-heading font-black text-2xl hover:opacity-80 transition-opacity pointer-events-auto w-fit">
-            <div className="p-2 bg-foreground text-background rounded-xl">
-              <BrainCircuit className="h-6 w-6" />
-            </div>
-            StudyFlow
-          </Link>
-
-          <div className="max-w-md pointer-events-auto">
-            <div className="inline-flex items-center gap-3 px-4 py-2 mb-8 rounded-full border border-border/60 bg-background/50 text-xs font-bold uppercase tracking-widest text-foreground/80 backdrop-blur-xl">
-              <Sparkles className="w-4 h-4 text-emerald-500" /> New Era
-            </div>
-            <h1 className="text-5xl lg:text-7xl font-heading font-black tracking-tighter leading-[0.9] text-foreground mb-6">
-              Create your <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-blue-600 dark:from-green-400 dark:to-blue-500">Universe.</span>
-            </h1>
-            <p className="text-xl text-muted-foreground font-medium leading-relaxed">
-              Step into a frictionless environment designed for elite performance. No limits. Just execution.
-            </p>
-          </div>
-
-          <div className="text-[10px] font-bold uppercase tracking-[0.5em] text-muted-foreground/40">
-            System version 2.0 • Secure Initialization
-          </div>
-        </div>
+  return <AuthShell variant="register">
+    <nav aria-label="Registration progress" className={styles.stepper}>
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-medium text-muted-foreground">Step {onAccount?2:1} of 2</span>
+        <span className="text-muted-foreground">{onAccount?'Your account':'Your details'}</span>
       </div>
+      <ol className="mt-2 grid grid-cols-2 gap-1.5">
+        <li aria-current={!onAccount?'step':undefined}>
+          {onAccount
+            ? <button type="button" onClick={back} className={styles.stepDone} aria-label="Step 1, your details, done. Go back to edit"><span className={styles.stepFill} /></button>
+            : <span className={styles.stepTrack}><span className={styles.stepFill} /></span>}
+        </li>
+        <li aria-current={onAccount?'step':undefined}>
+          <span className={styles.stepTrack}><motion.span className={styles.stepFill} initial={false} animate={{scaleX:onAccount?1:0}} transition={{duration:0.5,ease:[0.22,1,0.36,1]}} /></span>
+        </li>
+      </ol>
+    </nav>
 
-      {/* Right Panel: Register Form */}
-      <div className="flex flex-col justify-center w-full lg:w-1/2 h-screen p-8 sm:p-16 lg:p-24 relative bg-background">
-        {/* Mobile Header */}
-        <div className="absolute top-8 left-8 lg:hidden">
-          <Link href="/" className="inline-flex items-center gap-3 font-heading font-black text-xl">
-            <BrainCircuit className="h-6 w-6 text-foreground" />
-            StudyFlow
-          </Link>
+    <h1 ref={headingRef} tabIndex={-1}>{onAccount?'Create your account':'Tell us about you'}</h1>
+    <p className={styles.subtitle}>{onAccount?'Choose the username and password you’ll sign in with.':'Your name and timezone. You’ll add your subjects and timetable after this.'}</p>
+    {error&&<p role="alert" className={`${styles.error} mt-5`}><AlertCircle className="mt-0.5 size-4 shrink-0" />{error}</p>}
+
+    <AnimatePresence mode="wait" initial={false}>
+      {!onAccount?<motion.form key="profile" {...slide} method="post" onSubmit={next} className={styles.form}>
+        <div className={styles.field}>
+          <label htmlFor="register-name">Your name</label>
+          <div className={styles.withIcon}><User className={styles.icon} aria-hidden="true" /><input id="register-name" name="name" autoComplete="name" maxLength={60} defaultValue={profile.name} placeholder="e.g. Amani Uwase" required /></div>
         </div>
-
-        <div className="w-full max-w-md mx-auto">
-          <div className="mb-12">
-            <h2 className="text-4xl font-heading font-black tracking-tighter text-foreground mb-3">Initialize</h2>
-            <p className="text-lg text-muted-foreground font-medium">Configure your new academic workstation.</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <AnimatePresence>
-              {error && (
-                <motion.div 
-                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  animate={{ opacity: 1, height: 'auto', marginBottom: 24 }}
-                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  className="bg-destructive/10 border border-destructive/20 p-4 rounded-2xl flex items-center gap-3 text-destructive text-sm font-bold overflow-hidden"
-                >
-                  <AlertCircle className="w-5 h-5 shrink-0" />
-                  {error}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="space-y-2 group">
-              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 group-focus-within:text-foreground transition-colors ml-2">Username</label>
-              <div className="relative">
-                <input 
-                  name="username" 
-                  required 
-                  placeholder="Choose a username" 
-                  className="w-full h-16 bg-muted/30 dark:bg-white/5 border border-border/60 rounded-[24px] px-6 text-lg text-foreground font-bold placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50 focus:bg-muted/50 dark:focus:bg-white/10 transition-all"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2 group">
-              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 group-focus-within:text-foreground transition-colors ml-2">Password</label>
-              <div className="relative">
-                <input 
-                  name="password" 
-                  type="password" 
-                  required 
-                  placeholder="Set a secure password" 
-                  className="w-full h-16 bg-muted/30 dark:bg-white/5 border border-border/60 rounded-[24px] px-6 text-lg text-foreground font-bold placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50 focus:bg-muted/50 dark:focus:bg-white/10 transition-all"
-                />
-              </div>
-            </div>
-
-            <div className="pt-4">
-              <Button 
-                disabled={isPending}
-                className="w-full h-16 rounded-[24px] bg-foreground text-background hover:opacity-90 text-lg font-heading font-black shadow-xl transition-all flex items-center justify-center gap-3 group relative overflow-hidden"
-              >
-                <span className="relative z-10 flex items-center gap-2">
-                  {isPending ? "Creating Workspace" : "Deploy Station"}
-                  {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Rocket className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />}
-                </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </Button>
-            </div>
-          </form>
-
-          <div className="mt-12 text-center lg:text-left">
-            <p className="text-sm text-muted-foreground/60 font-medium flex items-center justify-center lg:justify-start gap-2">
-              Already initialized? 
-              <Link href="/login" className="text-foreground hover:text-primary font-bold transition-colors inline-flex items-center gap-1 group">
-                Sign In <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </p>
-          </div>
+        <div className={styles.field}>
+          <label htmlFor="register-school">School or college <span className="font-normal text-muted-foreground">(optional)</span></label>
+          <div className={styles.withIcon}><School className={styles.icon} aria-hidden="true" /><input id="register-school" name="school" autoComplete="organization" maxLength={120} defaultValue={profile.school} placeholder="e.g. City High School" /></div>
         </div>
-      </div>
-
-    </div>
-  );
+        <div className={styles.field}>
+          <label htmlFor="register-timezone">Your timezone</label>
+          <div className={styles.withIcon}><Globe className={styles.icon} aria-hidden="true" />
+            <select id="register-timezone" name="timezone" value={selectedZone} onChange={(e)=>setZone(e.target.value)} aria-describedby="register-timezone-hint">
+              {[...new Set([...zones,detected])].sort().map(z=><option key={z} value={z}>{z.replaceAll('_',' ')}</option>)}
+            </select>
+          </div>
+          <small id="register-timezone-hint" className="flex items-center gap-1.5">
+            <Clock className="size-3.5" aria-hidden="true" />
+            {zoneTime?<>It’s <span className="font-medium text-foreground">{zoneTime}</span> there now. Your schedule follows this timezone.</>:'Your schedule follows this timezone.'}
+          </small>
+        </div>
+        <div className={styles.field}>
+          <div className="flex items-baseline justify-between">
+            <label htmlFor="register-bio">A little about you <span className="font-normal text-muted-foreground">(optional)</span></label>
+            <span className={`text-xs tabular-nums ${bioLength>BIO_MAX-40?'text-orange-500':'text-muted-foreground'}`} aria-live="polite">{bioLength}/{BIO_MAX}</span>
+          </div>
+          <textarea id="register-bio" name="bio" rows={3} maxLength={BIO_MAX} defaultValue={profile.bio} onChange={(e)=>setBioLength(e.target.value.length)} placeholder="e.g. Year 2 software development, preparing for my exams in June" />
+        </div>
+        <Button type="submit" className={styles.submit}>Continue<ArrowRight className="size-4" /></Button>
+      </motion.form>
+      :<motion.form key="account" {...slide} method="post" onSubmit={submit} className={styles.form}>
+        <div className={styles.summary}>
+          <span className={styles.avatar} aria-hidden="true">{initials(profile.name)}</span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold">{profile.name}</span>
+            <span className="block truncate text-xs text-muted-foreground">{[profile.school,profile.timezone.replaceAll('_',' ')].filter(Boolean).join(' · ')}</span>
+          </span>
+          <button type="button" onClick={back} className={styles.edit}>Edit</button>
+        </div>
+        <fieldset disabled={pending} className="contents">
+          <div className={styles.field}>
+            <label htmlFor="register-username">Username</label>
+            <div className={styles.withIcon}><AtSign className={styles.icon} aria-hidden="true" />
+              <input id="register-username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} minLength={3} maxLength={32} pattern="[a-zA-Z0-9_.\-]+" required
+                placeholder="e.g. amani_u" aria-describedby="register-username-hint" onChange={(e)=>setUsername(e.target.value)} />
+              {usernameValid&&<Check className={`${styles.trailing} text-emerald-500`} aria-hidden="true" />}
+            </div>
+            <small id="register-username-hint" className={username&&!usernameValid?'!text-orange-500':undefined}>3–32 letters, numbers, dots, dashes or underscores.</small>
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="register-password">Password</label>
+            <AuthPassword id="register-password" name="password" autoComplete="new-password" minLength={8} placeholder="At least 8 characters" describedBy="register-password-meter" onValueChange={setPassword} />
+            <div id="register-password-meter" aria-live="polite" className="flex items-center gap-3">
+              <span className="grid flex-1 grid-cols-4 gap-1" aria-hidden="true">
+                {[1,2,3,4].map(i=><span key={i} className="h-1 overflow-hidden rounded-full bg-muted"><span className={`block h-full rounded-full transition-all duration-300 ${meter&&i<=meter.score?meter.tone:''}`} style={{width:meter&&i<=meter.score?'100%':'0%'}} /></span>)}
+              </span>
+              <span className="w-16 text-right text-xs text-muted-foreground">{meter?meter.label:''}</span>
+            </div>
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="register-confirm">Confirm password</label>
+            <AuthPassword id="register-confirm" name="confirmPassword" autoComplete="new-password" minLength={8} placeholder="Type it again" describedBy="register-confirm-hint" onValueChange={setConfirm} />
+            <small id="register-confirm-hint" aria-live="polite" className="flex min-h-4 items-center gap-1.5">
+              {confirm&&(matches
+                ?<><Check className="size-3.5 text-emerald-500" aria-hidden="true" /><span className="text-emerald-600 dark:text-emerald-400">Passwords match</span></>
+                :<><X className="size-3.5 text-orange-500" aria-hidden="true" /><span>Doesn’t match yet</span></>)}
+            </small>
+          </div>
+          <div className="mt-1 grid grid-cols-[auto_1fr] gap-2">
+            <Button type="button" variant="outline" className={`${styles.submit} px-4`} onClick={back} aria-label="Back to your details"><ArrowLeft className="size-4" />Back</Button>
+            <Button type="submit" disabled={pending} className={`${styles.submit} !mt-0`}>{pending?<><Loader2 className="size-4 animate-spin" />Creating account…</>:<>Create account<ArrowRight className="size-4" /></>}</Button>
+          </div>
+        </fieldset>
+      </motion.form>}
+    </AnimatePresence>
+    <p className={styles.footer}>Already have an account?<Link href="/login">Sign in</Link></p>
+  </AuthShell>;
 }

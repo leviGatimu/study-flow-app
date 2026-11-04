@@ -84,7 +84,7 @@ export function buildCopilotPrompt(ctx: CopilotContext): string {
       '(no upcoming exams)'
     ),
     section(
-      'SUBJECTS NEEDING ATTENTION (worst first):',
+      'SUBJECT METRICS (discuss only when the student asks):',
       ctx.weakSubjects.map((s) => `- ${s.subject}: ${s.reason}`),
       '(nothing flagged)'
     ),
@@ -111,56 +111,20 @@ HOW TO ANSWER
 - For "what is most urgent", weigh overdue and soonest-due homework and the nearest exams first.
 - When explaining a topic, teach it: start simple, build up, give a worked example, then check understanding with one short question.
 - Use Markdown: short headings, bullet lists, tables when comparing, fenced code blocks with a language for code. Write maths in LaTeX: $...$ inline and $$...$$ for display.
-- Be direct and encouraging, and keep it as short as the question allows. End with one concrete next step when it helps.
+- Respect student autonomy and their choice of what and when to study. Do not recommend practice, rank weak subjects, or add revision tasks unless explicitly asked. Avoid guilt, pressure and unsolicited urgency. Answer the question they chose. Keep it concise.
 - You cannot change their timetable or records yourself. If they ask you to set something up, say exactly what to add (day, time, subject) so they can add it.`;
 }
 
 /**
- * Up to four starting points drawn from the student's own data, so the empty
- * chat offers what matters today rather than generic examples - and never a
- * subject from someone else's timetable.
+ * Neutral starting points. The student chooses a topic; scores and missed
+ * blocks must not silently turn into an assignment to practise.
  */
 export function suggestPrompts(ctx: CopilotContext): SuggestedPrompt[] {
-  const out: SuggestedPrompt[] = [];
-
-  const nextBlock = ctx.todayBlocks.find((b) => b.status === 'pending' || !b.status);
-  if (nextBlock) {
-    out.push({
-      label: `Prep for ${nextBlock.subject}`,
-      prompt: `I have ${nextBlock.subject} at ${nextBlock.start} today. What are the key ideas I should focus on, and how should I use the ${nextBlock.start}-${nextBlock.end} block?`,
-    });
-  }
-
-  const homework = ctx.homework[0];
-  if (homework) {
-    out.push({
-      label: `Start: ${homework.title}`,
-      prompt: `Help me get started on my ${homework.subject} homework "${homework.title}" (${when(homework.daysLeft)}). Break it into steps and explain anything I need to know first.`,
-    });
-  }
-
-  const exam = ctx.exams[0];
-  if (exam) {
-    out.push({
-      label: `Plan for ${exam.title}`,
-      prompt: `My ${exam.title} exam is ${when(exam.daysLeft)}. Make me a day-by-day revision plan that fits around my study routine.`,
-    });
-  }
-
-  const weak = ctx.weakSubjects[0];
-  if (weak) {
-    out.push({
-      label: `Quiz me on ${weak.subject}`,
-      prompt: `${weak.subject} is my weakest subject right now. Quiz me with 5 questions, one at a time, and explain each answer after I reply.`,
-    });
-  }
-
-  out.push({
-    label: 'What is most urgent?',
-    prompt: 'What is my most urgent deadline this week, and what should I do about it today?',
-  });
-
-  return out.slice(0, 4);
+  return [
+    { label: 'Explain a topic', prompt: 'I would like help understanding a topic. Ask me which topic I want to explore.' },
+    { label: 'Help with a question', prompt: 'I have a question to work through. Let me share it, then help me understand it step by step.' },
+    { label: ctx.holidayToday ? 'My day off' : 'My schedule today', prompt: 'Show my schedule for today without recommending extra work.' },
+  ];
 }
 
 /** A chat's title: its first question, trimmed to fit the history list. */

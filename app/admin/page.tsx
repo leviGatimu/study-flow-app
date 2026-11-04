@@ -1,35 +1,54 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
-
-import {
-  getAdminOverview,
-  getAdminUsers,
-  getSystemHealth,
-  isCurrentUserAdmin,
-} from '@/lib/admin-actions';
+import { getAdminConsole, isCurrentUserAdmin } from '@/lib/admin-actions';
 import { AdminDashboard } from './AdminDashboard';
+import { Page, PageBody } from '@/components/ui/page';
+import { PageHeader } from '@/components/ui/page-header';
+import { Button } from '@/components/ui/button';
+import { ErrorState } from '@/components/ui/error-state';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-/**
- * The admin console.
- *
- * notFound() rather than a redirect for a non-admin: a redirect to the
- * dashboard confirms the route exists and that they simply lack the rights,
- * which is a small thing to hand a curious account. A 404 says nothing.
- *
- * The guard here is convenience, not security. Every action in lib/admin-actions
- * re-checks admin rights on its own, because a server action is an endpoint
- * anyone can call directly regardless of which page they can open.
- */
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ source?: string }>;
+}) {
   if (!(await isCurrentUserAdmin())) notFound();
-
-  const [overview, users, health] = await Promise.all([
-    getAdminOverview(),
-    getAdminUsers(),
-    getSystemHealth(),
-  ]);
-
-  return <AdminDashboard overview={overview} users={users} health={health} />;
+  const { source } = await searchParams;
+  try {
+    const report = await getAdminConsole(source === 'device');
+    return <AdminDashboard {...report} />;
+  } catch (error) {
+    return (
+      <Page>
+        <PageHeader
+          title="Admin console"
+          description="Accounts, study activity and service health."
+        />
+        <PageBody>
+          <ErrorState
+            title="Current admin reports are unavailable"
+            description={
+              error instanceof Error
+                ? error.message
+                : 'Try refreshing in a moment.'
+            }
+          />
+          <div className="flex flex-wrap gap-3">
+            <Button asChild variant="outline">
+              <Link href="/admin">Retry server report</Link>
+            </Button>
+            <Button asChild variant="ghost">
+              <Link href="/admin?source=device">View this device only</Link>
+            </Button>
+            <Button asChild variant="ghost">
+              <Link href="/settings?tab=sync">Sync settings</Link>
+            </Button>
+          </div>
+        </PageBody>
+      </Page>
+    );
+  }
 }

@@ -362,6 +362,7 @@ export const REPARENT_BEFORE_DELETE: Record<string, { model: string; fk: string 
     { model: 'reportCard', fk: 'termId' },
   ],
   scheduleTemplate: [{ model: 'task', fk: 'templateId' }],
+  task: [{ model: 'xpEvent', fk: 'taskId' }],
   subject: [{ model: 'examEvent', fk: 'subjectId' }],
   reportCard: [{ model: 'subjectGrade', fk: 'reportCardId' }],
 };

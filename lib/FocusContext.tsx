@@ -1,9 +1,29 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { toast } from 'sonner';
+import type { FocusMeasurement } from './focus-record';
 import { TaskWithTemplate } from '@/lib/types';
 import { getRwandaTime } from '@/lib/utils';
 import { logFocusSession, toggleTaskDone } from '@/lib/actions';
+
+type PendingFocus = { measurement: FocusMeasurement; xp: number };
+const PENDING_KEY = 'study-flow-focus-pending';
+
+async function saveFocus(entry: PendingFocus) {
+  const queue: PendingFocus[] = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
+  if (!queue.some(item => item.measurement.sessionId === entry.measurement.sessionId)) {
+    localStorage.setItem(PENDING_KEY, JSON.stringify([...queue, entry]));
+  }
+  try {
+    await logFocusSession(Math.ceil(entry.measurement.seconds / 60), entry.xp, entry.measurement);
+    if (entry.measurement.taskId && entry.measurement.taskId !== 'free') await toggleTaskDone(entry.measurement.taskId, true);
+    const remaining: PendingFocus[] = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
+    localStorage.setItem(PENDING_KEY, JSON.stringify(remaining.filter(item => item.measurement.sessionId !== entry.measurement.sessionId)));
+  } catch {
+    toast.error('Your focus session is kept on this device. It will save when you reconnect or reopen Study Flow.');
+  }
+}
 
 interface FocusContextType {
   activeTask: TaskWithTemplate | null;
@@ -36,6 +56,7 @@ interface FocusContextType {
 const FocusContext = createContext<FocusContextType | undefined>(undefined);
 
 export function FocusProvider({ children }: { children: React.ReactNode }) {
+  const sessionIdRef = useRef('');
   const [activeTask, setActiveTask] = useState<TaskWithTemplate | null>(null);
   const [timeLeft, setTimeLeft] = useState({ h: 0, m: 0, s: 0 });
   const [isActive, setIsActive] = useState(false);
@@ -67,6 +88,14 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
   // Load from localStorage on mount and sync changes in other windows
   useEffect(() => {
+    const retry = () => {
+      try {
+        const queue: PendingFocus[] = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
+        for (const entry of queue) void saveFocus(entry);
+      } catch { /* Leave a malformed queue untouched rather than discard work. */ }
+    };
+    retry();
+    window.addEventListener('online', retry);
     const handleStorageChange = (e?: StorageEvent) => {
       // Other keys (now-playing, objectives, presets…) change frequently;
       // only re-read focus state when the focus key itself changed.
@@ -76,17 +105,11 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         try {
           const data = JSON.parse(saved);
           
-          if (data.activeTask && data.endTime) {
+          sessionIdRef.current = data.sessionId || `restored:${data.activeTask?.id || 'free'}:${data.endTime || data.startedAt || 0}`;
+          if (data.activeTask && data.endTime && data.step !== 'DONE') {
             const now = getRwandaTime().getTime();
             if (data.endTime < now) {
-               // The session finished! Save the XP and focus minutes to the database.
-               const actualDurationMinutes = data.initialDurationMinutes || 1;
-               const finalXP = data.sessionXP || (actualDurationMinutes * 60 * (data.intensity === 'INTENSE' ? 2 : 1));
-               
-               logFocusSession(actualDurationMinutes, finalXP).catch(console.error);
-               if (data.activeTask.id !== 'free') {
-                 toggleTaskDone(data.activeTask.id, true).catch(console.error);
-               }
+               void saveFocus({ measurement: { sessionId: sessionIdRef.current, taskId: data.activeTask.id, ownerId: data.activeTask.userId, seconds: data.secondsFocused || 0 }, xp: data.sessionXP || 0 });
 
                localStorage.removeItem('study-flow-focus');
                setActiveTask(null);
@@ -110,8 +133,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
           setSecondsFocused(data.secondsFocused || 0);
           setOpenEnded(Boolean(data.openEnded));
           setStartedAt(data.startedAt ?? null);
-        } catch (e) {
-          console.error("Failed to parse focus session", e);
+        } catch (error) {
+          console.error("Failed to parse focus session", error);
         }
       } else {
         // Clear state if storage was cleared
@@ -125,7 +148,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
     handleStorageChange();
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    return () => { window.removeEventListener('storage', handleStorageChange); window.removeEventListener('online', retry); };
   }, []);
 
   // Save to localStorage whenever state changes.
@@ -147,6 +170,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         try {
           const currentStorage = JSON.parse(localStorage.getItem('study-flow-focus') || '{}');
           persist({
+            sessionId: sessionIdRef.current,
             activeTask,
             // The widget doesn't increment counters itself — prefer the main
             // window's values from storage so they aren't overwritten.
@@ -162,7 +186,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             openEnded,
             startedAt
           });
-        } catch (e) {
+        } catch {
           // Fallback
         }
       }
@@ -171,6 +195,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
     if (activeTask) {
       persist({
+        sessionId: sessionIdRef.current,
         activeTask,
         timeLeft,
         isActive,
@@ -225,11 +250,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
           // too, completion would be double-logged.
           const task = activeTaskRef.current;
           if (task && !isWidget) {
-            const actualDurationMinutes = Math.ceil(secondsFocusedRef.current / 60) || 1;
-            logFocusSession(actualDurationMinutes, sessionXPRef.current).catch(console.error);
-            if (task.id !== 'free') {
-              toggleTaskDone(task.id, true).catch(console.error);
-            }
+            void saveFocus({ measurement: { sessionId: sessionIdRef.current, taskId: task.id, ownerId: task.userId, seconds: secondsFocusedRef.current }, xp: sessionXPRef.current });
           }
         } else {
           const totalSeconds = Math.floor(diff / 1000);
@@ -254,6 +275,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
   const startFocus = useCallback((task: TaskWithTemplate, durationMinutes: number | null) => {
     const now = getRwandaTime().getTime();
 
+    sessionIdRef.current = crypto.randomUUID();
     setActiveTask(task);
     setSecondsFocused(0);
     if (durationMinutes === null) {
@@ -310,23 +332,16 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
   }, [timeLeft, openEnded]);
 
   const completeFocus = useCallback(async () => {
-    if (isActive && activeTask) {
-      const actualDurationMinutes = Math.ceil(secondsFocused / 60) || 1;
-      const xpToGrant = sessionXP;
-      try {
-        if (activeTask.id !== 'free') {
-          await toggleTaskDone(activeTask.id, true);
-        }
-        await logFocusSession(actualDurationMinutes, xpToGrant);
-      } catch (e) {
-        console.error("Failed to log focus session:", e);
-      }
-    }
+    // Freeze the timer before waiting for the save, so the completion screen
+    // and the recorded measurements describe the same instant.
     setIsActive(false);
     setEndTime(null);
     setStartedAt(null);
+    if (isActive && activeTask) {
+      await saveFocus({ measurement: { sessionId: sessionIdRef.current, taskId: activeTask.id, ownerId: activeTask.userId, seconds: secondsFocusedRef.current }, xp: sessionXPRef.current });
+    }
     setStep('DONE');
-  }, [isActive, activeTask, secondsFocused, sessionXP]);
+  }, [isActive, activeTask]);
 
   const resetFocus = useCallback(() => {
     setActiveTask(null);

@@ -294,7 +294,7 @@ export function AskClient({
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3 md:px-6">
+        <header data-tour="ask-intro" className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3 md:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Sparkles className="size-4" />

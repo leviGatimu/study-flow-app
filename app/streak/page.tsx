@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { CalendarCheck, Clock, Flame, ListChecks, Timer, Trophy } from 'lucide-react';
+import { History } from 'lucide-react';
+import { getZonedNow } from '@/lib/utils';
 
 import { syncStreak } from '@/lib/actions';
 import { getUserId } from '@/lib/auth';
@@ -9,9 +10,6 @@ import { prisma } from '@/lib/prisma';
 import { byTerm, getViewScope } from '@/lib/scope';
 import { Page, PageBody } from '@/components/ui/page';
 import { PageHeader } from '@/components/ui/page-header';
-import { Panel } from '@/components/ui/panel';
-import { Section } from '@/components/ui/section';
-import { Stat } from '@/components/ui/stat';
 import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/ui/error-state';
 import { StreakBreakBanner } from '@/components/StreakBreakBanner';
@@ -52,8 +50,8 @@ export default async function StreakPage() {
     console.error('Streak failed to load', error);
     return (
       <Page>
-        <PageHeader title="Streak" description="How many days in a row you have studied, and the level it has earned you." />
-        <PageBody>
+        <PageHeader title="Streak" description="A record of your study days, focus time and progress." />
+        <PageBody className="space-y-6 pt-6">
           <ErrorState
             title="Your streak could not be loaded"
             description="Something went wrong while reading your progress. Reload the page to try again."
@@ -73,64 +71,37 @@ export default async function StreakPage() {
     <Page>
       <PageHeader
         title="Streak"
-        description="How many days in a row you have studied, and the level it has earned you."
-        highlight={{ label: paused ? 'Current streak (paused)' : 'Current streak', value: `${current} ${current === 1 ? 'day' : 'days'}` }}
+        description="A record of your study days, focus time and progress."
+        className="pt-7 pb-5 [&_h1]:text-3xl [&_h1]:font-semibold"
         actions={
           <Button asChild size="lg">
-            <Link href="/">
-              <ListChecks />
-              Today&apos;s tasks
+            <Link href="/history?view=completed">
+              <History />
+              View history
             </Link>
           </Button>
         }
       />
 
-      <PageBody>
+      <PageBody className="space-y-6 pt-6">
         <StreakBreakBanner paused={paused} currentStreak={current} />
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="space-y-6 lg:col-span-5">
-            <Panel className="flex items-center gap-5">
-              <Flame className="size-14 shrink-0 fill-orange-500 text-orange-500" aria-hidden="true" />
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-muted-foreground">Current streak</p>
-                <p className="font-heading text-6xl font-black leading-none tracking-tight tabular-nums text-foreground">
-                  {current}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {current === 0
-                    ? 'Finish one block today to start a new streak.'
-                    : `${plural(current, 'day')} in a row. Finish a block today to keep it going.`}
-                </p>
-              </div>
-            </Panel>
-
-            <Panel className="grid grid-cols-2 gap-x-4 gap-y-6">
-              <Stat icon={<Trophy />} label="Best streak" value={plural(best, 'day')} hint="All-time record" />
-              <Stat icon={<CalendarCheck />} label="Study days" value={activeDays.length} hint="This year, any finished block" />
-              <Stat
-                icon={<Timer />}
-                label="Focus sessions"
-                value={userProgress.focusSessions ?? 0}
-                hint="Timed in Focus"
-              />
-              <Stat
-                icon={<Clock />}
-                label="Time focused"
-                value={`${Math.floor(focusMinutes / 60)}h ${focusMinutes % 60}m`}
-                hint="Across all sessions"
-              />
-            </Panel>
+        <section className="grid gap-8 rounded-xl border border-border bg-card p-6 sm:p-8 lg:grid-cols-[1fr_2fr] lg:items-center" aria-label="Your consistency">
+          <div>
+            <p className="text-sm text-muted-foreground">{paused?'Current streak · paused':'Current streak'}</p>
+            <p className="my-3 flex items-baseline gap-3"><span className="text-6xl font-medium tabular-nums">{current}</span><span className="text-lg text-muted-foreground">{current===1?'day':'days'}</span></p>
+            <p className="max-w-sm text-sm text-muted-foreground">Active days in Study Flow, at your pace. The calendar below records completed study blocks.</p>
           </div>
-
-          <div className="lg:col-span-7">
-            <StreakCalendar activeDays={activeDays} />
-          </div>
-        </div>
-
-        <Section title="Level and rank" description="Everything you finish earns XP. XP raises your level, and levels unlock ranks.">
+          <dl className="grid grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-6 lg:border-l lg:border-border lg:pl-8">
+            <div><dt className="text-xs text-muted-foreground">Best streak</dt><dd className="mt-2 text-2xl font-medium tabular-nums">{plural(best,'day')}</dd><p className="mt-1 text-xs text-muted-foreground">All-time record</p></div>
+            <div><dt className="text-xs text-muted-foreground">Study days</dt><dd className="mt-2 text-2xl font-medium tabular-nums">{activeDays.length}</dd><p className="mt-1 text-xs text-muted-foreground">In this academic year</p></div>
+            <div><dt className="text-xs text-muted-foreground">Time focused</dt><dd className="mt-2 text-2xl font-medium tabular-nums">{Math.floor(focusMinutes/60)}h {focusMinutes%60}m</dd><p className="mt-1 text-xs text-muted-foreground">{plural(userProgress.focusSessions??0,'session')}</p></div>
+          </dl>
+        </section>
+        <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+          <StreakCalendar activeDays={activeDays} today={format(getZonedNow(userProgress.timezone),'yyyy-MM-dd')} />
           <RankRoadmap userProgress={userProgress} />
-        </Section>
+        </div>
       </PageBody>
     </Page>
   );

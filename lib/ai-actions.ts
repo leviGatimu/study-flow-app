@@ -9,6 +9,7 @@ import { getZonedNow } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';
 import { grantXp } from './gamification';
 import { randomUUID } from 'node:crypto';
+import { GEMINI_FALLBACK_MODELS, describeAIFailure, isModelUnavailableError, rankGeminiModels, rankOpenAIModels } from './ai-models';
 import { startOfDay, isSameDay } from 'date-fns';
 import {
   getViewScope,
@@ -89,7 +90,8 @@ const PROVIDER_LABELS: Record<Provider, string> = {
 };
 
 const PREFERRED_MODELS: Record<Provider, string[]> = {
-  gemini: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'],
+  // Gemini is ranked from the live model listing instead (lib/gemini-models.ts).
+  gemini: [...GEMINI_FALLBACK_MODELS],
   openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
   anthropic: ['claude-3-5-sonnet-20240620', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'],
   groq: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768', 'gemma2-9b-it'],
@@ -162,16 +164,12 @@ async function probeGemini(apiKey: string): Promise<DetectedProvider | null> {
 
   if (!response.ok) return null;
   const data = await safeJson(response);
-  const models = Array.isArray(data?.models)
-    ? data.models
-        .map((model: { name?: string }) => model.name?.replace(/^models\//, ''))
-        .filter(Boolean)
-    : [];
+  const models = rankGeminiModels(Array.isArray(data?.models) ? data.models : []);
 
   return {
     provider: 'gemini',
     label: PROVIDER_LABELS.gemini,
-    model: pickModel('gemini', models),
+    model: models[0] ?? GEMINI_FALLBACK_MODELS[0],
     models,
   };
 }
@@ -185,12 +183,13 @@ async function probeOpenAI(apiKey: string): Promise<DetectedProvider | null> {
 
   if (!response.ok) return null;
   const data = await safeJson(response);
-  const models = Array.isArray(data?.data) ? data.data.map((model: { id?: string }) => model.id).filter(Boolean) : [];
+  const listed: string[] = Array.isArray(data?.data) ? data.data.map((model: { id?: string }) => model.id).filter(Boolean) : [];
+  const models = rankOpenAIModels(listed, PREFERRED_MODELS.openai);
 
   return {
     provider: 'openai',
     label: PROVIDER_LABELS.openai,
-    model: pickModel('openai', models),
+    model: models[0] ?? PREFERRED_MODELS.openai[0],
     models,
   };
 }
@@ -912,7 +911,13 @@ export async function saveAIKey(rawKey: string) {
 
   const detected = await detectAIProvider(key);
   if (!detected) {
-    return { success: false, error: 'This key did not validate against the supported providers.' };
+    return { success: false, error: 'Neither Google Gemini nor OpenAI accepted this key. Check that you copied all of it.' };
+  }
+
+  if (detected.provider === 'gemini' || detected.provider === 'openai') {
+    const test = await testCloudModels(detected.provider, key, detected.models.length ? detected.models : [detected.model]);
+    if (!test.ok) return { success: false, error: testFailureMessage(detected.label, test.failures) };
+    detected.model = test.model;
   }
 
   const updateData: any = {};
@@ -923,8 +928,10 @@ export async function saveAIKey(rawKey: string) {
     updateData.openaiApiKey = key;
     updateData.primaryAiProvider = 'openai';
   } else {
-    updateData.geminiApiKey = key;
-    updateData.primaryAiProvider = 'gemini';
+    // Claude and Groq keys validate, but the app has nowhere to keep them and
+    // no way to call them yet. Saving one into the Gemini slot (as this used
+    // to) broke the Gemini key that was there and every request after it.
+    return { success: false, error: `${detected.label} keys are not supported yet. Use a Google Gemini or OpenAI key.` };
   }
 
   await prisma.userProgress.upsert({
@@ -953,6 +960,8 @@ export async function saveGeminiKey(rawKey: string) {
     if (!detected) {
       return { success: false, error: 'Invalid Gemini API key. Please check your key and billing status.' };
     }
+    const test = await testCloudModels('gemini', key, detected.models.length ? detected.models : [detected.model]);
+    if (!test.ok) return { success: false, error: testFailureMessage(detected.label, test.failures) };
   }
 
   await prisma.userProgress.upsert({
@@ -976,6 +985,8 @@ export async function saveOpenAIKey(rawKey: string) {
     if (!detected) {
       return { success: false, error: 'Invalid OpenAI API key. Please check your key and billing status.' };
     }
+    const test = await testCloudModels('openai', key, detected.models.length ? detected.models : [detected.model]);
+    if (!test.ok) return { success: false, error: testFailureMessage(detected.label, test.failures) };
   }
 
   await prisma.userProgress.upsert({
@@ -1149,6 +1160,7 @@ export async function askAIBuddy(prompt: string, history: HistoryMessage[], sess
     systemInstructionOverride ??
     defaultSystemInstruction(getZonedNow(await getCurrentUserTimezone()).toDateString());
   let lastError = 'Failed to communicate with AI.';
+  const failures: string[] = [];
 
   // Persist the AI reply + award XP. Shared by every successful attempt.
   const finalize = async (text: string, providerLabel: string, model: string) => {
@@ -1175,7 +1187,7 @@ export async function askAIBuddy(prompt: string, history: HistoryMessage[], sess
           provider === 'gemini' ? await probeGemini(key) : await probeOpenAI(key);
         if (!detected) {
           detected = provider === 'gemini'
-            ? { provider: 'gemini', label: PROVIDER_LABELS.gemini, model: 'gemini-2.0-flash', models: ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'] }
+            ? { provider: 'gemini', label: PROVIDER_LABELS.gemini, model: GEMINI_FALLBACK_MODELS[0], models: [...GEMINI_FALLBACK_MODELS] }
             : { provider: 'openai', label: PROVIDER_LABELS.openai, model: 'gpt-4o-mini', models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo'] };
         }
 
@@ -1187,7 +1199,9 @@ export async function askAIBuddy(prompt: string, history: HistoryMessage[], sess
         availableModels.forEach((m) => { if (!modelsToTry.includes(m)) modelsToTry.push(m); });
         if (!modelsToTry.includes(detected.model)) modelsToTry.unshift(detected.model);
 
-        for (const modelToUse of modelsToTry.slice(0, 2)) {
+        // Retired (404) and out-of-quota (429, per model) answers belong to one
+        // model, so walk past those (up to five); give up after two otherwise.
+        for (const [attempt, modelToUse] of modelsToTry.slice(0, 5).entries()) {
           try {
             const result =
               detected.provider === 'gemini'
@@ -1197,6 +1211,8 @@ export async function askAIBuddy(prompt: string, history: HistoryMessage[], sess
           } catch (error: any) {
             lastError = error.message || String(error);
             console.warn(`Model ${modelToUse} for ${provider} failed: ${lastError}`);
+            failures.push(describeAIFailure(modelToUse, lastError ?? ''));
+            if (attempt >= 1 && !isModelUnavailableError(lastError ?? '')) break;
           }
         }
       } catch (error: any) {
@@ -1231,6 +1247,13 @@ export async function askAIBuddy(prompt: string, history: HistoryMessage[], sess
     if (result) return result;
   }
 
+  if (failures.length > 0) {
+    const allQuota = failures.every((f) => f.endsWith('no quota left on this key'));
+    const advice = allQuota
+      ? ' Free Gemini keys have a small daily limit per model and none for Pro models. Wait for it to reset, or add an OpenAI key in Settings.'
+      : '';
+    return { text: '', error: `AI unavailable. Tried ${failures.join('; ')}.${advice}${ollamaConfig ? '' : ' No local Ollama model was running.'}` };
+  }
   return { text: '', error: `AI unavailable: ${lastError}. Checked cloud providers and local Ollama.` };
 }
 
@@ -1700,4 +1723,88 @@ export async function commitTimetablePlan(
   revalidatePath('/calendar');
 
   return { success: true, examsAdded, revisionAdded };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Proving a key works                                                        */
+/* -------------------------------------------------------------------------- */
+
+const TEST_PROMPT = 'Reply with the single word OK.';
+const TEST_SYSTEM = 'You are a connection test. Reply with the single word OK and nothing else.';
+
+type ModelTest = { ok: true; model: string } | { ok: false; failures: string[] };
+
+/**
+ * Send one tiny real request and wait for an answer. Listing models only
+ * proves the key exists; a key with no quota lists models happily and then
+ * fails every request, which is exactly what people were seeing.
+ */
+async function testCloudModels(provider: 'gemini' | 'openai', key: string, models: string[]): Promise<ModelTest> {
+  const failures: string[] = [];
+  for (const [attempt, model] of models.slice(0, 5).entries()) {
+    try {
+      const result = provider === 'gemini'
+        ? await askGemini(key, model, TEST_PROMPT, [], undefined, TEST_SYSTEM, false)
+        : await askOpenAI(key, model, TEST_PROMPT, [], undefined, TEST_SYSTEM, false);
+      if (result.text?.trim()) return { ok: true, model };
+      failures.push(`${model}: answered with nothing`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      failures.push(describeAIFailure(model, message));
+      if (attempt >= 1 && !isModelUnavailableError(message)) break;
+    }
+  }
+  return { ok: false, failures };
+}
+
+function testFailureMessage(label: string, failures: string[]) {
+  const allQuota = failures.length > 0 && failures.every((f) => f.endsWith('no quota left on this key'));
+  const advice = allQuota ? ' The key is real but has no quota left right now. Free Gemini keys reset daily; or use another key.' : '';
+  return `Your ${label} key did not answer a test message. Tried ${failures.join('; ')}.${advice}`;
+}
+
+export type AIConnectionTest = {
+  cloud: { provider: 'gemini' | 'openai'; label: string; ok: boolean; model?: string; error?: string }[];
+  ollama: { enabled: boolean; ok: boolean; model?: string; error?: string };
+  /** True when at least one provider actually answered. */
+  ok: boolean;
+};
+
+/** Test every AI the account has saved with a real request. Used by setup and settings. */
+export async function testAIConnection(): Promise<AIConnectionTest> {
+  const empty: AIConnectionTest = { cloud: [], ollama: { enabled: false, ok: false }, ok: false };
+  const userId = await getUserId();
+  if (!userId) return empty;
+  const progress = await prisma.userProgress.findUnique({ where: { userId } });
+  if (!progress) return empty;
+
+  const saved: { provider: 'gemini' | 'openai'; key: string }[] = [];
+  if (progress.geminiApiKey?.trim()) saved.push({ provider: 'gemini', key: progress.geminiApiKey.trim() });
+  if (progress.openaiApiKey?.trim()) saved.push({ provider: 'openai', key: progress.openaiApiKey.trim() });
+
+  const cloud = await Promise.all(saved.map(async ({ provider, key }) => {
+    const label = PROVIDER_LABELS[provider];
+    const detected = provider === 'gemini' ? await probeGemini(key) : await probeOpenAI(key);
+    if (!detected) return { provider, label, ok: false, error: 'The key was rejected.' };
+    const test = await testCloudModels(provider, key, detected.models.length ? detected.models : [detected.model]);
+    return test.ok ? { provider, label, ok: true, model: test.model } : { provider, label, ok: false, error: testFailureMessage(label, test.failures) };
+  }));
+
+  let ollama: AIConnectionTest['ollama'] = { enabled: Boolean(progress.ollamaEnabled), ok: false };
+  if (progress.ollamaEnabled) {
+    const found = await probeOllama(progress.ollamaBaseUrl);
+    if (!found || found.models.length === 0) {
+      ollama = { enabled: true, ok: false, error: 'No local Ollama model is running.' };
+    } else {
+      const model = progress.ollamaModel?.trim() && found.models.includes(progress.ollamaModel.trim()) ? progress.ollamaModel.trim() : found.models[0];
+      try {
+        const result = await askOllama(normalizeOllamaUrl(progress.ollamaBaseUrl), model, TEST_PROMPT, [], undefined, TEST_SYSTEM, false);
+        ollama = result.text?.trim() ? { enabled: true, ok: true, model } : { enabled: true, ok: false, error: `${model} answered with nothing.` };
+      } catch (error) {
+        ollama = { enabled: true, ok: false, error: describeAIFailure(model, error instanceof Error ? error.message : String(error)) };
+      }
+    }
+  }
+
+  return { cloud, ollama, ok: cloud.some((c) => c.ok) || ollama.ok };
 }

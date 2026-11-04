@@ -6,5 +6,6 @@ export default async function RegisterPage() {
   const userId = await getUserId();
   if (userId) redirect('/');
 
-  return <RegisterClient />;
+  const zones = Intl.supportedValuesOf('timeZone');
+  return <RegisterClient zones={zones} />;
 }

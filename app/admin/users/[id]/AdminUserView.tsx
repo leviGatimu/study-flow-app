@@ -37,6 +37,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Panel as Surface, PanelTitle } from '@/components/ui/panel';
 import { Pill } from '@/components/ui/list-row';
 import { Stat } from '@/components/ui/stat';
+import type { AdminSource, AdminContentKind } from '@/lib/admin-remote';
 import type { AdminUserDetail } from '@/lib/admin-actions';
 import {
   deleteUserAccount,
@@ -46,10 +47,16 @@ import {
   setUserAdmin,
 } from '@/lib/admin-actions';
 
-type ContentKind = 'notes' | 'sticky' | 'ai' | 'homework';
+type ContentKind = AdminContentKind;
 type ContentRow = { id: string; title: string; body: string; when: Date };
 
-export function AdminUserView({ user }: { user: AdminUserDetail }) {
+export function AdminUserView({
+  user,
+  source,
+}: {
+  user: AdminUserDetail;
+  source: AdminSource;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -57,7 +64,9 @@ export function AdminUserView({ user }: { user: AdminUserDetail }) {
     <Page>
       <div className="px-4 pt-6 md:px-8">
         <Button variant="ghost" asChild className="gap-1.5">
-          <Link href="/admin">
+          <Link
+            href={source.mode === 'device' ? '/admin?source=device' : '/admin'}
+          >
             <ArrowLeft className="size-4" />
             All users
           </Link>
@@ -84,30 +93,98 @@ export function AdminUserView({ user }: { user: AdminUserDetail }) {
       />
 
       <PageBody>
-      {/* Say plainly whose data this is. An admin reading someone's notes
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
+          <span>
+            {source.mode === 'server'
+              ? 'Current account data from the connected server'
+              : source.mode === 'device'
+                ? 'This device’s records only'
+                : 'Current server account data'}
+          </span>
+          <Button
+            variant="ghost"
+            className="min-h-11 rounded-lg"
+            onClick={() => router.refresh()}
+          >
+            <RefreshCw className="size-4" />
+            Refresh account
+          </Button>
+        </div>
+        {user.progress && (
+          <section className="border-b border-border pb-6">
+            <h2 className="text-xl font-semibold">{user.progress.name}</h2>
+            {user.progress.school && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {user.progress.school}
+              </p>
+            )}
+            {user.progress.bio && (
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                {user.progress.bio}
+              </p>
+            )}
+          </section>
+        )}
+        {/* Say plainly whose data this is. An admin reading someone's notes
           should never be able to forget they are doing it. */}
-      <div className="flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-        <Eye className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
-        <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
-          You are looking at <span className="font-bold">{user.username}</span>&apos;s account,
-          including everything they have written.
-        </p>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="space-y-6 xl:col-span-2">
-          <SetupState user={user} />
-          <Counts user={user} />
-          <Years user={user} />
-          <Devices user={user} />
-          <RecentTasks user={user} />
-          <ContentBrowser userId={user.id} username={user.username} />
+        <div className="flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <Eye className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+            You are looking at{' '}
+            <span className="font-bold">{user.username}</span>&apos;s account,
+            including everything they have written.
+          </p>
         </div>
 
-        <aside className="space-y-6">
-          <Actions user={user} isPending={isPending} startTransition={startTransition} router={router} />
-        </aside>
-      </div>
+        <div className="grid gap-6 xl:grid-cols-3">
+          <div className="space-y-6 xl:col-span-2">
+            <SetupState user={user} />
+            <Counts user={user} />
+            <Years user={user} />
+            <Devices user={user} />
+            <RecentTasks user={user} />
+            <ContentBrowser
+              userId={user.id}
+              username={user.username}
+              deviceOnly={source.mode === 'device'}
+            />
+          </div>
+
+          <aside className="space-y-6">
+            {source.mode === 'web' ? (
+              <Actions
+                user={user}
+                isPending={isPending}
+                startTransition={startTransition}
+                router={router}
+              />
+            ) : (
+              <Panel title="Account management">
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Desktop reports show current information. Manage account
+                  access, passwords and removal on the server.
+                </p>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="mt-4 min-h-11 rounded-lg"
+                >
+                  {source.serverUrl ? (
+                    <a
+                      href={`${source.serverUrl}/admin/users/${encodeURIComponent(user.id)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open server admin
+                    </a>
+                  ) : (
+                    <Link href="/settings?tab=sync">Connect a server</Link>
+                  )}
+                </Button>
+              </Panel>
+            )}
+          </aside>
+        </div>
       </PageBody>
     </Page>
   );
@@ -115,7 +192,13 @@ export function AdminUserView({ user }: { user: AdminUserDetail }) {
 
 /* -------------------------------------------------------------------- panels */
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function Panel({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <Surface>
       <PanelTitle>{title}</PanelTitle>
@@ -136,18 +219,22 @@ function SetupState({ user }: { user: AdminUserDetail }) {
     {
       label: 'Subjects',
       ok: user.subjects.length > 0,
-      detail: user.subjects.length ? user.subjects.join(', ') : 'None — most pages will be empty',
+      detail: user.subjects.length
+        ? user.subjects.join(', ')
+        : 'No subjects added',
     },
     {
       label: 'Weekly study blocks',
       ok: (user.counts.templates ?? 0) > 0,
       detail: user.counts.templates
         ? `${user.counts.templates} recurring blocks`
-        : 'None — nothing will ever be generated onto their days',
+        : 'No recurring blocks added',
     },
     {
       label: 'AI',
-      ok: Boolean(user.aiKeys.gemini || user.aiKeys.openai || user.aiKeys.ollama),
+      ok: Boolean(
+        user.aiKeys.gemini || user.aiKeys.openai || user.aiKeys.ollama,
+      ),
       detail:
         [
           user.aiKeys.gemini && `Gemini ${user.aiKeys.gemini}`,
@@ -155,7 +242,8 @@ function SetupState({ user }: { user: AdminUserDetail }) {
           user.aiKeys.ollama && 'local model enabled',
         ]
           .filter(Boolean)
-          .join(' · ') || 'No key — every AI feature is inert for them',
+          .join(' · ') ||
+        'No AI connection configured; saved practice remains available',
     },
     {
       label: 'Guided tour',
@@ -174,14 +262,14 @@ function SetupState({ user }: { user: AdminUserDetail }) {
   ];
 
   return (
-    <Panel title="Is this person set up?">
+    <Panel title="Workspace configuration">
       <ul className="space-y-3">
         {rows.map((r) => (
           <li key={r.label} className="flex items-start gap-3">
             <span
               className={cn(
                 'mt-1 h-2 w-2 shrink-0 rounded-full',
-                r.ok ? 'bg-emerald-500' : 'bg-amber-500'
+                r.ok ? 'bg-emerald-500' : 'bg-amber-500',
               )}
             />
             <div className="min-w-0">
@@ -201,24 +289,47 @@ function Counts({ user }: { user: AdminUserDetail }) {
     <Panel title="Activity">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
-          ['Streak', p ? `${p.currentStreak}` : '0', p ? `best ${p.longestStreak}` : ''],
+          [
+            'Streak',
+            p ? `${p.currentStreak}` : '0',
+            p ? `best ${p.longestStreak}` : '',
+          ],
           ['Level', p ? `${p.level}` : '1', p ? `${p.xp} xp` : ''],
           [
             'Deep focus',
             p ? `${Math.round(p.totalFocusMinutes / 60)}h` : '0h',
             p ? `${p.focusSessions} sessions` : '',
           ],
-          ['AI sessions', `${user.counts.aiSessions ?? 0}`, ''],
+          [
+            'Practice sets',
+            `${user.counts.practiceSets ?? 0}`,
+            `${user.counts.attempts ?? 0} attempts`,
+          ],
         ].map(([label, value, sub]) => (
-          <Stat key={label} label={label} value={value} hint={sub || undefined} />
+          <Stat
+            key={label}
+            label={label}
+            value={value}
+            hint={sub || undefined}
+          />
         ))}
       </div>
       <div className="mt-5 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
-        {Object.entries(user.counts).map(([key, value]) => (
-          <span key={key}>
-            <span className="font-bold tabular-nums text-foreground">{value}</span> {key}
-          </span>
-        ))}
+        {Object.entries(user.counts)
+          .filter(
+            ([key]) =>
+              !['projects', 'stickyNotes', 'studioNotes', 'songs'].includes(
+                key,
+              ),
+          )
+          .map(([key, value]) => (
+            <span key={key}>
+              <span className="font-bold tabular-nums text-foreground">
+                {value}
+              </span>{' '}
+              {key}
+            </span>
+          ))}
       </div>
     </Panel>
   );
@@ -241,7 +352,10 @@ function Years({ user }: { user: AdminUserDetail }) {
           <li key={c.id}>
             <p className="text-sm font-bold">
               {c.label}
-              <Pill tone={c.status === 'ACTIVE' ? 'success' : 'default'} className="ml-2">
+              <Pill
+                tone={c.status === 'ACTIVE' ? 'success' : 'default'}
+                className="ml-2"
+              >
                 {c.status === 'ACTIVE' ? 'Active' : 'Finished'}
               </Pill>
             </p>
@@ -266,17 +380,23 @@ function Years({ user }: { user: AdminUserDetail }) {
 
 function Devices({ user }: { user: AdminUserDetail }) {
   return (
-    <Panel title="Paired devices">
+    <Panel title="Device status reports">
       {user.devices.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No desktop device has ever paired.</p>
+        <p className="text-sm text-muted-foreground">
+          No device status has been reported to this database yet.
+        </p>
       ) : (
         <ul className="space-y-3">
           {user.devices.map((d) => (
             <li key={d.deviceId} className="text-sm">
-              <p className="font-mono text-xs text-muted-foreground">{d.deviceId}</p>
+              <p className="font-mono text-xs text-muted-foreground">
+                {d.deviceId}
+              </p>
               <p className="mt-0.5">
-                {d.lastSyncAt ? `Last sync ${formatDate(d.lastSyncAt)}` : 'Never completed a sync'} ·{' '}
-                {d.lastPushed} pushed / {d.lastPulled} pulled
+                {d.lastSyncAt
+                  ? `Last sync ${formatDate(d.lastSyncAt)}`
+                  : 'Never completed a sync'}{' '}
+                · {d.lastPushed} pushed / {d.lastPulled} pulled
               </p>
               {d.lastError && (
                 <p className="mt-1 flex items-start gap-1.5 text-xs text-destructive">
@@ -296,12 +416,16 @@ function RecentTasks({ user }: { user: AdminUserDetail }) {
   return (
     <Panel title="Recent study blocks">
       {user.recentTasks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nothing has ever been generated for them.</p>
+        <p className="text-sm text-muted-foreground">
+          Nothing has ever been generated for them.
+        </p>
       ) : (
         <ul className="space-y-1.5 text-sm">
           {user.recentTasks.map((t) => (
             <li key={t.id} className="flex items-center justify-between gap-3">
-              <span className={cn(t.isDone && 'text-muted-foreground line-through')}>
+              <span
+                className={cn(t.isDone && 'text-muted-foreground line-through')}
+              >
                 {t.subject}
               </span>
               <span className="shrink-0 text-xs text-muted-foreground">
@@ -316,7 +440,15 @@ function RecentTasks({ user }: { user: AdminUserDetail }) {
 }
 
 /** Their written content, loaded only when a tab is actually opened. */
-function ContentBrowser({ userId, username }: { userId: string; username: string }) {
+function ContentBrowser({
+  userId,
+  username,
+  deviceOnly,
+}: {
+  userId: string;
+  username: string;
+  deviceOnly: boolean;
+}) {
   const [kind, setKind] = useState<ContentKind | null>(null);
   const [rows, setRows] = useState<ContentRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -325,7 +457,7 @@ function ContentBrowser({ userId, username }: { userId: string; username: string
     setKind(next);
     setLoading(true);
     try {
-      setRows(await getAdminUserContent(userId, next));
+      setRows(await getAdminUserContent(userId, next, deviceOnly));
     } catch {
       toast.error('Could not load that.');
       setRows([]);
@@ -339,8 +471,8 @@ function ContentBrowser({ userId, username }: { userId: string; username: string
       <div className="flex flex-wrap gap-2">
         {(
           [
-            ['notes', 'Subject notes'],
-            ['sticky', 'Sticky notes'],
+            ['practice', 'Practice sets'],
+            ['focus', 'Focus logs'],
             ['homework', 'Homework'],
             ['ai', 'AI conversations'],
           ] as const
@@ -350,10 +482,10 @@ function ContentBrowser({ userId, username }: { userId: string; username: string
             type="button"
             onClick={() => void open(id)}
             className={cn(
-              'rounded-full border px-3 py-1.5 text-xs font-bold transition-colors',
+              'min-h-11 rounded-lg border px-3 py-2 text-xs font-medium transition-colors',
               kind === id
                 ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border/60 text-muted-foreground hover:text-foreground'
+                : 'border-border/60 text-muted-foreground hover:text-foreground',
             )}
           >
             {label}
@@ -380,7 +512,10 @@ function ContentBrowser({ userId, username }: { userId: string; username: string
             <p className="text-sm text-muted-foreground">Nothing here.</p>
           ) : (
             rows.map((r) => (
-              <details key={r.id} className="rounded-xl border border-border/60 bg-muted/20 p-3">
+              <details
+                key={r.id}
+                className="rounded-xl border border-border/60 bg-muted/20 p-3"
+              >
                 <summary className="cursor-pointer text-sm font-bold">
                   {r.title}
                   <span className="ml-2 font-normal text-xs text-muted-foreground">
@@ -415,7 +550,10 @@ function Actions({
   const [password, setPassword] = useState('');
   const [typed, setTyped] = useState('');
 
-  const run = (fn: () => Promise<{ error?: string; success?: boolean }>, ok: string) =>
+  const run = (
+    fn: () => Promise<{ error?: string; success?: boolean }>,
+    ok: string,
+  ) =>
     startTransition(async () => {
       const res = await fn();
       if (res?.error) toast.error(res.error);
@@ -442,7 +580,12 @@ function Actions({
               size="sm"
               className="mt-3"
               disabled={isPending}
-              onClick={() => run(() => setUserAdmin(user.id, !user.isAdmin), 'Rights updated.')}
+              onClick={() =>
+                run(
+                  () => setUserAdmin(user.id, !user.isAdmin),
+                  'Rights updated.',
+                )
+              }
             >
               {user.isAdmin ? 'Revoke admin' : 'Make admin'}
             </Button>
@@ -470,29 +613,40 @@ function Actions({
                 size="sm"
                 className="h-9 shrink-0"
                 disabled={isPending || password.length < 6}
-                onClick={() => run(() => resetUserPassword(user.id, password), 'Password changed.')}
+                onClick={() =>
+                  run(
+                    () => resetUserPassword(user.id, password),
+                    'Password changed.',
+                  )
+                }
               >
                 <KeyRound className="h-3.5 w-3.5" />
                 Set
               </Button>
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              Shown in plain text so you can read it out. Tell them to change it.
+              Shown in plain text so you can read it out. Tell them to change
+              it.
             </p>
           </div>
 
           <div>
             <p className="text-xs font-bold">Show onboarding again</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Clears the tour and setup flags, so the wizard and the guided tour both come back
-              for them.
+              Clears the tour and setup flags, so the wizard and the guided tour
+              both come back for them.
             </p>
             <Button
               variant="outline"
               size="sm"
               className="mt-2"
               disabled={isPending}
-              onClick={() => run(() => resetUserOnboarding(user.id), 'They will see setup again.')}
+              onClick={() =>
+                run(
+                  () => resetUserOnboarding(user.id),
+                  'They will see setup again.',
+                )
+              }
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Reset onboarding
@@ -505,10 +659,13 @@ function Actions({
         <PanelTitle icon={<Trash2 />}>Delete this account</PanelTitle>
         <div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Everything goes: their tasks, notes, marks, timetable, uploads and paired devices.
-            There is no undo and no backup taken here.
+            Everything goes: their tasks, notes, marks, timetable, uploads and
+            paired devices. There is no undo and no backup taken here.
           </p>
-          <Label htmlFor="admin-confirm" className="mt-4 block text-xs font-bold">
+          <Label
+            htmlFor="admin-confirm"
+            className="mt-4 block text-xs font-bold"
+          >
             Type <span className="font-mono">{user.username}</span> to confirm
           </Label>
           <Input
@@ -535,7 +692,11 @@ function Actions({
               })
             }
           >
-            {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            {isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
             Delete permanently
           </Button>
         </div>

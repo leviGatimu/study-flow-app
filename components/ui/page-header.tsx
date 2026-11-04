@@ -26,6 +26,7 @@ export function PageHeader({
   highlight,
   back,
   className,
+  tour,
 }: {
   title: React.ReactNode;
   description?: React.ReactNode;
@@ -34,12 +35,15 @@ export function PageHeader({
   highlight?: { label: React.ReactNode; value: React.ReactNode };
   back?: { href?: string; onClick?: () => void; label: string };
   className?: string;
+  /** Anchor for the guided tour (data-tour). */
+  tour?: string;
 }) {
   const backClass =
     "inline-flex items-center gap-1.5 text-xs font-bold text-primary/80 hover:text-primary transition-colors";
 
   return (
     <section
+      data-tour={tour}
       className={cn(
         "flex flex-col xl:flex-row xl:items-center justify-between gap-6 px-4 md:px-8 pt-10 pb-6 border-b border-border/40",
         className

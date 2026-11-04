@@ -31,9 +31,11 @@ import { usePathname, useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import { ArrowLeft, ArrowRight, X, Check, Compass, Loader2, SkipForward } from 'lucide-react';
 import { markOnboarded } from '@/lib/actions';
-import { TOUR_STEPS, TOUR_CHAPTERS, routePath } from './tour-steps';
+import { TOUR_STEPS, chaptersOf, routePath, stepsFor, text, type TourContext } from './tour-steps';
+import { getTourContext } from '@/lib/tour-actions';
 
 /**
  * A second, local guard - NOT the source of truth.
@@ -79,15 +81,27 @@ export function OnboardingTour({ hasOnboarded = true }: { hasOnboarded?: boolean
   const [cardH, setCardH] = useState(240);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const step = TOUR_STEPS[i];
+  /** The person's own week; the steps and their wording are built from it. */
+  const [ctx, setCtx] = useState<TourContext | null>(null);
+  const steps = useMemo(() => (ctx ? stepsFor(ctx) : []), [ctx]);
+  const chapters = useMemo(() => chaptersOf(steps), [steps]);
+  const step = steps[i];
   const onRoute = Boolean(step) && pathname === routePath(step.route);
-  const rect = measured?.stepId === step?.id ? measured.rect : null;
+  // Both must exist: before the tour's context loads there is no step, and
+  // undefined === undefined would read a measurement that is not there.
+  const rect = measured && step && measured.stepId === step.id ? measured.rect : null;
   /** Nothing to show yet: the page is still arriving, or the anchor is. */
   const waiting = Boolean(step) && (!onRoute || (Boolean(step.selector) && measured?.stepId !== step.id));
 
   const start = useCallback((at = 0) => {
-    setI(at);
-    setActive(true);
+    // Learn about the person first, so the first card already talks about
+    // their day. Without it (signed out, server error) there is no tour.
+    void getTourContext().then((context) => {
+      if (!context) return;
+      setCtx(context);
+      setI(Math.max(0, Math.min(at, stepsFor(context).length - 1)));
+      setActive(true);
+    }).catch(() => {});
   }, []);
 
   const finish = useCallback(() => {
@@ -107,13 +121,13 @@ export function OnboardingTour({ hasOnboarded = true }: { hasOnboarded?: boolean
 
   const goTo = useCallback(
     (index: number) => {
-      if (index >= TOUR_STEPS.length) {
+      if (index >= steps.length) {
         finish();
         return;
       }
       setI(Math.max(0, index));
     },
-    [finish]
+    [finish, steps.length]
   );
 
   const next = useCallback(() => goTo(i + 1), [goTo, i]);
@@ -121,11 +135,11 @@ export function OnboardingTour({ hasOnboarded = true }: { hasOnboarded?: boolean
 
   /** Jump past everything in the current chapter - for the parts you know. */
   const skipChapter = useCallback(() => {
-    const chapter = TOUR_STEPS[i]?.chapter;
+    const chapter = steps[i]?.chapter;
     let index = i;
-    while (index < TOUR_STEPS.length && TOUR_STEPS[index].chapter === chapter) index++;
+    while (index < steps.length && steps[index].chapter === chapter) index++;
     goTo(index);
-  }, [goTo, i]);
+  }, [goTo, i, steps]);
 
   // Remember the position for a reload. Session-scoped on purpose: a new tab
   // tomorrow is a new visit, not an interrupted tour.
@@ -312,17 +326,18 @@ export function OnboardingTour({ hasOnboarded = true }: { hasOnboarded?: boolean
   }, [active, next, back, finish]);
 
   const chapterIndex = useMemo(
-    () => (step ? TOUR_CHAPTERS.indexOf(step.chapter) : -1),
-    [step]
+    () => (step ? chapters.indexOf(step.chapter) : -1),
+    [step, chapters]
   );
 
   // No separate "mounted" flag: `active` only ever becomes true from a client
   // timer or a click, so by the time this renders a portal there is certainly a
   // document to portal into.
-  if (!active || !step) return null;
+  if (!active || !step || !ctx) return null;
 
   const isFirst = i === 0;
-  const isLast = i === TOUR_STEPS.length - 1;
+  const isLast = i === steps.length - 1;
+  const action = step.action?.(ctx) ?? null;
   const pad = 14;
 
   // Position the tooltip card relative to the spotlight (or centred).
@@ -425,18 +440,22 @@ export function OnboardingTour({ hasOnboarded = true }: { hasOnboarded?: boolean
         ) : (
           <>
             <h2 id="tour-step-title" className="mt-2 font-heading text-lg font-black leading-snug">
-              {step.title}
+              {text(step.title, ctx)}
             </h2>
             <p
               id="tour-step-body"
               className="mt-2 text-sm leading-relaxed text-muted-foreground"
             >
-              {step.body}
+              {text(step.body, ctx)}
             </p>
-            {step.tryIt && (
-              <p className="mt-3 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-xs font-semibold leading-relaxed text-primary">
-                {step.tryIt}
-              </p>
+            {action && (
+              <Button asChild variant="outline" size="sm" className="mt-3 w-full border-primary/40 text-primary hover:bg-primary/10">
+                {/* Following it ends the tour: the person has chosen to go and do it. */}
+                <Link href={action.href} onClick={finish}>
+                  {action.label}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
             )}
           </>
         )}
@@ -444,7 +463,7 @@ export function OnboardingTour({ hasOnboarded = true }: { hasOnboarded?: boolean
         {/* Chapter progress. Steps within a chapter are dots; chapters are the
             unit a person actually remembers, so they get the count. */}
         <div className="mt-4 flex items-center gap-1.5" aria-hidden="true">
-          {TOUR_CHAPTERS.map((chapter, index) => (
+          {chapters.map((chapter, index) => (
             <span
               key={chapter}
               className={
@@ -461,7 +480,7 @@ export function OnboardingTour({ hasOnboarded = true }: { hasOnboarded?: boolean
 
         <div className="mt-4 flex items-center justify-between gap-2">
           <span className="text-[11px] font-bold text-muted-foreground">
-            Step {i + 1} of {TOUR_STEPS.length}
+            Step {i + 1} of {steps.length}
           </span>
           <div className="flex items-center gap-1.5">
             {!isFirst && (

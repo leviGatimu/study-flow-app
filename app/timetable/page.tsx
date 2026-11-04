@@ -90,7 +90,8 @@ export default async function WeekPage({
   if (!userId) redirect('/welcome');
 
   const tz = await getCurrentUserTimezone();
-  const today = startOfDay(getZonedNow(tz));
+  const now = getZonedNow(tz);
+  const today = startOfDay(now);
   const requested = parseDayKey((await searchParams).week);
   const weekStart = startOfWeek(requested ?? today, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
@@ -113,9 +114,10 @@ export default async function WeekPage({
   return (
     <Page>
       <PageHeader
+        className="pt-7 pb-5 [&_h1]:text-3xl [&_h1]:font-semibold"
         title="Week"
         description="Your study blocks and school day, Monday to Sunday."
-        highlight={{ label: 'This week', value: total > 0 ? `${done} / ${total} done` : 'Nothing planned' }}
+        meta={total > 0 ? `${done} of ${total} study blocks completed` : 'Nothing planned yet'}
         actions={
           <QuickAddForm
             subjects={data?.subjects ?? []}
@@ -127,7 +129,7 @@ export default async function WeekPage({
           />
         }
       />
-      <PageBody>
+      <PageBody className="space-y-6 pt-6">
         {!data ? (
           <ErrorState
             title="Your week could not be loaded"
@@ -200,7 +202,7 @@ export default async function WeekPage({
                 }
               />
 
-              <WeekGrid days={days} today={today} tasks={data.tasks} lessons={data.lessons} holidays={holidays} />
+              <WeekGrid days={days} today={today} tasks={data.tasks} lessons={data.lessons} holidays={holidays} timezone={tz} initialNow={format(now, "yyyy-MM-dd'T'HH:mm:ss")} />
 
               {total === 0 && data.routineCount > 0 && weekEnd >= today && (
                 <p className="text-sm text-muted-foreground">

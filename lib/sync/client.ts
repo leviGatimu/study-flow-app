@@ -24,9 +24,12 @@
 import { randomUUID } from 'crypto';
 
 import { prisma } from '@/lib/prisma';
+import { ownedBy } from './ownership.ts';
 import { applyRows, markSynced, scrub, APPLY_ORDER, type SyncRow } from './merge.ts';
 import {
   PUSH_LIMIT,
+  FOCUS_LOG_HEADER,
+  DEVICE_HEADER,
   type Cursor,
   type PullResponse,
   type PushResponse,
@@ -123,12 +126,7 @@ async function collectDirty(userId: string): Promise<SyncRow[]> {
 
   for (const model of APPLY_ORDER) {
     if (rows.length >= PUSH_LIMIT) break;
-    const where =
-      model === 'user'
-        ? { id: userId, syncedAt: null }
-        : model === 'subjectGrade'
-          ? { reportCard: { userId }, syncedAt: null }
-          : { userId, syncedAt: null };
+    const where = { ...ownedBy(model, userId), syncedAt: null };
 
     const found = await prisma[model as 'task'].findMany({
       // deletedAt: undefined defeats the tombstone read filter. Without it a
@@ -154,12 +152,7 @@ async function collectDirty(userId: string): Promise<SyncRow[]> {
 export async function countPending(userId: string): Promise<number> {
   let total = 0;
   for (const model of APPLY_ORDER) {
-    const where =
-      model === 'user'
-        ? { id: userId, syncedAt: null }
-        : model === 'subjectGrade'
-          ? { reportCard: { userId }, syncedAt: null }
-          : { userId, syncedAt: null };
+    const where = { ...ownedBy(model, userId), syncedAt: null };
     total += await prisma[model as 'task'].count({
       where: { ...(where as object), deletedAt: undefined },
     });
@@ -210,6 +203,8 @@ export async function runSync(userId: string): Promise<SyncResult> {
 
   const headers = {
     'content-type': 'application/json',
+    [FOCUS_LOG_HEADER]: '1',
+    [DEVICE_HEADER]: state.deviceId,
     authorization: `Bearer ${state.token}`,
   };
   const errors: string[] = [];
@@ -228,6 +223,12 @@ export async function runSync(userId: string): Promise<SyncResult> {
         body: JSON.stringify({ deviceId: state.deviceId, rows: dirty }),
       });
       if (!response.ok) throw new Error(await describe(response));
+
+      // An older server rejects the new ledger columns. Keep the dirty rows
+      // local until it is upgraded instead of marking failed focus writes clean.
+      if (response.headers.get(FOCUS_LOG_HEADER) !== '1') {
+        throw new Error('Update the Study Flow server to sync focus records. Your work is still saved on this device.');
+      }
 
       const result = (await response.json()) as PushResponse;
       pushed = result.applied + result.rejected;

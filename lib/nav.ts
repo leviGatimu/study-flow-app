@@ -83,22 +83,21 @@ export const NAV: NavSection[] = [
   },
   {
     name: "Study",
-    // The chat workspace is where studying starts (docs/STUDY_WORKSPACE_PLAN.md);
-    // Practice keeps its own entry and URL.
-    href: "/ask",
+    // Open the library; starting a chat or a practice run is the student's choice.
+    href: "/ai",
     icon: Sparkles,
     children: [
-      {
-        name: "Ask AI",
-        href: "/ask",
-        icon: MessageSquare,
-        keywords: "ai chat copilot tutor explain question help deadline urgent assistant marks study workspace",
-      },
       {
         name: "Practice",
         href: "/ai",
         icon: BrainCircuit,
         keywords: "ai study quiz flashcards mock exam generate questions pdf word document revision test me",
+      },
+      {
+        name: "Ask AI",
+        href: "/ask",
+        icon: MessageSquare,
+        keywords: "ai chat copilot tutor explain question help assistant marks study workspace",
       },
       { name: "Focus", href: "/focus", icon: Timer, keywords: "focus mode timer pomodoro concentrate music" },
       { name: "Bible", href: "/bible", icon: Book, keywords: "verse scripture" },

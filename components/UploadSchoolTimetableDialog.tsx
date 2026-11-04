@@ -39,6 +39,8 @@ import {
   replaceSchoolTimetable,
   type SchoolLessonInput,
 } from '@/lib/school-actions';
+import { addSubject } from '@/lib/subject-actions';
+import { normalizeSubject, type FoundSubject } from '@/lib/subject-match';
 
 type Step = 'idle' | 'analyzing' | 'review' | 'saving';
 
@@ -66,6 +68,7 @@ export function UploadSchoolTimetableDialog({
   const [noKey, setNoKey] = useState(false);
   const [dropped, setDropped] = useState(0);
   const [lessons, setLessons] = useState<SchoolLessonInput[]>([]);
+  const [subjects, setSubjects] = useState<FoundSubject[]>([]);
   const [fileName, setFileName] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -98,6 +101,7 @@ export function UploadSchoolTimetableDialog({
       }
 
       setLessons(res.lessons);
+      setSubjects(res.subjects);
       setDropped(res.dropped);
       setStep('review');
     } catch (e) {
@@ -109,9 +113,46 @@ export function UploadSchoolTimetableDialog({
   const edit = (index: number, patch: Partial<SchoolLessonInput>) =>
     setLessons((current) => current.map((l, i) => (i === index ? { ...l, ...patch } : l)));
 
+  /** Renaming a subject renames every lesson of it, so one fix covers the whole week. */
+  const renameSubject = (index: number, name: string) => {
+    const old = subjects[index].name;
+    setSubjects((current) => current.map((s, i) => (i === index ? { ...s, name } : s)));
+    setLessons((current) => current.map((l) => (!l.isBreak && l.subject === old ? { ...l, subject: name } : l)));
+  };
+  /** Two subjects renamed to the same name become one. */
+  const mergeDuplicates = () => setSubjects((current) => {
+    const seen = new Set<string>();
+    return current.filter((s) => {
+      const key = normalizeSubject(s.name);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  });
+  const removeSubject = (index: number) => {
+    const name = subjects[index].name;
+    setSubjects((current) => current.filter((_, i) => i !== index));
+    setLessons((current) => current.filter((l) => l.isBreak || l.subject !== name));
+  };
+  const lessonCount = (name: string) => lessons.filter((l) => !l.isBreak && l.subject === name).length;
+
   const save = async () => {
     setStep('saving');
     setError(null);
+    // The subjects come from the timetable itself, so the person never has to
+    // type them out. addSubject adopts one that exists already.
+    const used = [...new Set(lessons.filter((l) => !l.isBreak && l.subject.trim()).map((l) => l.subject.trim()))];
+    for (const name of used) {
+      try {
+        await addSubject(name);
+      } catch (e) {
+        if (!(e instanceof Error && /already exists/i.test(e.message))) {
+          setError(e instanceof Error ? e.message : `${name} could not be added to your subjects.`);
+          setStep('review');
+          return;
+        }
+      }
+    }
     const res = await replaceSchoolTimetable(lessons);
     if (res?.error) {
       setError(res.error);
@@ -220,6 +261,42 @@ export function UploadSchoolTimetableDialog({
               </div>
             </div>
 
+            {subjects.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-foreground">
+                  Subjects found ({subjects.length})
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  Each subject once, however often it appears in the week. Fix a name here and every lesson of it follows; give two the same name to merge them.
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {subjects.map((subject, index) => (
+                    <div key={index} className="flex items-center gap-2 rounded-xl border border-border/50 bg-card p-2">
+                      <Input
+                        value={subject.name}
+                        aria-label={`Subject ${index + 1}`}
+                        className="flex-1 min-w-0"
+                        onChange={(e) => renameSubject(index, e.target.value)}
+                        onBlur={mergeDuplicates}
+                      />
+                      <span className="shrink-0 text-[11px] text-muted-foreground">
+                        {lessonCount(subject.name)}× {subject.isNew ? '· new' : '· yours'}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 text-destructive"
+                        aria-label={`Remove ${subject.name} and its lessons`}
+                        onClick={() => removeSubject(index)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-5">
               {daysIn(lessons).map((day) => (
                 <div key={day} className="space-y-2">
@@ -246,12 +323,24 @@ export function UploadSchoolTimetableDialog({
                           className="w-28 shrink-0"
                           onChange={(e) => edit(index, { endTime: e.target.value })}
                         />
-                        <Input
-                          value={lesson.subject}
-                          aria-label="Lesson"
-                          className="flex-1 min-w-0"
-                          onChange={(e) => edit(index, { subject: e.target.value })}
-                        />
+                        {lesson.isBreak || subjects.length === 0 ? (
+                          <Input
+                            value={lesson.subject}
+                            aria-label="Lesson"
+                            className="flex-1 min-w-0"
+                            onChange={(e) => edit(index, { subject: e.target.value })}
+                          />
+                        ) : (
+                          <select
+                            value={lesson.subject}
+                            aria-label="Subject"
+                            className="h-9 flex-1 min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-sm dark:bg-input/30"
+                            onChange={(e) => edit(index, { subject: e.target.value })}
+                          >
+                            {!subjects.some((s) => s.name === lesson.subject) && <option value={lesson.subject}>{lesson.subject}</option>}
+                            {subjects.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
+                          </select>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"

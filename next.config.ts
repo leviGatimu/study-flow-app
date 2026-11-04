@@ -47,7 +47,7 @@ const nextConfig: NextConfig = {
       'node_modules/.prisma/client-sqlite-test/**',
     ],
   },
-  allowedDevOrigins: ['127.0.0.1', 'localhost'],
+  allowedDevOrigins: ['127.0.0.1', '127.0.0.2', 'localhost'],
   /**
    * Routes that were removed or merged, kept alive for bookmarks and for the
    * desktop app's cached shell. Temporary (307) on purpose: these are product
@@ -62,7 +62,7 @@ const nextConfig: NextConfig = {
     return [
       { source: '/plan', destination: '/timetable', permanent: false },
       { source: '/progress', destination: '/insights', permanent: false },
-      { source: '/study', destination: '/ask', permanent: false },
+      { source: '/study', destination: '/ai', permanent: false },
       { source: '/calculator/:path*', destination: '/ai', permanent: false },
       { source: '/notes/:path*', destination: '/ai', permanent: false },
       { source: '/projects/:path*', destination: '/ai', permanent: false },
