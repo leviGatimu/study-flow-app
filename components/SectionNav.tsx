@@ -15,7 +15,7 @@ import { resolveNav } from "@/lib/nav";
 export function SectionNav() {
   const pathname = usePathname();
   const section = resolveNav(pathname)?.section;
-  const pages = section?.children ?? [];
+  const pages = (section?.children ?? []).filter((p) => !p.hidden);
   if (!section || pages.length < 2) return null;
 
   // Longest match wins, so /exams/abc lights up Exams.

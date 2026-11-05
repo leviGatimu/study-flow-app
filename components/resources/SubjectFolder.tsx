@@ -521,7 +521,7 @@ export function SubjectFolder({ library, initialPath }: Props) {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href={`/ai?subject=${encodeURIComponent(library.subject)}`}>
+                <Link href={`/ai/practices?subject=${encodeURIComponent(library.subject)}`}>
                   <BrainCircuit /> Practise {library.subject}
                 </Link>
               </DropdownMenuItem>

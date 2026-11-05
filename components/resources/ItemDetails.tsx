@@ -169,7 +169,7 @@ export function ItemDetails({
       {kind === "pdf" && (
         <p className="px-5 pb-4 text-xs text-muted-foreground">
           Studying this?{" "}
-          <Link href={`/ai?subject=${encodeURIComponent(subject)}`} className="text-primary hover:underline">
+          <Link href={`/ai/practices?subject=${encodeURIComponent(subject)}`} className="text-primary hover:underline">
             Practise {subject}
           </Link>{" "}
           with questions once you have read it.

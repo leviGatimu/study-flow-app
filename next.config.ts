@@ -57,6 +57,7 @@ const nextConfig: NextConfig = {
    *   /daily-summary             merged into Reports (/summaries)
    *   /ranks                     merged into Streak
    *   /tutor*, /notes-ai         folded into AI Study long ago
+   *   /ask                       the Study chat is /ai now (practices: /ai/practices)
    */
   async redirects() {
     return [
@@ -72,6 +73,8 @@ const nextConfig: NextConfig = {
       { source: '/tutor/:path*', destination: '/ai', permanent: false },
       { source: '/tutor', destination: '/ai', permanent: false },
       { source: '/notes-ai', destination: '/ai', permanent: false },
+      // Ask AI became the Study page itself; ?c=<chat> is carried over.
+      { source: '/ask', destination: '/ai', permanent: false },
     ];
   },
   experimental: {

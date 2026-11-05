@@ -181,7 +181,7 @@ export function CommandMenu() {
               <CommandItem
                 key={m.id}
                 value={`module-${m.id}-${m.title}`}
-                onSelect={() => go(`/ai?set=${encodeURIComponent(m.id)}`)}
+                onSelect={() => go(`/ai/practices?set=${encodeURIComponent(m.id)}`)}
               >
                 <Brain className="mr-2 size-4 text-muted-foreground" />
                 <span className="truncate">{m.title}</span>

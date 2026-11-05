@@ -29,6 +29,11 @@ export type NavLeaf = {
   icon: LucideIcon;
   /** Extra words the command palette should match on. */
   keywords?: string;
+  /**
+   * Reachable (command palette, links, breadcrumb) but not shown as one of
+   * the section's pills in the page header.
+   */
+  hidden?: boolean;
 };
 
 export type NavSection = NavLeaf & {
@@ -43,7 +48,8 @@ export type NavSection = NavLeaf & {
  *   Schedule  when things happen - the week, the month, and the two recurring
  *             timetables (study routine, school lessons) that fill them
  *   Subjects  what you study - each subject, and its homework, exams, files
- *   Study     doing the work - practice sets, focus sessions, and AI help
+ *   Study     one AI chat, which also makes the practice sets (Practices,
+ *             Focus and Bible are reachable but not shown as pills)
  *   Progress  how it is going - history (with its overview), marks (with goals), reports
  *   Settings  the account, and the academic year it is organised by
  *
@@ -83,24 +89,27 @@ export const NAV: NavSection[] = [
   },
   {
     name: "Study",
-    // Open the library; starting a chat or a practice run is the student's choice.
+    // The page is the AI chat. The owner asked for Study to be just the chat,
+    // so the rest are reachable (palette, links) without being pills.
     href: "/ai",
     icon: Sparkles,
     children: [
       {
-        name: "Practice",
+        name: "Study chat",
         href: "/ai",
-        icon: BrainCircuit,
-        keywords: "ai study quiz flashcards mock exam generate questions pdf word document revision test me",
+        icon: MessageSquare,
+        keywords: "ai chat ask copilot tutor explain question help assistant marks",
+        hidden: true,
       },
       {
-        name: "Ask AI",
-        href: "/ask",
-        icon: MessageSquare,
-        keywords: "ai chat copilot tutor explain question help assistant marks study workspace",
+        name: "Practices",
+        href: "/ai/practices",
+        icon: BrainCircuit,
+        keywords: "ai quiz flashcards mock exam generate questions pdf word document revision test me scores",
+        hidden: true,
       },
-      { name: "Focus", href: "/focus", icon: Timer, keywords: "focus mode timer pomodoro concentrate music" },
-      { name: "Bible", href: "/bible", icon: Book, keywords: "verse scripture" },
+      { name: "Focus", href: "/focus", icon: Timer, keywords: "focus mode timer pomodoro concentrate music", hidden: true },
+      { name: "Bible", href: "/bible", icon: Book, keywords: "verse scripture", hidden: true },
     ],
   },
   {

@@ -132,6 +132,11 @@ export async function generateStudySet(input: {
   sourceName: string;
   text?: string;
   image?: { data: string; mimeType: string };
+  /**
+   * A topic to be tested on, with no document (the Study chat's "quiz me on
+   * ..."). Questions then come from what is normally taught on it.
+   */
+  topic?: string;
   count: number;
   style: StudyStyle;
   instructions?: string;
@@ -146,7 +151,9 @@ export async function generateStudySet(input: {
   if (!subject) return { error: 'Pick a subject first.' };
 
   const source = (input.text ?? '').trim();
-  if (!source && !input.image) {
+  const topic = (input.topic ?? '').trim().slice(0, 300);
+  const fromTopic = !source && !input.image && Boolean(topic);
+  if (!source && !input.image && !topic) {
     return { error: 'Upload a document, or paste some material to work from.' };
   }
 
@@ -178,7 +185,7 @@ export async function generateStudySet(input: {
           .join('\n')}`
       : '';
 
-    const system = `You write exam questions from a student's own study material.
+    const system = `${fromTopic ? 'You write exam questions on a topic a student is revising.' : "You write exam questions from a student's own study material."}
 
 Return ONLY one valid JSON object. No prose, no markdown fences:
 { "title": "a short title for this set", "questions": [ ... ${want} question objects ... ] }
@@ -189,15 +196,25 @@ ${STYLE_SPEC[input.style]}
 
 Rules:
 - Exactly ${want} questions.
-- Every question must be answerable from the material provided. Never invent facts that are not in it.
+${fromTopic
+  ? `- Every question must be factually correct and match what is normally taught on this topic for the subject. If unsure of a fact, leave it out.
+- Test understanding, not trivia.
+- Distractors must be plausible to somebody who half-knows the topic.
+- Keep each question self-contained.
+- Write the questions in the same language as the topic.`
+  : `- Every question must be answerable from the material provided. Never invent facts that are not in it.
 - Test understanding, not recall of the exact wording.
 - Distractors must be plausible to somebody who half-knows the topic.
 - Keep each question self-contained: no "as mentioned above".
-- Write the questions in the SAME LANGUAGE as the material. If the document is in French, so are the questions.`;
+- Write the questions in the SAME LANGUAGE as the material. If the document is in French, so are the questions.`}`;
 
     const prompt = input.image
       ? `The material is in the attached image. Subject: ${subject}.${
           input.instructions ? `\n\nThe student asked you to focus on: "${input.instructions}".` : ''
+        }${avoid}\n\nProduce the JSON now.`
+      : fromTopic
+      ? `Subject: ${subject}. Topic to test: "${topic}".${
+          input.instructions ? `\n\nThe student asked: "${input.instructions}".` : ''
         }${avoid}\n\nProduce the JSON now.`
       : `Material for ${subject}:\n"""\n${material}\n"""${
           input.instructions ? `\n\nThe student asked you to focus on: "${input.instructions}".` : ''
@@ -240,7 +257,7 @@ Rules:
 
   const title =
     input.title?.trim().slice(0, 120) ||
-    `${subject} · ${input.sourceName.replace(/\.[^.]+$/, '').slice(0, 60)}`;
+    `${subject} · ${(fromTopic ? topic : input.sourceName.replace(/\.[^.]+$/, '')).slice(0, 60)}`;
 
   const set = await prisma.tutorModule.create({
     data: {

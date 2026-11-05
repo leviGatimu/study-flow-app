@@ -31,6 +31,8 @@ import {
   type Source,
 } from '@/lib/copilot-retrieval';
 import { beginTurn, failTurn, finishTurn } from '@/lib/copilot-turns';
+import { generateStudySet, listStudySets, type StudySetSummary } from '@/lib/study-actions';
+import { parsePracticeRequest, practiceReference, practiceRefsForModel, splitPracticeRefs } from '@/lib/practice-request';
 
 /**
  * Ask AI: the Study workspace's chat (docs/STUDY_WORKSPACE_PLAN.md, Phase 2).
@@ -58,8 +60,47 @@ export type CopilotMessage = {
   status: 'DONE' | 'PENDING' | 'FAILED';
   requestId: string | null;
   sources: Source[];
+  /** Practice sets this reply made; shown as cards with a Start button. */
+  practiceIds: string[];
 };
 export type CopilotSession = { id: string; title: string; updatedAt: string };
+
+/* ------------------------------------------------------------ practice sets */
+
+/**
+ * The chat can make a practice set. The model never writes the questions into
+ * the chat: it answers with a sentence and a request line, which this module
+ * turns into a real set (generateStudySet, topic mode). The saved reply keeps
+ * a reference line instead, which toMessage lifts out into practiceIds.
+ */
+const PRACTICE_INSTRUCTIONS = `MAKING PRACTICE: you can create a practice set in the app - questions the student answers one by one, which the app marks and scores. When the student asks for a quiz, a test, practice, questions, or to be tested on something:
+- Do NOT write the questions in the chat.
+- Reply with one or two short sentences saying what you are making, then end with this exact line on its own:
+[[PRACTICE {"subject":"<the subject, using the student's own subject name when it matches>","topic":"<exactly what to test, specific>","count":<number of questions, 5 to 20, default 10>,"style":"<MIXED, MULTIPLE_CHOICE, WRITTEN or TRUE_FALSE; default MIXED>"}]]
+- If they ask what to practise, pick from their weak subjects and the questions they recently got wrong.
+- Use the line only when they want to be tested. Never use it for an explanation.`;
+
+/**
+ * Make the practice set a reply asked for. Returns the reply text with the
+ * request line replaced by a reference to the set (or an explanation of why
+ * it could not be made), and the new set's summary.
+ */
+async function fulfilPracticeRequest(
+  text: string,
+  subjects: string[]
+): Promise<{ text: string; practice?: StudySetSummary }> {
+  const parsed = parsePracticeRequest(text, subjects);
+  if (parsed.kind === 'none') return { text };
+  if (parsed.kind === 'invalid') return { text: `${parsed.before}\n\n${parsed.reason}` };
+  const { before, subject, topic, count, style } = parsed;
+
+  const made = await generateStudySet({ subject, sourceName: 'Study chat', topic, count, style });
+  if ('error' in made) {
+    return { text: `${before}\n\nI could not make the practice: ${made.error}` };
+  }
+  const practice = (await listStudySets()).find((p) => p.id === made.setId);
+  return { text: `${before}\n\n${practiceReference(made.setId)}`, practice };
+}
 
 export type CopilotPanel = {
   yearLabel: string | null;
@@ -96,10 +137,12 @@ function readSources(raw: string | null): Source[] {
 }
 
 function toMessage(m: { id: string; role: string; content: string; status: string; requestId: string | null; sources: string | null }): CopilotMessage {
+  const { text, practiceIds } = m.role === 'user' ? { text: m.content, practiceIds: [] } : splitPracticeRefs(m.content);
   return {
     id: m.id,
     role: m.role === 'user' ? 'user' : 'model',
-    content: m.content,
+    content: text,
+    practiceIds,
     status: m.status === 'FAILED' ? 'FAILED' : m.status === 'PENDING' ? 'PENDING' : 'DONE',
     requestId: m.requestId,
     sources: readSources(m.sources),
@@ -299,12 +342,13 @@ export async function getAskAIPage(sessionId: string | null): Promise<{
   activeSessionId: string | null;
   suggestions: SuggestedPrompt[];
   panel: CopilotPanel;
+  practices: StudySetSummary[];
 } | null> {
   const userId = await getUserId();
   if (!userId) return null;
 
   const viewScope = await getViewScope(userId);
-  const [sessions, gathered, schedule, provider] = await Promise.all([
+  const [sessions, gathered, schedule, provider, practices] = await Promise.all([
     prisma.chatSession.findMany({
       where: { userId, mode: MODE, parentSessionId: null, ...byClass(viewScope) },
       select: { id: true, title: true, updatedAt: true },
@@ -314,6 +358,7 @@ export async function getAskAIPage(sessionId: string | null): Promise<{
     gather(userId),
     getScheduleState(userId),
     providerStatus(userId),
+    listStudySets(),
   ]);
 
   const active = sessionId ? sessions.find((s) => s.id === sessionId) ?? null : null;
@@ -337,11 +382,14 @@ export async function getAskAIPage(sessionId: string | null): Promise<{
       provider,
       ...gathered.panelBase,
     },
+    practices,
   };
 }
 
 export type AskResult = {
   sessionId: string;
+  /** A practice set this turn made, so the chat can list it straight away. */
+  practice?: StudySetSummary;
   session?: CopilotSession;
   userMessage?: CopilotMessage;
   reply?: CopilotMessage;
@@ -395,7 +443,10 @@ export async function askCopilot(input: { sessionId: string | null; question: st
     }),
     gather(userId),
   ]);
-  const history = earlier.reverse().map((m) => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.content }] }));
+  // Practice references are for the app, not the model.
+  const history = earlier
+    .reverse()
+    .map((m) => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: practiceRefsForModel(m.content) }] }));
   const recentUser = earlier.filter((m) => m.role === 'user').map((m) => m.content);
 
   const intent = detectIntent(question, recentUser, gathered.subjects);
@@ -404,11 +455,13 @@ export async function askCopilot(input: { sessionId: string | null; question: st
 
 ${evidencePrompt(evidence, intent)}
 
-When you state a fact from the RECORDS, cite it right after with its number, like [S2]. Do not cite anything for general explanations.`;
+When you state a fact from the RECORDS, cite it right after with its number, like [S2]. Do not cite anything for general explanations.
+
+${PRACTICE_INSTRUCTIONS}`;
 
   // No session passed: this module persists the turn, askAIBuddy only answers.
   const result = await askAIBuddy(question, history, undefined, undefined, system, { tools: false, xp: false });
-  revalidatePath('/ask');
+  revalidatePath('/ai');
 
   if (result.error || !result.text) {
     console.error('Ask AI failed:', result.error);
@@ -424,13 +477,21 @@ When you state a fact from the RECORDS, cite it right after with its number, lik
   }
 
   const sources = citedSources(result.text, evidence);
-  const finished = await finishTurn(prisma, sessionId, userMessage.id, result.text, sources.length ? JSON.stringify(sources) : null);
+  // A request for practice becomes a real set before the reply is saved.
+  const fulfilled = await fulfilPracticeRequest(result.text, gathered.subjects);
+  const finished = await finishTurn(prisma, sessionId, userMessage.id, fulfilled.text, sources.length ? JSON.stringify(sources) : null);
   // Stopped while the model was working: the student asked not to have this
   // answer, so it was not saved (the provider call itself cannot be recalled).
   if ('stopped' in finished) {
     return { sessionId, session: created, userMessage: toMessage({ ...userMessage, status: 'FAILED' }), error: 'Stopped.' };
   }
-  return { sessionId, session: created, userMessage: toMessage(finished.userMessage), reply: toMessage(finished.reply) };
+  return {
+    sessionId,
+    session: created,
+    userMessage: toMessage(finished.userMessage),
+    reply: toMessage(finished.reply),
+    practice: fulfilled.practice,
+  };
 }
 
 /** Stop waiting for a turn: its answer, if it still arrives, is discarded. */
@@ -449,5 +510,5 @@ export async function deleteCopilotSession(sessionId: string) {
   await assertWritableScope(userId);
 
   await softDelete(prisma, 'chatSession', { id: sessionId, userId, mode: MODE });
-  revalidatePath('/ask');
+  revalidatePath('/ai');
 }

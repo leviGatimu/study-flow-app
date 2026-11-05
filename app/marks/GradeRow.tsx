@@ -191,7 +191,7 @@ export function GradeRow({
             </div>
 
             <Button asChild variant="outline" className="w-full">
-              <Link href={`/ai?subject=${encodeURIComponent(grade.subject)}`}>
+              <Link href={`/ai/practices?subject=${encodeURIComponent(grade.subject)}`}>
                 <BrainCircuit />
                 Practice {grade.subject}
               </Link>

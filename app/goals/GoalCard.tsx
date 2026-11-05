@@ -93,7 +93,7 @@ export function GoalCard({
         <div className="mt-auto border-t border-border/40 pt-3">
           {isGraded ? (
             <Button asChild variant="outline" size="sm">
-              <Link href={`/ai?subject=${encodeURIComponent(goal.subject)}`}>
+              <Link href={`/ai/practices?subject=${encodeURIComponent(goal.subject)}`}>
                 <BrainCircuit />
                 Practice {goal.subject}
               </Link>

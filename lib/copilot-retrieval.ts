@@ -150,7 +150,7 @@ export function buildEvidence(intent: Intent, rows: RetrievalRows): Evidence[] {
       out.push({
         kind: 'PRACTICE',
         label: `${a.title} (${a.subject})`,
-        href: `/ai?set=${encodeURIComponent(a.setId)}`,
+        href: `/ai/practices?set=${encodeURIComponent(a.setId)}`,
         text: `PRACTICE (not an official mark) "${a.title}" ${a.subject}, ${a.when}: ${status}${wrong}`,
       });
     }

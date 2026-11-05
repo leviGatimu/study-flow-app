@@ -106,7 +106,7 @@ function subjectHref(subject: string) {
  */
 function syncUrl(setId: string | null) {
   if (typeof window === 'undefined') return;
-  window.history.replaceState(null, '', setId ? `/ai?set=${encodeURIComponent(setId)}` : '/ai');
+  window.history.replaceState(null, '', setId ? `/ai/practices?set=${encodeURIComponent(setId)}` : '/ai/practices');
 }
 
 export function StudyGenerator({
@@ -428,9 +428,10 @@ function LibraryView({
     <Page>
       <PageHeader
         tour="practice-intro"
-        title="Study"
+        back={{ href: '/ai', label: 'Study chat' }}
+        title="Practices"
         className="pt-7 pb-5 [&_h1]:text-3xl [&_h1]:font-semibold"
-        description="Your quizzes, flashcards and mock exams. Choose what you want to work on."
+        description="Every practice, with your scores. Take one again, or make one from a document."
         actions={
           <Button size="lg" onClick={onNew}>
             <Plus />
