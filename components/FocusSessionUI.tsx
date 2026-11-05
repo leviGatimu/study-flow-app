@@ -5,19 +5,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Volume2, VolumeX, Maximize2, Minimize2,
   Play, Pause, Flame, Zap, CheckCircle2,
-  ArrowLeft, ListTodo, Trophy, BookOpen, Plus,
+  ArrowLeft, ListTodo, BookOpen, Plus,
   Clock, ChevronRight, Paperclip, Send, X,
   Music, SkipForward, SkipBack, Eye, EyeOff, Info,
   Shuffle, Repeat, Repeat1, ListMusic, Disc3, Timer,
   Upload, Trash2, ImagePlus, Loader2,
   Droplets, PersonStanding, Coffee, CalendarClock, ScrollText, GraduationCap,
-  ListPlus, Pencil, Check, FolderPlus, LayoutGrid, Target, RotateCcw,
+  ListPlus, Pencil, Check, FolderPlus, RotateCcw,
   Search, Globe, WifiOff, Settings, Palette, ImageIcon, Sparkles,
-  Infinity as InfinityIcon,
+  Infinity as InfinityIcon, CalendarDays,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -70,36 +69,85 @@ const BREAK_PRESETS = [
 const WATER_INTERVAL_MIN = 20;
 const STRETCH_INTERVAL_MIN = 45;
 
-// Celebratory aurora for the session-complete screen.
-const VICTORY_PALETTE = ['#6d28d9', '#2563eb', '#10b981', '#0b1020'];
 
 type Reminder = 'WATER' | 'STRETCH';
-type TimerStyle = 'RING' | 'BIG' | 'COOL' | 'FLIP' | 'LIQUID';
-
-/** Smoothly counts a number up from 0 to `value` on mount. */
-function CountUp({ value, duration = 1100, className }: { value: number; duration?: number; className?: string }) {
-  const [display, setDisplay] = useState(0);
-  useEffect(() => {
-    let raf = 0;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
-      // easeOutCubic for a satisfying settle
-      const eased = 1 - Math.pow(1 - t, 3);
-      setDisplay(Math.round(value * eased));
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [value, duration]);
-  return <span className={className}>{display}</span>;
-}
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/** A row of mutually exclusive choices, used throughout the setup and settings. */
+function Segmented<T extends string | number>({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: T | null;
+  options: { value: T; label: React.ReactNode }[];
+  onChange: (value: T) => void;
+  label: string;
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-1 rounded-xl border border-border bg-muted/50 p-1">
+      {options.map((o) => {
+        const selected = o.value === value;
+        return (
+          <button
+            key={String(o.value)}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(o.value)}
+            className={cn(
+              'flex min-w-16 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 [&_svg]:size-4',
+              selected ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** A labelled group inside the setup screen and the settings panel. */
+function Field({ label, hint, children }: { label: string; hint?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-semibold text-foreground">{label}</p>
+      {children}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+/** Today's date and the time, for the top bar. Renders after mount so the
+ * server and the browser never disagree about the minute. */
+function NowClock({ className }: { className?: string }) {
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    const tick = () => setNow(new Date());
+    const first = setTimeout(tick, 0);
+    const timer = setInterval(tick, 1000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(timer);
+    };
+  }, []);
+  if (!now) return null;
+  return (
+    <div className={className}>
+      <CalendarDays className="w-4 h-4 text-white/50" />
+      <span>{now.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+      <span className="text-white/30">·</span>
+      <span>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+    </div>
+  );
 }
 
 function CoverArt({ song, palette, className, iconSize = 'w-10 h-10' }: {
@@ -173,7 +221,6 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
   const [isSyncedWithTimetable, setIsSyncedWithTimetable] = useState(task.id !== 'free');
   const [presets, setPresets] = useState<number[]>([25, 50, 90]);
   const [viewMode, setViewMode] = useState<'TIMER' | 'SONG'>('TIMER');
-  const [timerStyle, setTimerStyle] = useState<TimerStyle>('RING');
   const [volume, setVolume] = useState(0.4);
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [breakCycle, setBreakCycle] = useState<{ work: number; rest: number } | null>(null);
@@ -307,17 +354,8 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
           console.error('Failed to parse focus presets', e);
         }
       }
-      const storedTimerStyle = localStorage.getItem('study-flow-timer-style');
-      if (['RING', 'BIG', 'COOL', 'FLIP', 'LIQUID'].includes(storedTimerStyle || '')) {
-        setTimerStyle(storedTimerStyle as TimerStyle);
-      }
     }
   }, []);
-
-  const chooseTimerStyle = (style: TimerStyle) => {
-    setTimerStyle(style);
-    if (typeof window !== 'undefined') localStorage.setItem('study-flow-timer-style', style);
-  };
 
   // Restore background + reminder preferences.
   useEffect(() => {
@@ -646,17 +684,12 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
     }
   }, [player.uploadFiles]);
 
-  // Timer ring geometry. The arc fills as the session elapses, so the
-  // dash offset shrinks from a full circumference down to zero.
-  const TIMER_RADIUS = 210;
-  const TIMER_CIRCUMFERENCE = 2 * Math.PI * TIMER_RADIUS;
-  // Open-ended: the ring laps once an hour instead of filling toward an end.
+  // How far through the session we are. Open-ended sessions lap once an hour.
   const elapsedFraction = openEnded
     ? (elapsedSeconds % 3600) / 3600
     : totalDurationSeconds > 0
     ? Math.min(1, Math.max(0, elapsedSeconds / totalDurationSeconds))
     : 0;
-  const timerCircleProgress = TIMER_CIRCUMFERENCE * (1 - elapsedFraction);
   const elapsedPercent = Math.round(elapsedFraction * 100);
 
   // Today's still-pending sessions that start after the current task.
@@ -665,79 +698,88 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
     .sort((a, b) => a.startTime.localeCompare(b.startTime))
     .slice(0, 3);
 
+  const isScheduled = task.id !== 'free';
+  const typeLabel = task.type === 'REVISION' ? 'Revision' : task.type === 'HOMEWORK' ? 'Homework' : 'Free session';
+  const durationChoices = (
+    <div className="space-y-4">
+      <Segmented
+        label="Session length"
+        value={noLimit ? -1 : presets.includes(customDuration) ? customDuration : null}
+        options={[
+          ...presets.map((mins) => ({ value: mins, label: `${mins} min` })),
+          { value: -1, label: <><InfinityIcon /> No limit</> },
+        ]}
+        onChange={(v) => {
+          if (v === -1) setNoLimit(true);
+          else {
+            setCustomDuration(v);
+            setNoLimit(false);
+          }
+        }}
+      />
+      {noLimit ? (
+        <p className="text-sm text-muted-foreground">
+          The timer counts up from 0:00 and keeps going until you finish the session yourself.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>Or pick your own</span>
+            <span className="font-medium tabular-nums text-foreground">{customDuration} min</span>
+          </div>
+          <Slider
+            value={[customDuration]}
+            onValueChange={(v) => setCustomDuration(v[0])}
+            max={180}
+            min={5}
+            step={5}
+            aria-label="Session length in minutes"
+          />
+        </div>
+      )}
+    </div>
+  );
+
   if (currentStep === 'PREP') {
     return (
-      <div className="h-full flex flex-col items-center justify-center p-8 bg-background overflow-y-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-2xl w-full space-y-12"
-        >
-          <div className="text-center space-y-4">
-            <Link href="/" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors mb-4">
-              <ArrowLeft className="w-3 h-3" /> Back to Dashboard
+      <div className="h-full overflow-y-auto bg-background text-foreground">
+        <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-center gap-8 px-4 py-10 md:px-8">
+          <div className="space-y-2">
+            <Link
+              href="/focus"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-primary/80 transition-colors hover:text-primary"
+            >
+              <ArrowLeft className="size-3.5" /> Back
             </Link>
-            <h1 className="text-6xl font-heading font-black tracking-tighter text-foreground">Ready to focus?</h1>
-            <p className="text-xl text-muted-foreground font-semibold uppercase tracking-widest">{task.subject}</p>
+            <h1 className="font-heading text-4xl font-bold tracking-tight break-words">{task.subject}</h1>
+            <p className="text-base text-muted-foreground">
+              {typeLabel}
+              {isScheduled && ` · ${task.startTime}–${task.endTime}`}
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {task.id === 'free' ? (
-              <div className="space-y-6">
-                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  <Clock className="w-3.5 h-3.5" /> Session Duration
-                </Label>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {presets.map((mins) => (
-                    <button
-                      key={mins}
-                      onClick={() => { setCustomDuration(mins); setNoLimit(false); }}
-                      className={cn(
-                        "p-4 rounded-2xl border-2 transition-all font-bold text-sm",
-                        !noLimit && customDuration === mins ? "bg-primary/5 border-primary text-primary shadow-md" : "bg-card border-border/40 text-muted-foreground hover:border-primary/20"
-                      )}
-                    >
-                      {mins}m
-                    </button>
-                  ))}
-                  <NoLimitButton active={noLimit} onClick={() => setNoLimit(true)} size="text-sm p-4" />
-                </div>
-                {noLimit ? <NoLimitHint /> : <div className="space-y-4 pt-2">
-                   <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
-                     <span>Custom Minutes</span>
-                     <span>{customDuration} min</span>
-                   </div>
-                   <Slider
-                     value={[customDuration]}
-                     onValueChange={(v) => setCustomDuration(v[0])}
-                     max={180}
-                     min={5}
-                     step={5}
-                     className="py-2"
-                   />
-                </div>}
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Timetable Sync Control */}
-                <div className="p-6 bg-card border border-border/40 rounded-3xl space-y-4 shadow-sm">
-                  <div className="flex items-center justify-between">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <section className="space-y-6 rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+              <h2 className="flex items-center gap-2 font-heading text-lg font-bold">
+                <Clock className="size-5 text-primary" /> Length
+              </h2>
+              {isScheduled ? (
+                <>
+                  <div className="flex items-start justify-between gap-4">
                     <div className="space-y-1">
-                      <Label className="text-sm font-black text-foreground flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-primary" /> Timetable Sync
-                      </Label>
-                      <p className="text-[11px] text-muted-foreground font-semibold">
+                      <p className="text-sm font-semibold">Stop when the block ends</p>
+                      <p className="text-xs text-muted-foreground">
                         {isSyncedWithTimetable
-                          ? "Duration bound to scheduled timetable"
-                          : "Manual duration override active"}
+                          ? `Runs until ${task.endTime}, the end of this block.`
+                          : 'Off: choose a length below.'}
                       </p>
                     </div>
                     <Switch
                       checked={isSyncedWithTimetable}
+                      aria-label="Stop when the block ends"
                       onCheckedChange={(checked) => {
                         setIsSyncedWithTimetable(checked);
                         if (checked) {
-                          // Recalculate remaining time for schedule
                           const [startH, startM] = task.startTime.split(':').map(Number);
                           const [endH, endM] = task.endTime.split(':').map(Number);
                           let diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
@@ -747,143 +789,60 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                       }}
                     />
                   </div>
+                  {!isSyncedWithTimetable && durationChoices}
+                </>
+              ) : (
+                durationChoices
+              )}
 
-                  {isSyncedWithTimetable && task.endTime && (
-                    <div className="p-3 bg-muted/40 rounded-2xl border border-border/30 text-xs font-semibold text-muted-foreground flex justify-between items-center">
-                      <span>Schedule Window:</span>
-                      <span className="text-foreground">{task.startTime} - {task.endTime}</span>
-                    </div>
-                  )}
-                </div>
+              <Field label="Mode" hint={intensity === 'INTENSE' ? 'Earns double XP for the time you focus.' : 'Earns XP for the time you focus.'}>
+                <Segmented
+                  label="Mode"
+                  value={intensity}
+                  options={[
+                    { value: 'CHILL', label: 'Normal' },
+                    { value: 'INTENSE', label: <><Zap /> Deep focus</> },
+                  ]}
+                  onChange={setIntensity}
+                />
+              </Field>
+            </section>
 
-                {/* Conditional Duration Overrides */}
-                {!isSyncedWithTimetable && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="space-y-6 p-6 bg-card border border-border/40 rounded-3xl"
-                  >
-                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                      <Clock className="w-3.5 h-3.5 animate-pulse" /> Override Duration
-                    </Label>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      {presets.map((mins) => (
-                        <button
-                          key={mins}
-                          onClick={() => { setCustomDuration(mins); setNoLimit(false); }}
-                          className={cn(
-                            "p-3 rounded-2xl border-2 transition-all font-bold text-xs",
-                            !noLimit && customDuration === mins ? "bg-primary/5 border-primary text-primary shadow-md" : "bg-muted/30 border-border/40 text-muted-foreground hover:border-primary/20"
-                          )}
-                        >
-                          {mins}m
-                        </button>
-                      ))}
-                      <NoLimitButton active={noLimit} onClick={() => setNoLimit(true)} size="text-xs p-3" />
-                    </div>
-                    {noLimit ? <NoLimitHint /> : <div className="space-y-4 pt-2">
-                       <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
-                         <span>Custom Minutes</span>
-                         <span>{customDuration} min</span>
-                       </div>
-                       <Slider
-                         value={[customDuration]}
-                         onValueChange={(v) => setCustomDuration(v[0])}
-                         max={180}
-                         min={5}
-                         step={5}
-                         className="py-2"
-                       />
-                    </div>}
-                  </motion.div>
-                )}
-
-                {/* Session Intensity */}
-                <div className="space-y-4">
-                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                    <Zap className="w-3.5 h-3.5" /> Session Intensity
-                  </Label>
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => setIntensity('CHILL')}
-                      className={cn(
-                        "flex-1 p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3",
-                        intensity === 'CHILL' ? "bg-primary/5 border-primary text-primary shadow-lg shadow-primary/10" : "bg-card border-border/40 text-muted-foreground grayscale opacity-50"
-                      )}
-                    >
-                      <Volume2 className="w-8 h-8" />
-                      <span className="font-bold">Chill Mode</span>
-                    </button>
-                    <button
-                      onClick={() => setIntensity('INTENSE')}
-                      className={cn(
-                        "flex-1 p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3",
-                        intensity === 'INTENSE' ? "bg-orange-500/5 border-orange-500 text-orange-600 shadow-lg shadow-orange-500/10" : "bg-card border-border/40 text-muted-foreground grayscale opacity-50"
-                      )}
-                    >
-                      <Zap className="w-8 h-8" />
-                      <span className="font-bold">Deep Focus</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-6">
-              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                <ListTodo className="w-3.5 h-3.5" /> Session Goals
-              </Label>
-              <div className="space-y-3">
+            <section className="space-y-6 rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+              <h2 className="flex items-center gap-2 font-heading text-lg font-bold">
+                <ListTodo className="size-5 text-primary" /> Goals
+              </h2>
+              <div className="space-y-2">
                 {goals.map((goal, idx) => (
                   <Input
                     key={idx}
                     value={goal}
                     onChange={(e) => updateGoal(idx, e.target.value)}
-                    placeholder={`Goal #${idx + 1}...`}
-                    className="h-12 rounded-xl bg-muted/30 border-border/40 font-bold px-4"
+                    placeholder={idx === 0 ? 'What will you get done?' : `Goal ${idx + 1}`}
+                    aria-label={`Goal ${idx + 1}`}
+                    className="h-10"
                   />
                 ))}
-                <Button variant="ghost" size="sm" onClick={addGoal} className="text-xs font-bold text-primary gap-1">
-                   <Plus className="w-3 h-3" /> Add another goal
+                <Button variant="ghost" size="sm" onClick={addGoal} className="gap-1 text-primary">
+                  <Plus className="size-4" /> Add a goal
                 </Button>
               </div>
 
-              {/* Break Cycles */}
-              <div className="space-y-3 pt-4">
-                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  <Coffee className="w-3.5 h-3.5" /> Break Cycles
-                </Label>
-                <div className="grid grid-cols-3 gap-3">
-                  {BREAK_PRESETS.map((preset) => {
-                    const selected = preset.work === 0 ? !breakCycle : breakCycle?.work === preset.work;
-                    return (
-                      <button
-                        key={preset.label}
-                        onClick={() => chooseBreakCycle(preset)}
-                        className={cn(
-                          "p-3 rounded-2xl border-2 transition-all font-bold text-xs",
-                          selected ? "bg-primary/5 border-primary text-primary shadow-md" : "bg-card border-border/40 text-muted-foreground hover:border-primary/20"
-                        )}
-                      >
-                        {preset.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-[10px] font-semibold text-muted-foreground/70 leading-relaxed">
-                  Work · rest minutes. The session timer keeps running — the room just shifts into break mode and the music softens.
-                </p>
-              </div>
-            </div>
+              <Field label="Breaks" hint="Work and rest minutes. The session timer keeps running and the music gets quieter.">
+                <Segmented
+                  label="Breaks"
+                  value={breakCycle ? breakCycle.work : 0}
+                  options={BREAK_PRESETS.map((p) => ({ value: p.work, label: p.label }))}
+                  onChange={(work) => chooseBreakCycle(BREAK_PRESETS.find((p) => p.work === work) ?? BREAK_PRESETS[0])}
+                />
+              </Field>
+            </section>
           </div>
 
-          <Button
-            onClick={handleStartFocus}
-            className="w-full h-20 rounded-[32px] text-2xl font-heading font-black shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-95"
-          >
-            ENTER FOCUS MODE
+          <Button onClick={handleStartFocus} size="lg" className="h-12 w-full text-base">
+            <Play className="size-5" /> Start session
           </Button>
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -894,7 +853,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
     return (
       <div
         ref={containerRef}
-        className="h-full flex flex-col overflow-hidden relative select-none bg-black text-white"
+        className="dark h-full flex flex-col overflow-hidden relative select-none bg-black text-white"
         onDragOver={(e) => { e.preventDefault(); setIsDraggingFiles(true); }}
         onDragLeave={(e) => { if (e.currentTarget === e.target) setIsDraggingFiles(false); }}
         onDrop={handleDrop}
@@ -968,12 +927,12 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
               </div>
               <div className="pr-2">
                 <p className="text-sm font-black leading-tight">
-                  {activeReminder === 'WATER' ? 'Hydration check' : 'Stretch it out'}
+                  {activeReminder === 'WATER' ? 'Have some water' : 'Time to stretch'}
                 </p>
                 <p className="text-xs font-semibold text-white/55 leading-tight mt-0.5">
                   {activeReminder === 'WATER'
-                    ? 'Take a sip — your brain runs on water.'
-                    : 'Roll your shoulders, unclench your jaw, sit tall.'}
+                    ? `You have been working for ${WATER_INTERVAL_MIN} minutes.`
+                    : 'Stand up, roll your shoulders and sit up straight.'}
                 </p>
               </div>
               <Button
@@ -1004,9 +963,9 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 <Coffee className="w-12 h-12 text-white" />
               </div>
               <div className="text-center space-y-3">
-                <h2 className="text-5xl md:text-6xl font-heading font-black tracking-tight drop-shadow-xl">Break time</h2>
+                <h2 className="text-5xl md:text-6xl font-heading font-black tracking-tight drop-shadow-xl">Break</h2>
                 <p className="text-base font-bold text-white/60">
-                  Stand up, look far away, refill your bottle.
+                  Stand up, look away from the screen, have some water.
                 </p>
               </div>
               <div className="flex flex-col items-center gap-2">
@@ -1016,7 +975,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 </p>
               </div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">
-                Session timer keeps running • music softened
+                The session timer keeps running. Music is turned down.
               </p>
             </motion.div>
           )}
@@ -1032,7 +991,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
               className="absolute inset-4 z-50 rounded-[40px] border-2 border-dashed border-white/50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center gap-4 pointer-events-none"
             >
               <Upload className="w-16 h-16 text-white/80" />
-              <p className="text-2xl font-heading font-black">Drop songs to add them</p>
+              <p className="text-2xl font-heading font-black">Drop songs to add them to your music</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -1044,6 +1003,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                <Flame className="w-5 h-5 text-orange-500 fill-orange-500 animate-pulse" />
                <span className="font-black text-lg tabular-nums tracking-tight">{sessionXP} XP</span>
              </div>
+             <NowClock className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full backdrop-blur-xl text-sm font-bold text-white/80 tabular-nums" />
           </div>
 
           <div className="flex items-center gap-3">
@@ -1056,7 +1016,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 onClick={() => {
                   (window as any).electron.send('enter-widget', { taskId: task.id });
                 }}
-                title="Mini Widget Mode (Always on Top)"
+                title="Small always-on-top window"
               >
                 <Minimize2 className="w-5 h-5 text-white/80" />
               </Button>
@@ -1070,7 +1030,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 showKeybindsInfo ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
               )}
               onClick={() => setShowKeybindsInfo(!showKeybindsInfo)}
-              title="Focus Session Instructions & Keybinds"
+              title="Keyboard shortcuts"
             >
               <Info className="w-5 h-5" />
             </Button>
@@ -1084,7 +1044,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 showSettings ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
               )}
               onClick={() => setShowSettings(true)}
-              title="Focus Settings"
+              title="Focus settings"
             >
               <Settings className="w-5 h-5" />
             </Button>
@@ -1097,7 +1057,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 isZenMode ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
               )}
               onClick={() => setIsZenMode(!isZenMode)}
-              title={isZenMode ? "Show Dashboard Panels" : "Enter Distraction-Free Zen View"}
+              title={isZenMode ? "Show side panels (Z)" : "Hide side panels (Z)"}
             >
               {isZenMode ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
             </Button>
@@ -1111,7 +1071,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 showFlowAI ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
               )}
               onClick={() => setShowFlowAI(prev => !prev)}
-              title="Flow AI — turn your material into notes, a tutor & flashcards (P)"
+              title="Study tools: notes, a tutor and flashcards from your material (P)"
             >
               <GraduationCap className="w-5 h-5" />
             </Button>
@@ -1125,7 +1085,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 viewMode === 'SONG' ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
               )}
               onClick={() => setViewMode(viewMode === 'TIMER' ? 'SONG' : 'TIMER')}
-              title={viewMode === 'TIMER' ? 'Switch to Song View (V)' : 'Switch to Timer View (V)'}
+              title={viewMode === 'TIMER' ? 'Music view (V)' : 'Timer view (V)'}
             >
               {viewMode === 'TIMER' ? <Disc3 className="w-5 h-5" /> : <Timer className="w-5 h-5" />}
             </Button>
@@ -1139,7 +1099,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 isLibraryOpen ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
               )}
               onClick={() => setIsLibraryOpen(!isLibraryOpen)}
-              title="Your Music Library"
+              title="Your music"
             >
               <ListMusic className="w-5 h-5" />
             </Button>
@@ -1147,7 +1107,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
             <div className="h-6 w-px bg-white/10 mx-1" />
 
             <Link href="/">
-              <Button variant="ghost" size="icon" className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white" title="Back to Dashboard">
+              <Button variant="ghost" size="icon" className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white" title="Leave">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             </Link>
@@ -1157,7 +1117,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
               size="icon"
               className={cn("w-12 h-12 rounded-2xl border transition-all duration-500", intensity === 'INTENSE' ? "bg-orange-500/20 border-orange-500/40 text-orange-500" : "bg-white/5 border-white/10 hover:bg-white/10 text-white")}
               onClick={() => setIntensity(intensity === 'INTENSE' ? 'CHILL' : 'INTENSE')}
-              title={intensity === 'INTENSE' ? 'Switch to Chill mode' : 'Switch to Intense Focus'}
+              title={intensity === 'INTENSE' ? 'Switch to normal focus' : 'Switch to deep focus (double XP)'}
             >
               <Zap className="w-5 h-5" />
             </Button>
@@ -1217,7 +1177,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     <div className="w-10 h-10 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
                       <Settings className="w-5 h-5 text-primary" />
                     </div>
-                    <h3 className="text-lg font-heading font-black tracking-tight">Focus Settings</h3>
+                    <h3 className="text-lg font-heading font-black tracking-tight">Focus settings</h3>
                   </div>
                   <Button
                     variant="ghost" size="icon"
@@ -1236,7 +1196,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     </h4>
                     <div className="grid grid-cols-3 gap-2">
                       {([
-                        { id: 'AUTO', label: 'Auto', icon: Sparkles },
+                        { id: 'AUTO', label: 'Album', icon: Sparkles },
                         { id: 'PHOTO', label: 'Photo', icon: ImageIcon },
                         { id: 'CUSTOM', label: 'Custom', icon: Palette },
                       ] as { id: BgMode; label: string; icon: typeof Sparkles }[]).map(({ id, label, icon: Icon }) => (
@@ -1258,7 +1218,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
 
                     {bgMode === 'AUTO' && (
                       <p className="text-[11px] font-semibold text-white/40 leading-relaxed">
-                        The scene re-lights itself from the current track&apos;s album art.
+                        Slowly moving colours taken from the cover of the song that is playing.
                       </p>
                     )}
 
@@ -1284,7 +1244,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                           >
                             <ImageIcon className="w-7 h-7 text-white/40" />
                             <span className="text-xs font-bold text-white/60">Upload a background photo</span>
-                            <span className="text-[10px] font-semibold text-white/30">Resized & blurred for readability</span>
+                            <span className="text-[10px] font-semibold text-white/30">Shown slightly blurred so the timer stays readable</span>
                           </button>
                         )}
                       </div>
@@ -1330,33 +1290,10 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     )}
                   </section>
 
-                  {/* ---- Timer Style ---- */}
-                  <section className="space-y-4">
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-white/40 flex items-center gap-2">
-                      <Timer className="w-3.5 h-3.5" /> Timer Style
-                    </h4>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(['RING', 'BIG', 'COOL', 'FLIP', 'LIQUID'] as TimerStyle[]).map((style) => (
-                        <button
-                          key={style}
-                          onClick={() => chooseTimerStyle(style)}
-                          className={cn(
-                            'py-2.5 rounded-xl border-2 transition-all font-bold text-[11px] uppercase tracking-wider',
-                            timerStyle === style
-                              ? 'bg-primary/15 border-primary text-white'
-                              : 'bg-white/5 border-white/10 text-white/50 hover:border-white/25'
-                          )}
-                        >
-                          {style}
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-
                   {/* ---- Break Cycle ---- */}
                   <section className="space-y-4">
                     <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-white/40 flex items-center gap-2">
-                      <Coffee className="w-3.5 h-3.5" /> Break Cycle
+                      <Coffee className="w-3.5 h-3.5" /> Breaks
                     </h4>
                     <div className="grid grid-cols-3 gap-2">
                       {BREAK_PRESETS.map((preset) => {
@@ -1384,10 +1321,10 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     <div className="flex items-center justify-between">
                       <div className="space-y-1 pr-4">
                         <h4 className="text-sm font-black text-white flex items-center gap-2">
-                          <Droplets className="w-4 h-4 text-cyan-400" /> Wellness Nudges
+                          <Droplets className="w-4 h-4 text-cyan-400" /> Water and stretch reminders
                         </h4>
                         <p className="text-[11px] font-semibold text-white/40 leading-relaxed">
-                          Gentle water & stretch reminders during long sessions.
+                          Water every {WATER_INTERVAL_MIN} minutes, a stretch every {STRETCH_INTERVAL_MIN}.
                         </p>
                       </div>
                       <Switch checked={remindersOn} onCheckedChange={toggleReminders} />
@@ -1422,7 +1359,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                   <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 space-y-6">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 flex items-center gap-2">
-                        <ListTodo className="w-4 h-4 text-primary" /> Objectives
+                        <ListTodo className="w-4 h-4 text-primary" /> Goals
                       </h3>
                     </div>
 
@@ -1438,7 +1375,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                               setNewGoalInput('');
                             }
                           }}
-                          placeholder="Add new objective..."
+                          placeholder="Add a goal"
                           className="h-10 rounded-xl bg-white/5 border-white/10 font-bold px-4 text-xs placeholder:text-white/20"
                         />
                         <Button
@@ -1458,7 +1395,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
 
                       <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                         {goals.filter(g => g.trim()).length === 0 ? (
-                          <p className="text-xs font-bold text-white/30 text-center py-4">No objectives listed.</p>
+                          <p className="text-xs font-bold text-white/30 text-center py-4">No goals yet.</p>
                         ) : (
                           goals.filter(g => g.trim()).map((goal, i) => (
                             <div
@@ -1486,275 +1423,74 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
               )}
             </AnimatePresence>
 
-            {/* Central Timer Face — hover to switch designs.
-                min-w-0 lets the column shrink so a huge clock can't shove the
-                side panels off-screen; containerType powers the cqw clock sizing. */}
+            {/* The clock. min-w-0 lets the column shrink so the digits never push
+                the side panels off-screen; containerType powers the cqw sizing. */}
             <div className="flex-1 min-w-0 w-full flex flex-col items-center justify-center py-4" style={{ containerType: 'inline-size' }}>
-              <div className="group relative flex flex-col items-center max-w-full">
+              <motion.div
+                className="flex w-full flex-col items-center text-center px-4"
+                animate={{ scale: isPaused ? 0.985 : [1, 1.006, 1] }}
+                transition={isPaused ? { duration: 0.4 } : { duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                {/* What this session is */}
+                <div className="mb-8 inline-flex max-w-full items-center gap-3 rounded-full border border-white/10 bg-white/[0.06] py-1.5 pl-1.5 pr-5 backdrop-blur-xl">
+                  <span
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em]"
+                    style={{ backgroundColor: `${isPaused ? '#f59e0b' : scenePalette[2] || '#ffffff'}26`, color: isPaused ? '#fbbf24' : scenePalette[2] || '#ffffff' }}
+                  >
+                    <span className={cn('size-1.5 rounded-full bg-current', !isPaused && 'motion-safe:animate-pulse')} />
+                    {isPaused ? 'Paused' : onBreak ? 'Break' : isIntense ? 'Deep focus' : 'Focusing'}
+                  </span>
+                  <span className="min-w-0 truncate text-sm font-bold text-white">{task.subject}</span>
+                  <span className="hidden shrink-0 text-xs font-semibold text-white/50 sm:inline">{typeLabel}</span>
+                </div>
 
-                {timerStyle === 'BIG' ? (
-                  /* ---------- BIG: just the time ---------- */
-                  <motion.div
-                    className="flex flex-col items-center justify-center text-center px-4"
-                    animate={{ scale: isPaused ? 0.99 : isIntense ? [1, 1.02, 1] : [1, 1.008, 1] }}
-                    transition={isPaused ? { duration: 0.4 } : { duration: isIntense ? 3.4 : 6, repeat: Infinity, ease: 'easeInOut' }}
-                  >
-                    <div className="flex items-center gap-2.5 mb-6 max-w-[80vw]">
-                      <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", isPaused ? "bg-amber-500 animate-ping" : isIntense ? "bg-orange-500 animate-pulse" : "bg-emerald-400 animate-pulse")} />
-                      <span className="text-xs sm:text-sm font-black uppercase tracking-[0.3em] text-white/55 truncate">{task.subject}</span>
-                    </div>
+                {/* Time left */}
+                <div
+                  role="timer"
+                  aria-label={`${openEnded ? 'Time so far' : 'Time left'}: ${timeLeft.h > 0 ? `${timeLeft.h} hours ` : ''}${timeLeft.m} minutes ${timeLeft.s} seconds`}
+                  className={cn(
+                    'flex max-w-full items-baseline justify-center font-heading font-black tabular-nums leading-[0.8] tracking-tight text-white transition-[font-size,opacity] duration-700 ease-in-out drop-shadow-[0_10px_40px_rgba(0,0,0,0.35)]',
+                    isPaused && 'opacity-45'
+                  )}
+                  style={{ fontSize: timeLeft.h > 0 ? 'clamp(3.5rem, 24cqw, 14rem)' : 'clamp(4.5rem, 34cqw, 18rem)' }}
+                >
+                  {timeLeft.h > 0 && (
+                    <>
+                      <span>{timeLeft.h.toString().padStart(2, '0')}</span>
+                      <span className="mx-[0.04em] -translate-y-[0.06em] font-sans font-extralight text-white/30">:</span>
+                    </>
+                  )}
+                  <span>{timeLeft.m.toString().padStart(2, '0')}</span>
+                  <span className="mx-[0.04em] -translate-y-[0.06em] font-sans font-extralight text-white/30">:</span>
+                  <span className="text-white/75">{timeLeft.s.toString().padStart(2, '0')}</span>
+                </div>
+                <p className="mt-6 text-[11px] font-black uppercase tracking-[0.35em] text-white/45">
+                  {openEnded ? 'Time so far' : 'Time left'}
+                </p>
+
+                {/* Progress through the session */}
+                <div className="mt-8 w-full max-w-[min(32rem,80cqw)]">
+                  <div className="relative h-1.5 overflow-hidden rounded-full bg-white/10">
                     <div
-                      className={cn(
-                        // font-size transition smooths the clock resize when panels
-                        // are brought in/out so it eases instead of snapping.
-                        "font-heading font-black tabular-nums leading-[0.82] flex items-baseline justify-center drop-shadow-2xl transition-[font-size,opacity] duration-700 ease-in-out max-w-full",
-                        isPaused && "opacity-40"
-                      )}
-                      // Size to the central column (cqw) so the clock fills the
-                      // space without pushing the side panels off-screen.
-                      style={{ fontSize: 'clamp(3.5rem, 23cqw, 15rem)' }}
-                    >
-                      {timeLeft.h > 0 && <span>{timeLeft.h.toString().padStart(2, '0')}<span className="opacity-25 mx-1">:</span></span>}
-                      <span>{timeLeft.m.toString().padStart(2, '0')}</span>
-                      <span className="opacity-25 mx-1">:</span>
-                      <span className="text-[0.5em] text-white/70">{timeLeft.s.toString().padStart(2, '0')}</span>
-                    </div>
-                  </motion.div>
-                ) : timerStyle === 'FLIP' ? (
-                  /* ---------- FLIP: segmented digit cards ---------- */
-                  <motion.div
-                    className="flex flex-col items-center"
-                    animate={{ scale: isPaused ? 0.99 : 1 }}
-                    transition={{ duration: 0.4 }}
-                  >
-                    <div className="flex items-center gap-2.5 mb-7 max-w-[80vw]">
-                      <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", isPaused ? "bg-amber-500 animate-ping" : isIntense ? "bg-orange-500 animate-pulse" : "bg-emerald-400 animate-pulse")} />
-                      <span className="text-xs sm:text-sm font-black uppercase tracking-[0.3em] text-white/55 truncate">{task.subject}</span>
-                    </div>
-                    <div className={cn("flex items-end gap-2 md:gap-3 transition-opacity duration-1000", isPaused && "opacity-50")}>
-                      {(timeLeft.h > 0 ? [timeLeft.h, timeLeft.m, timeLeft.s] : [timeLeft.m, timeLeft.s]).map((val, gi, arr) => (
-                        <Fragment key={gi}>
-                          <div className="flex gap-1.5 md:gap-2">
-                            {val.toString().padStart(2, '0').split('').map((d, di) => (
-                              <div
-                                key={di}
-                                className="relative flex items-center justify-center rounded-2xl md:rounded-3xl bg-white/10 backdrop-blur-md border border-white/15 font-heading font-black tabular-nums text-white w-14 h-20 sm:w-20 sm:h-28 md:w-28 md:h-40 text-5xl sm:text-7xl md:text-8xl drop-shadow-2xl"
-                                style={{ boxShadow: `0 24px 60px -24px ${scenePalette[2] || '#000000'}` }}
-                              >
-                                {d}
-                                <div className="absolute inset-x-0 top-1/2 h-px bg-black/40" />
-                                <div className="absolute inset-x-2 top-1/2 translate-y-px h-px bg-white/10" />
-                              </div>
-                            ))}
-                          </div>
-                          {gi < arr.length - 1 && <span className="text-4xl sm:text-6xl md:text-7xl font-black text-white/40 pb-2">:</span>}
-                        </Fragment>
-                      ))}
-                    </div>
-                    <div className="mt-8 w-full max-w-[260px] sm:max-w-[380px] space-y-2">
-                      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                        <div
-                          className="h-full transition-all duration-1000 ease-linear rounded-full"
-                          style={{ width: `${elapsedPercent}%`, background: `linear-gradient(to right, ${scenePalette[1] || '#ffffff'}, ${scenePalette[2] || '#ffffff'})` }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-white/45">
-                        <span>{isPaused ? 'Paused' : isIntense ? 'Locked In' : 'Focusing'}</span>
-                        <span>{elapsedPercent}%</span>
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    className={cn(
-                      "relative w-72 h-72 sm:w-96 sm:h-96 md:w-[460px] md:h-[460px] lg:w-[520px] lg:h-[520px] flex items-center justify-center",
-                      timerStyle === 'LIQUID' && "rounded-full overflow-hidden ring-2 ring-white/15"
-                    )}
-                    animate={{ scale: isPaused ? 0.985 : isIntense ? [1, 1.025, 1] : [1, 1.012, 1] }}
-                    transition={isPaused ? { duration: 0.4 } : { duration: isIntense ? 3.4 : 6, repeat: Infinity, ease: 'easeInOut' }}
-                  >
-                    {/* Soft inner glow that breathes with the session */}
-                    <div
-                      className="absolute inset-10 rounded-full blur-3xl transition-opacity duration-1000"
+                      className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-1000 ease-linear"
                       style={{
-                        background: `radial-gradient(circle, ${scenePalette[2] || '#ffffff'}${isIntense ? '66' : '40'}, transparent 70%)`,
-                        opacity: isPaused ? 0.15 : isIntense ? 0.6 : 0.4,
+                        width: `${Math.max(elapsedPercent, 1)}%`,
+                        background: `linear-gradient(to right, ${scenePalette[1] || '#ffffff'}, ${scenePalette[2] || '#ffffff'})`,
                       }}
                     />
-
-                    {timerStyle === 'LIQUID' ? (
-                      /* ---------- LIQUID: rising wave fill ---------- */
-                      <>
-                        <div
-                          className="absolute bottom-0 inset-x-0 transition-[height] duration-1000 ease-linear"
-                          style={{ height: `${Math.max(elapsedPercent, 3)}%` }}
-                        >
-                          <div className="absolute inset-0" style={{ background: `linear-gradient(to top, ${scenePalette[0] || '#ffffff'}ee, ${scenePalette[2] || '#ffffff'}aa)` }} />
-                          {[0, 1].map((i) => (
-                            <motion.div
-                              key={i}
-                              className="absolute left-[-35%] right-[-35%] -top-8 h-16 rounded-[45%]"
-                              style={{ background: scenePalette[2] || '#ffffff', opacity: i ? 0.3 : 0.5 }}
-                              animate={isPaused ? {} : { rotate: 360 }}
-                              transition={{ duration: 7 + i * 4, repeat: Infinity, ease: 'linear' }}
-                            />
-                          ))}
-                        </div>
-                        <div className="absolute inset-0 rounded-full border-2 border-white/15" />
-                      </>
-                    ) : timerStyle === 'RING' ? (
-                      /* ---------- RING: ticked dial with glowing head ---------- */
-                      <>
-                        <svg viewBox="0 0 500 500" className="w-full h-full -rotate-90 absolute overflow-visible">
-                          <defs>
-                            <linearGradient id="timerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                              <stop offset="0%" stopColor={scenePalette[2] || '#ffffff'} />
-                              <stop offset="55%" stopColor={scenePalette[1] || scenePalette[0] || '#ffffff'} />
-                              <stop offset="100%" stopColor={scenePalette[0] || '#ffffff'} />
-                            </linearGradient>
-                          </defs>
-
-                          {Array.from({ length: 60 }).map((_, i) => {
-                            const major = i % 5 === 0;
-                            const angle = (i / 60) * 2 * Math.PI;
-                            const outer = 244;
-                            const inner = major ? 230 : 237;
-                            return (
-                              <line
-                                key={i}
-                                x1={250 + outer * Math.cos(angle)}
-                                y1={250 + outer * Math.sin(angle)}
-                                x2={250 + inner * Math.cos(angle)}
-                                y2={250 + inner * Math.sin(angle)}
-                                stroke="white"
-                                strokeWidth={major ? 3 : 1.5}
-                                strokeLinecap="round"
-                                className={major ? 'opacity-30' : 'opacity-[0.12]'}
-                              />
-                            );
-                          })}
-
-                          <circle cx="250" cy="250" r={TIMER_RADIUS} stroke="currentColor" strokeWidth="10" fill="transparent" className="text-white/10" />
-                          <circle
-                            cx="250" cy="250" r={TIMER_RADIUS}
-                            stroke="url(#timerGrad)" strokeWidth="14" strokeLinecap="round" fill="transparent"
-                            strokeDasharray={TIMER_CIRCUMFERENCE}
-                            strokeDashoffset={timerCircleProgress}
-                            className="transition-all duration-1000 ease-linear"
-                            style={{ filter: `drop-shadow(0 0 ${isIntense ? 20 : 10}px ${scenePalette[2] || '#ffffff'}${isIntense ? 'ee' : 'cc'})` }}
-                          />
-                        </svg>
-
-                        <div
-                          className="absolute inset-[8%] transition-transform duration-1000 ease-linear"
-                          style={{ transform: `rotate(${elapsedFraction * 360}deg)` }}
-                        >
-                          <div
-                            className={cn("absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white", isIntense ? "w-4 h-4" : "w-3.5 h-3.5")}
-                            style={{ boxShadow: `0 0 ${isIntense ? '24px 4px' : '16px 2px'} ${scenePalette[2] || '#ffffff'}, 0 0 4px #fff` }}
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      /* ---------- COOL: pulsing halo + slim ring ---------- */
-                      <>
-                        {[0, 1, 2].map((i) => (
-                          <motion.div
-                            key={i}
-                            className="absolute rounded-full border-2"
-                            style={{ inset: '13%', borderColor: `${scenePalette[2] || '#ffffff'}66` }}
-                            animate={isPaused ? { scale: 1, opacity: 0.12 } : { scale: [1, 1.42], opacity: [0.55, 0] }}
-                            transition={isPaused ? { duration: 0.4 } : { duration: 3.2, repeat: Infinity, delay: i * 1.05, ease: 'easeOut' }}
-                          />
-                        ))}
-                        <svg viewBox="0 0 500 500" className="w-full h-full -rotate-90 absolute">
-                          <defs>
-                            <linearGradient id="timerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                              <stop offset="0%" stopColor={scenePalette[2] || '#ffffff'} />
-                              <stop offset="55%" stopColor={scenePalette[1] || scenePalette[0] || '#ffffff'} />
-                              <stop offset="100%" stopColor={scenePalette[0] || '#ffffff'} />
-                            </linearGradient>
-                          </defs>
-                          <circle cx="250" cy="250" r={TIMER_RADIUS} stroke="currentColor" strokeWidth="3" fill="transparent" className="text-white/10" />
-                          <circle
-                            cx="250" cy="250" r={TIMER_RADIUS}
-                            stroke="url(#timerGrad)" strokeWidth="6" strokeLinecap="round" fill="transparent"
-                            strokeDasharray={TIMER_CIRCUMFERENCE}
-                            strokeDashoffset={timerCircleProgress}
-                            className="transition-all duration-1000 ease-linear"
-                            style={{ filter: `drop-shadow(0 0 16px ${scenePalette[2] || '#ffffff'}dd)` }}
-                          />
-                        </svg>
-                      </>
-                    )}
-
-                    {/* Center readout shared by RING & COOL */}
-                    <div className="relative flex flex-col items-center justify-center text-center px-12 w-full">
-                      <div className="flex items-center gap-2 mb-3 max-w-[78%]">
-                        <div className={cn("w-2 h-2 rounded-full shrink-0", isPaused ? "bg-amber-500 animate-ping" : isIntense ? "bg-orange-500 animate-pulse" : "bg-emerald-400 animate-pulse")} />
-                        <span className="text-[11px] sm:text-xs font-black uppercase tracking-[0.25em] text-white/70 truncate">
-                          {task.subject}
-                        </span>
-                      </div>
-
-                      <div
-                        className={cn(
-                          "font-heading font-black tracking-tight leading-none tabular-nums flex items-baseline justify-center transition-opacity duration-1000 drop-shadow-2xl",
-                          timeLeft.h > 0
-                            ? "text-6xl sm:text-7xl md:text-8xl lg:text-[6.5rem]"
-                            : "text-7xl sm:text-8xl md:text-[6.5rem] lg:text-[8rem]",
-                          isPaused && "opacity-40"
-                        )}
-                      >
-                        {timeLeft.h > 0 && <span>{timeLeft.h.toString().padStart(2, '0')}<span className="text-[0.5em] font-bold text-white/40 mx-0.5">:</span></span>}
-                        <span>{timeLeft.m.toString().padStart(2, '0')}</span>
-                        <span className="opacity-30 select-none mx-0.5">:</span>
-                        <span className="text-[0.62em] font-bold text-white/75">{timeLeft.s.toString().padStart(2, '0')}</span>
-                      </div>
-
-                      <div className={cn(
-                        "mt-5 flex items-center gap-2.5 border pl-2 pr-4 py-1.5 rounded-full backdrop-blur-md transition-colors",
-                        isIntense && !isPaused ? "bg-orange-500/10 border-orange-500/30" : "bg-white/5 border-white/10"
-                      )}>
-                        <span
-                          className="text-[11px] font-black tabular-nums px-2.5 py-0.5 rounded-full"
-                          style={{ background: `${scenePalette[2] || '#ffffff'}22`, color: scenePalette[2] || '#ffffff' }}
-                        >
-                          {elapsedPercent}%
-                        </span>
-                        <span className={cn(
-                          "text-[10px] font-black uppercase tracking-[0.2em]",
-                          isIntense && !isPaused ? "text-orange-300" : "text-white/55"
-                        )}>
-                          {isPaused ? 'Paused' : isIntense ? 'Locked In' : 'Focusing'}
-                        </span>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Hover-reveal design switcher */}
-                <div className="mt-10 flex items-center gap-1 p-1 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-300">
-                  {([
-                    { id: 'BIG', label: 'Big', icon: Clock },
-                    { id: 'RING', label: 'Ring', icon: Disc3 },
-                    { id: 'COOL', label: 'Pulse', icon: Zap },
-                    { id: 'FLIP', label: 'Flip', icon: LayoutGrid },
-                    { id: 'LIQUID', label: 'Liquid', icon: Droplets },
-                  ] as const).map((opt) => (
-                    <button
-                      key={opt.id}
-                      onClick={() => chooseTimerStyle(opt.id)}
-                      className={cn(
-                        "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-colors",
-                        timerStyle === opt.id ? "bg-white text-black" : "text-white/50 hover:text-white hover:bg-white/10"
-                      )}
-                    >
-                      <opt.icon className="w-3.5 h-3.5" /> {opt.label}
-                    </button>
-                  ))}
+                  </div>
+                  <div className="mt-2.5 flex items-center justify-between text-[11px] font-bold tabular-nums text-white/45">
+                    <span>{openEnded ? 'No set length' : `${elapsedPercent}% done`}</span>
+                    <span>{openEnded ? 'Finish when you are ready' : `${initialDurationMinutes} min session`}</span>
+                  </div>
                 </div>
-              </div>
+
+                {isPaused && (
+                  <p className="mt-6 text-xs font-semibold text-white/50">
+                    Press <kbd className="rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 font-mono text-[11px] text-white/80">Space</kbd> to carry on
+                  </p>
+                )}
+              </motion.div>
             </div>
 
             <AnimatePresence>
@@ -1768,11 +1504,11 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 >
                   <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 space-y-6">
                     <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 flex items-center gap-2">
-                      <BookOpen className="w-4 h-4 text-primary" /> Resources
+                      <BookOpen className="w-4 h-4 text-primary" /> Files
                     </h3>
                     <div className="space-y-3">
                        {resources.length === 0 ? (
-                         <p className="text-xs font-bold text-white/30 text-center py-4">No assets attached.</p>
+                         <p className="text-xs font-bold text-white/30 text-center py-4">No files for this subject yet.</p>
                        ) : (
                          resources.map((res) => (
                            <a
@@ -1794,7 +1530,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                   {nextSessions.length > 0 && (
                     <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 space-y-4">
                       <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 flex items-center gap-2">
-                        <CalendarClock className="w-4 h-4 text-primary" /> Next Sessions
+                        <CalendarClock className="w-4 h-4 text-primary" /> Later today
                       </h3>
                       <div className="space-y-2">
                         {nextSessions.map((next) => (
@@ -1805,7 +1541,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                           >
                             <div className="min-w-0">
                               <p className="text-sm font-bold truncate">{next.subject}</p>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-white/35">{next.type}</p>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-white/35">{next.type === 'REVISION' ? 'Revision' : 'Homework'}</p>
                             </div>
                             <span className="text-xs font-black tabular-nums text-white/55 group-hover:text-white shrink-0">
                               {next.startTime}
@@ -1833,18 +1569,18 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     <Music className="w-12 h-12 text-white/80" />
                   </div>
                   <div className="space-y-2">
-                    <h2 className="text-3xl font-heading font-black tracking-tight">Build your focus soundtrack</h2>
+                    <h2 className="text-3xl font-heading font-black tracking-tight">Add music for your sessions</h2>
                     <p className="text-sm font-semibold text-white/50 leading-relaxed">
-                      Upload your own songs — titles, artists and album art are picked up automatically, and the room re-lights itself to match every track.
+                      Add your own songs. Titles, artists and covers are read from the files, and the background takes its colours from each cover.
                     </p>
                   </div>
                   <Button
                     onClick={() => uploadInputRef.current?.click()}
                     className="h-14 px-10 rounded-2xl bg-white text-black hover:bg-white/90 font-black text-base gap-3"
                   >
-                    <Upload className="w-5 h-5" /> Add Music
+                    <Upload className="w-5 h-5" /> Add music
                   </Button>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">or drag & drop audio files anywhere</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">or drag audio files anywhere on this screen</p>
                 </motion.div>
               </div>
             ) : (
@@ -1870,9 +1606,9 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                           <button
                             onClick={() => setImmersiveCover(true)}
                             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-black/50 backdrop-blur-md border border-white/15 text-white text-[11px] font-black hover:bg-black/70 transition-colors"
-                            title="Immersive cover view"
+                            title="Full screen cover"
                           >
-                            <Maximize2 className="w-3.5 h-3.5" /> Immersive
+                            <Maximize2 className="w-3.5 h-3.5" /> Full screen
                           </button>
                         </div>
                         <div className="flex items-center justify-center">
@@ -1893,7 +1629,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                           {currentSong?.title}
                         </h2>
                         <p className="text-base font-bold text-white/55 truncate">
-                          {currentSong?.artist || 'Unknown Artist'}
+                          {currentSong?.artist || 'Unknown artist'}
                         </p>
                       </div>
 
@@ -2011,14 +1747,14 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                                 songPanelTab === 'QUEUE' ? "bg-white/15 text-white" : "text-white/40 hover:text-white/70"
                               )}
                             >
-                              <ListMusic className="w-3 h-3" /> Up Next
+                              <ListMusic className="w-3 h-3" /> Up next
                             </button>
                           </div>
                           <button
                             onClick={() => uploadInputRef.current?.click()}
                             className="text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white flex items-center gap-1.5 transition-colors"
                           >
-                            <Plus className="w-3.5 h-3.5" /> Add Music
+                            <Plus className="w-3.5 h-3.5" /> Add music
                           </button>
                         </div>
 
@@ -2046,7 +1782,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                         ) : (
                           <div className="flex-1 space-y-1 overflow-y-auto custom-scrollbar pr-1 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[28px] p-4">
                             {player.upNext.length === 0 ? (
-                              <p className="text-xs font-bold text-white/30 text-center py-6">Queue is empty — add more songs.</p>
+                              <p className="text-xs font-bold text-white/30 text-center py-6">Nothing queued. Add more songs.</p>
                             ) : (
                               player.upNext.map((song) => (
                                 <button
@@ -2057,7 +1793,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                                   <CoverArt song={song} palette={palette} className="w-11 h-11 rounded-lg shrink-0" iconSize="w-4 h-4" />
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm font-bold truncate">{song.title}</p>
-                                    <p className="text-[11px] font-semibold text-white/40 truncate">{song.artist || 'Unknown Artist'}</p>
+                                    <p className="text-[11px] font-semibold text-white/40 truncate">{song.artist || 'Unknown artist'}</p>
                                   </div>
                                   {song.duration ? (
                                     <span className="text-[10px] font-bold tabular-nums text-white/30 group-hover:text-white/60">{formatTime(song.duration)}</span>
@@ -2087,7 +1823,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
             </button>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-black truncate">{currentSong.title}</p>
-              <p className="text-[10px] font-bold text-white/40 truncate">{currentSong.artist || 'Unknown Artist'}</p>
+              <p className="text-[10px] font-bold text-white/40 truncate">{currentSong.artist || 'Unknown artist'}</p>
             </div>
             <div className="flex items-center gap-0.5 shrink-0">
               <Button variant="ghost" size="icon" onClick={player.prev} className="w-8 h-8 rounded-lg hover:bg-white/10 text-white/80">
@@ -2112,7 +1848,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
               className="h-16 px-12 rounded-[24px] bg-white text-black hover:bg-white/90 font-black text-lg gap-3 shadow-2xl hover:scale-105 transition-all"
             >
               <CheckCircle2 className="w-6 h-6" />
-              FINISH FOCUS SESSION
+              Finish session
             </Button>
           ) : (
             <motion.div
@@ -2121,7 +1857,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
               className="max-w-2xl w-full bg-zinc-900/90 backdrop-blur-3xl border border-white/10 p-8 rounded-[32px] space-y-6 shadow-2xl text-left"
             >
               <div className="flex justify-between items-center">
-                 <h3 className="text-xl font-black">Proof of Work Calibration</h3>
+                 <h3 className="text-xl font-black">What did you get done?</h3>
                  <Button variant="ghost" size="icon" onClick={() => setShowProofForm(false)} className="hover:bg-white/5 text-white/80">
                    <X className="w-5 h-5" />
                  </Button>
@@ -2129,7 +1865,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
 
               <div className="space-y-4">
                  <Textarea
-                   placeholder="Describe what you accomplished during this session..."
+                   placeholder="A sentence about what you worked on."
                    value={proofDescription}
                    onChange={(e) => setProofDescription(e.target.value)}
                    className="bg-white/5 border-white/10 min-h-[100px] rounded-2xl font-bold placeholder:text-white/25 text-white"
@@ -2139,7 +1875,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     <label className="flex-1 flex items-center justify-center gap-2 h-14 bg-white/5 border border-white/10 rounded-2xl cursor-pointer hover:bg-white/10 transition-colors px-4">
                        <Paperclip className="w-5 h-5 text-primary" />
                        <span className="font-bold text-sm truncate">
-                         {proofFile ? proofFile.name : 'Attach PDF Proof'}
+                         {proofFile ? proofFile.name : 'Attach a PDF'}
                        </span>
                        <input
                          type="file"
@@ -2155,7 +1891,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                       className="h-14 px-8 rounded-2xl bg-primary font-black gap-2 shadow-lg"
                     >
                        {isFinishing ? <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /> : <Send className="w-5 h-5" />}
-                       COMPLETE SESSION
+                       Finish session
                     </Button>
                  </div>
               </div>
@@ -2202,7 +1938,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
             >
               <div className="p-6 pb-4 flex items-center justify-between shrink-0">
                 <h3 className="text-lg font-heading font-black flex items-center gap-2.5">
-                  <ListMusic className="w-5 h-5 text-white/60" /> Your Library
+                  <ListMusic className="w-5 h-5 text-white/60" /> Your music
                 </h3>
                 <Button variant="ghost" size="icon" onClick={() => setIsLibraryOpen(false)} className="w-9 h-9 rounded-xl hover:bg-white/10 text-white/70">
                   <X className="w-4 h-4" />
@@ -2236,7 +1972,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                   onClick={() => uploadInputRef.current?.click()}
                   className="w-full h-12 rounded-2xl bg-white text-black hover:bg-white/90 font-black gap-2"
                 >
-                  <Upload className="w-4 h-4" /> Add Music
+                  <Upload className="w-4 h-4" /> Add music
                 </Button>
                 {player.uploadError && (
                   <p className="mt-2 text-[11px] font-bold text-red-400">{player.uploadError}</p>
@@ -2291,7 +2027,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                       !player.activePlaylistId ? "bg-white text-black border-white" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
                     )}
                   >
-                    All Songs
+                    All songs
                   </button>
                   {player.playlists.map((pl) => {
                     const active = player.activePlaylistId === pl.id;
@@ -2359,7 +2095,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 {player.songs.length === 0 && player.uploading.length === 0 ? (
                   <div className="text-center py-16 px-6 space-y-3">
                     <Music className="w-10 h-10 text-white/20 mx-auto" />
-                    <p className="text-sm font-bold text-white/35 leading-relaxed">No songs yet. Upload your favorites — they stay here for every session.</p>
+                    <p className="text-sm font-bold text-white/35 leading-relaxed">No songs yet. Songs you add stay here for every session.</p>
                   </div>
                 ) : (
                   player.songs.map((song) => {
@@ -2392,7 +2128,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                             <span className="truncate">{song.title}</span>
                           </p>
                           <p className="text-[11px] font-semibold text-white/40 truncate">
-                            {song.artist || 'Unknown Artist'}{song.duration ? ` • ${formatTime(song.duration)}` : ''}
+                            {song.artist || 'Unknown artist'}{song.duration ? ` • ${formatTime(song.duration)}` : ''}
                           </p>
                         </div>
                         <div className={cn("flex items-center transition-opacity shrink-0", menuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
@@ -2442,7 +2178,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                             </button>
                           </div>
                           {player.playlists.length === 0 ? (
-                            <p className="text-[11px] font-bold text-white/40 px-2 py-1.5">No playlists yet — create one above.</p>
+                            <p className="text-[11px] font-bold text-white/40 px-2 py-1.5">No playlists yet. Make one above.</p>
                           ) : (
                             player.playlists.map((pl) => {
                               const inIt = pl.songIds.includes(song.id);
@@ -2475,7 +2211,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                   <div className="px-6 pb-3 shrink-0">
                     {!isOnlineNet ? (
                       <div className="flex items-center gap-2 text-[11px] font-bold text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-2xl px-3 py-3">
-                        <WifiOff className="w-4 h-4 shrink-0" /> You're offline — connect to the internet to search online music.
+                        <WifiOff className="w-4 h-4 shrink-0" /> You are offline. Connect to the internet to search for music.
                       </div>
                     ) : (
                       <form onSubmit={(e) => { e.preventDefault(); runOnlineSearch(); }} className="flex items-center gap-2">
@@ -2484,7 +2220,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                           <Input
                             value={onlineQuery}
                             onChange={(e) => setOnlineQuery(e.target.value)}
-                            placeholder="Search songs, artists…"
+                            placeholder="Search songs or artists"
                             className="h-11 pl-9 rounded-2xl bg-white/5 border-white/10 text-sm font-bold text-white placeholder:text-white/25"
                           />
                         </div>
@@ -2511,7 +2247,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     ) : (
                       <>
                         {!onlineSearched && (
-                          <p className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-white/40">Trending now</p>
+                          <p className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-white/40">Popular now</p>
                         )}
                         {onlineResults.map((track) => {
                           const added = player.songs.some((s) => (s as any).externalId === track.id);
@@ -2581,7 +2317,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                   variant="ghost" size="icon"
                   onClick={() => setImmersiveCover(false)}
                   className="w-12 h-12 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 hover:bg-black/60 text-white"
-                  title="Exit immersive (Esc)"
+                  title="Close full screen cover (Esc)"
                 >
                   <Minimize2 className="w-5 h-5" />
                 </Button>
@@ -2591,7 +2327,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
               <div className="absolute bottom-0 inset-x-0 p-8 md:p-14 space-y-6 z-10">
                 <div className="max-w-3xl">
                   <h2 className="text-4xl md:text-6xl lg:text-7xl font-heading font-black tracking-tight drop-shadow-2xl truncate">{currentSong.title}</h2>
-                  <p className="text-lg md:text-2xl font-bold text-white/70 truncate mt-2">{currentSong.artist || 'Unknown Artist'}</p>
+                  <p className="text-lg md:text-2xl font-bold text-white/70 truncate mt-2">{currentSong.artist || 'Unknown artist'}</p>
                 </div>
 
                 <div className="max-w-3xl space-y-1.5">
@@ -2660,7 +2396,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
               >
                 <div className="flex justify-between items-center">
                   <h3 className="text-xl font-black flex items-center gap-2">
-                    <Info className="w-5 h-5 text-primary" /> Focus Controls
+                    <Info className="w-5 h-5 text-primary" /> Keyboard shortcuts
                   </h3>
                   <Button
                     variant="ghost"
@@ -2673,16 +2409,16 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 </div>
 
                 <div className="space-y-4">
-                  <p className="text-xs text-white/60 font-semibold uppercase tracking-wider">Keyboard Shortcuts</p>
+                  <p className="text-xs text-white/60 font-semibold uppercase tracking-wider">Shortcuts</p>
                   <div className="grid grid-cols-1 gap-3">
                     {[
-                      { key: 'Space', desc: 'Play / Pause Focus Timer' },
-                      { key: 'V', desc: 'Switch Song / Timer View' },
-                      { key: 'P', desc: 'Flow AI (Notes, Tutor & Flashcards)' },
-                      { key: 'Z', desc: 'Toggle Zen Mode (Hide Panels)' },
-                      { key: 'M', desc: 'Mute / Unmute Music' },
-                      { key: 'F', desc: 'Toggle Fullscreen Mode' },
-                      { key: '← / →', desc: 'Skip Track (Previous / Next)' },
+                      { key: 'Space', desc: 'Pause or resume' },
+                      { key: 'V', desc: 'Timer or music view' },
+                      { key: 'P', desc: 'Study tools' },
+                      { key: 'Z', desc: 'Hide or show side panels' },
+                      { key: 'M', desc: 'Mute music' },
+                      { key: 'F', desc: 'Full screen' },
+                      { key: '← / →', desc: 'Previous or next song' },
                     ].map((shortcut) => (
                       <div key={shortcut.key} className="flex items-center justify-between p-3.5 bg-white/5 border border-white/5 rounded-2xl">
                         <span className="text-sm font-bold text-white">{shortcut.desc}</span>
@@ -2702,148 +2438,58 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
   }
 
   if (currentStep === 'DONE') {
-    const focusedMinutes = Math.max(1, Math.round(openEnded ? secondsFocused / 60 : initialDurationMinutes));
+    // The time actually focused (pauses excluded), which is also what is saved,
+    // not the length the session was set to.
+    const focusedMinutes = Math.round(secondsFocused / 60);
+    const focusedLabel = secondsFocused < 60 ? 'Under a minute' : `${focusedMinutes} ${focusedMinutes === 1 ? 'minute' : 'minutes'}`;
     const goalsTotal = goals.filter((g) => g.trim()).length;
     const goalsDone = goals.filter((g, i) => g.trim() && completedGoals[i]).length;
-    const pal = VICTORY_PALETTE;
-    const confettiColors = [pal[0], pal[1], pal[2], '#fbbf24', '#f472b6', '#ffffff'];
+    const stats = [
+      { label: 'Minutes', value: secondsFocused < 60 ? '<1' : focusedMinutes },
+      { label: 'XP earned', value: `+${sessionXP}` },
+      { label: goalsTotal ? 'Goals done' : 'No goals set', value: goalsTotal ? `${goalsDone}/${goalsTotal}` : '–' },
+    ];
 
     return (
-      <div className="h-full relative overflow-hidden bg-black text-white flex items-center justify-center select-none">
-        {/* Celebratory aurora */}
-        <FluidGradient colors={pal} className="absolute inset-0 overflow-hidden" />
-        <div className="absolute inset-0 bg-black/45" />
-
-        {/* Confetti rain */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {Array.from({ length: 32 }).map((_, i) => {
-            const size = 6 + Math.random() * 8;
-            const rotate = Math.random() * 360;
-            return (
-              <motion.div
-                key={i}
-                className="absolute rounded-[2px]"
-                style={{ left: `${Math.random() * 100}%`, width: size, height: size * 0.55, background: confettiColors[i % confettiColors.length] }}
-                initial={{ y: -60, opacity: 0, rotate }}
-                animate={{ y: '110vh', opacity: [0, 1, 1, 0.7], rotate: rotate + 360 }}
-                transition={{ duration: 2.6 + Math.random() * 2, delay: Math.random() * 0.8, repeat: Infinity, repeatDelay: Math.random() * 2.2, ease: 'easeIn' }}
-              />
-            );
-          })}
-        </div>
-
+      <div className="flex h-full items-center justify-center overflow-y-auto bg-background px-4 py-10 text-foreground">
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="relative z-10 w-full max-w-lg px-6 text-center space-y-8"
+          className="w-full max-w-md space-y-6 rounded-2xl border border-border/60 bg-card p-8 text-center shadow-sm"
         >
-          {/* Trophy */}
-          <motion.div
-            initial={{ scale: 0, rotate: -25 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 13, delay: 0.12 }}
-            className="relative mx-auto w-28 h-28"
-          >
-            <div className="absolute inset-0 rounded-[36px] blur-2xl" style={{ background: pal[2], opacity: 0.55 }} />
-            <div className="relative w-full h-full rounded-[36px] bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center shadow-2xl">
-              <Trophy className="w-14 h-14" style={{ color: pal[2] }} />
-            </div>
-          </motion.div>
-
-          <div className="space-y-2">
-            <p className="text-[11px] font-black uppercase tracking-[0.4em] text-white/50">Session Complete</p>
-            <h1 className="text-6xl sm:text-7xl font-heading font-black tracking-tighter leading-none">Nailed it.</h1>
-            <p className="text-lg font-semibold text-white/60">
-              {focusedMinutes} focused {focusedMinutes === 1 ? 'minute' : 'minutes'} on <span className="text-white">{task.subject}</span>.
+          <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-success/10 text-success">
+            <CheckCircle2 className="size-7" />
+          </span>
+          <div className="space-y-1">
+            <h1 className="font-heading text-3xl font-bold tracking-tight">Session complete</h1>
+            <p className="text-muted-foreground">
+              {focusedLabel} on <span className="font-medium text-foreground">{task.subject}</span>.
             </p>
           </div>
-
-          {/* Stat cards */}
-          <div className="grid grid-cols-3 gap-3">
-            <motion.div
-              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-              className="rounded-3xl bg-white/10 backdrop-blur-xl border border-white/15 p-4 flex flex-col items-center gap-1.5"
-            >
-              <Zap className="w-5 h-5" style={{ color: pal[2] }} />
-              <div className="text-3xl font-heading font-black tabular-nums leading-none">+<CountUp value={sessionXP} /></div>
-              <div className="text-[9px] font-black uppercase tracking-widest text-white/45">XP Earned</div>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.33 }}
-              className="rounded-3xl bg-white/10 backdrop-blur-xl border border-white/15 p-4 flex flex-col items-center gap-1.5"
-            >
-              <Clock className="w-5 h-5" style={{ color: pal[2] }} />
-              <div className="text-3xl font-heading font-black tabular-nums leading-none"><CountUp value={focusedMinutes} /></div>
-              <div className="text-[9px] font-black uppercase tracking-widest text-white/45">Minutes</div>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.41 }}
-              className="rounded-3xl bg-white/10 backdrop-blur-xl border border-white/15 p-4 flex flex-col items-center gap-1.5"
-            >
-              <Flame className="w-5 h-5 text-orange-400 fill-orange-400" />
-              <div className="text-3xl font-heading font-black tabular-nums leading-none">+1</div>
-              <div className="text-[9px] font-black uppercase tracking-widest text-white/45">Day Streak</div>
-            </motion.div>
+          <dl className="grid grid-cols-3 gap-3">
+            {stats.map((s) => (
+              <div key={s.label} className="rounded-xl border border-border/60 bg-background px-2 py-3">
+                <dd className="font-heading text-2xl font-black tabular-nums">{s.value}</dd>
+                <dt className="mt-0.5 text-xs text-muted-foreground">{s.label}</dt>
+              </div>
+            ))}
+          </dl>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button asChild variant="outline" size="lg" className="flex-1 gap-2">
+              <Link href="/focus" onClick={() => resetFocus()}>
+                <RotateCcw className="size-4" /> Another session
+              </Link>
+            </Button>
+            <Button asChild size="lg" className="flex-1 gap-2">
+              <Link href="/" onClick={() => resetFocus()}>
+                Back to today <ChevronRight className="size-4" />
+              </Link>
+            </Button>
           </div>
-
-          {/* Objectives */}
-          {goalsTotal > 0 && (
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
-              className="flex items-center justify-center gap-2 text-sm font-bold text-white/60"
-            >
-              <Target className="w-4 h-4" style={{ color: pal[2] }} />
-              {goalsDone} of {goalsTotal} objectives completed
-            </motion.div>
-          )}
-
-          {/* Actions */}
-          <motion.div
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}
-            className="flex flex-col sm:flex-row gap-3 pt-2"
-          >
-            <Link href="/focus" onClick={() => resetFocus()} className="flex-1">
-              <Button variant="ghost" className="w-full h-14 rounded-2xl bg-white/10 border border-white/15 hover:bg-white/20 text-white font-black gap-2">
-                <RotateCcw className="w-5 h-5" /> New Session
-              </Button>
-            </Link>
-            <Link href="/" onClick={() => resetFocus()} className="flex-[1.4]">
-              <Button className="w-full h-14 rounded-2xl bg-white text-black hover:bg-white/90 font-black text-base gap-2">
-                Return to Dashboard <ChevronRight className="w-5 h-5" />
-              </Button>
-            </Link>
-          </motion.div>
         </motion.div>
       </div>
     );
   }
 
   return null;
-}
-
-/** The fourth duration choice: no set length, end the session yourself. */
-function NoLimitButton({ active, onClick, size }: { active: boolean; onClick: () => void; size: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "flex items-center justify-center gap-1.5 rounded-2xl border-2 font-bold transition-all",
-        size,
-        active ? "bg-primary/5 border-primary text-primary shadow-md" : "bg-card border-border/40 text-muted-foreground hover:border-primary/20"
-      )}
-    >
-      <InfinityIcon className="size-4" /> No limit
-    </button>
-  );
-}
-
-function NoLimitHint() {
-  return (
-    <p className="rounded-2xl border border-border/40 bg-muted/30 px-4 py-3 text-sm font-medium text-muted-foreground">
-      The timer counts up from 0:00 and keeps going until you finish the session yourself.
-    </p>
-  );
 }

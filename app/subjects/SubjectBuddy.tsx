@@ -2,11 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { BrainCircuit, Loader2, Send } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Panel, PanelTitle } from "@/components/ui/panel";
 import { ChatMarkdown } from "@/components/ChatMarkdown";
 import { askAIBuddy } from "@/lib/ai-actions";
 import { cn } from "@/lib/utils";
@@ -14,7 +13,17 @@ import { upcomingExams, type ExamEvent, type Homework, type MasteryItem } from "
 
 const NOTE_CONTEXT_LIMIT = 8000;
 
-type Message = { role: "user" | "model"; text: string };
+export type BuddyMessage = { role: "user" | "model"; text: string };
+
+/** The chat's opening line, before anything has been asked. */
+export function buddyGreeting(subject: string): BuddyMessage[] {
+  return [
+    {
+      role: "model",
+      text: `Ask me anything about **${subject}**. I can see its syllabus topics, open homework and coming exams, so I can explain a topic, quiz you, or suggest what to revise next.`,
+    },
+  ];
+}
 
 const SUGGESTIONS = [
   { label: "Quiz me", prompt: "Quiz me with 5 active recall questions on my topics for this subject." },
@@ -24,8 +33,8 @@ const SUGGESTIONS = [
 
 /**
  * A chat that already knows this subject: its syllabus, open homework and
- * upcoming exams, rebuilt from live data on every question. Mount it with a
- * key per subject so switching subjects starts a new conversation.
+ * upcoming exams, rebuilt from live data on every question. The messages are
+ * owned by the caller so the conversation survives the drawer closing.
  */
 export function SubjectBuddy({
   subject,
@@ -33,20 +42,18 @@ export function SubjectBuddy({
   homeworks,
   exams,
   note,
+  messages,
+  setMessages,
 }: {
   subject: string;
+  messages: BuddyMessage[];
+  setMessages: React.Dispatch<React.SetStateAction<BuddyMessage[]>>;
   mastery: MasteryItem[];
   homeworks: Homework[];
   exams: ExamEvent[];
   /** Notes written for this subject before the notes editor moved; context only. */
   note: string;
 }) {
-  const [messages, setMessages] = useState<Message[]>(() => [
-    {
-      role: "model",
-      text: `Hi! I'm your study buddy for **${subject}**. I can see its syllabus topics, open homework and upcoming exams. Ask me to explain something, quiz you, or plan what to revise next.`,
-    },
-  ]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -117,7 +124,7 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
       console.error("Study buddy:", err);
       setMessages((prev) => [
         ...prev,
-        { role: "model", text: "I could not reach the study coach. Check your connection and ask again." },
+        { role: "model", text: "I could not reach the AI. Check your connection and ask again." },
       ]);
     } finally {
       setLoading(false);
@@ -125,12 +132,9 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
   };
 
   return (
-    <Panel padded={false} className="flex h-[32rem] flex-col overflow-hidden">
-      <div className="border-b border-border/40 px-6 pt-5">
-        <PanelTitle icon={<BrainCircuit />}>Ask about {subject}</PanelTitle>
-      </div>
+    <div className="flex h-full min-h-0 flex-col">
 
-      <div ref={scrollRef} aria-live="polite" className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-6 py-4">
+      <div ref={scrollRef} aria-live="polite" className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4">
         {messages.map((msg, i) => (
           <div
             key={i}
@@ -184,6 +188,6 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
           </Button>
         </form>
       </div>
-    </Panel>
+    </div>
   );
 }

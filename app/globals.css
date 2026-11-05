@@ -193,50 +193,112 @@
 /* Repurposed utilities for other pages */
 .glass, .glass-panel { @apply bg-card border shadow-sm; }
 
-/* Flow AI notes — premium, readable study-guide typography */
-.flow-notes { @apply text-[15px] text-white/80; }
+/* Accent colours (Settings > Appearance). ThemeProvider puts theme-<name>
+   on <html>; blue is the default and needs no rule. Each accent replaces the
+   primary, ring and sidebar-primary tokens in light and dark. The dark rules
+   come second and also match a .dark subtree (the focus room). */
+:root.theme-indigo {
+  --primary: oklch(0.5 0.19 277);
+  --ring: oklch(0.5 0.19 277);
+  --sidebar-primary: oklch(0.5 0.19 277);
+  --sidebar-ring: oklch(0.5 0.19 277);
+}
+:root.theme-violet {
+  --primary: oklch(0.52 0.2 300);
+  --ring: oklch(0.52 0.2 300);
+  --sidebar-primary: oklch(0.52 0.2 300);
+  --sidebar-ring: oklch(0.52 0.2 300);
+}
+:root.theme-teal {
+  --primary: oklch(0.5 0.1 195);
+  --ring: oklch(0.5 0.1 195);
+  --sidebar-primary: oklch(0.5 0.1 195);
+  --sidebar-ring: oklch(0.5 0.1 195);
+}
+:root.theme-emerald {
+  --primary: oklch(0.5 0.13 155);
+  --ring: oklch(0.5 0.13 155);
+  --sidebar-primary: oklch(0.5 0.13 155);
+  --sidebar-ring: oklch(0.5 0.13 155);
+}
+:root.theme-rose {
+  --primary: oklch(0.54 0.2 12);
+  --ring: oklch(0.54 0.2 12);
+  --sidebar-primary: oklch(0.54 0.2 12);
+  --sidebar-ring: oklch(0.54 0.2 12);
+}
+:root.theme-slate {
+  --primary: oklch(0.32 0.02 264);
+  --ring: oklch(0.32 0.02 264);
+  --sidebar-primary: oklch(0.32 0.02 264);
+  --sidebar-ring: oklch(0.32 0.02 264);
+  --primary-foreground: oklch(0.98 0 0);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+}
+.theme-indigo.dark, .theme-indigo .dark {
+  --primary: oklch(0.6 0.18 277);
+  --ring: oklch(0.6 0.18 277);
+  --sidebar-primary: oklch(0.6 0.18 277);
+  --sidebar-ring: oklch(0.6 0.18 277);
+}
+.theme-violet.dark, .theme-violet .dark {
+  --primary: oklch(0.63 0.18 300);
+  --ring: oklch(0.63 0.18 300);
+  --sidebar-primary: oklch(0.63 0.18 300);
+  --sidebar-ring: oklch(0.63 0.18 300);
+}
+.theme-teal.dark, .theme-teal .dark {
+  --primary: oklch(0.6 0.11 195);
+  --ring: oklch(0.6 0.11 195);
+  --sidebar-primary: oklch(0.6 0.11 195);
+  --sidebar-ring: oklch(0.6 0.11 195);
+}
+.theme-emerald.dark, .theme-emerald .dark {
+  --primary: oklch(0.6 0.14 155);
+  --ring: oklch(0.6 0.14 155);
+  --sidebar-primary: oklch(0.6 0.14 155);
+  --sidebar-ring: oklch(0.6 0.14 155);
+}
+.theme-rose.dark, .theme-rose .dark {
+  --primary: oklch(0.62 0.19 12);
+  --ring: oklch(0.62 0.19 12);
+  --sidebar-primary: oklch(0.62 0.19 12);
+  --sidebar-ring: oklch(0.62 0.19 12);
+}
+.theme-slate.dark, .theme-slate .dark {
+  --primary: oklch(0.88 0.01 264);
+  --ring: oklch(0.88 0.01 264);
+  --sidebar-primary: oklch(0.88 0.01 264);
+  --sidebar-ring: oklch(0.88 0.01 264);
+  --primary-foreground: oklch(0.18 0.01 264);
+  --sidebar-primary-foreground: oklch(0.18 0.01 264);
+}
+
+/* Study tools notes and tutor answers: readable study-guide type in the
+   app's own colours, so it works on light and dark. */
+.flow-notes { @apply text-[15px] text-foreground/90; }
 .flow-notes > *:first-child { @apply mt-0; }
-.flow-notes h1 {
-  @apply text-3xl font-heading font-black tracking-tight text-white mt-9 mb-5 pb-3;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-.flow-notes h2 {
-  @apply text-xl font-heading font-black tracking-tight text-white mt-8 mb-3 pl-3.5 border-l-4 border-primary;
-}
-.flow-notes h3 { @apply text-[13px] font-black uppercase tracking-widest text-primary mt-6 mb-2; }
-.flow-notes h4 { @apply text-base font-black text-white mt-5 mb-2; }
+.flow-notes h1 { @apply text-2xl font-heading font-bold tracking-tight text-foreground mt-8 mb-4 pb-3 border-b border-border; }
+.flow-notes h2 { @apply text-xl font-heading font-bold tracking-tight text-foreground mt-7 mb-3; }
+.flow-notes h3 { @apply text-base font-semibold text-foreground mt-6 mb-2; }
+.flow-notes h4 { @apply text-sm font-semibold text-foreground mt-5 mb-2; }
 .flow-notes p { @apply my-3.5 leading-7; }
-.flow-notes strong { @apply font-bold text-white; }
-.flow-notes em { @apply italic text-white/70; }
+.flow-notes strong { @apply font-semibold text-foreground; }
+.flow-notes em { @apply italic; }
 .flow-notes a { @apply text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary; }
-.flow-notes ul { @apply my-4 space-y-2.5 pl-6 list-disc marker:text-primary; }
-.flow-notes ol { @apply my-4 space-y-2.5 pl-6 list-decimal marker:text-primary marker:font-black; }
-.flow-notes li { @apply leading-7 pl-1.5; }
-.flow-notes li > ul, .flow-notes li > ol { @apply mt-2.5 mb-0; }
-.flow-notes blockquote {
-  @apply my-5 rounded-2xl px-5 py-4 not-italic text-white/85 font-medium bg-primary/10 border border-primary/25;
-}
+.flow-notes ul { @apply my-4 space-y-2 pl-6 list-disc marker:text-muted-foreground; }
+.flow-notes ol { @apply my-4 space-y-2 pl-6 list-decimal marker:text-muted-foreground; }
+.flow-notes li { @apply leading-7 pl-1; }
+.flow-notes li > ul, .flow-notes li > ol { @apply mt-2 mb-0; }
+.flow-notes blockquote { @apply my-5 rounded-xl px-4 py-3 not-italic bg-muted border-l-4 border-primary/60; }
 .flow-notes blockquote p { @apply my-1.5 first:mt-0 last:mb-0; }
-.flow-notes code {
-  @apply px-1.5 py-0.5 rounded-md text-[0.85em] font-mono text-primary;
-  background: rgba(255, 255, 255, 0.1);
-}
-.flow-notes pre {
-  @apply my-5 rounded-2xl p-4 overflow-x-auto;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-.flow-notes pre code { @apply bg-transparent text-white/90 p-0 text-sm; }
+.flow-notes code { @apply px-1.5 py-0.5 rounded-md text-[0.85em] font-mono bg-muted text-foreground; }
+.flow-notes pre { @apply my-5 rounded-xl p-4 overflow-x-auto bg-muted border border-border; }
+.flow-notes pre code { @apply bg-transparent p-0 text-sm; }
 .flow-notes table { @apply my-5 w-full border-collapse text-sm; }
-.flow-notes thead th {
-  @apply font-black text-white px-3.5 py-2.5 text-left;
-  background: rgba(255, 255, 255, 0.08);
-}
-.flow-notes tbody td {
-  @apply px-3.5 py-2.5 text-white/80 align-top;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-.flow-notes hr { @apply my-7; border-color: rgba(255, 255, 255, 0.1); }
+.flow-notes thead th { @apply font-semibold text-foreground px-3 py-2 text-left bg-muted; }
+.flow-notes tbody td { @apply px-3 py-2 align-top border-t border-border; }
+.flow-notes hr { @apply my-7 border-border; }
 
 /* AI chat answers (components/ChatMarkdown.tsx). Theme tokens only, so the
    same answer reads in light and dark. */
@@ -352,9 +414,9 @@
 .custom-cursor.is-down svg { transform: translate(-3px, -2px) rotate(-8deg) scale(0.82); }
 
 /* Compact variant for the tutor chat bubbles */
-.flow-chat { @apply text-sm text-white/85; }
+.flow-chat { @apply text-sm text-foreground; }
 .flow-chat h1, .flow-chat h2, .flow-chat h3, .flow-chat h4 {
-  @apply text-sm font-black text-white mt-3 mb-1.5 first:mt-0 p-0 border-0 normal-case tracking-normal;
+  @apply text-sm font-semibold text-foreground mt-3 mb-1.5 first:mt-0 p-0 border-0 normal-case tracking-normal;
 }
 .flow-chat p { @apply my-2 leading-6 first:mt-0 last:mb-0; }
 .flow-chat ul, .flow-chat ol { @apply my-2 space-y-1; }

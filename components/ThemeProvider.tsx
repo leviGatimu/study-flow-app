@@ -3,7 +3,13 @@
 import * as React from "react";
 
 type Theme = "light" | "dark" | "system" | "glass";
-type Accent = "blue" | "violet" | "emerald" | "rose" | "orange";
+export const ACCENTS = ["blue", "indigo", "violet", "teal", "emerald", "rose", "slate"] as const;
+export type Accent = (typeof ACCENTS)[number];
+
+/** A stored value this build does not know (e.g. the retired "orange") reads as blue. */
+function readAccent(value: string | null): Accent {
+  return (ACCENTS as readonly string[]).includes(value ?? "") ? (value as Accent) : "blue";
+}
 
 type ThemeContextValue = {
   theme: Theme;
@@ -46,8 +52,6 @@ function applyTheme(theme: Theme, disableTransitionOnChange?: boolean) {
   root.classList.toggle("dark", resolvedTheme === "dark");
   root.classList.toggle("glass-theme", theme === "glass");
 
-  console.log(`[ThemeEngine] Theme requested: "${theme}", Resolved: "${resolvedTheme}", Document Classes: "${root.className}"`);
-
   return resolvedTheme;
 }
 
@@ -66,7 +70,7 @@ export function ThemeProvider({
   
   const [accent, setAccentState] = React.useState<Accent>(() => {
     if (typeof window === "undefined") return "blue";
-    return (window.localStorage.getItem(ACCENT_STORAGE_KEY) as Accent | null) ?? "blue";
+    return readAccent(window.localStorage.getItem(ACCENT_STORAGE_KEY));
   });
 
   const [systemTheme, setSystemTheme] = React.useState<"light" | "dark">(() => getSystemTheme());
@@ -81,10 +85,8 @@ export function ThemeProvider({
     if (typeof document === "undefined") return;
     const root = document.documentElement;
     
-    // Remove existing theme accent classes
-    root.classList.remove("theme-blue", "theme-violet", "theme-emerald", "theme-rose", "theme-orange");
-    
-    // Add current theme accent class
+    // One accent class at a time (theme-orange may linger from older builds).
+    root.classList.remove("theme-orange", ...ACCENTS.map((a) => `theme-${a}`));
     root.classList.add(`theme-${accent}`);
   }, [accent]);
 

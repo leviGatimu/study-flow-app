@@ -134,6 +134,7 @@ export function SubjectsClient({
     <>
       {selected && detail ? (
         <SubjectDetail
+          key={selected.id}
           subject={selected}
           {...detail}
           subjectOptions={subjectOptions}

@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Check, FileEdit, FileText, MoreHorizontal, Paperclip, Pause, Play, Save, Trash2, Upload, X, XCircle, Zap } from 'lucide-react';
+import { FileEdit, FileText, MoreHorizontal, Paperclip, Pause, Play, Save, Trash2, Upload, X, XCircle, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { ModeBar, TaskTick, useTaskStatus } from '@/components/TaskCheckbox';
+import { TaskTick, useTaskStatus } from '@/components/TaskCheckbox';
 import { useDeleteTaskConfirm } from '@/components/DeleteTaskButton';
 import { useIsArchived } from '@/components/ArchiveContext';
 import {
@@ -134,12 +134,11 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
 
   return (
     <div>
-      <ol aria-label="Today's blocks, in time order">
-        {tasks.map((task, index) => (
+      <ol aria-label="Today's blocks, in time order" className="space-y-3">
+        {tasks.map((task) => (
           <TimelineItem
             key={task.id}
             task={task}
-            last={index === tasks.length - 1}
             isActiveSession={activeTask?.id === task.id && step === 'FOCUS'}
             isPaused={isPaused}
             archived={archived}
@@ -249,7 +248,6 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
 
 function TimelineItem({
   task,
-  last,
   isActiveSession,
   isPaused,
   archived,
@@ -257,7 +255,6 @@ function TimelineItem({
   onDelete,
 }: {
   task: TaskType;
-  last: boolean;
   isActiveSession: boolean;
   isPaused: boolean;
   archived: boolean;
@@ -277,57 +274,32 @@ function TimelineItem({
   });
 
   return (
-    <li className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-x-3 sm:grid-cols-[4rem_minmax(0,1fr)] sm:gap-x-4">
-      {/* Time column */}
-      <div className="pt-3.5 text-right">
-        <p className="text-sm font-semibold tabular-nums text-foreground">{task.startTime}</p>
-        {duration && <p className="text-xs tabular-nums text-muted-foreground">{duration}</p>}
-      </div>
+    <li>
+      <article
+        className={cn(
+          'overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-md',
+          !isOpen && 'bg-muted/30 shadow-none',
+          isActiveSession && 'border-primary/50 ring-1 ring-primary/20'
+        )}
+      >
+        <div className="flex min-h-[76px] items-center gap-3 py-4 pl-4 pr-3 sm:gap-4 sm:pl-5">
+          {/* Ticking a block without proof opens the proof editor straight away. */}
+          <TaskTick
+            taskId={task.id}
+            subject={task.subject}
+            isDone={task.isDone}
+            isMissed={task.isMissed}
+            hasProof={hasProof}
+            onNeedProof={onEditProof}
+            mode={task.type}
+          />
 
-      {/* Line, status dot and card */}
-      <div className={cn('relative pl-6', !last && 'pb-3')}>
-        {!last && <span aria-hidden className="absolute bottom-0 left-[7px] top-6 w-px bg-border" />}
-        <span
-          aria-hidden
-          className={cn(
-            'absolute left-0 top-[18px] flex size-[15px] items-center justify-center rounded-full border-2 bg-background',
-            task.isDone
-              ? 'border-success bg-success'
-              : task.isMissed
-                ? 'border-destructive bg-destructive'
-                : isActiveSession
-                  ? 'border-primary bg-primary ring-4 ring-primary/20'
-                  : isHomework
-                    ? 'border-primary'
-                    : 'border-dashed border-orange-500'
-          )}
-        >
-          {task.isDone && <Check className="size-2.5 text-white" strokeWidth={4} />}
-          {task.isMissed && <X className="size-2.5 text-white" strokeWidth={4} />}
-          {isActiveSession && !isPaused && (
-            <span className="absolute inset-0 animate-ping rounded-full bg-primary/50 motion-reduce:hidden" />
-          )}
-        </span>
-
-        <article
-          className={cn(
-            'relative rounded-2xl border border-border/60 bg-card shadow-sm transition-shadow duration-200 hover:shadow-md',
-            task.isDone && 'bg-success/[0.04]',
-            task.isMissed && 'bg-destructive/[0.04]',
-            isActiveSession && 'border-primary/40 ring-1 ring-primary/20'
-          )}
-        >
-          <ModeBar type={task.type} isDone={task.isDone} isMissed={task.isMissed} />
-          <div className="flex items-center gap-3 px-4 py-3">
-            {/* Ticking a block without proof opens the proof editor straight away. */}
-            <TaskTick
-              taskId={task.id}
-              subject={task.subject}
-              isDone={task.isDone}
-              isMissed={task.isMissed}
-              hasProof={hasProof}
-              onNeedProof={onEditProof}
-            />
+          {/* When, inside the card */}
+          <div className="w-12 shrink-0 sm:w-14">
+            <p className={cn('text-sm font-bold tabular-nums leading-tight', isOpen ? 'text-foreground' : 'text-muted-foreground')}>{task.startTime}</p>
+            {duration && <p className="text-xs tabular-nums text-muted-foreground">{duration}</p>}
+          </div>
+          <span aria-hidden className="h-9 w-px shrink-0 bg-border" />
 
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -349,18 +321,12 @@ function TimelineItem({
                   <Pill tone="warning">Exam this week</Pill>
                 ) : null}
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                <span
-                  className={cn(
-                    'rounded-md px-1.5 py-0.5 font-medium',
-                    isHomework ? 'bg-primary/10 text-primary' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
-                  )}
-                >
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+                <span className={cn('font-medium', isHomework ? 'text-primary' : 'text-orange-600 dark:text-orange-400')}>
                   {isHomework ? 'Homework' : 'Revision'}
                 </span>
-                <span className="tabular-nums">
-                  {task.startTime} – {task.endTime}
-                </span>
+                <span aria-hidden>·</span>
+                <span className="tabular-nums">until {task.endTime}</span>
                 {task.template?.deadlineDay && <span>· Due {task.template.deadlineDay}</span>}
                 {hasProof && (
                   <span className="inline-flex items-center gap-1 text-success">
@@ -417,7 +383,7 @@ function TimelineItem({
           </div>
 
           {hasProof && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/40 py-2.5 pl-[3.75rem] pr-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/40 bg-muted/20 px-4 py-2">
               {task.workDescription && (
                 <p className="min-w-0 flex-1 text-sm text-muted-foreground line-clamp-1">{task.workDescription}</p>
               )}
@@ -433,8 +399,7 @@ function TimelineItem({
               )}
             </div>
           )}
-        </article>
-      </div>
+      </article>
     </li>
   );
 }

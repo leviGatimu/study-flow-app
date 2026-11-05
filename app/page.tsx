@@ -133,9 +133,12 @@ export default async function Dashboard() {
           timezone={timezone}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left: the day itself. */}
-          <div className="lg:col-span-8 space-y-6">
+        {/* Two columns that grow on their own, so a short day never leaves a
+            stretched gap. Yesterday sits on the left to keep the two sides
+            close in height. */}
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+          {/* Left: the day itself, what is next, and what was done. */}
+          <div className="min-w-0 space-y-6 lg:col-span-8">
             <Section
               title="Today's focus"
               actions={
@@ -189,21 +192,6 @@ export default async function Dashboard() {
               )}
             </Panel>
 
-            <DailyQuote />
-          </div>
-
-          {/* Right: how the day is going, and what is coming. */}
-          <div className="lg:col-span-4 space-y-6">
-            <ProgressWidget
-              percentage={progressPercentage}
-              completed={completedTasks}
-              total={totalTasks}
-            />
-
-            <DueHomework homework={homework} todayKey={todayKey} />
-
-            <ExamCountdown events={events as ExamEvent[]} timezone={timezone} />
-
             <Panel interactive>
               <PanelTitle
                 icon={<History />}
@@ -221,7 +209,7 @@ export default async function Dashboard() {
                   description="Blocks you tick off show up here the next day."
                 />
               ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {yesterdayTasks.slice(0, 6).map((task) => (
                     <ListRow
                       key={task.id}
@@ -233,6 +221,21 @@ export default async function Dashboard() {
                 </div>
               )}
             </Panel>
+
+            <DailyQuote />
+          </div>
+
+          {/* Right: how the day is going, and what is coming. */}
+          <div className="min-w-0 space-y-6 lg:col-span-4">
+            <ProgressWidget
+              percentage={progressPercentage}
+              completed={completedTasks}
+              total={totalTasks}
+            />
+
+            <DueHomework homework={homework} todayKey={todayKey} />
+
+            <ExamCountdown events={events as ExamEvent[]} timezone={timezone} />
           </div>
         </div>
       </div>

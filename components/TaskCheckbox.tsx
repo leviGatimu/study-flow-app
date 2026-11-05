@@ -112,6 +112,8 @@ export function TaskTick({
   hasProof,
   onNeedProof,
   showMissed = false,
+  mode,
+  size = 'md',
 }: {
   taskId: string;
   subject: string;
@@ -120,6 +122,9 @@ export function TaskTick({
   hasProof: boolean;
   onNeedProof?: () => void;
   showMissed?: boolean;
+  /** HOMEWORK draws an open tick solid blue, REVISION dashed orange (the app's mode convention). */
+  mode?: string;
+  size?: 'sm' | 'md';
 }) {
   const { toggleDone, toggleMissed, locked, archiveReason, validationModal } = useTaskStatus({ taskId, isDone, isMissed, hasProof, onNeedProof });
 
@@ -133,15 +138,19 @@ export function TaskTick({
         aria-label={isDone ? `Mark ${subject} as not done` : `Mark ${subject} as done`}
         aria-pressed={isDone}
         className={cn(
-          'flex size-8 shrink-0 items-center justify-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed',
+          'flex shrink-0 items-center justify-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed',
+          size === 'sm' ? 'size-6' : 'size-8',
           isDone
             ? 'border-success bg-success text-white'
             : isMissed
-              ? 'border-destructive/40 text-destructive/60'
-              : 'border-border text-transparent hover:border-success hover:text-success'
+              ? 'border-destructive bg-destructive text-white'
+              : cn(
+                  'bg-background text-transparent hover:border-success hover:text-success',
+                  mode === 'REVISION' ? 'border-dashed border-orange-500' : mode ? 'border-primary' : 'border-border'
+                )
         )}
       >
-        {isMissed ? <X className="size-4" strokeWidth={3} /> : <Check className="size-4" strokeWidth={3} />}
+        {isMissed ? <X className={size === 'sm' ? 'size-3' : 'size-4'} strokeWidth={3} /> : <Check className={size === 'sm' ? 'size-3' : 'size-4'} strokeWidth={3} />}
       </button>
       {showMissed && !isDone && (
         <button

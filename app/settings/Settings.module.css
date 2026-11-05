@@ -108,7 +108,7 @@
 .preview[data-mode='dark'] .previewRail { background: #18181b; border-color: #3f3f46; }
 .previewRail span { display: block; height: 4px; width: 4px; margin-bottom: 6px; border-radius: 1px; background: #a1a1aa; }
 .previewLines { flex: 1; padding: 10px; }
-.previewLines span { display: block; height: 5px; width: 70%; border-radius: 2px; background: #3b82f6; margin-bottom: 8px; }
+.previewLines span { display: block; height: 5px; width: 70%; border-radius: 2px; background: var(--primary); margin-bottom: 8px; }
 .previewLines span + span { background: #a1a1aa; }
 .previewLines span:last-child { width: 45%; background: #d4d4d8; }
 
