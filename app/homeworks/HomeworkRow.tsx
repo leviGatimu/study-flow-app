@@ -52,7 +52,12 @@ export function HomeworkRow({ homework: hw, today, dotClass, canEdit, onComplete
       {/* On phones the due date drops under the title instead of taking a column. */}
       <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-4">
         <div className="min-w-0 flex-1">
-          <p className={cn('truncate text-sm font-medium text-foreground', done && 'text-muted-foreground')}>{hw.title}</p>
+          <Link
+            href={`/homeworks/${hw.id}`}
+            className={cn('block truncate rounded-sm text-sm font-medium text-foreground outline-none hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50', done && 'text-muted-foreground')}
+          >
+            {hw.title}
+          </Link>
           <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
             <Link
               href={`/subjects?subject=${encodeURIComponent(hw.subject)}`}

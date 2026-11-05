@@ -186,7 +186,14 @@ model Homework {
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   subject     String
   title       String
+  /// What was set: the task as the teacher gave it.
   description String?
+  /// A photo or PDF of what was set, "/uploads/...".
+  briefFileUrl String?
+  /// The student's own answers, as text.
+  answer String?
+  /// A photo or PDF of the answers, "/uploads/...".
+  answerFileUrl String?
   dueDate     DateTime
   plannedDate DateTime?
   isCompleted Boolean   @default(false)

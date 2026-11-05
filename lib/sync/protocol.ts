@@ -49,6 +49,19 @@ export function examCategoryPayload(model: string, data: Record<string, unknown>
   return legacy;
 }
 
+/** Sent by clients whose database has the homework work columns (desktop 1.0.21+). */
+export const HOMEWORK_WORK_HEADER = 'x-study-flow-homework-work';
+
+/** Older desktop clients have no Homework answer/file columns; leave them out. */
+export function homeworkWorkPayload(model: string, data: Record<string, unknown>, supported: boolean) {
+  if (model !== 'homework' || supported) return data;
+  const legacy = { ...data };
+  delete legacy.briefFileUrl;
+  delete legacy.answer;
+  delete legacy.answerFileUrl;
+  return legacy;
+}
+
 /**
  * Where a device got to, as the SERVER measures it.
  *

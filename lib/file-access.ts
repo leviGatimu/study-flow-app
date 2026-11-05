@@ -22,7 +22,12 @@ export async function ownsUpload(userId: string, name: string): Promise<boolean>
   const [profile, task, homework, resource, song] = await Promise.all([
     prisma.userProgress.count({ where: { userId, avatarUrl: { endsWith: tail } } }),
     prisma.task.count({ where: { userId, proofPdfUrl: { endsWith: tail } } }),
-    prisma.homework.count({ where: { userId, proofUrl: { endsWith: tail } } }),
+    prisma.homework.count({
+      where: {
+        userId,
+        OR: [{ proofUrl: { endsWith: tail } }, { briefFileUrl: { endsWith: tail } }, { answerFileUrl: { endsWith: tail } }],
+      },
+    }),
     prisma.resource.count({ where: { userId, url: { endsWith: tail } } }),
     prisma.song.count({
       where: { userId, OR: [{ audioUrl: { endsWith: tail } }, { coverUrl: { endsWith: tail } }] },

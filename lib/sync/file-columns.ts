@@ -27,5 +27,5 @@ export const FILE_COLUMNS: Record<string, string[]> = {
   task: ['proofPdfUrl'],
   resource: ['url'],
   reportCard: ['fileUrl'],
-  homework: ['proofUrl'],
+  homework: ['proofUrl', 'briefFileUrl', 'answerFileUrl'],
 };
