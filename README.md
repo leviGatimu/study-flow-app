@@ -1,189 +1,192 @@
 <div align="center">
 
-![StudyFlow](docs/images/hero.jpg)
+<img src="public/logo.png" alt="" width="72">
 
-**A study workstation that plans your day, times your focus, and tells you the truth about how it went.**
+# Study Flow
 
-[![Next.js](https://img.shields.io/badge/Next.js-16.2-000?logo=nextdotjs)](https://nextjs.org)
-[![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev)
-[![Prisma](https://img.shields.io/badge/Prisma-5.22-2D3748?logo=prisma&logoColor=white)](https://prisma.io)
-[![Electron](https://img.shields.io/badge/Electron-42-47848F?logo=electron&logoColor=white)](https://electronjs.org)
-[![Download](https://img.shields.io/badge/Download-Windows-0078D4?logo=windows&logoColor=white)](https://github.com/leviGatimu/study-flow-app/releases/latest)
+**Your school week, your study plan and your results, in one place.**
+
+[![Download for Windows](https://img.shields.io/badge/Download-Windows-0078D4?logo=windows&logoColor=white)](https://github.com/leviGatimu/study-flow-app/releases/latest)
+[![Open in the browser](https://img.shields.io/badge/Open-studyingflow.vercel.app-111?logo=vercel&logoColor=white)](https://studyingflow.vercel.app)
+
+![Today](docs/images/today.png)
 
 </div>
 
----
+## What is it?
 
-StudyFlow turns a school timetable into a working day. It knows which lesson you are in right now, what
-you planned to study after it, and how much of that you actually finished — then scores the term honestly
-instead of congratulating you for opening the app.
+Study Flow is a study planner for students. You tell it your timetable and when you want to study, and every
+day it shows you what to do next. You tick blocks off as you finish them, keep your homework, exams and
+notes per subject, and see honestly how your week went.
 
-It runs two ways: as a **web app** backed by Postgres, and as an **offline desktop app** that carries its
-own database and never needs a network.
+It works in the browser and as a Windows app that also works offline. Both stay in sync.
 
-## Focus mode
-
-![Focus session](docs/images/focus-session.jpg)
-
-A session is a full-screen contract with yourself: one subject, one countdown, your own music, and nothing
-else on screen. Hydration and posture nudges arrive on a schedule you set. Close the window and the
-session survives — the timer lives in app state, not in the page.
-
-## What's inside
-
-| | |
-|---|---|
-| **Timetable-aware dashboard** | Knows whether you are in a school lesson, on a break, or in a session you scheduled — and counts down to whatever is next |
-| **Focus sessions** | Full-screen timer, background audio, break prompts, and a widget mode that floats above other windows |
-| **Homework & exams** | Deadlines, proof-of-work uploads, and an exam timeline scoped to the academic year |
-| **AI tutor** | Explanations, quizzes and marking through Gemini, OpenAI, Anthropic, Groq or a local Ollama model |
-| **Insights** | Hours studied, completion rate, streaks and per-subject mastery, with an end-of-term report card |
-| **Ranks & XP** | An XP ledger with idempotency keys, so the same action can never pay twice |
-
-Daily reports default to **11:58 PM in the account's configured timezone**. Change the time on
-Reports. Opening that page generates due reports and catches up the previous two weeks; it does
-not run a timer while the app is closed. The report-time upgrade moves saved `21:00` values to
-`23:58` and leaves other custom times unchanged.
+## What you can do
 
 <table>
 <tr>
-<td width="50%"><img src="docs/images/ai-tutor.jpg" alt="AI tutor"></td>
-<td width="50%"><img src="docs/images/levels.jpg" alt="Levels and XP"></td>
+<td width="50%" valign="top">
+
+### Know what to do today
+The home page shows the block you should be on now, the rest of today, tomorrow, and what homework and exams are close.
+
+</td>
+<td width="50%" valign="top">
+
+### See the time at a glance
+A big clock with what is on now, how long is left, what comes next, and today laid out on one line.
+
+</td>
+</tr>
+<tr>
+<td><img src="docs/images/today.png" alt="Today"></td>
+<td><img src="docs/images/clock.png" alt="Clock"></td>
+</tr>
+<tr>
+<td valign="top">
+
+### Do your homework in one place
+Each homework has its own page: write down what was set, write your answers, attach photos, and mark it finished with proof.
+
+</td>
+<td valign="top">
+
+### Keep track of exams
+Count down to every exam, plan revision back from its date, record your mark, and group exams like "Midterm 1" to see your average across subjects.
+
+</td>
+</tr>
+<tr>
+<td><img src="docs/images/homework.png" alt="Homework page"></td>
+<td><img src="docs/images/exams.png" alt="Exams"></td>
+</tr>
+<tr>
+<td valign="top">
+
+### Study with the AI
+Ask about any topic, your marks or your deadlines. Say "quiz me on photosynthesis" and it makes a practice you can take, with your score saved.
+
+</td>
+<td valign="top">
+
+### Get a report every day and week
+A grade, time studied against planned, every block done or missed, time per subject, and what to do next. Each report is saved as a PDF.
+
+</td>
+</tr>
+<tr>
+<td><img src="docs/images/study-chat.png" alt="Study chat"></td>
+<td><img src="docs/images/reports.png" alt="Reports"></td>
+</tr>
+<tr>
+<td valign="top">
+
+### Keep your files organised
+Notes, past papers and links in a folder per subject, with search across everything. On Windows the folders are real folders on your computer.
+
+</td>
+<td valign="top">
+
+### Build a streak
+Your days in a row, the next milestone, and a full year of study days, darker for the days you studied longer.
+
+</td>
+</tr>
+<tr>
+<td><img src="docs/images/resources.png" alt="Resources"></td>
+<td><img src="docs/images/streak.png" alt="Streak"></td>
 </tr>
 </table>
 
-## Quick start (web)
+Also inside: a full-screen focus mode with your own music, a week and month calendar, your school
+timetable read from a photo, marks and report cards, light and dark themes, and a choice of main colour.
 
-Requires Node 20+ and a Postgres database — [Supabase](https://supabase.com) is what this project uses.
+## Get it
+
+- **Windows:** [download the installer](https://github.com/leviGatimu/study-flow-app/releases/latest). It updates itself.
+- **Browser:** [studyingflow.vercel.app](https://studyingflow.vercel.app).
+
+Sign in with the same account on both and your work syncs between them. The AI needs a key (a Google Gemini
+key is free) or a local [Ollama](https://ollama.com) model; everything else works without one.
+
+---
+
+## For developers
+
+Next.js 16 (App Router, server actions), React 19, Tailwind 4, Prisma 5. Postgres (Supabase) for the
+website, SQLite for the Windows app (Electron), with a sync engine between them.
+
+### Run the website locally
+
+Requires Node 20+ and a Postgres database.
 
 ```bash
 git clone git@github.com:leviGatimu/study-flow-app.git
 cd study-flow-app
 npm install
-cp .env.example .env      # then fill it in - see below
+cp .env.example .env      # fill it in, see below
 npx prisma migrate deploy
-npm run dev
+npm run dev               # http://localhost:3000
 ```
-
-Open <http://localhost:3000>.
-
-### Environment variables
 
 | Variable | Required | Notes |
 |---|---|---|
-| `DATABASE_URL` | yes | Supabase **session** pooler, port `5432`, no `pgbouncer=true`. See the note below — this is a deliberate trade of headroom for speed. |
-| `DIRECT_URL` | yes | Supabase **session** pooler, port `5432`. Used by Prisma for migrations. |
-| `JWT_SECRET` | yes | Signs the auth cookie. `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
-| `SUPABASE_URL` | on Vercel | Object storage for uploads |
-| `SUPABASE_SERVICE_ROLE_KEY` | on Vercel | Server-side only — never expose it to the browser |
-| `SUPABASE_STORAGE_BUCKET` | on Vercel | Create it **private**; files are served through an authenticated route |
+| `DATABASE_URL` | yes | Supabase session pooler, port `5432` (faster than the transaction pooler here; see `lib/prisma.ts` for the connection cap) |
+| `DIRECT_URL` | yes | Same pooler; used for migrations |
+| `JWT_SECRET` | yes | Signs the sign-in cookie. `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET` | on Vercel | Upload storage. Without them uploads go to `public/uploads`, which is fine locally and lost on every Vercel deploy |
 
-Without the three Supabase Storage variables, uploads are written to `public/uploads` on local disk. That
-is correct for local development and for the desktop build, and wrong on Vercel, where the filesystem is
-ephemeral and every uploaded file disappears on the next deploy.
+### Database changes
 
-### Why the session pooler, and what it costs
-
-Measured from Kigali against `eu-central-1`, same query, same moment:
-
-| Pooler | Port | Per query |
-|---|---|---|
-| Transaction | `6543` (`pgbouncer=true`) | ~790 ms |
-| Session | `5432` | ~180 ms |
-
-A page runs about ten queries, so transaction mode is the difference between a 2-second page and an
-8-second one. Session mode wins on speed and loses on headroom: it pins one server connection per client,
-and the tenant's pool is **15 clients wide** for everything at once — every warm Vercel instance, the dev
-server, the desktop app's sync, `prisma studio`. Past 15, Supavisor refuses new connections outright
-(`EMAXCONNSESSION`) instead of queueing, which is what took the app down on 2026-09-10.
-
-Two things keep that ceiling out of the user's way, both in `lib/prisma.ts`:
-
-- each serverless instance is capped at **3** connections, so the ceiling is a knowable five concurrent
-  instances rather than whatever CPU count the platform reports;
-- a refused connection is retried twice before it becomes an error (`lib/db-retry.ts`).
-
-If concurrency ever genuinely outgrows that, raise the pool size first (Supabase → Database → Connection
-pooling; the instance allows 60 server connections and Supabase's own services hold ~16). Switching to
-`6543` is the last resort, because it costs every user 600 ms on every query.
-
-## Desktop app
-
-[**Download the latest Windows installer →**](https://github.com/leviGatimu/study-flow-app/releases/latest)
-
-The desktop build is not a browser wrapper around a hosted site. It ships the Next.js server, runs it on a
-local port, and keeps everything in SQLite under `%APPDATA%\study-tracker-desktop` — so it works with no
-internet at all. It checks for updates on launch and every six hours, and **Settings → Desktop app** has a
-*Check for updates* button that downloads and installs on restart.
-
-Your database, uploads and session live outside the installation directory, so installing a new version
-over an old one keeps all of it.
-
-**Resources are a real folder on the desktop.** `Documents\Study Tracker\<Year>\<Subject>\…` is the
-library; the Resources page is a file explorer over it. Files added in the app land there under their own
-names, and anything you drop into the folder from Windows Explorer (files, sub-folders, even a new subject
-folder) shows up in the app the next time the page loads. Deleting in either place deletes in both. The
-launcher sets `LIBRARY_DIR` to point the server at it; without that variable (the web build, `next dev`)
-the folder structure is virtual and files stay in the flat upload store.
-
-### Building it yourself
+`prisma/schema.prisma` (Postgres) is the source of truth; `scripts/prisma-sqlite.mjs` derives the SQLite
+schema. Every change needs a migration in both `prisma/migrations` and `prisma/migrations-sqlite`. The
+Windows app applies its own migrations when it starts. For the website:
 
 ```bash
-npm run build:desktop     # SQLite client + Next build, then restores the Postgres client
+npm run db:migrate:web -- --env=path/to/.env            # shows what is pending
+npm run db:migrate:web -- --env=path/to/.env --apply    # applies it
+```
+
+Apply before deploying code that needs the change. When a new column must reach older Windows apps
+safely, add it to the pull filters in `lib/sync/protocol.ts`.
+
+### Build the Windows app
+
+```bash
+JWT_SECRET=<any-throwaway-value> npm run build:desktop   # never put it in a .env file: it would ship
 cd desktop-app
-npm run dist              # -> desktop-app/dist/StudyTrackerSetup.exe
+npm run dist                                             # -> desktop-app/dist/StudyTrackerSetup.exe
 ```
 
-`build:desktop` restores the Postgres Prisma client afterwards even if the build fails. The two targets
-share one generated-client path, and a half-finished desktop build used to leave the web app querying
-Postgres through a SQLite client.
+Stop any running dev server first; it holds the Prisma engine file and the build fails. The build puts the
+web Prisma client back on Postgres when it finishes. Releases are published on GitHub with
+`StudyTrackerSetup.exe` and `latest.yml`, which the app's updater reads.
 
-Stop any running dev server first: it holds the Prisma engine DLL, and the build dies half-written.
-
-See [`setup/README.txt`](setup/README.txt) for the full release procedure, including which repository the
-updater actually reads.
-
-## Architecture
-
-```
-app/            Next.js App Router - pages and server actions
-components/     UI, including the dashboard status card and the nav rail
-lib/            Domain logic: auth, uploads, AI providers, XP ledger, sync identity map
-lib/sync/       What makes a row "the same row" across devices (groundwork for two-way sync)
-prisma/         Postgres schema (source of truth) + generated SQLite schema and migrations
-desktop-app/    Electron main process, preload bridge, electron-builder config
-scripts/        Desktop build orchestration and schema generation
-test/           Node test-runner suites, including the sync hazard harness
-docs/           UI contract and images
-```
-
-**One schema, two databases.** `prisma/schema.prisma` (Postgres) is the source of truth;
-`scripts/prisma-sqlite.mjs` derives the SQLite schema from it at build time, because Prisma's `provider`
-cannot be an environment variable. Desktop migrations are applied by the app itself at boot
-(`lib/sqlite-migrate.ts`) — a packaged Electron app has no Prisma CLI to run `migrate deploy`.
-
-> **The web and desktop databases are separate and do not sync.** Data entered in the browser does not
-> appear in the desktop app, and vice versa. Two-way sync is designed but not built:
-> `lib/sync/identity.ts` declares how rows match across devices for all 28 models, and
-> `test/sync/hazards.test.mjs` reproduces the four ways a naive last-writer-wins engine corrupts this
-> schema. Read both before writing the transport.
-
-## Scripts
+### Scripts
 
 | Command | What it does |
 |---|---|
-| `npm run dev` | Next dev server |
-| `npm run build` | Production build (web) |
-| `npm run build:desktop` | Desktop bundle: SQLite client, Next build, Postgres client restored |
-| `npm run db:postgres` | Regenerate the Postgres Prisma client |
-| `npm run test:sync` | Sync identity and hazard suites against real SQLite databases |
-| `npm run test:sync:setup` | Regenerate the harness client — run once after any schema change |
+| `npm run dev` | Dev server |
+| `npm run build` | Website production build |
+| `npm run build:desktop` | Windows app bundle |
+| `npm run db:postgres` / `db:sqlite` | Switch the generated Prisma client |
+| `npm run db:migrate:web` | Show or apply pending website migrations |
+| `npm run test:sync` | All tests (run `test:sync:setup` once after a schema change) |
 
-## Design
+### Project layout
 
-UI changes follow [`docs/ui-contract.md`](docs/ui-contract.md): fixed radii, one accent colour, two
-durations and one easing, sentence case, no decorative glow. It exists because several attempts to
-"improve" the styling were rejected for reinventing each page instead of converging on one.
+```
+app/            pages and server actions
+components/     UI
+lib/            app logic: auth, AI, reports, sync, uploads, XP
+lib/sync/       desktop <-> website sync (merge rules, wire format, file transfer)
+prisma/         schemas and migrations for both databases
+desktop-app/    Electron app and installer config
+test/           node:test suites, including multi-database sync tests
+docs/           UI rules (docs/ui-contract.md) and images
+```
+
+UI work follows [`docs/ui-contract.md`](docs/ui-contract.md) and uses plain wording.
 
 ---
 
