@@ -94,9 +94,12 @@ export async function runSqliteMigrations(): Promise<void> {
         try {
           await prisma.$executeRawUnsafe(statement);
         } catch (stmtErr: any) {
-          // If table or index already exists, skip it safely
-          const msg = stmtErr?.message || '';
-          if (msg.includes('already exists') || stmtErr?.meta?.message?.includes('already exists')) {
+          // A table, index or column that is already there is the statement's
+          // own result: skip it. A launch that stopped between adding a column
+          // and recording its migration would otherwise fail on every launch
+          // after it with "duplicate column name".
+          const msg = `${stmtErr?.message || ''} ${stmtErr?.meta?.message || ''}`;
+          if (msg.includes('already exists') || msg.includes('duplicate column name')) {
             continue;
           }
           throw stmtErr;

@@ -12,6 +12,7 @@ import type { ArchiveView } from "@/components/ArchiveContext";
 import { isCurrentUserAdmin } from "@/lib/admin-actions";
 import { FocusProvider } from "@/lib/FocusContext";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "Study Flow | Elite Academic Workstation",
@@ -86,6 +87,9 @@ export default async function RootLayout({
             </AppShell>
           </FocusProvider>
         </ThemeProvider>
+        {/* Page views for the website only. Vercel sets VERCEL=1; the desktop
+            app has no /_vercel endpoint, so it would only log failed requests. */}
+        {process.env.VERCEL === "1" && <Analytics />}
       </body>
     </html>
   );
