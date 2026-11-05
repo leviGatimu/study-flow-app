@@ -1,65 +1,103 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { after } from 'next/server';
+import { addDays, format } from 'date-fns';
 import { CalendarDays, FileText } from 'lucide-react';
 
-import { getDailySummaries, getSettingsData, getWeeklySummaries } from '@/lib/actions';
+import { getCurrentUserTimezone, getDailySummaries, getSettingsData, getWeeklySummaries } from '@/lib/actions';
 import { getUserId } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { byTerm, getViewScope } from '@/lib/scope';
+import { getTimeZoneOffsetMinutes } from '@/lib/utils';
 import { DEFAULT_DAILY_SUMMARY_TIME, dailySummaryTime as resolveDailySummaryTime } from '@/lib/daily-summary-time';
+import { dailyReports, weeklyReports, type ReportKind } from '@/lib/report-model';
+import { fileReports, filedReportUrls } from '@/lib/report-filing';
 import { Page, PageBody } from '@/components/ui/page';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Button } from '@/components/ui/button';
-import { SummaryCard } from '@/components/SummaryCard';
-import { DailySummaryCard } from '@/components/DailySummaryCard';
 import { DailySummaryTimeSetting } from '@/components/DailySummaryTimeSetting';
 import { OverallSummaryButton } from '@/components/OverallSummaryButton';
-import { Segmented } from '../insights/Segmented';
+import { ReportsBrowser } from '@/components/reports/ReportsBrowser';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-type View = 'daily' | 'weekly';
+const DESCRIPTION = 'A graded report for each day and each week, written automatically and saved as a PDF in Resources › Reports.';
+const DAY = 'yyyy-MM-dd';
 
-const DESCRIPTION = 'A graded report for each day and each week, generated automatically. Download any of them as a PDF.';
+/** Report dates are stored as the start of the user's calendar day. */
+const keyOf = (d: Date) => format(d, DAY);
 
 /**
- * Reports: the daily and weekly summaries on one page (the old Daily summary
- * page redirects here). The view lives in the URL so a link can open either
- * one.
+ * Reports: the list on the left, the chosen report on the right. Reading the
+ * lists is what writes any report that is due (getDailySummaries is the only
+ * place daily reports are created), so both are always read. Each new report
+ * is then filed as a PDF in Resources, after the response is sent.
  */
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; r?: string }>;
 }) {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
-  const { view: raw } = await searchParams;
-  const view: View = raw === 'weekly' ? 'weekly' : 'daily';
+  const params = await searchParams;
+  const view: ReportKind = params.view === 'weekly' ? 'weekly' : 'daily';
 
   let dailySummaryTime = DEFAULT_DAILY_SUMMARY_TIME;
-  let daily: Awaited<ReturnType<typeof getDailySummaries>> = [];
-  let weekly: Awaited<ReturnType<typeof getWeeklySummaries>> = [];
+  let daily: ReturnType<typeof dailyReports> = [];
+  let weekly: ReturnType<typeof weeklyReports> = [];
+  let urls: Record<string, string> = {};
   let failed = false;
   try {
-    // Both lists are read whichever view is on screen: reading a list is
-    // what generates any report in it that is due (getDailySummaries is the
-    // only place daily reports are created), so neither may depend on which
-    // tab was opened.
-    const [dailyList, weeklyList, settings] = await Promise.all([
+    const [dailyList, weeklyList, settings, timeZone, scope] = await Promise.all([
       getDailySummaries(),
       getWeeklySummaries(),
       getSettingsData(),
+      getCurrentUserTimezone(),
+      getViewScope(userId),
     ]);
-    daily = dailyList;
-    weekly = weeklyList;
     dailySummaryTime = resolveDailySummaryTime(settings?.progress?.dailySummaryTime);
+
+    // Homework finished in the span the reports cover, by the user's day.
+    const dates = [...dailyList.map((d) => d.date), ...weeklyList.map((w) => w.startDate)];
+    const since = dates.length ? new Date(Math.min(...dates.map((d) => d.getTime()))) : new Date();
+    const finished = await prisma.homework.findMany({
+      where: { userId, ...byTerm(scope), isCompleted: true, completedAt: { gte: addDays(since, -1) } },
+      select: { title: true, subject: true, completedAt: true },
+      orderBy: { completedAt: 'asc' },
+    });
+    const byDay = new Map<string, { title: string; subject: string }[]>();
+    for (const h of finished) {
+      const at = h.completedAt!;
+      const local = new Date(at.getTime() + getTimeZoneOffsetMinutes(timeZone, at) * 60_000);
+      const key = local.toISOString().slice(0, 10);
+      byDay.set(key, [...(byDay.get(key) ?? []), { title: h.title, subject: h.subject }]);
+    }
+    const byWeek = new Map<string, { title: string; subject: string }[]>();
+    const weeks = weeklyList.map((w) => ({ ...w, startKey: keyOf(w.startDate), endKey: keyOf(w.endDate) }));
+    for (const [key, items] of byDay) {
+      const week = weeks.find((w) => w.startKey <= key && key <= w.endKey);
+      if (week) byWeek.set(week.startKey, [...(byWeek.get(week.startKey) ?? []), ...items]);
+    }
+
+    daily = dailyReports(dailyList.map((d) => ({ ...d, key: keyOf(d.date) })), byDay);
+    weekly = weeklyReports(weeks, byWeek);
+    urls = await filedReportUrls(userId, scope);
+
+    const toFile = [...daily, ...weekly];
+    after(async () => {
+      await fileReports(userId, scope, toFile);
+    });
   } catch (error) {
     console.error('Reports failed to load', error);
     failed = true;
   }
+
+  const reports = view === 'daily' ? daily : weekly;
 
   let body: React.ReactNode;
   if (failed) {
@@ -69,46 +107,42 @@ export default async function ReportsPage({
         description="Something went wrong while reading your summaries. Reload the page to try again."
       />
     );
-  } else if (view === 'daily') {
-    body =
-      daily.length === 0 ? (
-        <EmptyState
-          icon={<CalendarDays />}
-          title="No daily reports yet"
-          description={`A report is written at ${dailySummaryTime} on any day you finish a scheduled block. Finish one today to get your first.`}
-          action={
-            <Button asChild>
-              <Link href="/">Go to today</Link>
-            </Button>
-          }
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 2xl:grid-cols-3">
-          {daily.map((summary) => (
-            <DailySummaryCard key={summary.id} summary={summary} />
-          ))}
-        </div>
-      );
+  } else if (daily.length === 0 && weekly.length === 0) {
+    body = (
+      <EmptyState
+        icon={<CalendarDays />}
+        title="No reports yet"
+        description={`A report is written at ${dailySummaryTime} on any day you have study blocks. Finish one today to get your first.`}
+        action={
+          <Button asChild>
+            <Link href="/">Go to today</Link>
+          </Button>
+        }
+      />
+    );
   } else {
-    body =
-      weekly.length === 0 ? (
-        <EmptyState
-          icon={<FileText />}
-          title="No weekly reports yet"
-          description="A weekly report is written after each full week of scheduled study. Until then, your daily reports cover each day."
-          action={
-            <Button asChild variant="outline">
-              <Link href="/summaries">See daily reports</Link>
-            </Button>
-          }
+    body = (
+      <>
+        <ReportsBrowser
+          view={view}
+          reports={reports}
+          counts={{ daily: daily.length, weekly: weekly.length }}
+          initialId={params.r ?? null}
+          urls={urls}
         />
-      ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 2xl:grid-cols-3">
-          {weekly.map((summary) => (
-            <SummaryCard key={summary.id} summary={summary} />
-          ))}
-        </div>
-      );
+        {reports.length === 0 && (
+          <EmptyState
+            icon={<FileText />}
+            title={view === 'weekly' ? 'No weekly reports yet' : 'No daily reports yet'}
+            description={
+              view === 'weekly'
+                ? 'A weekly report is written after each full week of study blocks. Until then, the daily reports cover each day.'
+                : `A report is written at ${dailySummaryTime} on any day you have study blocks.`
+            }
+          />
+        )}
+      </>
+    );
   }
 
   return (
@@ -123,17 +157,7 @@ export default async function ReportsPage({
           </>
         }
       />
-      <PageBody>
-        <Segmented
-          label="Report period"
-          value={view}
-          options={[
-            { value: 'daily', label: `Daily (${daily.length})`, href: '/summaries' },
-            { value: 'weekly', label: `Weekly (${weekly.length})`, href: '/summaries?view=weekly' },
-          ]}
-        />
-        {body}
-      </PageBody>
+      <PageBody>{body}</PageBody>
     </Page>
   );
 }
