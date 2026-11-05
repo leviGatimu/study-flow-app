@@ -8,7 +8,6 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
-    "backfill": "tsx prisma/backfill-classes.ts",
     "db:sqlite": "node scripts/prisma-sqlite.mjs && prisma generate --schema prisma/schema.sqlite.prisma",
     "db:sqlite:migration": "node scripts/prisma-sqlite.mjs && prisma migrate diff --from-migrations prisma/migrations-sqlite --to-schema-datamodel prisma/schema.sqlite.prisma --script",
     "build:desktop": "node scripts/build-desktop.mjs",
