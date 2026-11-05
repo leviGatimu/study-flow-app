@@ -76,7 +76,12 @@ export function DataSettings() {
       try {
         const res = await importUserData(pending.data);
         if (res.success) {
-          toast.success("Backup restored.");
+          const skipped = "skipped" in res ? res.skipped ?? 0 : 0;
+          toast.success("Backup restored into this year.", {
+            description: skipped
+              ? `${skipped} ${skipped === 1 ? "item belongs" : "items belong"} to a finished year and ${skipped === 1 ? "was" : "were"} left as ${skipped === 1 ? "it is" : "they are"}.`
+              : undefined,
+          });
           setPending(null);
           router.refresh();
         } else {
@@ -129,7 +134,7 @@ export function DataSettings() {
         <SettingRow
           id="restore-backup"
           label="Restore a backup"
-          description="Replace your current data with a backup you downloaded earlier."
+          description="Replace this year’s data with a backup you downloaded earlier. Finished years are not changed."
         >
           <input
             ref={fileInput}
@@ -187,8 +192,8 @@ export function DataSettings() {
           <DialogHeader>
             <DialogTitle>Restore this backup?</DialogTitle>
             <DialogDescription>
-              Your current data will be replaced with <span className="font-medium text-foreground">{pending?.name}</span>. If you
-              might want today’s data back, download a backup of it first.
+              This year’s data will be replaced with <span className="font-medium text-foreground">{pending?.name}</span>. Finished
+              years are not changed. If you might want today’s data back, download a backup of it first.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

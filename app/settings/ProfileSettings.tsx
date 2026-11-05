@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { Check, CheckCircle2, Compass, KeyRound, LogOut, Rocket, ShieldAlert, User, X } from "lucide-react";
 
-import { logoutUser, updatePassword, updateUserName } from "@/lib/actions";
+import { logoutEverywhere, logoutUser, updatePassword, updateUserName } from "@/lib/actions";
 import { passwordStrength } from "@/lib/password-strength";
 import { Button } from "@/components/ui/button";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
@@ -35,6 +35,15 @@ export function ProfileSettings({ data, showDetails = true }: { data: SettingsDa
         <SettingRow id="log-out" label="Log out" description="End your session on this device.">
           <form action={logoutUser}>
             <LogOutButton />
+          </form>
+        </SettingRow>
+        <SettingRow
+          id="log-out-everywhere"
+          label="Log out everywhere"
+          description="Signs out every browser and desktop app on your account, this one included. Desktop apps need to connect again to keep syncing."
+        >
+          <form action={logoutEverywhere}>
+            <LogOutButton everywhere />
           </form>
         </SettingRow>
       </SettingsCard>
@@ -183,7 +192,7 @@ function PasswordRow() {
           </span>
         ) : undefined
       }
-      description={open ? "Enter your current password, then the new one twice." : "Change the password you sign in with."}
+      description={open ? "Enter your current password, then the new one twice. Other devices are signed out." : "Change the password you sign in with."}
     >
       {!open ? (
         <Button variant="outline" onClick={() => { setSaved(false); setOpen(true); }} className="gap-1.5">
@@ -292,12 +301,12 @@ function GettingStartedCard() {
   );
 }
 
-function LogOutButton() {
+function LogOutButton({ everywhere = false }: { everywhere?: boolean }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" variant="outline" disabled={pending} className="gap-1.5">
       <LogOut className="size-4" />
-      {pending ? "Logging out…" : "Log out"}
+      {pending ? "Logging out…" : everywhere ? "Log out everywhere" : "Log out"}
     </Button>
   );
 }

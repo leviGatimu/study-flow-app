@@ -7,9 +7,20 @@ import { softDelete, INCLUDE_DELETED } from '@/lib/soft-delete';
 import { startOfDay, endOfDay, addDays, isSameDay, differenceInDays, format } from 'date-fns';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { getUserId, login, logout } from '@/lib/auth';
+import { bumpSessionVersion, getUserId, login, logout } from '@/lib/auth';
 import { saveUpload } from '@/lib/upload';
 import { removeStoredFile, storeResourceFile } from '@/lib/library-store';
+import { headers } from 'next/headers';
+import { makeRestoreFilter } from '@/lib/backup-scope';
+import {
+  DUMMY_HASH,
+  clearFailures,
+  clientAddress,
+  lockedFor,
+  lockedMessage,
+  recordFailure,
+  throttleKeys,
+} from '@/lib/auth-throttle';
 import { deleteResourceItem } from '@/lib/library-actions';
 import { libraryEnabled } from '@/lib/library';
 import { subjectFolderPath } from '@/lib/library-reconcile';
@@ -74,12 +85,21 @@ export async function loginUser(formData: FormData) {
 
     if (!username || !password) return { error: 'Username and password are required' };
 
+    // Guessing is throttled per username and per address (lib/auth-throttle.ts).
+    const keys = throttleKeys(username, clientAddress(await headers()));
+    const wait = await lockedFor(prisma, keys);
+    if (wait > 0) return { error: lockedMessage(wait) };
+
+    // An unknown username is checked against a dummy hash, so it takes as long
+    // as a wrong password and the timing does not reveal which usernames exist.
     const user = await prisma.user.findUnique({ where: { username } });
-    if (!user) return { error: 'Invalid credentials' };
+    const valid = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
+    if (!user || !valid) {
+      await recordFailure(prisma, keys);
+      return { error: 'Invalid credentials' };
+    }
 
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return { error: 'Invalid credentials' };
-
+    await clearFailures(prisma, username);
     await login(user.id);
     return { success: true };
   } catch {
@@ -140,21 +160,36 @@ export async function updatePassword(formData: FormData) {
       return { error: 'New passwords do not match' };
     }
 
-    if (newPassword.length < 6) {
-      return { error: 'New password must be at least 6 characters' };
+    // The same minimum as registration (lib/registration.ts).
+    if (newPassword.length < 8) {
+      return { error: 'New password must be at least 8 characters' };
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return { error: 'User not found' };
 
+    // Wrong current passwords count against the sign-in throttle too, so a
+    // stolen session cannot be used to guess the password behind it.
+    const keys = throttleKeys(user.username, clientAddress(await headers()));
+    const wait = await lockedFor(prisma, keys);
+    if (wait > 0) return { error: lockedMessage(wait) };
+
     const valid = await bcrypt.compare(currentPassword, user.passwordHash);
-    if (!valid) return { error: 'Current password is incorrect' };
+    if (!valid) {
+      await recordFailure(prisma, keys);
+      return { error: 'Current password is incorrect' };
+    }
 
     const newPasswordHash = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({
       where: { id: userId },
       data: { passwordHash: newPasswordHash }
     });
+
+    // Every other session and desktop sync token stops working; this device
+    // gets a fresh session so changing the password does not sign you out here.
+    await bumpSessionVersion(userId);
+    await login(userId);
 
     return { success: true };
   } catch (error: any) {
@@ -167,6 +202,17 @@ export async function updatePassword(formData: FormData) {
  * AUTH: Logout user
  */
 export async function logoutUser() {
+  await logout();
+  redirect('/welcome');
+}
+
+/**
+ * Sign out of every browser and desktop app on the account, this one included.
+ * For a lost phone, a shared computer or a password you think someone has.
+ */
+export async function logoutEverywhere() {
+  const userId = await getUserId();
+  if (userId) await bumpSessionVersion(userId);
   await logout();
   redirect('/welcome');
 }
@@ -2572,16 +2618,24 @@ export async function exportUserData() {
 
     if (!user) return { error: "User not found" };
 
+    // 1.1 names each row's year, so a restore can bring back the year it was
+    // made in without copying finished years into it (lib/backup-scope.ts).
+    const [scope, terms] = await Promise.all([
+      getViewScope(userId),
+      prisma.term.findMany({ where: { userId }, select: { id: true, classId: true } }),
+    ]);
+
     return {
       success: true,
       data: {
-        exportVersion: "1.0",
+        exportVersion: "1.1",
         exportedAt: new Date().toISOString(),
+        activeClassId: scope?.classId ?? null,
+        terms,
         username: user.username,
         currentTerm: user.currentTerm,
         progress: user.progress ? {
           name: user.progress.name,
-          geminiApiKey: user.progress.geminiApiKey,
           focusSessions: user.progress.focusSessions,
           totalFocusMinutes: user.progress.totalFocusMinutes,
           xp: user.progress.xp,
@@ -2590,6 +2644,7 @@ export async function exportUserData() {
           longestStreak: user.progress.longestStreak,
         } : null,
         templates: user.templates.map(t => ({
+          classId: t.classId,
           dayOfWeek: t.dayOfWeek,
           subject: t.subject,
           startTime: t.startTime,
@@ -2598,6 +2653,7 @@ export async function exportUserData() {
           type: t.type
         })),
         tasks: user.tasks.map(t => ({
+          termId: t.termId,
           date: t.date.toISOString(),
           startTime: t.startTime,
           endTime: t.endTime,
@@ -2610,20 +2666,25 @@ export async function exportUserData() {
           proofPdfUrl: t.proofPdfUrl
         })),
         resources: user.resources.map(r => ({
+          classId: r.classId,
           subject: r.subject,
           title: r.title,
           type: r.type,
-          url: r.url
+          url: r.url,
+          folder: r.folder
         })),
         examEvents: user.examEvents.map(e => ({
+          termId: e.termId,
           title: e.title,
           date: e.date.toISOString(),
           priority: e.priority
         })),
         markedDays: user.markedDays.map(m => ({
+          termId: m.termId,
           date: m.date.toISOString()
         })),
         stickyNotes: user.stickyNotes.map(s => ({
+          classId: s.classId,
           title: s.title,
           content: s.content,
           color: s.color,
@@ -2632,10 +2693,12 @@ export async function exportUserData() {
           y: s.y
         })),
         studioNotes: user.studioNotes.map(n => ({
+          classId: n.classId,
           subject: n.subject,
           content: n.content
         })),
         homeworks: user.homeworks.map(h => ({
+          termId: h.termId,
           subject: h.subject,
           title: h.title,
           description: h.description,
@@ -2646,6 +2709,7 @@ export async function exportUserData() {
           proofUrl: h.proofUrl
         })),
         projects: user.projects.map(p => ({
+          classId: p.classId,
           title: p.title,
           description: p.description,
           status: p.status,
@@ -2662,6 +2726,13 @@ export async function exportUserData() {
 /**
  * DATA PORTABILITY: Import and restore all user-specific data from JSON
  */
+/**
+ * One row of a backup file: untyped JSON from outside, like importData itself.
+ * Each create below picks its fields by name and the database checks types.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type BackupRow = Record<string, any>;
+
 export async function importUserData(importData: any) {
   const userId = await getUserId();
   if (!userId) return { error: "Unauthorized" };
@@ -2685,12 +2756,30 @@ export async function importUserData(importData: any) {
       projects
     } = importData;
 
-    // The export format has no concept of academic years - it predates them -
-    // so a restore lands in the year you are in now. Without stamping, every
-    // restored row would carry no class or term and be invisible to every
-    // scoped read in the app: the import would appear to do nothing.
+    // A restore replaces the year you are in, and only that year. Rows land
+    // stamped with it (unstamped rows are invisible to every scoped read), the
+    // deletes below are confined to it, and backup rows that belong to a
+    // finished year are skipped - finished years stay as they are in the
+    // database. Restores used to delete every year and copy all of it into
+    // the current one. See lib/backup-scope.ts for which rows are kept.
     const classStamp = await requireClassStamp(userId);
     const termStamp = await requireTermStamp(userId);
+    const scope = await requireWritableScope(userId);
+    const inYear = byClass(scope);
+    const inTerms = byTerm(scope);
+    const yearStart = scope
+      ? (await prisma.class.findUnique({ where: { id: scope.classId }, select: { startedAt: true } }))?.startedAt ?? null
+      : null;
+    const keep = makeRestoreFilter(importData, yearStart);
+    let skipped = 0;
+    const kept = (rows: unknown, dateOf?: (row: BackupRow) => string | null | undefined): BackupRow[] => {
+      if (!Array.isArray(rows)) return [];
+      return (rows as BackupRow[]).filter((row) => {
+        const ok = !!row && typeof row === 'object' && keep({ ...row, date: dateOf ? dateOf(row) : undefined });
+        if (!ok) skipped++;
+        return ok;
+      });
+    };
 
     // The deletes below are the one place left in the app that removes rows
     // outright instead of tombstoning them (lib/soft-delete.ts explains the
@@ -2718,7 +2807,7 @@ export async function importUserData(importData: any) {
           where: { userId },
           update: {
             name: progress.name || "Student",
-            geminiApiKey: progress.geminiApiKey || null,
+            ...(progress.geminiApiKey ? { geminiApiKey: progress.geminiApiKey } : {}),
             focusSessions: progress.focusSessions || 0,
             totalFocusMinutes: progress.totalFocusMinutes || 0,
             xp: progress.xp || 0,
@@ -2729,7 +2818,7 @@ export async function importUserData(importData: any) {
           create: {
             userId,
             name: progress.name || "Student",
-            geminiApiKey: progress.geminiApiKey || null,
+            ...(progress.geminiApiKey ? { geminiApiKey: progress.geminiApiKey } : {}),
             focusSessions: progress.focusSessions || 0,
             totalFocusMinutes: progress.totalFocusMinutes || 0,
             xp: progress.xp || 0,
@@ -2742,8 +2831,8 @@ export async function importUserData(importData: any) {
 
       // 3. Import Templates
       if (Array.isArray(templates)) {
-        await tx.scheduleTemplate.deleteMany({ where: { userId } });
-        for (const t of templates) {
+        await tx.scheduleTemplate.deleteMany({ where: { userId, ...inYear } });
+        for (const t of kept(templates)) {
           await tx.scheduleTemplate.create({
             data: {
               userId,
@@ -2761,8 +2850,8 @@ export async function importUserData(importData: any) {
 
       // 4. Import Tasks
       if (Array.isArray(tasks)) {
-        await tx.task.deleteMany({ where: { userId } });
-        for (const t of tasks) {
+        await tx.task.deleteMany({ where: { userId, ...inTerms } });
+        for (const t of kept(tasks, (t) => t.date)) {
           await tx.task.create({
             data: {
               userId,
@@ -2784,8 +2873,8 @@ export async function importUserData(importData: any) {
 
       // 5. Import Resources
       if (Array.isArray(resources)) {
-        await tx.resource.deleteMany({ where: { userId } });
-        for (const r of resources) {
+        await tx.resource.deleteMany({ where: { userId, ...inYear } });
+        for (const r of kept(resources)) {
           await tx.resource.create({
             data: {
               userId,
@@ -2802,8 +2891,8 @@ export async function importUserData(importData: any) {
 
       // 6. Import ExamEvents
       if (Array.isArray(examEvents)) {
-        await tx.examEvent.deleteMany({ where: { userId } });
-        for (const e of examEvents) {
+        await tx.examEvent.deleteMany({ where: { userId, ...inTerms } });
+        for (const e of kept(examEvents, (e) => e.date)) {
           await tx.examEvent.create({
             data: {
               userId,
@@ -2818,8 +2907,8 @@ export async function importUserData(importData: any) {
 
       // 7. Import MarkedDays
       if (Array.isArray(markedDays)) {
-        await tx.markedDay.deleteMany({ where: { userId } });
-        for (const m of markedDays) {
+        await tx.markedDay.deleteMany({ where: { userId, ...inTerms } });
+        for (const m of kept(markedDays, (m) => m.date)) {
           await tx.markedDay.create({
             data: {
               userId,
@@ -2832,8 +2921,8 @@ export async function importUserData(importData: any) {
 
       // 8. Import StickyNotes
       if (Array.isArray(stickyNotes)) {
-        await tx.stickyNote.deleteMany({ where: { userId } });
-        for (const s of stickyNotes) {
+        await tx.stickyNote.deleteMany({ where: { userId, ...inYear } });
+        for (const s of kept(stickyNotes)) {
           await tx.stickyNote.create({
             data: {
               userId,
@@ -2851,8 +2940,8 @@ export async function importUserData(importData: any) {
 
       // 9. Import StudioNotes
       if (Array.isArray(studioNotes)) {
-        await tx.studioNote.deleteMany({ where: { userId } });
-        for (const n of studioNotes) {
+        await tx.studioNote.deleteMany({ where: { userId, ...inYear } });
+        for (const n of kept(studioNotes)) {
           await tx.studioNote.create({
             data: {
               userId,
@@ -2866,8 +2955,8 @@ export async function importUserData(importData: any) {
 
       // 10. Import Homeworks
       if (Array.isArray(homeworks)) {
-        await tx.homework.deleteMany({ where: { userId } });
-        for (const h of homeworks) {
+        await tx.homework.deleteMany({ where: { userId, ...inTerms } });
+        for (const h of kept(homeworks, (h) => h.dueDate)) {
           await tx.homework.create({
             data: {
               userId,
@@ -2887,8 +2976,8 @@ export async function importUserData(importData: any) {
 
       // 11. Import Projects
       if (Array.isArray(projects)) {
-        await tx.project.deleteMany({ where: { userId } });
-        for (const p of projects) {
+        await tx.project.deleteMany({ where: { userId, ...inYear } });
+        for (const p of kept(projects)) {
           await tx.project.create({
             data: {
               userId,
@@ -2909,7 +2998,7 @@ export async function importUserData(importData: any) {
     revalidatePath('/settings');
     revalidatePath('/history');
     revalidatePath('/marks');
-    return { success: true };
+    return { success: true, skipped };
   } catch (error: any) {
     console.error("Import failed:", error);
     return { error: `Import failed: ${error.message}` };

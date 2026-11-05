@@ -154,15 +154,16 @@ const FILTERABLE_READS = [
  *
  * The extension applies to $allModels because forgetting to list a model is a
  * silent data leak, while listing an exception is a compile-visible decision.
- * SyncState is the only one: it is a device's own bookmark, never synced, never
- * shown to anyone, and deleting it means "forget where I was" - a tombstone
- * would be a bookmark that remembers being forgotten.
+ * SyncState: a device's own bookmark, never synced, never shown to anyone, and
+ * deleting it means "forget where I was" - a tombstone would be a bookmark that
+ * remembers being forgotten. AuthThrottle: failed sign-in counters, also local
+ * and never shown; clearing one after a correct password must really clear it.
  *
  * Narrowing a query on a column that does not exist throws, so this is load
  * bearing rather than an optimisation. test/sync/soft-delete.test.mjs re-derives
  * it from the client's metadata and fails if the schema and this list drift.
  */
-export const MODELS_WITHOUT_TOMBSTONES = new Set(['SyncState']);
+export const MODELS_WITHOUT_TOMBSTONES = new Set(['SyncState', 'AuthThrottle']);
 
 /**
  * True when the caller has already said something about tombstones.

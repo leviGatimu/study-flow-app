@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { cookies } from 'next/headers';
-import { SignJWT, jwtVerify } from 'jose';
+import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { prisma } from './prisma';
 
 if (!process.env.JWT_SECRET) {
@@ -11,11 +11,34 @@ if (!process.env.JWT_SECRET) {
 
 const SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
-export async function login(userId: string) {
-  const token = await new SignJWT({ userId })
+/**
+ * Sessions are stateless JWTs, so they cannot be deleted - instead each one
+ * carries the account's sessionVersion (`sv`) and stops being accepted once
+ * that moves on. Tokens issued before this existed have no `sv` and count as
+ * version 0, so they keep working until the first bump.
+ */
+const versionOf = (payload: JWTPayload) => (typeof payload.sv === "number" ? payload.sv : 0);
+
+/**
+ * Invalidate every session and desktop sync token of an account. Used by a
+ * password change, an admin password reset and "Log out everywhere".
+ */
+export async function bumpSessionVersion(userId: string): Promise<void> {
+  await prisma.user.update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } } });
+}
+
+/** Sign a session or sync token for the account's current session version. */
+export async function signSessionToken(userId: string, expiresIn: string): Promise<string> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { sessionVersion: true } });
+  return new SignJWT({ userId, sv: user?.sessionVersion ?? 0 })
     .setProtectedHeader({ alg: 'HS256' })
-    .setExpirationTime('30d')
+    .setIssuedAt()
+    .setExpirationTime(expiresIn)
     .sign(SECRET);
+}
+
+export async function login(userId: string) {
+  const token = await signSessionToken(userId, '30d');
 
   const cookieStore = await cookies();
   cookieStore.set('session', token, {
@@ -49,9 +72,11 @@ export const getUserId = cache(async function getUserId(): Promise<string | null
   if (!session) return null;
 
   let userId: string;
+  let version: number;
   try {
-    const { payload } = await jwtVerify(session, SECRET);
+    const { payload } = await jwtVerify(session, SECRET, { algorithms: ['HS256'] });
     userId = payload.userId as string;
+    version = versionOf(payload);
     if (!userId) return null;
   } catch {
     // The token is missing, expired, tampered with or signed by another
@@ -72,11 +97,12 @@ export const getUserId = cache(async function getUserId(): Promise<string | null
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true },
+      select: { id: true, sessionVersion: true },
     });
 
-    // A definite answer: the account is gone or deactivated. Reject it.
-    if (!user) return null;
+    // A definite answer: the account is gone or deactivated, or this session
+    // was logged out (password changed, "log out everywhere"). Reject it.
+    if (!user || user.sessionVersion !== version) return null;
     return userId;
   } catch (error) {
     // No answer at all. The token itself is cryptographically valid, so the
@@ -99,17 +125,22 @@ export const getUserId = cache(async function getUserId(): Promise<string | null
  * thing. Returns null for anything it cannot verify; the caller decides whether
  * to fall back to the cookie.
  *
- * Note what this deliberately does NOT do: check the user still exists. That
- * check belongs to getUserId, which the route calls next, and duplicating it
- * here would mean two round trips for one request.
+ * Checks the account still exists and the token's session version is current,
+ * like getUserId. Routes call this FIRST and only fall back to the cookie when
+ * it returns null, so a valid-looking bearer is never checked anywhere else.
  */
 export async function userIdFromBearer(header: string | null): Promise<string | null> {
   if (!header?.startsWith('Bearer ')) return null;
+  let userId: string;
+  let version: number;
   try {
-    const { payload } = await jwtVerify(header.slice(7).trim(), SECRET);
-    const userId = payload.userId;
-    return typeof userId === 'string' && userId ? userId : null;
+    const { payload } = await jwtVerify(header.slice(7).trim(), SECRET, { algorithms: ['HS256'] });
+    if (typeof payload.userId !== 'string' || !payload.userId) return null;
+    userId = payload.userId;
+    version = versionOf(payload);
   } catch {
     return null;
   }
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { sessionVersion: true } });
+  return user && user.sessionVersion === version ? userId : null;
 }

@@ -516,6 +516,8 @@ export function scrub(
   if (model === 'user' && direction === 'up') {
     delete copy.passwordHash;
     delete copy.isAdmin;
+    // Moving it backwards would revive sessions that were logged out.
+    delete copy.sessionVersion;
   }
   if (model === 'userProgress') {
     // The user's own billing-linked credentials. They are configured per device

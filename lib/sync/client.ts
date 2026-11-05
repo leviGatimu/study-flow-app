@@ -29,6 +29,7 @@ import { applyRows, markSynced, scrub, APPLY_ORDER, type SyncRow } from './merge
 import {
   PUSH_LIMIT,
   FOCUS_LOG_HEADER,
+  SESSION_VERSION_HEADER,
   DEVICE_HEADER,
   type Cursor,
   type PullResponse,
@@ -204,6 +205,7 @@ export async function runSync(userId: string): Promise<SyncResult> {
   const headers = {
     'content-type': 'application/json',
     [FOCUS_LOG_HEADER]: '1',
+    [SESSION_VERSION_HEADER]: '1',
     [DEVICE_HEADER]: state.deviceId,
     authorization: `Bearer ${state.token}`,
   };

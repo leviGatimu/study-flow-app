@@ -28,6 +28,8 @@ import {
   PULL_PAGE_SIZE,
   PUSH_LIMIT,
   FOCUS_LOG_HEADER,
+  SESSION_VERSION_HEADER,
+  sessionVersionPayload,
   DEVICE_HEADER,
   focusLogPayload,
   type Cursor,
@@ -120,7 +122,14 @@ export async function GET(request: NextRequest) {
 
   const response: PullResponse = {
     serverTime: new Date().toISOString(),
-    rows: page.map(({ model, row }) => ({ model, data: focusLogPayload(model, scrub(model, row, 'down'), request.headers.get(FOCUS_LOG_HEADER) === '1') })),
+    rows: page.map(({ model, row }) => ({
+      model,
+      data: sessionVersionPayload(
+        model,
+        focusLogPayload(model, scrub(model, row, 'down'), request.headers.get(FOCUS_LOG_HEADER) === '1'),
+        request.headers.get(SESSION_VERSION_HEADER) === '1'
+      ),
+    })),
     cursor: last
       ? { syncedAt: (last.row.syncedAt as Date).toISOString(), id: String(last.row.id) }
       : cursor,

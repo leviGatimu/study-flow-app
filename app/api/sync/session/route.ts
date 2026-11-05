@@ -21,9 +21,18 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { SignJWT } from 'jose';
 
 import { prisma, IS_SQLITE } from '@/lib/prisma';
+import { signSessionToken } from '@/lib/auth';
+import {
+  DUMMY_HASH,
+  clearFailures,
+  clientAddress,
+  lockedFor,
+  lockedMessage,
+  recordFailure,
+  throttleKeys,
+} from '@/lib/auth-throttle';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,6 +66,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });
   }
 
+  // Same throttle as the login form: this is the other door to the account.
+  const keys = throttleKeys(username, clientAddress(request.headers));
+  const wait = await lockedFor(prisma, keys);
+  if (wait > 0) {
+    return NextResponse.json(
+      { error: lockedMessage(wait) },
+      { status: 429, headers: { 'Retry-After': String(wait) } }
+    );
+  }
+
   const user = await prisma.user.findUnique({
     where: { username },
     select: { id: true, username: true, passwordHash: true },
@@ -64,18 +83,18 @@ export async function POST(request: NextRequest) {
 
   // One message for both "no such user" and "wrong password", and the hash is
   // compared even when there is no user, so the response time does not say
-  // which usernames exist.
-  const hash = user?.passwordHash ?? '$2a$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidin';
-  const ok = await bcrypt.compare(password, hash);
+  // which usernames exist. The dummy must be a well-formed hash: bcryptjs
+  // answers a malformed one instantly, which is what the old one here did.
+  const ok = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
   if (!user || !ok) {
+    await recordFailure(prisma, keys);
     return NextResponse.json({ error: 'Incorrect username or password' }, { status: 401 });
   }
 
-  const token = await new SignJWT({ userId: user.id })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime(TOKEN_LIFETIME)
-    .sign(new TextEncoder().encode(process.env.JWT_SECRET));
+  await clearFailures(prisma, username);
+  // Carries the session version, so a password change or "log out everywhere"
+  // on the website also stops this device syncing until it signs in again.
+  const token = await signSessionToken(user.id, TOKEN_LIFETIME);
 
   return NextResponse.json({ token, userId: user.id, username: user.username });
 }

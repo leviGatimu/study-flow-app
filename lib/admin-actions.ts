@@ -935,9 +935,11 @@ export async function resetUserPassword(userId: string, newPassword: string) {
   });
   if (!target) return { error: 'No such user.' };
 
+  // The point of a reset is that the old password is gone, so every session
+  // and desktop sync token opened with it stops working too.
   await prisma.user.update({
     where: { id: userId },
-    data: { passwordHash: await bcrypt.hash(newPassword, 10) },
+    data: { passwordHash: await bcrypt.hash(newPassword, 10), sessionVersion: { increment: 1 } },
   });
   revalidatePath('/admin');
   return { success: true, username: target.username };

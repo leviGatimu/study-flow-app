@@ -44,6 +44,7 @@ export const SETTINGS_INDEX: { id: string; label: string; section: SectionId; wo
   { id: "full-profile", label: "Profile and photo", section: "profile", words: "avatar picture bio school" },
   { id: "password", label: "Password", section: "profile", words: "security change sign in" },
   { id: "log-out", label: "Log out", section: "profile", words: "sign out session logout" },
+  { id: "log-out-everywhere", label: "Log out everywhere", section: "profile", words: "sign out all devices sessions stolen lost phone security" },
   { id: "setup", label: "Set up your year", section: "profile", words: "onboarding wizard setup" },
   { id: "tour", label: "Guided tour", section: "profile", words: "help walkthrough tutorial" },
   { id: "timezone", label: "Time zone", section: "schedule", words: "clock timezone region country day" },
