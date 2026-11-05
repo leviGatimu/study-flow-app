@@ -35,9 +35,9 @@ import { useStoredView } from "./use-stored-view";
 /**
  * The top of the explorer: one folder per subject.
  *
- * Deliberately the same idiom as the subject page - tiles or rows, a search
- * box, a context menu, a footer with the path on disk - so that going into a
- * subject feels like opening a folder rather than changing screens.
+ * Subject cards (or rows) with their counts, last addition and mastery, a
+ * search box, right-click / ⋯ actions, and the recently added strip. Opening a
+ * card goes to that subject's folder page (components/resources/SubjectFolder).
  */
 
 export function LibraryOverview({ overview }: { overview: Overview }) {
@@ -91,106 +91,82 @@ export function LibraryOverview({ overview }: { overview: Overview }) {
   const openMenu = (at: { x: number; y: number }, s: LibrarySubject | null) => setMenu({ at, entries: entriesFor(s) });
 
   return (
-    <div className="space-y-5">
-      <section
-        onContextMenu={(e) => {
-          e.preventDefault();
-          openMenu({ x: e.clientX, y: e.clientY }, null);
-        }}
-        className="flex min-h-[420px] flex-col rounded-2xl border border-border bg-card"
-      >
-        {/* toolbar */}
-        <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center">
-          <nav aria-label="Folder path" className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
-            <span className="flex items-center gap-1.5 rounded-md px-2 py-1 font-medium text-foreground">
-              <Folder className="size-3.5 text-amber-500" fill="currentColor" fillOpacity={0.18} />
-              Resources
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {overview.subjects.length} {overview.subjects.length === 1 ? "subject" : "subjects"}
-            </span>
-          </nav>
-          <div className="flex items-center gap-1.5">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Find a subject"
-                aria-label="Find a subject"
-                className="h-8 w-44 pl-8 pr-7 text-sm md:w-56"
-              />
-              {query && (
-                <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground">
-                  <X className="size-3.5" />
-                </button>
-              )}
-            </div>
-            <div role="group" aria-label="View" className="flex rounded-lg border border-border p-0.5">
-              <Button variant={view === "grid" ? "secondary" : "ghost"} size="icon-sm" aria-pressed={view === "grid"} aria-label="Grid view" onClick={() => changeView("grid")}>
-                <LayoutGrid />
-              </Button>
-              <Button variant={view === "list" ? "secondary" : "ghost"} size="icon-sm" aria-pressed={view === "list"} aria-label="List view" onClick={() => changeView("list")}>
-                <List />
-              </Button>
-            </div>
-            {onDesktop && overview.folderPath && (
-              <Button variant="ghost" size="sm" onClick={() => show(null)} className="text-muted-foreground">
-                <FolderSymlink /> Show in Explorer
-              </Button>
-            )}
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-0 flex-1 sm:max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Find a subject"
+            aria-label="Find a subject"
+            className="h-10 pl-9 pr-9"
+          />
+          {query && (
+            <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground">
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {overview.subjects.length} {overview.subjects.length === 1 ? "subject" : "subjects"} · {totals.files} files · {totals.links} links
+        </p>
+        <div className="ml-auto flex items-center gap-2">
+          {onDesktop && overview.folderPath && (
+            <Button variant="ghost" onClick={() => show(null)} title={overview.folderPath}>
+              <FolderSymlink /> Show in Explorer
+            </Button>
+          )}
+          <div role="group" aria-label="View" className="flex rounded-xl border border-border p-0.5">
+            <Button variant={view === "grid" ? "secondary" : "ghost"} size="icon-sm" aria-pressed={view === "grid"} aria-label="Cards" onClick={() => changeView("grid")}>
+              <LayoutGrid />
+            </Button>
+            <Button variant={view === "list" ? "secondary" : "ghost"} size="icon-sm" aria-pressed={view === "list"} aria-label="List" onClick={() => changeView("list")}>
+              <List />
+            </Button>
           </div>
         </div>
+      </div>
 
-        {/* body */}
-        <div className="flex-1 p-3">
-          {subjects.length === 0 ? (
-            <EmptyState
-              icon={<Folder />}
-              className="h-full min-h-[300px]"
-              title={query ? `No subject matches "${query}"` : "No subjects yet"}
-              description={
-                query
-                  ? "Check the spelling, or clear the search."
-                  : "Every subject gets a folder here. Add your subjects first, then file notes and past papers under them."
-              }
-              action={
-                query ? (
-                  <Button size="sm" variant="outline" onClick={() => setQuery("")}>Clear search</Button>
-                ) : (
-                  <Button asChild size="sm" variant="outline">
-                    <Link href="/subjects">Add subjects</Link>
-                  </Button>
-                )
-              }
-            />
-          ) : view === "grid" ? (
-            <ul role="list" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
-              {subjects.map((s) => (
-                <SubjectTile key={s.name} subject={s} onMenu={(at) => openMenu(at, s)} />
-              ))}
-            </ul>
-          ) : (
-            <SubjectRows subjects={subjects} onOpen={open} onMenu={(s, at) => openMenu(at, s)} />
-          )}
-        </div>
+      {subjects.length === 0 ? (
+        <EmptyState
+          icon={<Folder />}
+          title={query ? `No subject matches "${query}"` : "No subjects yet"}
+          description={
+            query
+              ? "Check the spelling, or clear the search."
+              : "Every subject gets a folder here. Add your subjects first, then file notes and past papers under them."
+          }
+          action={
+            query ? (
+              <Button size="sm" variant="outline" onClick={() => setQuery("")}>Clear search</Button>
+            ) : (
+              <Button asChild size="sm" variant="outline">
+                <Link href="/subjects">Add subjects</Link>
+              </Button>
+            )
+          }
+        />
+      ) : view === "grid" ? (
+        <ul role="list" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+          {subjects.map((s) => (
+            <SubjectTile key={s.name} subject={s} onMenu={(at) => openMenu(at, s)} />
+          ))}
+        </ul>
+      ) : (
+        <SubjectRows subjects={subjects} onOpen={open} onMenu={(s, at) => openMenu(at, s)} />
+      )}
 
-        <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2 text-xs text-muted-foreground">
-          <span>
-            {totals.files} files · {totals.links} links · {totals.folders} folders
-          </span>
-          {overview.folderPath && (
-            <span className="hidden items-center gap-1.5 truncate sm:flex" title={overview.folderPath}>
-              <HardDrive className="size-3" />
-              <span className="truncate">{overview.folderPath}</span>
-            </span>
-          )}
-        </div>
-      </section>
+      {overview.folderPath && (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground" title={overview.folderPath}>
+          <HardDrive className="size-3.5 shrink-0" />
+          <span className="truncate">Saved on this computer in {overview.folderPath}</span>
+        </p>
+      )}
 
       {overview.recent.length > 0 && (
-        <section aria-labelledby="recent-heading" className="space-y-2">
-          <h2 id="recent-heading" className="flex items-center gap-1.5 px-1 font-heading text-sm font-semibold text-foreground">
+        <section aria-labelledby="recent-heading" className="space-y-3">
+          <h2 id="recent-heading" className="flex items-center gap-1.5 font-heading text-lg font-bold text-foreground">
             <Clock className="size-4 text-muted-foreground" /> Recently added
           </h2>
           <ul role="list" className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -252,27 +228,34 @@ function SubjectTile({
     >
       <Link
         href={`/resources/${encodeURIComponent(s.name)}`}
-        className="flex h-full flex-col gap-3 rounded-xl border border-transparent p-3 transition-colors hover:bg-muted/60 focus-visible:border-primary/50 focus-visible:outline-none"
+        className="flex h-full flex-col gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       >
-        <KindIcon item={{ type: "FOLDER", ext: "" }} size="lg" />
-        <div className="min-w-0">
-          <p className="line-clamp-2 break-words text-sm font-medium leading-snug text-foreground">{s.name}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {count === 0 ? "Empty" : `${count} ${count === 1 ? "item" : "items"}`}
-            {s.folders > 0 ? ` · ${s.folders} ${s.folders === 1 ? "folder" : "folders"}` : ""}
-          </p>
-        </div>
-        {pct !== null && (
-          <div className="mt-auto" aria-label={`Mastery ${pct}%`}>
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Mastery</span>
-              <span className="tabular-nums">{pct}%</span>
-            </div>
-            <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${pct}%` }} />
-            </div>
+        <div className="flex items-start gap-3 pr-8">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-400/15">
+            <KindIcon item={{ type: "FOLDER", ext: "" }} size="sm" />
+          </span>
+          <div className="min-w-0">
+            <p className="line-clamp-2 break-words font-heading text-base font-semibold leading-snug text-foreground">{s.name}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {count === 0 ? "No files yet" : `${count} ${count === 1 ? "item" : "items"}`}
+              {s.folders > 0 ? ` · ${s.folders} ${s.folders === 1 ? "folder" : "folders"}` : ""}
+            </p>
           </div>
-        )}
+        </div>
+        <div className="mt-auto space-y-3">
+          <p className="text-xs text-muted-foreground">{s.lastAdded ? `Last added ${formatWhen(s.lastAdded)}` : "Nothing added yet"}</p>
+          {pct !== null && (
+            <div aria-label={`Mastery ${pct}%`}>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Mastery</span>
+                <span className="font-medium tabular-nums">{pct}%</span>
+              </div>
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          )}
+        </div>
       </Link>
       <button
         type="button"
@@ -282,7 +265,7 @@ function SubjectTile({
           const r = e.currentTarget.getBoundingClientRect();
           onMenu({ x: r.right - 200, y: r.bottom + 4 });
         }}
-        className="absolute right-2 top-2 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+        className="absolute right-3 top-3 rounded-lg p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
       >
         <MoreHorizontal className="size-4" />
       </button>
@@ -301,7 +284,7 @@ function SubjectRows({
 }) {
   const cols = "grid grid-cols-[minmax(0,1fr)_90px_90px_120px_140px] items-center gap-3";
   return (
-    <div role="table" aria-label="Subjects" className="text-sm">
+    <div role="table" aria-label="Subjects" className="overflow-hidden rounded-2xl border border-border/60 bg-card p-2 text-sm shadow-sm">
       <div role="row" className={cn(cols, "border-b border-border px-3 pb-2 text-xs font-medium text-muted-foreground")}>
         <span>Name</span>
         <span className="hidden sm:block">Files</span>
@@ -359,7 +342,7 @@ function RecentCard({ item, onDesktop }: { item: ResourceItem; onDesktop: boolea
     <li>
       <Link
         href={href}
-        className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:bg-muted/60"
+        className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm transition-shadow hover:shadow-md"
         title={unavailable ? "Stored in the library folder on your desktop" : undefined}
       >
         <KindIcon item={item} size="sm" />

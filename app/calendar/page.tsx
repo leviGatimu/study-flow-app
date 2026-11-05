@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { endOfMonth, endOfWeek, startOfDay, startOfMonth, startOfWeek } from 'date-fns';
-import { Plus } from 'lucide-react';
 
 import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/lib/auth';
@@ -126,11 +125,7 @@ export default async function MonthPage({
         actions={
           <QuickAddForm
             subjects={subjects}
-            trigger={
-              <Button size="lg">
-                <Plus /> Add task
-              </Button>
-            }
+            variant="default"
           />
         }
       />

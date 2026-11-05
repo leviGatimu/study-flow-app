@@ -1,22 +1,19 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { Brain, GraduationCap } from 'lucide-react';
 
 import { getUserId } from '@/lib/auth';
 import { getSubjectLibrary } from '@/lib/library-actions';
-import { Button } from '@/components/ui/button';
-import { Page } from '@/components/ui/page';
-import { SubjectExplorer } from '@/components/resources/SubjectExplorer';
+import { Page, PageBody } from '@/components/ui/page';
+import { SubjectFolder } from '@/components/resources/SubjectFolder';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 /**
- * One subject's folder, as a File Explorer window filling the whole content
- * area - nothing above or below it. The subject's numbers, homework and exams
- * live on its page in Subjects, one click away from the tab strip. On the
- * desktop the page reconciles the real folder on disk before rendering, so
- * anything dropped in from Windows Explorer is already here.
+ * One subject's folder as a Study Flow page: breadcrumb, Upload / New folder /
+ * Add link, then folders and files as cards. The subject's page in Subjects
+ * and its practice are in the page's ⋯ menu. On the desktop the page
+ * reconciles the real folder on disk before rendering, so anything dropped in
+ * from Windows Explorer is already here.
  */
 export default async function SubjectResourcesPage({
   params,
@@ -35,28 +32,12 @@ export default async function SubjectResourcesPage({
   if (!library) notFound();
 
   const initialPath = (Array.isArray(path) ? path[0] : path) ?? '';
-  const encoded = encodeURIComponent(library.subject);
 
   return (
-    <Page bleed>
-      <SubjectExplorer
-        library={library}
-        initialPath={initialPath}
-        tabStripEnd={
-          <>
-            <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
-              <Link href={`/subjects?subject=${encoded}`} aria-label={`Open ${library.subject} in Subjects`}>
-                <GraduationCap /> <span className="hidden sm:inline">{library.subject}</span>
-              </Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
-              <Link href={`/ai?subject=${encoded}`} aria-label={`Practice ${library.subject}`}>
-                <Brain /> <span className="hidden sm:inline">Practice</span>
-              </Link>
-            </Button>
-          </>
-        }
-      />
+    <Page>
+      <PageBody className="pt-8">
+        <SubjectFolder library={library} initialPath={initialPath} />
+      </PageBody>
     </Page>
   );
 }

@@ -12,7 +12,24 @@ import { useIsArchived } from '@/components/ArchiveContext';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
-export function QuickAddForm({ initialDate, trigger, subjects = [] }: { initialDate?: Date, trigger?: React.ReactNode, subjects?: { id: string; name: string }[] }) {
+/**
+ * `trigger` is for client callers only. A server page must use `variant`
+ * instead: a button element passed down from the server can arrive as a
+ * deferred (lazy) reference, which DialogTrigger's asChild cannot clone during
+ * SSR - the server then renders nothing, the client renders the button, and
+ * hydration fails.
+ */
+export function QuickAddForm({
+  initialDate,
+  trigger,
+  variant = 'outline',
+  subjects = [],
+}: {
+  initialDate?: Date;
+  trigger?: React.ReactNode;
+  variant?: 'default' | 'outline';
+  subjects?: { id: string; name: string }[];
+}) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -64,7 +81,7 @@ export function QuickAddForm({ initialDate, trigger, subjects = [] }: { initialD
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button variant="outline" size="lg">
+          <Button variant={variant} size="lg">
             <Plus /> Add task
           </Button>
         )}

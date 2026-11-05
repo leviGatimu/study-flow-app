@@ -10,7 +10,7 @@ import {
   startOfDay,
   startOfWeek,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, GraduationCap, Layers, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GraduationCap, Layers } from 'lucide-react';
 
 import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/lib/auth';
@@ -121,11 +121,7 @@ export default async function WeekPage({
         actions={
           <QuickAddForm
             subjects={data?.subjects ?? []}
-            trigger={
-              <Button size="lg">
-                <Plus /> Add task
-              </Button>
-            }
+            variant="default"
           />
         }
       />

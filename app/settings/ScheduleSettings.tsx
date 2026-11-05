@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, SettingRow, SettingsCard, SettingsSection, reportError, selectClass, type SettingsData } from "./settings-ui";
 import styles from "./Settings.module.css";
+import { subscribeOnMount } from "@/lib/use-client-value";
 
 const DEFAULT_TZ = "Africa/Kigali";
 const PRESETS_KEY = "study-flow-focus-presets";
@@ -36,7 +37,6 @@ function getTimezoneOptions(): string[] {
 const readable = (tz: string) => tz.replace(/_/g, " ");
 const city = (tz: string) => readable(tz.split("/").pop() ?? tz);
 
-const noopSubscribe = () => () => {};
 const deviceZone = () => {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
@@ -93,7 +93,7 @@ function TimeZoneRow({ initial }: { initial: string }) {
   const [timezone, setTimezone] = useState(initial);
   const [saving, startSaving] = useTransition();
   const options = getTimezoneOptions();
-  const device = useSyncExternalStore(noopSubscribe, deviceZone, () => null);
+  const device = useSyncExternalStore(subscribeOnMount, deviceZone, () => null);
   const minute = useSyncExternalStore(subscribeMinute, minuteSnapshot, () => null);
   const now = minute === null ? null : localTime(timezone);
 

@@ -18,6 +18,9 @@ interface ConfirmModalProps {
   title: string;
   description: string;
   isPending?: boolean;
+  /** The confirm button's words; "Remove" by default. */
+  confirmLabel?: string;
+  pendingLabel?: string;
 }
 
 export function ConfirmModal({
@@ -26,7 +29,9 @@ export function ConfirmModal({
   onConfirm,
   title,
   description,
-  isPending
+  isPending,
+  confirmLabel = "Remove",
+  pendingLabel = "Removing...",
 }: ConfirmModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -60,7 +65,7 @@ export function ConfirmModal({
               disabled={isPending}
               className="flex-1 h-10"
             >
-              {isPending ? "Removing..." : "Remove"}
+              {isPending ? pendingLabel : confirmLabel}
             </Button>
           </DialogFooter>
         </div>
