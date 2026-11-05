@@ -14,11 +14,14 @@ import { NAV, resolveNav } from "@/lib/nav";
  * It is a flex child under <main>, not position:fixed, so it can never cover
  * the last row of a page and no page has to pad itself to clear it.
  */
-const TABS = NAV.filter((section) => section.name !== "Settings");
+// Sections with a mobileGroup (Homework, Exams, Resources) ride on their
+// group's tab, so the bar keeps five labelled tabs.
+const TABS = NAV.filter((section) => section.name !== "Settings" && !section.mobileGroup);
 
 export function MobileTabBar() {
   const pathname = usePathname();
-  const active = resolveNav(pathname)?.section.name;
+  const current = resolveNav(pathname)?.section;
+  const active = current?.mobileGroup ?? current?.name;
 
   return (
     <nav

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
-import { resolveNav } from "@/lib/nav";
+import { mobileGroupOf, resolveNav, type NavLeaf } from "@/lib/nav";
 
 /**
  * The other pages of the current section, as small pills inside the page
@@ -15,8 +15,15 @@ import { resolveNav } from "@/lib/nav";
 export function SectionNav() {
   const pathname = usePathname();
   const section = resolveNav(pathname)?.section;
-  const pages = (section?.children ?? []).filter((p) => !p.hidden);
-  if (!section || pages.length < 2) return null;
+  if (!section) return null;
+  const children = (section.children ?? []).filter((p) => !p.hidden);
+  // A section with no pages of its own may belong to a phone group (Subjects,
+  // Homework, Exams, Resources share one tab there); those pills are phone-only,
+  // since the sidebar already lists each of them on a wider screen.
+  const group = children.length ? [] : mobileGroupOf(section.mobileGroup ?? section.name);
+  const pages: NavLeaf[] = children.length ? children : group;
+  const phoneOnly = !children.length;
+  if (pages.length < 2) return null;
 
   // Longest match wins, so /exams/abc lights up Exams.
   const active = pages
@@ -24,7 +31,10 @@ export function SectionNav() {
     .sort((a, b) => b.href.length - a.href.length)[0];
 
   return (
-    <nav aria-label={`${section.name} pages`} className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 pt-2 sm:mx-0 sm:flex-wrap sm:px-0">
+    <nav
+      aria-label={`${section.mobileGroup ?? section.name} pages`}
+      className={cn("scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 pt-2 sm:mx-0 sm:flex-wrap sm:px-0", phoneOnly && "md:hidden")}
+    >
       {pages.map((page) => {
         const Icon = page.icon;
         const isActive = page === active;

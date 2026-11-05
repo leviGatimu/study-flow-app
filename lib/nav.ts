@@ -38,16 +38,29 @@ export type NavLeaf = {
 
 export type NavSection = NavLeaf & {
   children?: NavLeaf[];
+  /**
+   * On a phone, this section is not its own tab: it sits under the named
+   * section's tab, and the pages of that group show as pills instead.
+   */
+  mobileGroup?: string;
 };
 
+/** The sections a phone shows under one tab: the named one and its group. */
+export function mobileGroupOf(name: string): NavSection[] {
+  const head = NAV.find((s) => s.name === name);
+  return head ? [head, ...NAV.filter((s) => s.mobileGroup === name)] : [];
+}
+
 /**
- * The whole app's navigation, in one place. Six sections, each named for what
+ * The whole app's navigation, in one place. Each section is named for what
  * the student is doing rather than for the tables behind it:
  *
  *   Today     what to do right now (the dashboard)
  *   Schedule  when things happen - the week, the month, and the two recurring
  *             timetables (study routine, school lessons) that fill them
- *   Subjects  what you study - each subject, and its homework, exams, files
+ *   Subjects  what you study, one page per subject
+ *   Homework, Exams, Resources   their own sidebar items (grouped under
+ *             Subjects on a phone)
  *   Study     one AI chat, which also makes the practice sets (Practices,
  *             Focus and Bible are reachable but not shown as pills)
  *   Progress  how it is going - history (with its overview), marks (with goals), reports
@@ -76,17 +89,13 @@ export const NAV: NavSection[] = [
       { name: "School lessons", href: "/school-timetable", icon: GraduationCap, keywords: "school timetable lessons classes school day upload photo" },
     ],
   },
-  {
-    name: "Subjects",
-    href: "/subjects",
-    icon: Library,
-    children: [
-      { name: "Subjects", href: "/subjects", icon: Library, keywords: "courses modules" },
-      { name: "Homework", href: "/homeworks", icon: BookOpen, keywords: "assignments due" },
-      { name: "Exams", href: "/exams", icon: GraduationCap, keywords: "assessments tests papers" },
-      { name: "Resources", href: "/resources", icon: FolderOpen, keywords: "files links pdfs library" },
-    ],
-  },
+  { name: "Subjects", href: "/subjects", icon: Library, keywords: "courses modules" },
+  // The owner asked for these three in the sidebar rather than as Subjects'
+  // pills. On a phone there is no room for three more tabs, so they stay
+  // grouped under the Subjects tab there (MobileTabBar, SectionNav).
+  { name: "Homework", href: "/homeworks", icon: BookOpen, keywords: "assignments due", mobileGroup: "Subjects" },
+  { name: "Exams", href: "/exams", icon: GraduationCap, keywords: "assessments tests papers midterm categories", mobileGroup: "Subjects" },
+  { name: "Resources", href: "/resources", icon: FolderOpen, keywords: "files links pdfs library documents reports", mobileGroup: "Subjects" },
   {
     name: "Study",
     // The page is the AI chat. The owner asked for Study to be just the chat,

@@ -13,7 +13,6 @@ import {
   MessageSquarePlus,
   Play,
   RotateCcw,
-  Sparkles,
   Square,
   Trash2,
 } from 'lucide-react';
@@ -23,6 +22,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { ChatMarkdown } from '@/components/ChatMarkdown';
+import { AiLogo } from '@/components/ai/AiLogo';
+import { useTypewriter } from '@/components/ai/useTypewriter';
 import { useIsArchived } from '@/components/ArchiveContext';
 import {
   askCopilot,
@@ -112,6 +113,8 @@ export function AskClient({
   const [toDelete, setToDelete] = useState<CopilotSession | null>(null);
   const [chatsOpen, setChatsOpen] = useState(false);
   const [practices, setPractices] = useState(initialPractices);
+  // The reply that just arrived, typed out instead of appearing at once.
+  const [typingId, setTypingId] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -135,6 +138,12 @@ export function AskClient({
     const box = threadRef.current;
     if (box) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
   }, [messages, waitingFor, error]);
+
+  /** Keep the newest line in view while a reply types, unless the reader scrolled up. */
+  const followThread = useCallback(() => {
+    const box = threadRef.current;
+    if (box && box.scrollHeight - box.scrollTop - box.clientHeight < 160) box.scrollTop = box.scrollHeight;
+  }, []);
 
   const updateDraft = (value: string) => {
     setDraft(value);
@@ -187,6 +196,7 @@ export function AskClient({
           const next = prev.map((m) => (m.requestId === requestId && res.userMessage ? res.userMessage : m));
           return res.reply && !next.some((m) => m.id === res.reply!.id) ? [...next, res.reply] : next;
         });
+        if (res.reply) setTypingId(res.reply.id);
         const made = res.practice;
         if (made) setPractices((prev) => [made, ...prev.filter((p) => p.id !== made.id)]);
         if (res.error && res.error !== 'Stopped.') setError(res.error);
@@ -338,9 +348,7 @@ export function AskClient({
       <section className="flex min-w-0 flex-1 flex-col">
         <header data-tour="ask-intro" className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3 md:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Sparkles className="size-4" />
-            </span>
+            <AiLogo size={32} thinking={Boolean(waitingFor) || Boolean(typingId)} />
             <div className="min-w-0">
               <h1 className="font-heading text-base font-bold leading-tight text-foreground">Study</h1>
               <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
@@ -380,6 +388,9 @@ export function AskClient({
                   key={m.id}
                   message={m}
                   findPractice={findPractice}
+                  typing={m.id === typingId}
+                  onTyped={() => setTypingId((current) => (current === m.id ? null : current))}
+                  onGrow={followThread}
                   onRetry={m.role === 'user' && m.status === 'FAILED' && m.requestId && canAsk && !waitingFor ? () => void send(m.content, m.requestId!) : undefined}
                 />
               ))
@@ -387,7 +398,7 @@ export function AskClient({
 
             {waitingFor && (
               <div className="flex items-center gap-3">
-                <AiAvatar />
+                <AiLogo size={32} thinking />
                 <div className="flex items-center gap-1.5 pt-1" role="status" aria-label="Thinking">
                   {[0, 150, 300].map((delay) => (
                     <span
@@ -505,13 +516,6 @@ export function AskClient({
   );
 }
 
-function AiAvatar() {
-  return (
-    <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-      <Sparkles className="size-4" />
-    </span>
-  );
-}
 
 /** A practice set the AI made: what it is, its best score, and Start. */
 function PracticeCard({ practice }: { practice: StudySetSummary | null }) {
@@ -555,12 +559,27 @@ function MessageView({
   message,
   onRetry,
   findPractice,
+  typing = false,
+  onTyped,
+  onGrow,
 }: {
   message: CopilotMessage;
   onRetry?: () => void;
   findPractice: (id: string) => StudySetSummary | null;
+  /** Type this reply out (it just arrived). */
+  typing?: boolean;
+  onTyped?: () => void;
+  onGrow?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const isReply = message.role !== 'user';
+  const { shown, done, finish } = useTypewriter(message.content, typing && isReply);
+
+  useEffect(() => {
+    if (!typing || !isReply) return;
+    if (done) onTyped?.();
+    else onGrow?.();
+  }, [shown, done, typing, isReply, onTyped, onGrow]);
 
   if (message.role === 'user') {
     return (
@@ -599,13 +618,24 @@ function MessageView({
 
   return (
     <div className="flex gap-3">
-      <AiAvatar />
+      <AiLogo size={32} thinking={!done} className="mt-0.5" />
       <div className="min-w-0 flex-1 pt-0.5">
-        <ChatMarkdown>{linkCitations(message.content, message.sources)}</ChatMarkdown>
-        {message.practiceIds.map((id) => (
+        {done ? (
+          <ChatMarkdown>{linkCitations(message.content, message.sources)}</ChatMarkdown>
+        ) : (
+          // Click to show the rest at once. Screen readers get the whole
+          // reply once instead of every step of the animation.
+          <div onClick={finish} className="cursor-text">
+            <span className="sr-only">{message.content}</span>
+            <div aria-hidden="true">
+              <ChatMarkdown className="ai-typing">{linkCitations(shown, message.sources)}</ChatMarkdown>
+            </div>
+          </div>
+        )}
+        {done && message.practiceIds.map((id) => (
           <PracticeCard key={id} practice={findPractice(id)} />
         ))}
-        {message.sources.length > 0 && (
+        {done && message.sources.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">Sources</span>
             {message.sources.map((s, i) => (
@@ -620,10 +650,12 @@ function MessageView({
             ))}
           </div>
         )}
+        {done && (
         <Button variant="ghost" size="sm" onClick={copy} className="mt-1 h-7 gap-1.5 px-2 text-xs text-muted-foreground">
           {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
           {copied ? 'Copied' : 'Copy'}
         </Button>
+        )}
       </div>
     </div>
   );
@@ -641,9 +673,7 @@ function EmptyChat({
   return (
     <div className="flex flex-col items-center gap-8 py-6 text-center md:py-12">
       <div className="space-y-3">
-        <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-          <Sparkles className="size-6" />
-        </span>
+        <AiLogo size={56} className="mx-auto drop-shadow-[0_10px_24px_color-mix(in_oklch,var(--primary)_35%,transparent)]" />
         <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground md:text-3xl">What are we working on?</h2>
         <p className="mx-auto max-w-md text-sm text-muted-foreground">
           Ask about any topic, your marks or your deadlines. Say “quiz me on …” and I will make a practice you can

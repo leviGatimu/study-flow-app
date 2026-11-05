@@ -421,3 +421,47 @@
 .flow-chat p { @apply my-2 leading-6 first:mt-0 last:mb-0; }
 .flow-chat ul, .flow-chat ol { @apply my-2 space-y-1; }
 .flow-chat blockquote { @apply my-2 px-3 py-2; }
+
+/* Study AI logo (components/ai/AiLogo.tsx): the spark turns and the cube's
+   top lifts while a reply is being written. Off under reduced motion. */
+@keyframes ai-logo-spark {
+  0%, 100% { transform: rotate(0deg) scale(1); opacity: 1; }
+  50% { transform: rotate(90deg) scale(0.78); opacity: 0.75; }
+}
+@keyframes ai-logo-lift {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.8px); }
+}
+.ai-logo-spark { animation: ai-logo-spark 1.6s ease-in-out infinite; }
+.ai-logo-lift { animation: ai-logo-lift 1.6s ease-in-out infinite; }
+
+/* The caret at the end of a reply while it is being typed out. */
+@keyframes ai-caret-blink { 50% { opacity: 0; } }
+.ai-caret {
+  display: inline-block;
+  width: 0.5em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  border-radius: 2px;
+  background: var(--primary);
+  animation: ai-caret-blink 1s steps(1) infinite;
+}
+
+/* While typing, the caret follows the last line of text. */
+.ai-typing > :is(p, h1, h2, h3, h4, blockquote):last-child::after,
+.ai-typing > :is(ul, ol):last-child > li:last-child::after {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  border-radius: 2px;
+  background: var(--primary);
+  animation: ai-caret-blink 1s steps(1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-logo-spark, .ai-logo-lift, .ai-caret,
+  .ai-typing > :last-child::after, .ai-typing li::after { animation: none; }
+}

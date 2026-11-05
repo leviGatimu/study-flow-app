@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { Loader2, Send } from "lucide-react";
+import { Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChatMarkdown } from "@/components/ChatMarkdown";
+import { AiLogo } from "@/components/ai/AiLogo";
+import { useTypewriter } from "@/components/ai/useTypewriter";
 import { askAIBuddy } from "@/lib/ai-actions";
 import { cn } from "@/lib/utils";
 import { upcomingExams, type ExamEvent, type Homework, type MasteryItem } from "./subject-model";
@@ -56,6 +58,8 @@ export function SubjectBuddy({
 }) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  // The reply that just arrived, typed out instead of appearing at once.
+  const [typing, setTyping] = useState<BuddyMessage | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Keep the newest message in view. Scrolls the chat box only - scrollIntoView
@@ -118,7 +122,9 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
           { role: "model", text: "I could not answer that just now. Check your connection and ask again." },
         ]);
       } else if (res.text) {
-        setMessages((prev) => [...prev, { role: "model", text: res.text }]);
+        const reply: BuddyMessage = { role: "model", text: res.text };
+        setTyping(reply);
+        setMessages((prev) => [...prev, reply]);
       }
     } catch (err) {
       console.error("Study buddy:", err);
@@ -148,14 +154,21 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
             {msg.role === "user" ? (
               <p className="whitespace-pre-wrap">{msg.text}</p>
             ) : (
-              <ChatMarkdown className="text-sm leading-relaxed [&_p]:my-2">{msg.text}</ChatMarkdown>
+              <BuddyReply
+                text={msg.text}
+                typing={msg === typing}
+                onGrow={() => {
+                  const box = scrollRef.current;
+                  if (box && box.scrollHeight - box.scrollTop - box.clientHeight < 120) box.scrollTop = box.scrollHeight;
+                }}
+              />
             )}
           </div>
         ))}
         {loading && (
-          <div className="flex max-w-[85%] shrink-0 items-center gap-2 self-start rounded-2xl rounded-bl-md bg-muted px-3.5 py-2.5 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin text-primary" />
-            Thinking...
+          <div role="status" className="flex max-w-[85%] shrink-0 items-center gap-2 self-start rounded-2xl rounded-bl-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+            <AiLogo size={22} thinking />
+            Thinking…
           </div>
         )}
       </div>
@@ -187,6 +200,24 @@ Explain concepts in clear, direct English. Break down tasks into easy steps. Cre
             <Send />
           </Button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+/** A reply in the subject chat; a new one types itself out. */
+function BuddyReply({ text, typing, onGrow }: { text: string; typing: boolean; onGrow: () => void }) {
+  const { shown, done, finish } = useTypewriter(text, typing);
+  useEffect(() => {
+    if (typing && !done) onGrow();
+  }, [shown, typing, done, onGrow]);
+
+  if (done) return <ChatMarkdown className="text-sm leading-relaxed [&_p]:my-2">{text}</ChatMarkdown>;
+  return (
+    <div onClick={finish}>
+      <span className="sr-only">{text}</span>
+      <div aria-hidden="true">
+        <ChatMarkdown className="ai-typing text-sm leading-relaxed [&_p]:my-2">{shown}</ChatMarkdown>
       </div>
     </div>
   );

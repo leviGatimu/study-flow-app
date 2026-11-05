@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageBody } from "@/components/ui/page";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { AiLogo } from "@/components/ai/AiLogo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -139,11 +140,14 @@ export function SubjectDetail({
         <DialogContent
           className="top-0 right-0 left-auto flex h-dvh max-h-dvh w-full max-w-full translate-x-0 translate-y-0 flex-col gap-0 rounded-none p-0 sm:max-w-md sm:rounded-l-2xl data-open:zoom-in-100 data-open:slide-in-from-right-8 data-closed:zoom-out-100 data-closed:slide-out-to-right-8"
         >
-          <div className="border-b border-border px-5 py-4 pr-12">
-            <DialogTitle className="font-heading text-lg font-semibold">Ask about {subject.name}</DialogTitle>
-            <DialogDescription className="text-xs">
-              Answers use this subject&apos;s topics, homework and exams.
-            </DialogDescription>
+          <div className="flex items-center gap-3 border-b border-border px-5 py-4 pr-12">
+            <AiLogo size={36} />
+            <div className="min-w-0">
+              <DialogTitle className="font-heading text-lg font-semibold">Ask about {subject.name}</DialogTitle>
+              <DialogDescription className="text-xs">
+                Answers use this subject&apos;s topics, homework and exams.
+              </DialogDescription>
+            </div>
           </div>
           <div className="min-h-0 flex-1">
             <SubjectBuddy
