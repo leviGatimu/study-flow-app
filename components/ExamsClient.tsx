@@ -15,10 +15,13 @@ import { createEvent, deleteEvent } from '@/lib/actions';
 import { validateExamTimes } from '@/lib/exam-time';
 import { useIsArchived } from '@/components/ArchiveContext';
 
-const EMPTY = { title: '', date: '', priority: 'NORMAL', startTime: '', endTime: '' };
+const EMPTY = { title: '', date: '', priority: 'NORMAL', startTime: '', endTime: '', category: '' };
 
 /** The Exams page's primary action: add an exam. Hidden in an archived year. */
-export function ExamsClient({ variant = 'default' }: { variant?: 'default' | 'outline' } = {}) {
+export function ExamsClient({
+  variant = 'default',
+  categories = [],
+}: { variant?: 'default' | 'outline'; categories?: string[] } = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -37,6 +40,7 @@ export function ExamsClient({ variant = 'default' }: { variant?: 'default' | 'ou
           priority: formData.priority,
           startTime: formData.startTime || null,
           endTime: formData.endTime || null,
+          category: formData.category,
         });
         toast.success(`${formData.title.trim()} added. Open it to link its subject and plan revision.`);
         setFormData(EMPTY);
@@ -102,6 +106,25 @@ export function ExamsClient({ variant = 'default' }: { variant?: 'default' | 'ou
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="exam-category">Category <span className="font-normal text-muted-foreground">(optional)</span></Label>
+            <Input
+              id="exam-category"
+              list="add-exam-categories"
+              maxLength={40}
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              placeholder="e.g. Midterm 1"
+              className="h-10"
+            />
+            <datalist id="add-exam-categories">
+              {categories.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+            <p className="text-xs text-muted-foreground">Exams with the same category are averaged together across subjects.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

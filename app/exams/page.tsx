@@ -19,6 +19,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Progress } from '@/components/ui/progress';
 import { ExamsClient, DeleteExamButton } from '@/components/ExamsClient';
 import { UploadTimetableDialog } from '@/components/UploadTimetableDialog';
+import { ExamCategories } from '@/components/ExamCategories';
+import { categoryNames, normaliseCategory, summariseCategories } from '@/lib/exam-category';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -71,6 +73,18 @@ export default async function ExamsPage({
     : [null, []];
   const topicsDone = mastery.filter((m) => m.isCompleted).length;
 
+  // Categories average one sitting across ALL subjects, so they ignore the
+  // subject filter and are hidden while it is on.
+  const categories = summariseCategories(events);
+  const names = categoryNames(events);
+  const pickable = events.map((e) => ({
+    id: e.id,
+    title: e.title,
+    subject: e.subject?.name ?? null,
+    date: new Date(e.date).toISOString(),
+    category: normaliseCategory(e.category),
+  }));
+
   return (
     <Page>
       <ExamStatusRefresh exams={shown} timezone={timezone} renderedAt={now.toISOString()} />
@@ -92,7 +106,7 @@ export default async function ExamsPage({
         actions={
           <>
             <UploadTimetableDialog />
-            <ExamsClient />
+            <ExamsClient categories={names} />
           </>
         }
       />
@@ -136,7 +150,7 @@ export default async function ExamsPage({
                 {nextSubject && (
                   <>
                     <Button asChild variant="outline">
-                      <Link href={`/ai?subject=${encodeURIComponent(nextSubject)}`}>
+                      <Link href={`/ai/practices?subject=${encodeURIComponent(nextSubject)}`}>
                         <Brain /> Practice {nextSubject}
                       </Link>
                     </Button>
@@ -193,7 +207,7 @@ export default async function ExamsPage({
             action={
               <>
                 <UploadTimetableDialog />
-                <ExamsClient variant="outline" />
+                <ExamsClient variant="outline" categories={names} />
               </>
             }
           />
@@ -211,6 +225,8 @@ export default async function ExamsPage({
           </Section>
         )}
 
+        {!subjectFilter && <ExamCategories categories={categories} exams={pickable} names={names} />}
+
         {past.length > 0 && (
           <Section title="Done exams" description="Record a result on any exam that does not have one yet.">
             <Panel>
@@ -221,7 +237,7 @@ export default async function ExamsPage({
                     href={`/exams/${exam.id}`}
                     leading={<History className="size-5 shrink-0 text-muted-foreground" />}
                     title={exam.title}
-                    subtitle={`${format(new Date(exam.date), 'd MMM yyyy')} · ${examTimeLabel(exam)}`}
+                    subtitle={[format(new Date(exam.date), 'd MMM yyyy'), examTimeLabel(exam), normaliseCategory(exam.category)].filter(Boolean).join(' · ')}
                     trailing={
                       exam.score !== null && exam.maxScore ? (
                         <Pill tone="success">
@@ -250,7 +266,7 @@ function ExamRow({ exam, days }: { exam: Exam; days: number }) {
           {exam.title}
         </Link>
       }
-      subtitle={[format(new Date(exam.date), 'EEE d MMM'), examTimeLabel(exam), exam.subject?.name].filter(Boolean).join(' · ')}
+      subtitle={[format(new Date(exam.date), 'EEE d MMM'), examTimeLabel(exam), exam.subject?.name, normaliseCategory(exam.category)].filter(Boolean).join(' · ')}
       trailing={
         <>
           <span className="hidden sm:contents">{priorityPill(exam.priority)}</span>

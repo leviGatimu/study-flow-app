@@ -36,6 +36,7 @@ import { computeWeeklyPerformance, computeDailyPerformance, type WeeklyPerforman
 import { getScheduleState, ensureDefaultClass } from './term';
 import { taskEndsAt } from './task-times';
 import { validateExamTimes } from './exam-time';
+import { normaliseCategory } from './exam-category';
 import { validateQuickTask } from './task-input';
 import { isDailySummaryDue } from './daily-summary-time';
 import { holidaysBetween } from './holidays';
@@ -1552,7 +1553,7 @@ export async function getSubjectSessions(subject: string) {
 /**
  * Create an exam event
  */
-export async function createEvent(data: { title: string, date: Date, priority: string, startTime?: string | null, endTime?: string | null }) {
+export async function createEvent(data: { title: string, date: Date, priority: string, startTime?: string | null, endTime?: string | null, category?: string | null }) {
   const userId = await getUserId();
   if (!userId) throw new Error('Sign in to add an exam.');
 
@@ -1566,6 +1567,7 @@ export async function createEvent(data: { title: string, date: Date, priority: s
       priority: data.priority,
       startTime: data.startTime || null,
       endTime: data.endTime || null,
+      category: normaliseCategory(data.category),
       userId,
       date: new Date(`${data.date.toISOString().slice(0, 10)}T00:00:00Z`),
       ...(await requireTermStamp(userId)),

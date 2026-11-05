@@ -717,6 +717,9 @@ model ExamEvent {
 
   /// QUIZ | TEST | MIDTERM | FINAL | EXAM
   kind   String @default("EXAM")
+  /// The sitting this belongs to across subjects, e.g. "Midterm 1". Exams
+  /// that share it are averaged together on the Exams page. Free text, trimmed.
+  category String?
   /// Share of the term grade, as a percentage, when known.
   weight Float?
 

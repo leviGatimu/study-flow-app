@@ -3,12 +3,14 @@
 import { addDays, startOfDay, endOfDay } from 'date-fns';
 
 import { validateExamTimes } from '@/lib/exam-time';
+import { normaliseCategory } from '@/lib/exam-category';
 import { prisma } from '@/lib/prisma';
 import { softDelete } from '@/lib/soft-delete';
 import { getUserId } from '@/lib/auth';
 import {
   getViewScope,
   byClass,
+  byTerm,
   requireTermStamp,
   isViewingArchive,
   ARCHIVE_WRITE_ERROR,
@@ -95,6 +97,7 @@ export async function updateExamDetails(
     endTime?: string | null;
     room?: string | null;
     kind?: string;
+    category?: string | null;
     weight?: number | null;
     notes?: string | null;
   }
@@ -115,9 +118,31 @@ export async function updateExamDetails(
   await prisma.examEvent.update({ where: { id: examId }, data: {
     title: data.title, date: data.date, startTime: data.startTime, endTime: data.endTime,
     room: data.room, kind: data.kind, weight: data.weight, notes: data.notes,
+    category: data.category === undefined ? undefined : normaliseCategory(data.category),
   } });
   refresh();
   return { success: true };
+}
+
+/**
+ * Put several exams in one category at once ("Midterm 1" for every subject),
+ * or take them out of it with an empty name. Only the person's own exams in
+ * the year they are viewing are touched; any other id is ignored.
+ */
+export async function setExamCategory(examIds: string[], category: string | null) {
+  const userId = await getUserId();
+  if (!userId) return { error: 'Unauthorized' };
+  if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
+
+  const ids = [...new Set(examIds.filter((id) => typeof id === 'string' && id))].slice(0, 200);
+  if (!ids.length) return { error: 'Choose at least one exam.' };
+
+  const result = await prisma.examEvent.updateMany({
+    where: { id: { in: ids }, userId, deletedAt: null, ...byTerm(await getViewScope(userId)) },
+    data: { category: normaliseCategory(category) },
+  });
+  refresh();
+  return { success: true, updated: result.count };
 }
 
 /**

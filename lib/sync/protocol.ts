@@ -38,6 +38,17 @@ export function sessionVersionPayload(model: string, data: Record<string, unknow
   return legacy;
 }
 
+/** Sent by clients whose database has ExamEvent.category (desktop 1.0.20+). */
+export const EXAM_CATEGORY_HEADER = 'x-study-flow-exam-category';
+
+/** Older desktop clients have no ExamEvent.category column; leave it out for them. */
+export function examCategoryPayload(model: string, data: Record<string, unknown>, supported: boolean) {
+  if (model !== 'examEvent' || supported) return data;
+  const legacy = { ...data };
+  delete legacy.category;
+  return legacy;
+}
+
 /**
  * Where a device got to, as the SERVER measures it.
  *

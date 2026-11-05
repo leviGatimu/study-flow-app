@@ -15,7 +15,8 @@ import {
   XCircle,
 } from 'lucide-react';
 
-import { getCurrentUserTimezone, getEventById, getSubjectStats, getMasteryItems, getSubjectSessions } from '@/lib/actions';
+import { getCurrentUserTimezone, getEventById, getEvents, getSubjectStats, getMasteryItems, getSubjectSessions } from '@/lib/actions';
+import { categoryNames, normaliseCategory } from '@/lib/exam-category';
 import { examStatus, examDaysAway, examTimeLabel } from '@/lib/exam-time';
 import { ExamStatusRefresh } from '@/components/ExamStatusRefresh';
 import { ExamTimingForm } from '@/components/ExamTimingForm';
@@ -53,12 +54,14 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
   // would need one.
   const subject = exam.subject?.name ?? null;
 
-  const [stats, masteryItems, sessions, prep] = await Promise.all([
+  const [stats, masteryItems, sessions, prep, allExams] = await Promise.all([
     subject ? getSubjectStats(subject) : null,
     subject ? getMasteryItems(subject) : [],
     subject ? getSubjectSessions(subject) : [],
     getExamWithPrep(examId),
+    getEvents(),
   ]);
+  const category = normaliseCategory(exam.category);
 
   const timezone = await getCurrentUserTimezone();
   const now = new Date();
@@ -86,7 +89,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
                 value: status === "IN_PROGRESS" ? "In progress" : daysRemaining === 0 ? "Today" : `${daysRemaining} ${daysRemaining === 1 ? "day" : "days"}`,
               }
         }
-        description={[format(examDate, 'EEEE d MMMM yyyy'), examTimeLabel(exam), subject].filter(Boolean).join(' · ')}
+        description={[format(examDate, 'EEEE d MMMM yyyy'), examTimeLabel(exam), subject, category].filter(Boolean).join(' · ')}
         meta={
           exam.priority === 'HIGH' ? (
             <Pill tone="danger">High priority</Pill>
@@ -98,7 +101,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
           <>
             {encoded && !isPast && (
               <Button asChild size="lg">
-                <Link href={`/ai?subject=${encoded}`}>
+                <Link href={`/ai/practices?subject=${encoded}`}>
                   <Brain /> Practice
                 </Link>
               </Button>
@@ -125,7 +128,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
       <PageBody>
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
           <div className="min-w-0 space-y-6 lg:col-span-7">
-            <ExamTimingForm exam={exam} timezone={timezone} />
+            <ExamTimingForm exam={exam} timezone={timezone} categories={categoryNames(allExams)} />
             {prep && (
               <ExamPlanner
                 examId={examId}

@@ -32,6 +32,8 @@ import {
   sessionVersionPayload,
   DEVICE_HEADER,
   focusLogPayload,
+  EXAM_CATEGORY_HEADER,
+  examCategoryPayload,
   type Cursor,
   type PullResponse,
   type PushRequest,
@@ -124,10 +126,14 @@ export async function GET(request: NextRequest) {
     serverTime: new Date().toISOString(),
     rows: page.map(({ model, row }) => ({
       model,
-      data: sessionVersionPayload(
+      data: examCategoryPayload(
         model,
-        focusLogPayload(model, scrub(model, row, 'down'), request.headers.get(FOCUS_LOG_HEADER) === '1'),
-        request.headers.get(SESSION_VERSION_HEADER) === '1'
+        sessionVersionPayload(
+          model,
+          focusLogPayload(model, scrub(model, row, 'down'), request.headers.get(FOCUS_LOG_HEADER) === '1'),
+          request.headers.get(SESSION_VERSION_HEADER) === '1'
+        ),
+        request.headers.get(EXAM_CATEGORY_HEADER) === '1'
       ),
     })),
     cursor: last
