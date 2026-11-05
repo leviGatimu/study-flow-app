@@ -9,12 +9,12 @@ import {
   Clock,
   Folder,
   FolderSymlink,
-  HardDrive,
   LayoutGrid,
   List,
   MoreHorizontal,
   Search,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 
@@ -28,6 +28,7 @@ import type { LibraryOverview as Overview, LibrarySubject, ResourceItem } from "
 import { cn } from "@/lib/utils";
 import { safeSegment } from "@/lib/library-names";
 import { ContextMenu, type MenuEntry } from "./ContextMenu";
+import { DropTargetDialog } from "./DropTargetDialog";
 import { folderAbsolutePath, openInExplorer } from "./desktop-bridge";
 import { displayName, formatWhen, hostOf, KindIcon } from "./file-kind";
 import { useStoredView } from "./use-stored-view";
@@ -50,6 +51,17 @@ export function LibraryOverview({ overview }: { overview: Overview }) {
   const [view, changeView] = useStoredView();
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; entries: MenuEntry[] } | null>(null);
   const [clearing, setClearing] = useState<LibrarySubject | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [dropped, setDropped] = useState<File[] | null>(null);
+
+  // Files whose name, subject or folder matches, newest first.
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return overview.items.filter((item) =>
+      [displayName(item), item.subject, item.folder, item.type === "LINK" ? hostOf(item.url) : ""].join(" ").toLowerCase().includes(q)
+    );
+  }, [overview.items, query]);
 
   const subjects = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -91,15 +103,39 @@ export function LibraryOverview({ overview }: { overview: Overview }) {
   const openMenu = (at: { x: number; y: number }, s: LibrarySubject | null) => setMenu({ at, entries: entriesFor(s) });
 
   return (
-    <div className="space-y-8">
+    <div
+      className="relative space-y-8"
+      onDragOver={(e) => {
+        if (!canWrite || !e.dataTransfer.types.includes("Files")) return;
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget === e.target) setDragging(false);
+      }}
+      onDrop={(e) => {
+        if (!canWrite || !e.dataTransfer.files.length) return;
+        e.preventDefault();
+        setDragging(false);
+        setDropped(Array.from(e.dataTransfer.files));
+      }}
+    >
+      {dragging && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-2xl border-2 border-dashed border-primary bg-primary/5 backdrop-blur-[1px]">
+          <p className="flex items-center gap-2 rounded-full bg-card px-4 py-2 text-sm font-semibold text-primary shadow-sm">
+            <Upload className="size-4" /> Drop to add files
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-0 flex-1 sm:max-w-sm">
+        <div className="relative min-w-0 flex-1 sm:max-w-md">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Find a subject"
-            aria-label="Find a subject"
+            placeholder="Search files and folders"
+            aria-label="Search files and folders"
             className="h-10 pl-9 pr-9"
           />
           {query && (
@@ -109,7 +145,7 @@ export function LibraryOverview({ overview }: { overview: Overview }) {
           )}
         </div>
         <p className="text-sm text-muted-foreground">
-          {overview.subjects.length} {overview.subjects.length === 1 ? "subject" : "subjects"} · {totals.files} files · {totals.links} links
+          {totals.files} files · {totals.links} links
         </p>
         <div className="ml-auto flex items-center gap-2">
           {onDesktop && overview.folderPath && (
@@ -128,54 +164,81 @@ export function LibraryOverview({ overview }: { overview: Overview }) {
         </div>
       </div>
 
-      {subjects.length === 0 ? (
-        <EmptyState
-          icon={<Folder />}
-          title={query ? `No subject matches "${query}"` : "No subjects yet"}
-          description={
-            query
-              ? "Check the spelling, or clear the search."
-              : "Every subject gets a folder here. Add your subjects first, then file notes and past papers under them."
-          }
-          action={
-            query ? (
-              <Button size="sm" variant="outline" onClick={() => setQuery("")}>Clear search</Button>
-            ) : (
-              <Button asChild size="sm" variant="outline">
-                <Link href="/subjects">Add subjects</Link>
-              </Button>
-            )
-          }
-        />
-      ) : view === "grid" ? (
-        <ul role="list" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-          {subjects.map((s) => (
-            <SubjectTile key={s.name} subject={s} onMenu={(at) => openMenu(at, s)} />
-          ))}
-        </ul>
+      {query.trim() ? (
+        <section aria-labelledby="results-heading" className="space-y-3">
+          <h2 id="results-heading" className="font-heading text-lg font-bold text-foreground">
+            {matches.length ? `${matches.length} ${matches.length === 1 ? "file" : "files"} found` : "No files found"}
+          </h2>
+          {matches.length > 0 ? (
+            <ul role="list" className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              {matches.slice(0, 60).map((item) => (
+                <RecentCard key={item.id} item={item} onDesktop={onDesktop} />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nothing is named like &quot;{query.trim()}&quot;. Check the spelling, or open a folder from the list.</p>
+          )}
+        </section>
       ) : (
-        <SubjectRows subjects={subjects} onOpen={open} onMenu={(s, at) => openMenu(at, s)} />
+        overview.recent.length > 0 && (
+          <section aria-labelledby="recent-heading" className="space-y-3">
+            <h2 id="recent-heading" className="flex items-center gap-1.5 font-heading text-lg font-bold text-foreground">
+              <Clock className="size-4 text-muted-foreground" /> Recent
+            </h2>
+            <ul role="list" className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              {overview.recent.map((item) => (
+                <RecentCard key={item.id} item={item} onDesktop={onDesktop} />
+              ))}
+            </ul>
+          </section>
+        )
       )}
 
-      {overview.folderPath && (
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground" title={overview.folderPath}>
-          <HardDrive className="size-3.5 shrink-0" />
-          <span className="truncate">Saved on this computer in {overview.folderPath}</span>
+      <section aria-labelledby="folders-heading" className="space-y-3">
+        <h2 id="folders-heading" className="flex items-center gap-1.5 font-heading text-lg font-bold text-foreground">
+          <Folder className="size-4 text-muted-foreground" /> {query.trim() ? "Matching folders" : "Folders"}
+        </h2>
+        {subjects.length === 0 ? (
+          query.trim() ? (
+            <p className="text-sm text-muted-foreground">No folder matches.</p>
+          ) : (
+            <EmptyState
+              icon={<Folder />}
+              title="No subjects yet"
+              description="Every subject gets a folder here. Add your subjects first, then file notes and past papers under them."
+              action={
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/subjects">Add subjects</Link>
+                </Button>
+              }
+            />
+          )
+        ) : view === "grid" ? (
+          <ul role="list" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {subjects.map((s) => (
+              <SubjectTile key={s.name} subject={s} onMenu={(at) => openMenu(at, s)} />
+            ))}
+          </ul>
+        ) : (
+          <SubjectRows subjects={subjects} onOpen={open} onMenu={(s, at) => openMenu(at, s)} />
+        )}
+      </section>
+
+      {canWrite && (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Upload className="size-3.5" /> Drop files anywhere on this page to add them to a folder.
         </p>
       )}
 
-      {overview.recent.length > 0 && (
-        <section aria-labelledby="recent-heading" className="space-y-3">
-          <h2 id="recent-heading" className="flex items-center gap-1.5 font-heading text-lg font-bold text-foreground">
-            <Clock className="size-4 text-muted-foreground" /> Recently added
-          </h2>
-          <ul role="list" className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {overview.recent.map((item) => (
-              <RecentCard key={item.id} item={item} onDesktop={onDesktop} />
-            ))}
-          </ul>
-        </section>
-      )}
+      <DropTargetDialog
+        files={dropped}
+        folders={overview.subjects.map((s) => s.name)}
+        onClose={() => setDropped(null)}
+        onDone={() => {
+          setDropped(null);
+          router.refresh();
+        }}
+      />
 
       <ContextMenu at={menu?.at ?? null} entries={menu?.entries ?? []} onClose={() => setMenu(null)} />
 

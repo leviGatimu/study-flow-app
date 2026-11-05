@@ -515,16 +515,27 @@ export function SubjectFolder({ library, initialPath }: Props) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem asChild>
-                <Link href={`/subjects?subject=${encodeURIComponent(library.subject)}`}>
-                  <FolderOpen /> Open {library.subject} in Subjects
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/ai/practices?subject=${encodeURIComponent(library.subject)}`}>
-                  <BrainCircuit /> Practise {library.subject}
-                </Link>
-              </DropdownMenuItem>
+              {/* Reports is a folder the app fills, not a subject. */}
+              {library.subject === 'Reports' ? (
+                <DropdownMenuItem asChild>
+                  <Link href="/summaries">
+                    <FolderOpen /> Open the Reports page
+                  </Link>
+                </DropdownMenuItem>
+              ) : (
+                <>
+                  <DropdownMenuItem asChild>
+                    <Link href={`/subjects?subject=${encodeURIComponent(library.subject)}`}>
+                      <FolderOpen /> Open {library.subject} in Subjects
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href={`/ai/practices?subject=${encodeURIComponent(library.subject)}`}>
+                      <BrainCircuit /> Practise {library.subject}
+                    </Link>
+                  </DropdownMenuItem>
+                </>
+              )}
               {hasDisk && (
                 <>
                   <DropdownMenuSeparator />

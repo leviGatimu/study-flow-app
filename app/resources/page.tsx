@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 
 import { getUserId } from '@/lib/auth';
-import { getLibraryOverview } from '@/lib/library-actions';
+import { getLibraryOverview, getLibraryRail } from '@/lib/library-actions';
+import { DriveRail } from '@/components/resources/DriveRail';
 import { Page, PageBody } from '@/components/ui/page';
 import { PageHeader } from '@/components/ui/page-header';
 import { AddResourceForm } from '@/components/AddResourceForm';
@@ -22,8 +23,10 @@ export default async function ResourcesPage() {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
+  // The overview reconciles the desktop folder first; the rail then reads it.
   const overview = await getLibraryOverview();
   if (!overview) redirect('/welcome');
+  const rail = await getLibraryRail();
 
   return (
     <Page>
@@ -37,7 +40,10 @@ export default async function ResourcesPage() {
         actions={<AddResourceForm allSubjects={overview.subjects.map((s) => s.name)} />}
       />
       <PageBody>
-        <LibraryOverview overview={overview} />
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
+          <DriveRail folders={rail} folderPath={overview.folderPath} />
+          <LibraryOverview overview={overview} />
+        </div>
       </PageBody>
     </Page>
   );

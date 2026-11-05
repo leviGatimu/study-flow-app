@@ -85,6 +85,8 @@ export type LibrarySubject = {
 export type LibraryOverview = {
   subjects: LibrarySubject[];
   recent: ResourceItem[];
+  /** Every file and link in the year (no sizes), for searching across folders. */
+  items: ResourceItem[];
   /** Absolute path of the year's library folder on the desktop; null on the web. */
   folderPath: string | null;
   libraryDir: string | null;
@@ -193,13 +195,13 @@ export async function getLibraryOverview(): Promise<LibraryOverview | null> {
     if (m.isCompleted) entry.masteryDone++;
   }
 
-  const recent = await Promise.all(
-    rows.filter((r) => r.type !== 'FOLDER').slice(0, 8).map((r) => toItem(r, false))
-  );
+  const items = await Promise.all(rows.filter((r) => r.type !== 'FOLDER').map((r) => toItem(r, false)));
+  const recent = items.slice(0, 8);
 
   return {
     subjects: Array.from(bySubject.values()).sort((a, b) => a.name.localeCompare(b.name)),
     recent,
+    items,
     folderPath: yearFolderPath(scope),
     libraryDir: LIBRARY_DIR,
     archived: scope?.isArchive ?? false,
@@ -245,6 +247,37 @@ export async function getSubjectLibrary(subject: string): Promise<SubjectLibrary
     archived: scope?.isArchive ?? false,
     subjects: Array.from(subjects.values()).sort((a, b) => a.localeCompare(b)),
   };
+}
+
+export type RailFolder = { name: string; count: number };
+
+/**
+ * The folder list beside every Resources page: each subject in the year with
+ * how many files and links it holds. Read-only and cheap: the page it sits on
+ * has already reconciled the desktop folder.
+ */
+export async function getLibraryRail(): Promise<RailFolder[]> {
+  const userId = await getUserId();
+  if (!userId) return [];
+  const scope = await getViewScope(userId);
+  const [known, rows] = await Promise.all([
+    knownSubjects(userId, scope),
+    prisma.resource.findMany({ where: { userId, ...byClass(scope) }, select: { subject: true, type: true } }),
+  ]);
+  const folders = new Map<string, RailFolder>();
+  const ensure = (name: string) => {
+    const n = normalizeSubject(name);
+    if (!n) return null;
+    const key = n.toLowerCase();
+    if (!folders.has(key)) folders.set(key, { name: n, count: 0 });
+    return folders.get(key)!;
+  };
+  for (const name of known) ensure(name);
+  for (const row of rows) {
+    const entry = ensure(row.subject);
+    if (entry && row.type !== 'FOLDER') entry.count++;
+  }
+  return Array.from(folders.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // ------------------------------------------------------------------ writes
