@@ -46,6 +46,11 @@ export type SyncRule = {
    */
   key?: string[];
   /**
+   * The key only identifies a row when at least one of these has a value.
+   * Without them, every row on a day shares one "key" and gets folded together.
+   */
+  keyNeedsOneOf?: string[];
+  /**
    * Fields that must NOT be resolved by last-writer-wins because their value
    * is accumulated rather than set. LWW on these does not merely fail to add
    * the two devices' contributions - it erases one side's.
@@ -131,6 +136,7 @@ export const SYNC_RULES: Record<string, SyncRule> = {
   task: {
     match: 'NATURAL_KEY',
     key: ['userId', 'templateId', 'examId', 'date'],
+    keyNeedsOneOf: ['templateId', 'examId'],
     why:
       'The exact key ensureTasksGenerated already dedupes on, plus examId for ' +
       'revision blocks. Rows where BOTH templateId and examId are null are ' +

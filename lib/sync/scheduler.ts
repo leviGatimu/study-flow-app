@@ -73,6 +73,8 @@ type Scheduler = {
   running: Promise<void> | null;
   interval: number;
   started: boolean;
+  /** Automatic sync waits until this time, while a mirror is reviewed or run. */
+  holdUntil: number;
 };
 
 /**
@@ -88,6 +90,7 @@ const scheduler: Scheduler = (globalForSync.syncScheduler ??= {
   running: null,
   interval: BASE_INTERVAL_MS,
   started: false,
+  holdUntil: 0,
 });
 
 /** Everyone signed into this install who has actually paired it. */
@@ -106,8 +109,19 @@ async function pairedUsers(): Promise<string[]> {
  * rather than racing it. Several profiles can share a machine - the desktop
  * keeps its own login for exactly that - so this is a loop, not a single user.
  */
+/** Pause automatic sync, finishing any run already going, so it cannot merge mid-mirror. */
+export async function holdSync(minutes: number): Promise<void> {
+  scheduler.holdUntil = Date.now() + minutes * 60_000;
+  await scheduler.running;
+}
+
+export function releaseSync(): void {
+  scheduler.holdUntil = 0;
+}
+
 export function syncAllPaired(): Promise<void> {
   if (!IS_SQLITE) return Promise.resolve();
+  if (Date.now() < scheduler.holdUntil) return Promise.resolve();
   if (scheduler.running) return scheduler.running;
 
   scheduler.running = (async () => {

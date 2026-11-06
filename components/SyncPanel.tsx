@@ -23,8 +23,12 @@ import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { MirrorDialog, SyncMirrorControls } from '@/components/SyncMirror';
+import type { MirrorDirection } from '@/lib/sync/mirror-client';
 import { cn } from '@/lib/utils';
 import {
+  connectOnly,
   connectSync,
   disconnectSync,
   getSyncStatus,
@@ -60,6 +64,10 @@ export function SyncPanel({
   const [serverUrl, setServerUrl] = useState('https://studyingflow.vercel.app');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  /** What should happen the moment this device connects. */
+  const [firstStep, setFirstStep] = useState<'combine' | MirrorDirection>('combine');
+  const [connectedFor, setConnectedFor] = useState<MirrorDirection | null>(null);
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
 
   const refresh = () =>
     getSyncStatus()
@@ -92,6 +100,19 @@ export function SyncPanel({
     setError(null);
     setMessage(null);
     startTransition(async () => {
+      if (firstStep !== 'combine') {
+        const paired = await connectOnly(serverUrl, username, password).catch(() => ({
+          error: 'Could not reach the website. Check the address and your connection, then try again.',
+        }));
+        if ('error' in paired && paired.error) {
+          setError(paired.error);
+          return;
+        }
+        setPassword('');
+        setConnectedFor(firstStep);
+        return;
+      }
+
       let result: Awaited<ReturnType<typeof connectSync>>;
       try {
         result = await connectSync(serverUrl, username, password);
@@ -158,14 +179,34 @@ export function SyncPanel({
         setError('This device could not be disconnected. Try again.');
         return;
       }
+      setConfirmingDisconnect(false);
       setMessage('This device no longer syncs. Nothing on it was deleted.');
       await refresh();
     });
   };
 
+  const mirrorAfterConnect = (
+    <MirrorDialog
+      direction={connectedFor}
+      justConnected
+      onClose={() => {
+        setConnectedFor(null);
+        void refresh();
+      }}
+      onDone={() => setMessage('Connected. From now on changes sync by themselves.')}
+    />
+  );
+
   if (!status.paired) {
     return (
       <div className="space-y-4">
+        {mirrorAfterConnect}
+        {status.lastSyncAt && (
+          <Notice tone="error">
+            This device is not syncing. It last synced {formatDistanceToNow(new Date(status.lastSyncAt))} ago
+            {status.pending > 0 && `, and ${status.pending} change${status.pending === 1 ? ' is' : 's are'} only on this computer`}. Sign in below to connect it again.
+          </Notice>
+        )}
         <p className="text-sm text-muted-foreground">
           Sign in with your website account once. After that this app keeps itself in step
           automatically — every assignment, timetable edit and tick sends itself across within
@@ -207,6 +248,23 @@ export function SyncPanel({
           </div>
         </div>
 
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium text-foreground">When it connects</legend>
+          {([
+            ['combine', 'Combine both sides', 'Changes from both are kept. Best if you have used both recently.'],
+            ['web-matches-desktop', 'Make the website match this app', 'For when this app is right. You see what changes first.'],
+            ['desktop-matches-web', 'Make this app match the website', 'For when the website is right. You see what changes first.'],
+          ] as const).map(([value, title, hint]) => (
+            <label key={value} className={cn('flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm', firstStep === value ? 'border-primary bg-primary/5' : 'border-border/60')}>
+              <input type="radio" name="sync-first-step" className="mt-0.5 size-4 accent-primary" checked={firstStep === value} onChange={() => setFirstStep(value)} />
+              <span>
+                <span className="block font-medium text-foreground">{title}</span>
+                <span className="block text-muted-foreground">{hint}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+
         {error && <Notice tone="error">{error}</Notice>}
         {message && <Notice tone="ok">{message}</Notice>}
 
@@ -220,6 +278,7 @@ export function SyncPanel({
 
   return (
     <div className="space-y-4">
+      {mirrorAfterConnect}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1 min-w-0">
           <p className="text-sm font-medium text-foreground flex items-center gap-2">
@@ -248,7 +307,7 @@ export function SyncPanel({
             <RefreshCw className={cn('w-4 h-4', pending && 'animate-spin')} />
             {pending ? 'Syncing…' : 'Sync now'}
           </Button>
-          <Button variant="ghost" onClick={disconnect} disabled={pending} className="gap-2">
+          <Button variant="ghost" onClick={() => setConfirmingDisconnect(true)} disabled={pending} className="gap-2">
             <Link2Off className="w-4 h-4" /> Disconnect
           </Button>
         </div>
@@ -257,6 +316,23 @@ export function SyncPanel({
       {error && <Notice tone="error">{error}</Notice>}
       {!error && status.lastError && <Notice tone="error">{status.lastError}</Notice>}
       {message && <Notice tone="ok">{message}</Notice>}
+
+      <SyncMirrorControls onChanged={() => void refresh()} />
+
+      <Dialog open={confirmingDisconnect} onOpenChange={(open) => !open && !pending && setConfirmingDisconnect(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Stop syncing this device?</DialogTitle>
+            <DialogDescription>
+              Nothing is deleted, but changes here will stop reaching the website, and changes there will stop reaching here, until you sign in again.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" disabled={pending} onClick={() => setConfirmingDisconnect(false)}>Keep syncing</Button>
+            <Button variant="outline" disabled={pending} onClick={disconnect}>Stop syncing</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

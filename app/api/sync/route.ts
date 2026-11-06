@@ -18,9 +18,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { prisma, IS_SQLITE } from '@/lib/prisma';
 import { getUserId, userIdFromBearer } from '@/lib/auth';
-import { SYNC_RULES } from '@/lib/sync/identity';
-import { applyRows, scrub, APPLY_ORDER, type SyncRow } from '@/lib/sync/merge';
-import { OWNED_THROUGH, keepOwnedRows } from '@/lib/sync/ownership';
+import { applyRows, scrub, APPLY_ORDER } from '@/lib/sync/merge';
+import { OWNED_THROUGH, keepOwnedRows, trustedRows } from '@/lib/sync/ownership';
 import { recordDeviceStatus } from '@/lib/sync/device-status';
 import {
   afterCursor,
@@ -185,26 +184,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // THE TRUST BOUNDARY. A device sends whatever it likes, so userId is
-  // OVERWRITTEN with the signed-in user rather than merely checked - a check
-  // can be forgotten on the one model that does not carry the column, while an
-  // overwrite cannot be aimed at somebody else's account in the first place.
-  const rows: SyncRow[] = [];
-  for (const row of body.rows) {
-    const rule = SYNC_RULES[row?.model];
-    if (!rule || (rule.match !== 'ID' && rule.match !== 'NATURAL_KEY')) continue;
-    if (!row.data || typeof row.data !== 'object') continue;
-
-    const data = scrub(row.model, row.data as Record<string, unknown>, 'up');
-    if (row.model === 'user') {
-      // A device may not rename an account into somebody else's, nor promote
-      // itself. Its own id is the only thing it is allowed to assert.
-      if (String(data.id) !== userId) continue;
-    } else if ('userId' in data) {
-      data.userId = userId;
-    }
-    rows.push({ model: row.model, data });
-  }
+  const rows = trustedRows(body.rows, userId);
 
   const now = new Date();
   const owned = await keepOwnedRows(prisma, rows, userId);

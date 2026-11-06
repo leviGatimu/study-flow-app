@@ -26,6 +26,8 @@ import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { ownedBy } from './ownership.ts';
 import { applyRows, markSynced, scrub, APPLY_ORDER, type SyncRow } from './merge.ts';
+import { chunkRows } from './mirror.ts';
+import { rowsAccepted } from './protocol.ts';
 import {
   PUSH_LIMIT,
   FOCUS_LOG_HEADER,
@@ -222,13 +224,13 @@ export async function runSync(userId: string): Promise<SyncResult> {
   let files = 0;
 
   try {
-    // 1. Push.
+    // 1. Push, in pieces small enough for a serverless request.
     const dirty = await collectDirty(userId);
-    if (dirty.length > 0) {
+    for (const chunk of chunkRows(dirty)) {
       const response = await fetch(`${state.serverUrl}/api/sync`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ deviceId: state.deviceId, rows: dirty }),
+        body: JSON.stringify({ deviceId: state.deviceId, rows: chunk }),
       });
       if (!response.ok) throw new Error(await describe(response));
 
@@ -239,8 +241,8 @@ export async function runSync(userId: string): Promise<SyncResult> {
       }
 
       const result = (await response.json()) as PushResponse;
-      pushed = result.applied + result.rejected;
-      reconciled = result.reconciled;
+      pushed += result.applied + result.rejected;
+      reconciled += result.reconciled;
       for (const e of result.errors) errors.push(`${e.model} ${e.id}: ${e.message}`);
 
       // 2. Adopt the server's ids, then mark everything we sent as clean. The
@@ -248,10 +250,8 @@ export async function runSync(userId: string): Promise<SyncResult> {
       // where each row stands.
       await adoptRemaps(result.remapped);
 
-      const remapped = new Set(result.remapped.map((r) => `${r.model}:${r.from}`));
       const stamp = new Date(result.serverTime);
-      for (const row of dirty) {
-        if (remapped.has(`${row.model}:${row.data.id}`)) continue;
+      for (const row of rowsAccepted(chunk, result)) {
         await markSynced(prisma, row.model, String(row.data.id), row.data.updatedAt, stamp);
       }
     }

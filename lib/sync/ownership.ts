@@ -12,7 +12,8 @@
  * can exercise it against real SQLite.
  */
 
-import type { SyncRow } from './merge.ts';
+import { SYNC_RULES } from './identity.ts';
+import { scrub, type SyncRow } from './merge.ts';
 
 export const OWNED_THROUGH: Record<string, { relation: string; parentModel: string; fk: string }> = {
   subjectGrade: { relation: 'reportCard', parentModel: 'reportCard', fk: 'reportCardId' },
@@ -25,6 +26,33 @@ export function ownedBy(model: string, userId: string): Record<string, unknown> 
   const parent = OWNED_THROUGH[model];
   if (parent) return { [parent.relation]: { userId } };
   return model === 'user' ? { id: userId } : { userId };
+}
+
+/**
+ * THE TRUST BOUNDARY. A device sends whatever it likes, so userId is OVERWRITTEN
+ * with the signed-in user rather than merely checked: a check can be forgotten on
+ * the one model that does not carry the column, while an overwrite cannot be
+ * aimed at somebody else's account in the first place.
+ */
+export function trustedRows(incoming: unknown[], userId: string): SyncRow[] {
+  const rows: SyncRow[] = [];
+  for (const raw of incoming) {
+    const row = raw as Partial<SyncRow> | null;
+    const rule = SYNC_RULES[row?.model ?? ''];
+    if (!row?.model || !rule || (rule.match !== 'ID' && rule.match !== 'NATURAL_KEY')) continue;
+    if (!row.data || typeof row.data !== 'object') continue;
+
+    const data = scrub(row.model, row.data, 'up');
+    if (row.model === 'user') {
+      // A device may not rename an account into somebody else's, nor promote
+      // itself. Its own id is the only thing it is allowed to assert.
+      if (String(data.id) !== userId) continue;
+    } else if ('userId' in data) {
+      data.userId = userId;
+    }
+    rows.push({ model: row.model, data });
+  }
+  return rows;
 }
 
 type CountDb = Record<string, { count: (args: unknown) => Promise<number> }>;
@@ -57,9 +85,9 @@ export async function keepOwnedRows(
       dropped++;
       continue;
     }
-    // Focus grants own userId, but their optional task must belong to that
-    // same account too. Free-focus and legacy grants have no task.
-    const rule = row.model === 'xpEvent' && row.data.taskId != null
+    // Focus grants and homework own userId, but their optional task must belong
+    // to that same account too. Free-focus and legacy grants have no task.
+    const rule = (row.model === 'xpEvent' || row.model === 'homework') && row.data.taskId != null
       ? { parentModel: 'task', fk: 'taskId' }
       : OWNED_THROUGH[row.model];
     if (!rule) {

@@ -45,6 +45,7 @@ export function SyncWatcher() {
   const lastSeen = useRef<number | null>(null);
   const lastActivity = useRef(0);
   const notifiedError = useRef<string | null>(null);
+  const warnedUnpaired = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +83,15 @@ export function SyncWatcher() {
         if (cancelled) return;
         if (!pulse.paired) {
           stopPolling();
+          // It worked once and has stopped, which nothing else on screen says.
+          if (pulse.lastSyncAt && !warnedUnpaired.current) {
+            warnedUnpaired.current = true;
+            toast.warning('This device is not syncing', {
+              description: 'Your changes are staying on this computer.',
+              duration: 15_000,
+              action: { label: 'Open settings', onClick: () => router.push('/settings?tab=sync') },
+            });
+          }
           return;
         }
 

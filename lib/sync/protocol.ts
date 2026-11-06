@@ -100,6 +100,19 @@ export type PushResponse = {
   errors: { model: string; id: string; message: string }[];
 };
 
+/**
+ * Which pushed rows may be marked as sent. A row the server refused has to stay
+ * waiting: marking it clean means it is never offered again, so that one change
+ * quietly never reaches the other side. A re-keyed row is gone from this device.
+ */
+export function rowsAccepted(rows: SyncRow[], response: Pick<PushResponse, 'remapped' | 'errors'>): SyncRow[] {
+  const skip = new Set([
+    ...response.remapped.map((r) => `${r.model}:${r.from}`),
+    ...response.errors.map((e) => `${e.model}:${e.id}`),
+  ]);
+  return rows.filter((row) => !skip.has(`${row.model}:${row.data.id}`));
+}
+
 export type PullResponse = {
   serverTime: string;
   rows: SyncRow[];

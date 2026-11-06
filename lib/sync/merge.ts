@@ -176,12 +176,32 @@ function incomingWins(
  */
 function keyWhere(rule: SyncRule, row: Record<string, unknown>): Record<string, unknown> | null {
   if (!rule.key?.length) return null;
+  if (rule.keyNeedsOneOf && !rule.keyNeedsOneOf.some((field) => row[field] != null)) return null;
   const where: Record<string, unknown> = {};
   for (const field of rule.key) {
     if (row[field] === undefined) return null;
     where[field] = row[field] ?? null;
   }
   return where;
+}
+
+/**
+ * A row's natural key as one comparable string, case-folded the way matchByKey
+ * compares, or null when it has none. Dates compare as instants, whichever way
+ * they were serialised.
+ */
+export function naturalKeyOf(rule: SyncRule, row: Record<string, unknown>): string | null {
+  const where = keyWhere(rule, row);
+  if (!where) return null;
+  return JSON.stringify(
+    (rule.key ?? []).map((field) => {
+      const value = where[field];
+      if (value instanceof Date) return value.getTime();
+      if (typeof value !== 'string') return value;
+      const instant = /^\d{4}-\d{2}-\d{2}T/.test(value) ? Date.parse(value) : NaN;
+      return Number.isNaN(instant) ? value.toLowerCase() : instant;
+    })
+  );
 }
 
 /**
