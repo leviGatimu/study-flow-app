@@ -36,6 +36,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useIsArchived } from "@/components/ArchiveContext";
+import { clashMessage } from '@/lib/schedule-clash';
 import {
   clearAllStickyNotes,
   createQuickTask,
@@ -231,6 +232,10 @@ export function StickyNotesContainer({ initialNotes }: { initialNotes: StickyNot
       // The note leaves the board only once its task really exists.
       if ("error" in result) {
         toast.error(result.error);
+        return;
+      }
+      if ("clash" in result) {
+        toast.error(clashMessage(result.clash));
         return;
       }
       // The note has become a task, so it leaves the board.

@@ -5,6 +5,8 @@ import { Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { updateTemplate } from '@/lib/actions';
+import { ClashDialog } from '@/components/schedule/ClashDialog';
+import type { ClashInfo, ClashResolution } from '@/lib/schedule-clash';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -58,11 +60,26 @@ export function EditTemplateForm({
     setOpen(next);
   };
 
+  const [clash, setClash] = useState<ClashInfo | null>(null);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    save();
+  };
+
+  const save = (onClash?: ClashResolution) => {
     startTransition(async () => {
       try {
-        await updateTemplate(template.id, { ...values, dayOfWeek: parseInt(values.dayOfWeek, 10) });
+        const result = await updateTemplate(template.id, { ...values, dayOfWeek: parseInt(values.dayOfWeek, 10) }, onClash);
+        setClash(null);
+        if ('clash' in result) {
+          setClash(result.clash);
+          return;
+        }
+        if ('error' in result) {
+          toast.error(result.error);
+          return;
+        }
         setOpen(false);
         toast.success('Routine block updated.');
       } catch {
@@ -97,6 +114,7 @@ export function EditTemplateForm({
               {isPending ? 'Saving…' : 'Save changes'}
             </Button>
           </DialogFooter>
+          <ClashDialog clash={clash} subject={values.subject} routine busy={isPending} onChoose={save} onCancel={() => setClash(null)} />
         </form>
       </DialogContent>
     </Dialog>

@@ -1,8 +1,9 @@
 'use client';
 
 import { useRef, useState, type ReactNode } from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, TriangleAlert, X } from 'lucide-react';
 
+import { clashesWithin } from '@/lib/schedule-clash';
 import { entryRange, scheduleDuration, type ScheduleEntry } from '@/lib/schedule-layout';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -27,7 +28,7 @@ const KIND_LABEL: Record<ScheduleEntry['kind'], string> = { school: 'School less
 const describe = (entry: ScheduleEntry, day?: BoardDay) =>
   `${entry.title}, ${day?.title ?? ''}, ${entry.startTime} to ${entry.endTime}, ${KIND_LABEL[entry.kind]}${entry.state ? `, ${entry.state}` : ''}`;
 
-function BlockCard({ entry, label, onOpen }: { entry: ScheduleEntry; label: string; onOpen: (target: HTMLButtonElement) => void }) {
+function BlockCard({ entry, label, clashing, onOpen }: { entry: ScheduleEntry; label: string; clashing: boolean; onOpen: (target: HTMLButtonElement) => void }) {
   const revision = entry.kind === 'revision';
   const finished = entry.state === 'done' || entry.state === 'missed';
   return (
@@ -55,6 +56,11 @@ function BlockCard({ entry, label, onOpen }: { entry: ScheduleEntry; label: stri
           </span>
         )}
         {entry.state === 'active' && <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">On now</span>}
+        {clashing && entry.state !== 'active' && (
+          <span className="flex shrink-0 items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning-foreground dark:text-warning">
+            <TriangleAlert aria-hidden="true" className="size-3" /> Clash
+          </span>
+        )}
       </span>
       <span className={cn('line-clamp-2 hyphens-auto break-words text-sm font-semibold leading-snug', finished ? 'text-muted-foreground' : 'text-foreground')}>{entry.title}</span>
       <span className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -90,6 +96,11 @@ export function WeekBoard({
   const blocksOn = (key: string) => entries.filter((e) => e.day === key).sort((a, b) => entryRange(a).start - entryRange(b).start);
   // Reserved on every day, so the first cards line up across the week.
   const hasBand = days.some((d) => d.context || d.note);
+  // Blocks that overlapped before this check existed, or arrived by sync. Shown
+  // rather than removed: which one to keep is the student's call.
+  const clashes = new Map(
+    days.flatMap((d) => [...clashesWithin(blocksOn(d.key).filter((e) => e.state !== 'done' && e.state !== 'missed'))])
+  );
   const selected = entries.find((e) => e.id === selectedId);
   const selectedDay = days.find((d) => d.key === selected?.day);
   const open = (entry: ScheduleEntry, target: HTMLButtonElement) => {
@@ -128,7 +139,7 @@ export function WeekBoard({
                 </header>
                 <div className="flex flex-1 flex-col gap-2 p-2">
                   {blocks.map((entry) => (
-                    <BlockCard key={entry.id} entry={entry} label={describe(entry, day)} onOpen={(target) => open(entry, target)} />
+                    <BlockCard key={entry.id} entry={entry} label={describe(entry, day)} clashing={clashes.has(entry.id)} onOpen={(target) => open(entry, target)} />
                   ))}
                   {blocks.length === 0 && <p className="py-6 text-center text-xs text-muted-foreground">{day.note ? 'Day off' : emptyLabel}</p>}
                 </div>
@@ -168,7 +179,7 @@ export function WeekBoard({
             <p className="py-12 text-center text-sm text-muted-foreground">{activePhoneDay?.note ? 'Day off' : emptyLabel}</p>
           ) : (
             phoneEntries.map((entry) => (
-              <BlockCard key={entry.id} entry={entry} label={describe(entry, activePhoneDay)} onOpen={(target) => open(entry, target)} />
+              <BlockCard key={entry.id} entry={entry} label={describe(entry, activePhoneDay)} clashing={clashes.has(entry.id)} onOpen={(target) => open(entry, target)} />
             ))
           )}
         </div>
@@ -197,6 +208,12 @@ export function WeekBoard({
                 <div className="flex justify-between gap-4 py-2.5"><dt className="text-muted-foreground">Time</dt><dd className="font-medium tabular-nums">{selected.startTime} – {selected.endTime}{entryRange(selected).end >= 1440 && ' (next day)'}</dd></div>
                 <div className="flex justify-between gap-4 py-2.5"><dt className="text-muted-foreground">Length</dt><dd className="font-medium">{scheduleDuration(selected)}</dd></div>
                 {selected.state && <div className="flex justify-between gap-4 py-2.5"><dt className="text-muted-foreground">Status</dt><dd className="font-medium">{selected.state === 'active' ? 'On now' : selected.state === 'done' ? 'Done' : 'Missed'}</dd></div>}
+                {clashes.has(selected.id) && (
+                  <div className="flex justify-between gap-4 py-2.5">
+                    <dt className="text-muted-foreground">Clashes with</dt>
+                    <dd className="text-right font-medium">{clashes.get(selected.id)?.map((other) => `${other.title} ${other.startTime} – ${other.endTime}`).join(', ')}</dd>
+                  </div>
+                )}
                 {selected.detail && <div className="flex justify-between gap-4 py-2.5"><dt className="text-muted-foreground">Details</dt><dd className="text-right font-medium">{selected.detail}</dd></div>}
               </dl>
               {renderActions && <div className="flex flex-wrap gap-2">{renderActions(selected)}</div>}

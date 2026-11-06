@@ -53,6 +53,8 @@ import {
   StudyTypeIcon,
 } from '@/app/timetable/study-block';
 import { dayKey, monthHref, parseDayKey, weekHref } from '@/app/timetable/schedule-dates';
+import { ClashDialog } from '@/components/schedule/ClashDialog';
+import type { ClashInfo, ClashResolution } from '@/lib/schedule-clash';
 
 export type CalendarTask = {
   id: string;
@@ -767,17 +769,28 @@ function EditTaskForm({
   const [dateStr, setDateStr] = useState(initialKey);
   const [startTime, setStartTime] = useState(task.startTime);
   const [endTime, setEndTime] = useState(task.endTime);
+  const [clash, setClash] = useState<ClashInfo | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newDate = parseDayKey(dateStr);
-    if (!newDate) {
-      toast.error('Pick a valid date.');
-      return;
-    }
+    save();
+  };
+
+  const save = (onClash?: ClashResolution) => {
     startTransition(async () => {
       try {
-        await updateTask(task.id, { date: newDate, startTime, endTime });
+        // The day as picked, not a Date: a browser's midnight read on a server
+        // in another timezone lands on the day before.
+        const result = await updateTask(task.id, { dateKey: dateStr, startTime, endTime }, onClash);
+        setClash(null);
+        if ('clash' in result) {
+          setClash(result.clash);
+          return;
+        }
+        if ('error' in result) {
+          toast.error(result.error);
+          return;
+        }
         onClose();
       } catch {
         toast.error('That block could not be saved. Try again.');
@@ -814,6 +827,7 @@ function EditTaskForm({
           {isPending ? 'Saving…' : 'Save changes'}
         </Button>
       </div>
+      <ClashDialog clash={clash} subject={task.subject} busy={isPending} onChoose={save} onCancel={() => setClash(null)} />
     </form>
   );
 }

@@ -57,6 +57,7 @@ export default async function HomeworksPage({
     description: h.description?.trim() || null,
     dueDay: dateOnlyDay(h.dueDate),
     plannedDay: h.plannedDate ? instantDay(h.plannedDate, timeZone) : null,
+    block: h.task && !h.task.isDeleted ? { startTime: h.task.startTime, endTime: h.task.endTime } : null,
     isCompleted: h.isCompleted,
     completedDay: h.completedAt ? instantDay(h.completedAt, timeZone) : null,
     completedAt: h.completedAt ? h.completedAt.toISOString() : null,

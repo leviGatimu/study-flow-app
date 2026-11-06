@@ -638,12 +638,16 @@ function BlocksStep({ snapshot, onSaved, onNext, onBack, onDraft }: StepProps) {
     setBusy(true);
     try {
       const ordered = [...days].sort((a, b) => weekdayOrder(a) - weekdayOrder(b));
+      const added: string[] = [];
+      const taken: string[] = [];
       for (const day of ordered) {
         // Due the same day by default; /manage changes it for anyone who needs to.
-        await createTemplate({ dayOfWeek: day, subject: subject.trim(), startTime, endTime, deadlineDay: DAY_NAMES[day], type });
+        const result = await createTemplate({ dayOfWeek: day, subject: subject.trim(), startTime, endTime, deadlineDay: DAY_NAMES[day], type });
+        (result && 'success' in result ? added : taken).push(DAY_NAMES[day].slice(0, 3));
       }
       await onSaved();
-      toast.success(`${subject} added to ${ordered.map((d) => DAY_NAMES[d].slice(0, 3)).join(', ')}.`);
+      if (added.length > 0) toast.success(`${subject} added to ${added.join(', ')}.`);
+      if (taken.length > 0) toast.error(`${taken.join(', ')} already has something at that time, so ${subject} was not added there.`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'That block could not be added.');
     } finally {
@@ -733,13 +737,16 @@ function AiPlanner({ snapshot, onSaved, onDraft }: { snapshot: SetupSnapshot; on
     if (!plan?.length) return;
     setSaving(true);
     try {
+      let count = 0;
       for (const b of plan) {
-        await createTemplate({ dayOfWeek: b.dayOfWeek, subject: b.subject, startTime: b.startTime, endTime: b.endTime, deadlineDay: DAY_NAMES[b.dayOfWeek], type: b.type });
+        const result = await createTemplate({ dayOfWeek: b.dayOfWeek, subject: b.subject, startTime: b.startTime, endTime: b.endTime, deadlineDay: DAY_NAMES[b.dayOfWeek], type: b.type });
+        if (result && 'success' in result) count++;
       }
-      const count = plan.length;
+      const skipped = plan.length - count;
       show(null);
       await onSaved();
       toast.success(`${count} blocks added to your week.`);
+      if (skipped > 0) toast.error(`${skipped} left out because something is already at that time.`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'The plan could not be saved.');
     } finally {

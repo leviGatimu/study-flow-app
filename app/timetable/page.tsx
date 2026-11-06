@@ -69,7 +69,12 @@ async function loadWeek(userId: string, weekStart: Date, weekEnd: Date, today: D
     prisma.scheduleTemplate.count({ where: { userId, ...byClass(scope) } }),
   ]);
 
-  return { tasks, lessons, subjects, routineCount };
+  const homework = await prisma.homework.findMany({
+    where: { userId, taskId: { in: tasks.map((task) => task.id) } },
+    select: { id: true, title: true, taskId: true },
+  });
+
+  return { tasks, homework, lessons, subjects, routineCount };
 }
 
 /**
@@ -170,7 +175,7 @@ export default async function WeekPage({
             </p>
           )}
           <div className="min-h-0 flex-1">
-            <WeekGrid days={days} today={today} tasks={data.tasks} lessons={data.lessons} holidays={holidays} timezone={tz} initialNow={format(now, "yyyy-MM-dd'T'HH:mm:ss")} />
+            <WeekGrid days={days} today={today} tasks={data.tasks} homework={data.homework} lessons={data.lessons} holidays={holidays} timezone={tz} initialNow={format(now, "yyyy-MM-dd'T'HH:mm:ss")} />
           </div>
         </div>
       )}

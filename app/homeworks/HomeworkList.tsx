@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Panel } from '@/components/ui/panel';
 import { Stat } from '@/components/ui/stat';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -17,6 +16,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { useIsArchived } from '@/components/ArchiveContext';
 import { completeHomework, deleteHomework, planHomework } from '@/lib/homework-actions';
+import { ClashDialog } from '@/components/schedule/ClashDialog';
+import type { ClashInfo, ClashResolution } from '@/lib/schedule-clash';
+import { HomeworkSlotFields } from './HomeworkSlotFields';
 
 import { HomeworkRow } from './HomeworkRow';
 import { AddHomeworkButton } from './CreateHomeworkForm';
@@ -300,59 +302,64 @@ function CompleteDialog({ homework, onClose }: { homework: HomeworkItem | null; 
 
 function PlanDialog({ homework, onClose }: { homework: HomeworkItem | null; onClose: () => void }) {
   const [pending, setPending] = useState(false);
+  const [clash, setClash] = useState<{ info: ClashInfo; input: { dateKey: string; startTime: string; endTime: string } } | null>(null);
 
-  async function handlePlan(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function save(input: { dateKey: string; startTime: string; endTime: string }, onClash?: ClashResolution) {
     if (!homework) return;
-    const dateStr = new FormData(e.currentTarget).get('plannedDate') as string;
     setPending(true);
     try {
-      const result = await planHomework(homework.id, new Date(dateStr));
-      if (result?.error) {
+      const result = await planHomework(homework.id, input, onClash);
+      setClash(null);
+      if ('clash' in result && result.clash) {
+        setClash({ info: result.clash, input });
+      } else if ('error' in result && result.error) {
         toast.error(result.error);
       } else {
-        toast.success('Study session planned');
+        toast.success('On your schedule');
         onClose();
       }
     } catch {
-      toast.error('Failed to plan');
+      toast.error('That could not be saved. Try again.');
     } finally {
       setPending(false);
     }
   }
 
+  function handlePlan(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    void save({ dateKey: String(form.get('doDay')), startTime: String(form.get('startTime')), endTime: String(form.get('endTime')) });
+  }
+
   return (
     <Dialog open={homework !== null} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-heading text-lg font-semibold">Plan a study day</DialogTitle>
+          <DialogTitle className="font-heading text-lg font-semibold">Plan when to do it</DialogTitle>
           <DialogDescription>
-            Pick the day you will work on <span className="font-medium text-foreground">{homework?.title}</span>.
+            <span className="font-medium text-foreground">{homework?.title}</span> goes on your schedule at this time.
           </DialogDescription>
         </DialogHeader>
         {homework && (
-          <form onSubmit={handlePlan} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="hw-plannedDate">Date</Label>
-              <Input
-                id="hw-plannedDate"
-                type="date"
-                name="plannedDate"
-                defaultValue={homework.plannedDay ?? ''}
-                required
-                className="h-10"
-              />
-            </div>
+          <form key={homework.id} onSubmit={handlePlan} className="space-y-4">
+            <HomeworkSlotFields idPrefix="hw-plan" defaultDay={homework.plannedDay} defaultStart={homework.block?.startTime} defaultEnd={homework.block?.endTime} />
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button type="button" variant="ghost" onClick={onClose} disabled={pending} className="h-10">
                 Cancel
               </Button>
               <Button type="submit" disabled={pending} className="h-10 gap-2">
-                {pending && <Loader2 className="size-4 animate-spin" />} Save plan
+                {pending && <Loader2 className="size-4 animate-spin" />} Save
               </Button>
             </div>
           </form>
         )}
+        <ClashDialog
+          clash={clash?.info ?? null}
+          subject={homework?.subject ?? ''}
+          busy={pending}
+          onChoose={(resolution) => clash && void save(clash.input, resolution)}
+          onCancel={() => setClash(null)}
+        />
       </DialogContent>
     </Dialog>
   );

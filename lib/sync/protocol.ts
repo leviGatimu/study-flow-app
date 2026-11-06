@@ -62,6 +62,17 @@ export function homeworkWorkPayload(model: string, data: Record<string, unknown>
   return legacy;
 }
 
+/** Sent by clients whose database has Homework.taskId (desktop 1.0.23+). */
+export const HOMEWORK_TASK_HEADER = 'x-study-flow-homework-task';
+
+/** Older desktop clients have no Homework.taskId column; leave it out for them. */
+export function homeworkTaskPayload(model: string, data: Record<string, unknown>, supported: boolean) {
+  if (model !== 'homework' || supported) return data;
+  const legacy = { ...data };
+  delete legacy.taskId;
+  return legacy;
+}
+
 /**
  * Where a device got to, as the SERVER measures it.
  *

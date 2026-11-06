@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { createQuickTask } from '@/lib/actions';
+import { ClashDialog } from '@/components/schedule/ClashDialog';
+import type { ClashInfo, ClashResolution } from '@/lib/schedule-clash';
 import { useIsArchived } from '@/components/ArchiveContext';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
@@ -45,19 +47,30 @@ export function QuickAddForm({
 
   const [error, setError] = useState<string | null>(null);
 
+  const [clash, setClash] = useState<ClashInfo | null>(null);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    save();
+  };
+
+  const save = (onClash?: ClashResolution) => {
     setError(null);
     startTransition(async () => {
       let result: Awaited<ReturnType<typeof createQuickTask>>;
       try {
-        result = await createQuickTask({ ...formData, date: formData.date });
+        result = await createQuickTask({ ...formData, date: formData.date }, onClash);
       } catch {
         result = { error: 'Could not reach the server. Check your connection and try again.' };
       }
       // Keep the form open with what was typed when saving fails.
+      setClash(null);
       if ('error' in result) {
         setError(result.error);
+        return;
+      }
+      if ('clash' in result) {
+        setClash(result.clash);
         return;
       }
       setFormData({ 
@@ -174,6 +187,7 @@ export function QuickAddForm({
             </p>
           )}
           <Button disabled={isPending} type="submit" size="lg" className="w-full h-11">{isPending ? 'Adding...' : 'Add task'}</Button>
+          <ClashDialog clash={clash} subject={formData.subject} busy={isPending} onChoose={save} onCancel={() => setClash(null)} />
         </form>
       </DialogContent>
     </Dialog>

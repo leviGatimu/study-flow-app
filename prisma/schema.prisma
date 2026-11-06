@@ -193,6 +193,10 @@ model Homework {
   answerFileUrl String?
   dueDate     DateTime
   plannedDate DateTime?
+  /// The block on the schedule for doing this homework. SetNull: losing the
+  /// block must never lose the homework.
+  taskId      String?
+  task        Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
   isCompleted Boolean   @default(false)
   completedAt DateTime?
   proofUrl    String?
@@ -205,6 +209,7 @@ model Homework {
 
   @@index([termId])
   @@index([syncedAt])
+  @@index([taskId])
 }
 
 model StudioNote {
@@ -575,6 +580,7 @@ model Task {
   workDescription String? // Added for proof of work
   proofPdfUrl     String? // Added for PDF proof of work
   focusEvents     XpEvent[]
+  homeworks       Homework[]
   updatedAt       DateTime          @default(now()) @updatedAt
   deletedAt       DateTime?
   syncedAt        DateTime?

@@ -13,6 +13,8 @@ export type HomeworkItem = {
   description: string | null;
   dueDay: string;
   plannedDay: string | null;
+  /** Its time on the schedule, when it has a block there. */
+  block?: { startTime: string; endTime: string } | null;
   isCompleted: boolean;
   completedDay: string | null;
   /** ISO timestamp, only used to order the Done list newest first. */

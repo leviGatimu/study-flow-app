@@ -26,10 +26,12 @@ export type WeekTask = {
 };
 
 /** School stays in the day header so a nine-hour school day cannot swallow the study canvas. */
-export function WeekGrid({ days, today, tasks, lessons, holidays, timezone, initialNow }: {
+export function WeekGrid({ days, today, tasks, homework, lessons, holidays, timezone, initialNow }: {
   days: Date[];
   today: Date;
   tasks: WeekTask[];
+  /** Homework planned into this week's blocks. */
+  homework: { id: string; title: string; taskId: string | null }[];
   lessons: SchoolLesson[];
   holidays: Map<string, Holiday>;
   timezone: string;
@@ -77,6 +79,7 @@ export function WeekGrid({ days, today, tasks, lessons, holidays, timezone, init
       endTime: task.endTime,
       kind: task.type === 'REVISION' ? 'revision' : 'homework',
       state: onNow ? 'active' : status === 'open' ? undefined : status,
+      detail: homework.find((h) => h.taskId === task.id)?.title,
     };
   });
 
@@ -86,15 +89,25 @@ export function WeekGrid({ days, today, tasks, lessons, holidays, timezone, init
       days={boardDays}
       entries={entries}
       emptyLabel="Free evening"
-      renderActions={(entry) =>
-        entry.state === 'done' ? null : (
-          <Button asChild>
-            <Link href={`/focus/${entry.id}`}>
-              <Timer /> Focus on it
-            </Link>
-          </Button>
-        )
-      }
+      renderActions={(entry) => {
+        const linked = homework.find((h) => h.taskId === entry.id);
+        return (
+          <>
+            {entry.state !== 'done' && (
+              <Button asChild>
+                <Link href={`/focus/${entry.id}`}>
+                  <Timer /> Focus on it
+                </Link>
+              </Button>
+            )}
+            {linked && (
+              <Button asChild variant="outline">
+                <Link href={`/homeworks/${linked.id}`}>Open homework</Link>
+              </Button>
+            )}
+          </>
+        );
+      }}
     />
   );
 }

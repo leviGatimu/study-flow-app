@@ -2,7 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { cleanWork, HOMEWORK_TEXT_MAX, isImageUrl, parseDueDay, workError } from '../lib/homework-work.ts';
-import { homeworkWorkPayload } from '../lib/sync/protocol.ts';
+import { homeworkTaskPayload, homeworkWorkPayload } from '../lib/sync/protocol.ts';
 
 describe('homework work', () => {
   test('text is trimmed outside, line breaks kept inside, empty is none', () => {
@@ -37,4 +37,11 @@ describe('homework work', () => {
     assert.equal(homeworkWorkPayload('homework', row, true), row);
     assert.equal(homeworkWorkPayload('task', { id: 'x', answer: 'keep' }, false).answer, 'keep');
   });
+});
+
+test('a desktop without the schedule link is not sent it', () => {
+  const row = { id: 'h', title: 't', taskId: 'task-1' };
+  assert.deepEqual(homeworkTaskPayload('homework', row, false), { id: 'h', title: 't' });
+  assert.equal(homeworkTaskPayload('homework', row, true), row);
+  assert.equal(homeworkTaskPayload('xpEvent', { id: 'x', taskId: 'keep' }, false).taskId, 'keep');
 });

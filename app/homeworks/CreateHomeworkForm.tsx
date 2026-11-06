@@ -13,6 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useIsArchived } from '@/components/ArchiveContext';
 import { createHomework } from '@/lib/homework-actions';
+import { ClashDialog } from '@/components/schedule/ClashDialog';
+import type { ClashInfo, ClashResolution } from '@/lib/schedule-clash';
+import { HomeworkSlotFields } from './HomeworkSlotFields';
 
 type SubjectOption = { id: string; name: string };
 
@@ -49,7 +52,7 @@ export function AddHomeworkButton({
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="font-heading text-lg font-semibold">New homework</DialogTitle>
-            <DialogDescription>Add an assignment and when it is due.</DialogDescription>
+            <DialogDescription>Add an assignment, when it is due and when you will do it.</DialogDescription>
           </DialogHeader>
           <CreateHomeworkForm
             onSuccess={() => {
@@ -71,14 +74,21 @@ export function CreateHomeworkForm({ onSuccess, subjects, defaultSubject }: Crea
   const [isPending, setIsPending] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
+  const [clash, setClash] = useState<{ info: ClashInfo; form: FormData } | null>(null);
+  const [clashSubject, setClashSubject] = useState('');
+
   async function handleSubmit(formData: FormData) {
     setIsPending(true);
     try {
       const result = await createHomework(formData);
-      if (result.error) {
+      setClash(null);
+      if ('clash' in result && result.clash) {
+        setClashSubject(String(formData.get('subject') ?? 'This homework'));
+        setClash({ info: result.clash, form: formData });
+      } else if ('error' in result && result.error) {
         toast.error(result.error);
       } else {
-        toast.success('Homework added');
+        toast.success('slot' in result && result.slot ? `Homework added and on your schedule at ${result.slot.startTime}` : 'Homework added');
         formRef.current?.reset();
         onSuccess?.();
       }
@@ -89,9 +99,16 @@ export function CreateHomeworkForm({ onSuccess, subjects, defaultSubject }: Crea
     }
   }
 
+  const chooseClash = (resolution: ClashResolution) => {
+    if (!clash) return;
+    clash.form.set('onClash', resolution);
+    void handleSubmit(clash.form);
+  };
+
   const fieldClass = 'h-10 rounded-lg';
 
   return (
+    <>
     <form ref={formRef} action={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
@@ -133,6 +150,8 @@ export function CreateHomeworkForm({ onSuccess, subjects, defaultSubject }: Crea
         />
       </div>
 
+      <HomeworkSlotFields idPrefix="hw" />
+
       <div className="flex justify-end pt-2">
         <Button type="submit" disabled={isPending} className="h-10 w-full gap-2 px-4 sm:w-auto">
           {isPending ? (
@@ -145,5 +164,7 @@ export function CreateHomeworkForm({ onSuccess, subjects, defaultSubject }: Crea
         </Button>
       </div>
     </form>
+    <ClashDialog clash={clash?.info ?? null} subject={clashSubject} busy={isPending} onChoose={chooseClash} onCancel={() => setClash(null)} />
+    </>
   );
 }

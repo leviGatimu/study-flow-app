@@ -4,10 +4,13 @@ import { prisma } from '@/lib/prisma';
 import { softDelete } from '@/lib/soft-delete';
 import { getUserId } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
-import { startOfDay } from 'date-fns';
 import { saveUpload, deleteUpload } from '@/lib/upload';
 import { grantXp } from './gamification';
 import { cleanWork, HOMEWORK_TITLE_MAX, parseDueDay, workError } from '@/lib/homework-work';
+import { decideSlot, firstFreeSlot, type ClashResolution, type TimeSlot } from '@/lib/schedule-clash';
+import { clearBlocks, openBlocksAround, taskDateFromKey, todayKey } from '@/lib/schedule-placement';
+import { isDateKey, validateQuickTask } from '@/lib/task-input';
+import { DEFAULT_TIMEZONE, getZonedNow } from '@/lib/utils';
 import {
   getViewScope,
   byTerm,
@@ -25,39 +28,102 @@ export async function getHomeworks() {
     orderBy: [
       { isCompleted: 'asc' },
       { dueDate: 'asc' }
-    ]
+    ],
+    include: { task: { select: { startTime: true, endTime: true, isDeleted: true } } },
   });
+}
+
+async function timeZoneOf(userId: string) {
+  const row = await prisma.userProgress.findUnique({ where: { userId }, select: { timezone: true } });
+  return row?.timezone ?? DEFAULT_TIMEZONE;
+}
+
+const EVENING_START = 18 * 60;
+
+/** The next free time on a day, for the form to fill in. */
+export async function suggestHomeworkSlot(dateKey: string, minutes: number): Promise<TimeSlot | null> {
+  const userId = await getUserId();
+  if (!userId || !isDateKey(dateKey) || !Number.isFinite(minutes)) return null;
+  if (await isViewingArchive(userId)) return null;
+
+  const timeZone = await timeZoneOf(userId);
+  let from = EVENING_START;
+  if (dateKey === todayKey(timeZone)) {
+    const now = getZonedNow(timeZone);
+    from = Math.max(from, Math.ceil((now.getHours() * 60 + now.getMinutes()) / 15) * 15);
+  }
+  const length = Math.min(Math.max(Math.round(minutes), 15), 8 * 60);
+  return firstFreeSlot(length, from, await openBlocksAround(userId, dateKey, timeZone));
+}
+
+function parseResolution(value: unknown): ClashResolution | undefined {
+  return value === 'next-free' || value === 'replace' ? value : undefined;
+}
+
+function refreshSchedule() {
+  revalidatePath('/');
+  revalidatePath('/timetable');
+  revalidatePath('/calendar');
+  revalidatePath('/homeworks');
 }
 
 export async function createHomework(formData: FormData) {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
+  if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
   const subject = formData.get('subject') as string;
-  const title = formData.get('title') as string;
+  const title = (formData.get('title') as string | null)?.trim();
   const description = formData.get('description') as string;
   const dueDateStr = formData.get('dueDate') as string;
 
-  if (!subject || !title || !dueDateStr) {
-    return { error: 'Missing required fields' };
+  if (!subject || !title || !isDateKey(dueDateStr)) {
+    return { error: 'Add a subject, a title and a due date.' };
   }
 
-  await prisma.homework.create({
-    data: {
-      userId,
-      subject,
-      title,
-      description,
-      dueDate: new Date(dueDateStr),
-      ...(await requireTermStamp(userId)),
-    }
+  const checked = validateQuickTask({
+    subject,
+    startTime: formData.get('startTime'),
+    endTime: formData.get('endTime'),
+    type: 'HOMEWORK',
+    date: formData.get('doDay'),
+  });
+  if (!checked.ok) return { error: checked.error };
+  const { dateKey, startTime, endTime } = checked.value;
+  if (!dateKey) return { error: 'Pick the day you will do it.' };
+
+  const timeZone = await timeZoneOf(userId);
+  const decision = decideSlot(
+    { startTime, endTime },
+    await openBlocksAround(userId, dateKey, timeZone),
+    parseResolution(formData.get('onClash'))
+  );
+  if (!('slot' in decision)) return decision;
+
+  const stamp = await requireTermStamp(userId);
+  await clearBlocks(userId, decision.clear.map((block) => block.id));
+
+  const date = taskDateFromKey(dateKey);
+  await prisma.$transaction(async (tx) => {
+    const task = await tx.task.create({
+      data: { userId, subject, ...decision.slot, type: 'HOMEWORK', date, isDone: false, isMissed: false, isDeleted: false, ...stamp },
+      select: { id: true },
+    });
+    await tx.homework.create({
+      data: { userId, subject, title, description, dueDate: new Date(dueDateStr), plannedDate: date, taskId: task.id, ...stamp },
+    });
   });
 
-  revalidatePath('/homeworks');
-  return { success: true };
+  refreshSchedule();
+  return { success: true, slot: decision.slot };
 }
 
-export async function planHomework(homeworkId: string, plannedDate: Date) {
+/** Put homework on the schedule, or move the block it already has. */
+export async function planHomework(
+  homeworkId: string,
+  input: { dateKey: string; startTime: string; endTime: string },
+  onClash?: ClashResolution
+) {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
 
@@ -65,13 +131,41 @@ export async function planHomework(homeworkId: string, plannedDate: Date) {
   // by returning it, so the refusal is returned rather than thrown.
   if (await isViewingArchive(userId)) return { error: ARCHIVE_WRITE_ERROR };
 
-  await prisma.homework.updateMany({
-    where: { id: homeworkId, userId },
-    data: { plannedDate: startOfDay(plannedDate) }
-  });
+  const homework = await prisma.homework.findFirst({ where: { id: homeworkId, userId } });
+  if (!homework) return { error: 'That homework no longer exists.' };
 
-  revalidatePath('/homeworks');
-  return { success: true };
+  const checked = validateQuickTask({ subject: homework.subject, startTime: input.startTime, endTime: input.endTime, type: 'HOMEWORK', date: input.dateKey });
+  if (!checked.ok) return { error: checked.error };
+  const dateKey = checked.value.dateKey;
+  if (!dateKey) return { error: 'Pick the day you will do it.' };
+
+  const current = homework.taskId
+    ? await prisma.task.findFirst({ where: { id: homework.taskId, userId, isDeleted: false, isDone: false } })
+    : null;
+
+  const timeZone = await timeZoneOf(userId);
+  const decision = decideSlot(
+    { startTime: checked.value.startTime, endTime: checked.value.endTime },
+    await openBlocksAround(userId, dateKey, timeZone, current?.id),
+    onClash
+  );
+  if (!('slot' in decision)) return decision;
+
+  const stamp = current ? {} : await requireTermStamp(userId);
+  await clearBlocks(userId, decision.clear.map((block) => block.id));
+
+  const date = taskDateFromKey(dateKey);
+  const taskId = current
+    ? (await prisma.task.update({ where: { id: current.id }, data: { ...decision.slot, date, isMissed: false }, select: { id: true } })).id
+    : (await prisma.task.create({
+        data: { userId, subject: homework.subject, ...decision.slot, type: 'HOMEWORK', date, isDone: false, isMissed: false, isDeleted: false, ...stamp },
+        select: { id: true },
+      })).id;
+
+  await prisma.homework.updateMany({ where: { id: homeworkId, userId }, data: { plannedDate: date, taskId } });
+
+  refreshSchedule();
+  return { success: true, slot: decision.slot };
 }
 
 export async function completeHomework(formData: FormData) {
@@ -83,7 +177,7 @@ export async function completeHomework(formData: FormData) {
 
   const homeworkId = formData.get('homeworkId') as string;
   const file = formData.get('file') as File;
-  const existing = await prisma.homework.findFirst({ where: { id: homeworkId, userId }, select: { proofUrl: true } });
+  const existing = await prisma.homework.findFirst({ where: { id: homeworkId, userId }, select: { proofUrl: true, taskId: true } });
   if (!existing) return { error: 'That homework no longer exists.' };
 
   let proofUrl = '';
@@ -111,6 +205,14 @@ export async function completeHomework(formData: FormData) {
   });
   if (existing.proofUrl && existing.proofUrl !== proofUrl) await deleteUpload(existing.proofUrl);
 
+  // Finishing the homework finishes its block. The block earns nothing extra:
+  // the bonus below is the reward for this work.
+  if (existing.taskId) {
+    await prisma.task.updateMany({ where: { id: existing.taskId, userId }, data: { isDone: true, isMissed: false } });
+    revalidatePath('/timetable');
+    revalidatePath('/calendar');
+  }
+
   // Keyed on the homework, so re-completing it cannot pay the bonus
   // again - this had the same double-grant bug as task completion.
   await grantXp(userId, 200, 'HOMEWORK', `homework:${homeworkId}`);
@@ -136,7 +238,12 @@ export async function deleteHomework(homeworkId: string) {
 
   await softDelete(prisma, 'homework', { id: homeworkId, userId });
 
-  revalidatePath('/homeworks');
+  // Its block goes too, unless that block is a record of work already done.
+  if (homework?.taskId) {
+    await prisma.task.updateMany({ where: { id: homework.taskId, userId, isDone: false }, data: { isDeleted: true } });
+  }
+
+  refreshSchedule();
   return { success: true };
 }
 

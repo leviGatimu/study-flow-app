@@ -36,6 +36,8 @@ import {
   examCategoryPayload,
   HOMEWORK_WORK_HEADER,
   homeworkWorkPayload,
+  HOMEWORK_TASK_HEADER,
+  homeworkTaskPayload,
   type Cursor,
   type PullResponse,
   type PushRequest,
@@ -128,18 +130,22 @@ export async function GET(request: NextRequest) {
     serverTime: new Date().toISOString(),
     rows: page.map(({ model, row }) => ({
       model,
-      data: homeworkWorkPayload(
+      data: homeworkTaskPayload(
         model,
-        examCategoryPayload(
+        homeworkWorkPayload(
           model,
-          sessionVersionPayload(
+          examCategoryPayload(
             model,
-            focusLogPayload(model, scrub(model, row, 'down'), request.headers.get(FOCUS_LOG_HEADER) === '1'),
-            request.headers.get(SESSION_VERSION_HEADER) === '1'
+            sessionVersionPayload(
+              model,
+              focusLogPayload(model, scrub(model, row, 'down'), request.headers.get(FOCUS_LOG_HEADER) === '1'),
+              request.headers.get(SESSION_VERSION_HEADER) === '1'
+            ),
+            request.headers.get(EXAM_CATEGORY_HEADER) === '1'
           ),
-          request.headers.get(EXAM_CATEGORY_HEADER) === '1'
+          request.headers.get(HOMEWORK_WORK_HEADER) === '1'
         ),
-        request.headers.get(HOMEWORK_WORK_HEADER) === '1'
+        request.headers.get(HOMEWORK_TASK_HEADER) === '1'
       ),
     })),
     cursor: last

@@ -32,6 +32,7 @@ import {
   SESSION_VERSION_HEADER,
   EXAM_CATEGORY_HEADER,
   HOMEWORK_WORK_HEADER,
+  HOMEWORK_TASK_HEADER,
   DEVICE_HEADER,
   type Cursor,
   type PullResponse,
@@ -210,6 +211,7 @@ export async function runSync(userId: string): Promise<SyncResult> {
     [SESSION_VERSION_HEADER]: '1',
     [EXAM_CATEGORY_HEADER]: '1',
     [HOMEWORK_WORK_HEADER]: '1',
+    [HOMEWORK_TASK_HEADER]: '1',
     [DEVICE_HEADER]: state.deviceId,
     authorization: `Bearer ${state.token}`,
   };

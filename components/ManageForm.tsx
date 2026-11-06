@@ -5,6 +5,8 @@ import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { createTemplate } from '@/lib/actions';
+import { ClashDialog } from '@/components/schedule/ClashDialog';
+import type { ClashInfo, ClashResolution } from '@/lib/schedule-clash';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -42,15 +44,30 @@ export function ManageForm({
   const archived = useIsArchived();
   const [values, setValues] = useState<TemplateFormValues>(EMPTY);
 
+  const [clash, setClash] = useState<ClashInfo | null>(null);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!values.subject) {
       toast.error('Choose a subject for this block.');
       return;
     }
+    save();
+  };
+
+  const save = (onClash?: ClashResolution) => {
     startTransition(async () => {
       try {
-        await createTemplate({ ...values, dayOfWeek: parseInt(values.dayOfWeek, 10) });
+        const result = await createTemplate({ ...values, dayOfWeek: parseInt(values.dayOfWeek, 10) }, onClash);
+        setClash(null);
+        if ('clash' in result) {
+          setClash(result.clash);
+          return;
+        }
+        if ('error' in result) {
+          toast.error(result.error);
+          return;
+        }
         setOpen(false);
         setValues(EMPTY);
         toast.success('Added to your study routine.');
@@ -86,6 +103,7 @@ export function ManageForm({
               {isPending ? 'Saving…' : 'Add block'}
             </Button>
           </DialogFooter>
+          <ClashDialog clash={clash} subject={values.subject} routine busy={isPending} onChoose={save} onCancel={() => setClash(null)} />
         </form>
       </DialogContent>
     </Dialog>

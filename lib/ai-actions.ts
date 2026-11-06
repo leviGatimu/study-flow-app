@@ -4,6 +4,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '@/lib/prisma';
 import { softDelete } from '@/lib/soft-delete';
 import { getUserId } from '@/lib/auth';
+import { clashMessage, decideSlot } from '@/lib/schedule-clash';
+import { openBlocksAround } from '@/lib/schedule-placement';
 import { createQuickTask, getAllTasks, getCurrentUserTimezone, getEvents, syncStreak } from '@/lib/actions';
 import { getZonedNow } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';
@@ -473,6 +475,7 @@ async function executeTool(name: string, args: unknown) {
     });
     // Report what actually happened: never "scheduled" after a refusal.
     if ('error' in result) return { success: false, message: result.error };
+    if ('clash' in result) return { success: false, message: clashMessage(result.clash) };
     return {
       success: true,
       taskId: result.id,
@@ -1699,14 +1702,18 @@ export async function commitTimetablePlan(
   }
 
   let revisionAdded = 0;
+  const timeZone = await getCurrentUserTimezone();
   for (const r of clean.revision) {
     const date = parseYmd(r.date)!;
+    // Reviewed as a batch, so a clash moves to the next free time that day. A
+    // session with no room left is not added on top of anything.
+    const decision = decideSlot(r, await openBlocksAround(userId, r.date, timeZone), 'next-free');
+    if (!('slot' in decision)) continue;
     await prisma.task.create({
       data: {
         userId,
         subject: `${r.subject} (revision)`,
-        startTime: r.startTime,
-        endTime: r.endTime,
+        ...decision.slot,
         type: 'REVISION',
         date: startOfDay(date),
         isDone: false,

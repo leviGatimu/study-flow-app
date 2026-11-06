@@ -37,7 +37,9 @@ import { getScheduleState, ensureDefaultClass } from './term';
 import { taskEndsAt } from './task-times';
 import { validateExamTimes } from './exam-time';
 import { normaliseCategory } from './exam-category';
-import { validateQuickTask } from './task-input';
+import { isDateKey, isTime, validateQuickTask } from './task-input';
+import { decideSlot, type ClashInfo, type ClashResolution, type DayBlocks } from './schedule-clash';
+import { clearBlocks, openBlocksAround, taskDateFromKey, taskDayKey, todayKey } from './schedule-placement';
 import { isDailySummaryDue } from './daily-summary-time';
 import { holidaysBetween } from './holidays';
 import {
@@ -694,9 +696,11 @@ export async function deleteTask(taskId: string) {
       where: { id: taskId, userId },
       data: { isDeleted: true }
     });
+    await prisma.homework.updateMany({ where: { taskId, userId }, data: { taskId: null, plannedDate: null } });
     revalidatePath('/');
     revalidatePath('/calendar');
     revalidatePath('/history');
+    revalidatePath('/homeworks');
     revalidatePath('/timetable');
     return { success: true };
   } catch (error) {
@@ -809,73 +813,105 @@ export async function createTemplate(data: {
   endTime: string;
   deadlineDay: string;
   type: string;
-}) {
+}, onClash?: ClashResolution): Promise<{ success: true } | { error: string } | { clash: ClashInfo }> {
   const userId = await getUserId();
-  if (!userId) return;
+  if (!userId) return { error: 'You are signed out. Sign in and try again.' };
 
+  const decision = decideSlot(data, await routineDay(userId, data.dayOfWeek), onClash);
+  if (!('slot' in decision)) return decision;
+
+  const scope = await requireWritableScope(userId);
+  for (const block of decision.clear) await deleteTemplate(block.id);
   await prisma.scheduleTemplate.create({
-    data: { ...data, userId, ...byClass(await requireWritableScope(userId)) }
+    data: { ...data, ...decision.slot, userId, ...byClass(scope) }
   });
   revalidatePath('/manage');
+  return { success: true };
+}
+
+/** The routine blocks on a weekday, shaped for a clash check. */
+async function routineDay(userId: string, dayOfWeek: number, exceptId?: string): Promise<DayBlocks> {
+  const templates = await getTemplatesForUser(userId);
+  const on = (day: number) => templates.filter((t) => t.dayOfWeek === day && t.id !== exceptId);
+  return { today: on(dayOfWeek), yesterday: on((dayOfWeek + 6) % 7), tomorrow: on((dayOfWeek + 1) % 7) };
 }
 
 /**
  * Update an existing task (move day or change time)
  */
-export async function updateTask(taskId: string, data: { date?: Date, startTime?: string, endTime?: string }) {
+export async function updateTask(
+  taskId: string,
+  data: { dateKey?: string; startTime?: string; endTime?: string },
+  onClash?: ClashResolution
+): Promise<{ success: true } | { error: string } | { clash: ClashInfo }> {
   const userId = await getUserId();
-  if (!userId) return;
+  if (!userId) return { error: 'You are signed out. Sign in and try again.' };
 
   const existing = await prisma.task.findUnique({
     where: { id: taskId }
   });
 
-  if (existing?.userId !== userId) return;
-
-  if (!existing) return;
+  if (!existing || existing.userId !== userId) return { error: 'That block no longer exists.' };
 
   await assertWritableScope(userId);
 
-  if (data.date) {
-    data.date = startOfDay(data.date);
+  if (data.dateKey !== undefined && !isDateKey(data.dateKey)) return { error: 'Pick a valid date.' };
+  if (data.startTime !== undefined && !isTime(data.startTime)) return { error: 'Enter a start time like 19:30.' };
+  if (data.endTime !== undefined && !isTime(data.endTime)) return { error: 'Enter an end time like 21:00.' };
 
-    if (existing.templateId && !isSameDay(existing.date, data.date)) {
-      await prisma.task.updateMany({
-        where: { id: taskId, userId },
-        data: { isDeleted: true }
-      });
+  const tz = await getUserTimezone(userId);
+  const currentKey = taskDayKey(existing.date, tz);
+  const targetKey = data.dateKey ?? currentKey;
+  const moved = targetKey !== currentKey;
+  let slot = { startTime: data.startTime ?? existing.startTime, endTime: data.endTime ?? existing.endTime };
+  if (slot.startTime === slot.endTime) return { error: 'The block needs to end at a different time from when it starts.' };
 
-      await prisma.task.create({
-        data: {
-          userId,
-          // Moving a block keeps the year it belonged to; it is the same piece
-          // of work on a different day, not new work in the current year.
-          termId: existing.termId,
-          templateId: existing.templateId,
-          subject: existing.subject,
-          type: existing.type,
-          startTime: data.startTime || existing.startTime,
-          endTime: data.endTime || existing.endTime,
-          date: data.date,
-          isDone: existing.isDone,
-          isMissed: existing.isMissed,
-          isDeleted: false
-        }
-      });
-
-      revalidatePath('/');
-      revalidatePath('/calendar');
-      return;
-    }
+  // A finished block is a record of what happened, so correcting it clashes with nothing.
+  const changed = moved || slot.startTime !== existing.startTime || slot.endTime !== existing.endTime;
+  if (changed && !existing.isDone) {
+    const decision = decideSlot(slot, await openBlocksAround(userId, targetKey, tz, taskId), onClash);
+    if (!('slot' in decision)) return decision;
+    await clearBlocks(userId, decision.clear.map((block) => block.id));
+    slot = decision.slot;
   }
 
-  await prisma.task.updateMany({
-    where: { id: taskId, userId },
-    data
-  });
+  const date = taskDateFromKey(targetKey);
+
+  if (moved && existing.templateId) {
+    await prisma.task.updateMany({
+      where: { id: taskId, userId },
+      data: { isDeleted: true }
+    });
+
+    await prisma.task.create({
+      data: {
+        userId,
+        // Moving a block keeps the year it belonged to; it is the same piece
+        // of work on a different day, not new work in the current year.
+        termId: existing.termId,
+        templateId: existing.templateId,
+        subject: existing.subject,
+        type: existing.type,
+        ...slot,
+        date,
+        isDone: existing.isDone,
+        isMissed: existing.isMissed,
+        isDeleted: false
+      }
+    });
+  } else {
+    await prisma.task.updateMany({
+      where: { id: taskId, userId },
+      data: { ...slot, ...(moved ? { date } : {}) }
+    });
+    if (moved) await prisma.homework.updateMany({ where: { taskId, userId }, data: { plannedDate: date } });
+  }
 
   revalidatePath('/');
   revalidatePath('/calendar');
+  revalidatePath('/timetable');
+  revalidatePath('/homeworks');
+  return { success: true };
 }
 
 /**
@@ -1304,17 +1340,30 @@ export async function updateTemplate(id: string, data: {
   endTime?: string;
   deadlineDay?: string;
   type?: string;
-}) {
+}, onClash?: ClashResolution): Promise<{ success: true } | { error: string } | { clash: ClashInfo }> {
   const userId = await getUserId();
-  if (!userId) return;
+  if (!userId) return { error: 'You are signed out. Sign in and try again.' };
 
   await assertWritableScope(userId);
 
-  await prisma.scheduleTemplate.updateMany({ 
-    where: { id, userId }, 
-    data 
+  const existing = await prisma.scheduleTemplate.findFirst({ where: { id, userId } });
+  if (!existing) return { error: 'That block no longer exists.' };
+
+  const dayOfWeek = data.dayOfWeek ?? existing.dayOfWeek;
+  const slot = { startTime: data.startTime ?? existing.startTime, endTime: data.endTime ?? existing.endTime };
+  const changed = dayOfWeek !== existing.dayOfWeek || slot.startTime !== existing.startTime || slot.endTime !== existing.endTime;
+  const decision = changed
+    ? decideSlot(slot, await routineDay(userId, dayOfWeek, id), onClash)
+    : { slot, clear: [] };
+  if (!('slot' in decision)) return decision;
+
+  for (const block of decision.clear) await deleteTemplate(block.id);
+  await prisma.scheduleTemplate.updateMany({
+    where: { id, userId },
+    data: { ...data, ...decision.slot }
   });
   revalidatePath('/manage');
+  return { success: true };
 }
 
 /**
@@ -1609,7 +1658,7 @@ export async function createQuickTask(data: {
   endTime: string;
   type: string;
   date?: string;
-}): Promise<{ success: true; id: string } | { error: string }> {
+}, onClash?: ClashResolution): Promise<{ success: true; id: string } | { error: string } | { clash: ClashInfo }> {
   const userId = await getUserId();
   if (!userId) return { error: 'You are signed out. Sign in and try again.' };
 
@@ -1632,12 +1681,16 @@ export async function createQuickTask(data: {
     return { error: 'You are viewing a finished year. Switch back to this year to add tasks.' };
   }
 
+  const tz = await getUserTimezone(userId);
+  const decision = decideSlot({ startTime, endTime }, await openBlocksAround(userId, dateKey ?? todayKey(tz), tz), onClash);
+  if (!('slot' in decision)) return decision;
+  await clearBlocks(userId, decision.clear.map((block) => block.id));
+
   const task = await prisma.task.create({
     data: {
       userId,
       subject,
-      startTime,
-      endTime,
+      ...decision.slot,
       type,
       date,
       isDone: false,

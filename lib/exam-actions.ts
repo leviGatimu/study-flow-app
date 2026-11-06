@@ -3,6 +3,7 @@
 import { addDays, startOfDay, endOfDay } from 'date-fns';
 
 import { validateExamTimes } from '@/lib/exam-time';
+import { entryRange } from '@/lib/schedule-layout';
 import { normaliseCategory } from '@/lib/exam-category';
 import { prisma } from '@/lib/prisma';
 import { softDelete } from '@/lib/soft-delete';
@@ -257,10 +258,16 @@ export async function planRevision(
   // detection, and a block the query cannot see is a block revision lands on
   // top of.
   const planDays = [...new Set(dayOffsets)].map((o) => addDays(windowStart, o));
+  // Routine blocks only exist once a day has come into view, and revision must
+  // not land where one is about to appear.
+  const { ensureTasksGenerated } = await import('./actions');
+  await ensureTasksGenerated(planDays.reduce((a, b) => (a < b ? a : b)), planDays.reduce((a, b) => (a > b ? a : b)));
   const dayTasks = await prisma.task.findMany({
     where: {
       userId,
       isDeleted: false,
+      isDone: false,
+      isMissed: false,
       date: {
         gte: startOfDay(planDays.reduce((a, b) => (a < b ? a : b))),
         lte: endOfDay(planDays.reduce((a, b) => (a > b ? a : b))),
@@ -271,7 +278,8 @@ export async function planRevision(
   for (const t of dayTasks) {
     const key = startOfDay(new Date(t.date)).toISOString();
     const list = usedPerDay.get(key) ?? [];
-    list.push(mins(t.startTime), mins(t.endTime));
+    const range = entryRange(t);
+    list.push(range.start, range.end);
     usedPerDay.set(key, list);
   }
 
@@ -282,15 +290,15 @@ export async function planRevision(
 
     // Walk forward from the preferred time until the slot is free.
     let start = mins(preferredStart);
-    for (let attempt = 0; attempt < 8; attempt++) {
+    let free = false;
+    while (!free && start + duration <= 24 * 60) {
       const end = start + duration;
-      const clashes = busy.some((_, i) =>
-        i % 2 === 0 ? start < busy[i + 1] && end > busy[i] : false
-      );
-      if (!clashes) break;
-      start += duration;
+      const clash = busy.findIndex((_, i) => i % 2 === 0 && start < busy[i + 1] && end > busy[i]);
+      if (clash < 0) free = true;
+      else start = busy[clash + 1];
     }
-    if (start + duration > 24 * 60) start = mins(preferredStart); // give up, stack it
+    // A day with no room gets no revision rather than two blocks at once.
+    if (!free) continue;
 
     const startTime = hhmm(start);
     const endTime = hhmm(start + duration);
