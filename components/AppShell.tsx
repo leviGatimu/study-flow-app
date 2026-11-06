@@ -7,6 +7,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { MobileTabBar } from "@/components/MobileTabBar";
 import { CommandMenu } from "@/components/CommandMenu";
 import { SyncWatcher } from "@/components/SyncWatcher";
+import { PresencePing } from '@/components/PresencePing';
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { ArchiveBanner } from "@/components/ArchiveBanner";
 import { ArchiveProvider, type ArchiveView } from "@/components/ArchiveContext";
@@ -49,6 +50,7 @@ export function AppShell({
         {/* Headless. Watches for work arriving from another device, refreshes
             the page under you and says so. Does nothing on the web build. */}
         <SyncWatcher />
+        <PresencePing />
 
         <Sidebar userProgress={userProgress} isAdmin={isAdmin} />
 

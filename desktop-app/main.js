@@ -1,5 +1,6 @@
-const { app, BrowserWindow, Menu, ipcMain, screen, dialog, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, screen, dialog, shell, powerMonitor } = require('electron');
 const { autoUpdater } = require('electron-updater');
+const { safeToRestart } = require('./update-policy');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
@@ -256,7 +257,49 @@ let updateState = {
   currentVersion: app.getVersion(),
   supported: false,
   lastCheckedAt: null,
+  autoInstall: readAutoInstall(),
 };
+
+/** Whether this person turned auto update on. Off unless they chose it. */
+function readAutoInstall() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(appDataPath, 'update-settings.json'), 'utf8')).autoInstall === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Silent, then reopen: no installer window to click through, and the app comes back by itself. */
+function restartIntoUpdate() {
+  autoUpdater.quitAndInstall(true, true);
+}
+
+const AUTO_RESTART_CHECK_MS = 30_000;
+let autoRestartTimer = null;
+
+/** With auto update on, wait for a moment the restart cannot interrupt anything. */
+function waitToRestart() {
+  if (autoRestartTimer || !updateState.autoInstall || updateState.phase !== 'downloaded') return;
+  autoRestartTimer = setInterval(async () => {
+    if (!updateState.autoInstall) {
+      clearInterval(autoRestartTimer);
+      autoRestartTimer = null;
+      return;
+    }
+    let savedFocus = '{unknown';
+    try {
+      if (mainWindow) savedFocus = await mainWindow.webContents.executeJavaScript("localStorage.getItem('study-flow-focus')");
+    } catch (e) {
+      log(`Could not read focus state: ${e.message}`);
+    }
+    if (safeToRestart({ idleSeconds: powerMonitor.getSystemIdleTime(), savedFocus })) {
+      clearInterval(autoRestartTimer);
+      autoRestartTimer = null;
+      log('Auto update: restarting into the new version.');
+      restartIntoUpdate();
+    }
+  }, AUTO_RESTART_CHECK_MS);
+}
 
 function setUpdateState(patch) {
   updateState = { ...updateState, ...patch };
@@ -270,8 +313,9 @@ function setUpdateState(patch) {
 /**
  * Check GitHub Releases for a newer build.
  *
- * Updates download in the background and are installed when the user agrees to
- * restart - never mid-session, which would kill a focus timer.
+ * Updates download in the background. They install when the user agrees to
+ * restart or, with auto update on, once the app is idle with no focus session
+ * running - never mid-session, which would kill a focus timer.
  *
  * Only wired up in a packaged app: in development there is no update feed and
  * electron-updater throws. Settings says so rather than showing a button that
@@ -316,6 +360,11 @@ function setupAutoUpdates() {
     log(`Update ${info.version} downloaded.`);
     setUpdateState({ phase: 'downloaded', version: info.version, percent: 100, message: null });
 
+    if (updateState.autoInstall) {
+      waitToRestart();
+      return;
+    }
+
     const { response } = await dialog.showMessageBox(mainWindow, {
       type: 'info',
       buttons: ['Restart now', 'Later'],
@@ -327,7 +376,7 @@ function setupAutoUpdates() {
     });
     // "Later" still installs on quit, so the update is never lost - and the
     // button in Settings stays on "Restart and update" until it does.
-    if (response === 0) autoUpdater.quitAndInstall();
+    if (response === 0) restartIntoUpdate();
   });
 
   autoUpdater.checkForUpdates().catch((e) => log(`Update check error: ${e.message}`));
@@ -362,7 +411,20 @@ ipcMain.handle('updates:check', async () => {
 ipcMain.handle('updates:install', () => {
   if (updateState.phase !== 'downloaded') return updateState;
   // Let the IPC reply leave before the app tears itself down.
-  setImmediate(() => autoUpdater.quitAndInstall());
+  setImmediate(restartIntoUpdate);
+  return updateState;
+});
+
+ipcMain.handle('updates:set-auto', (_event, enabled) => {
+  const autoInstall = enabled === true;
+  try {
+    fs.writeFileSync(path.join(appDataPath, 'update-settings.json'), JSON.stringify({ autoInstall }));
+  } catch (e) {
+    log(`Could not save the auto update setting: ${e.message}`);
+    return updateState;
+  }
+  setUpdateState({ autoInstall });
+  waitToRestart();
   return updateState;
 });
 

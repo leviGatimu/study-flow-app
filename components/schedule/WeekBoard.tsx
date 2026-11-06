@@ -28,8 +28,9 @@ const KIND_LABEL: Record<ScheduleEntry['kind'], string> = { school: 'School less
 const describe = (entry: ScheduleEntry, day?: BoardDay) =>
   `${entry.title}, ${day?.title ?? ''}, ${entry.startTime} to ${entry.endTime}, ${KIND_LABEL[entry.kind]}${entry.state ? `, ${entry.state}` : ''}`;
 
-function BlockCard({ entry, label, clashing, onOpen }: { entry: ScheduleEntry; label: string; clashing: boolean; onOpen: (target: HTMLButtonElement) => void }) {
+function BlockCard({ entry, label, clashing, compact, onOpen }: { entry: ScheduleEntry; label: string; clashing: boolean; compact?: boolean; onOpen: (target: HTMLButtonElement) => void }) {
   const revision = entry.kind === 'revision';
+  const isBreak = entry.kind === 'break';
   const finished = entry.state === 'done' || entry.state === 'missed';
   return (
     <button
@@ -37,14 +38,16 @@ function BlockCard({ entry, label, clashing, onOpen }: { entry: ScheduleEntry; l
       aria-label={label}
       onClick={(event) => onOpen(event.currentTarget)}
       className={cn(
-        'flex h-32 w-full shrink-0 flex-col justify-between gap-1.5 overflow-hidden rounded-xl border bg-card p-3 text-left shadow-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        revision ? 'border-dashed border-orange-500/60' : 'border-primary/50',
+        'flex w-full shrink-0 flex-col overflow-hidden rounded-xl border bg-card text-left shadow-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        compact ? 'h-16 justify-center gap-0.5 px-3 py-1.5' : 'h-32 justify-between gap-1.5 p-3',
+        isBreak ? 'border-border/60 bg-muted/30 shadow-none' : revision ? 'border-dashed border-orange-500/60' : 'border-primary/50',
         finished && 'border-border/60 bg-card/50 shadow-none',
         entry.state === 'active' && 'ring-2 ring-primary'
       )}
     >
       <span className="flex items-center justify-between gap-2">
-        <span className={cn('font-heading text-lg font-bold leading-none tabular-nums', finished ? 'text-muted-foreground' : 'text-foreground')}>{entry.startTime}</span>
+        <span className={cn('font-heading font-bold leading-none tabular-nums', compact ? 'text-sm' : 'text-lg', finished || isBreak ? 'text-muted-foreground' : 'text-foreground')}>{entry.startTime}</span>
+        {compact && !entry.state && !clashing && <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{scheduleDuration(entry)}</span>}
         {entry.state === 'done' && (
           <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-success text-success-foreground">
             <Check aria-hidden="true" className="size-3" />
@@ -62,11 +65,11 @@ function BlockCard({ entry, label, clashing, onOpen }: { entry: ScheduleEntry; l
           </span>
         )}
       </span>
-      <span className={cn('line-clamp-2 hyphens-auto break-words text-sm font-semibold leading-snug', finished ? 'text-muted-foreground' : 'text-foreground')}>{entry.title}</span>
-      <span className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+      <span className={cn('hyphens-auto break-words text-sm font-semibold leading-snug', compact ? 'line-clamp-1' : 'line-clamp-2', finished || isBreak ? 'text-muted-foreground' : 'text-foreground')}>{entry.title}</span>
+      {!compact && <span className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
         <span className={cn('truncate font-medium', !finished && (revision ? 'text-orange-600 dark:text-orange-400' : 'text-primary'))}>{KIND_LABEL[entry.kind]}</span>
         <span className="shrink-0 tabular-nums">{scheduleDuration(entry)}</span>
-      </span>
+      </span>}
     </button>
   );
 }
@@ -81,12 +84,15 @@ export function WeekBoard({
   days,
   entries,
   emptyLabel = 'Nothing planned',
+  compact = false,
   renderActions,
 }: {
   label: string;
   days: BoardDay[];
   entries: ScheduleEntry[];
   emptyLabel?: string;
+  /** Shorter cards, for a day with many entries such as a full school day. */
+  compact?: boolean;
   renderActions?: (entry: ScheduleEntry) => ReactNode;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -139,7 +145,7 @@ export function WeekBoard({
                 </header>
                 <div className="flex flex-1 flex-col gap-2 p-2">
                   {blocks.map((entry) => (
-                    <BlockCard key={entry.id} entry={entry} label={describe(entry, day)} clashing={clashes.has(entry.id)} onOpen={(target) => open(entry, target)} />
+                    <BlockCard key={entry.id} entry={entry} label={describe(entry, day)} clashing={clashes.has(entry.id)} compact={compact} onOpen={(target) => open(entry, target)} />
                   ))}
                   {blocks.length === 0 && <p className="py-6 text-center text-xs text-muted-foreground">{day.note ? 'Day off' : emptyLabel}</p>}
                 </div>

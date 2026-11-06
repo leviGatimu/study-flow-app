@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('electron', {
     check: () => ipcRenderer.invoke('updates:check'),
     /** Restart into the staged update. Only does anything once downloaded. */
     install: () => ipcRenderer.invoke('updates:install'),
+    /** Turn auto update on or off. */
+    setAuto: (enabled) => ipcRenderer.invoke('updates:set-auto', enabled),
     /** Live state while a check or download runs; returns an unsubscribe. */
     subscribe: (callback) => {
       const handler = (_event, state) => callback(state);

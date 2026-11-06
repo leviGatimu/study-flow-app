@@ -79,6 +79,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "update-policy.js",
       "package.json",
       "desktop.css",
       "icon.ico",

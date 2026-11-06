@@ -1,5 +1,6 @@
 import {
   Activity,
+  Megaphone,
   BookOpen,
   BrainCircuit,
   Book,
@@ -140,6 +141,7 @@ export const NAV: NavSection[] = [
       { name: "Profile", href: "/profile", icon: UserRound, keywords: "account name photo avatar biography school" },
       { name: "Settings", href: "/settings", icon: Settings, keywords: "preferences account timezone ai keys sync" },
       { name: "Year & terms", href: "/year", icon: CalendarClock, keywords: "class term semester archive academic year" },
+      { name: "Updates", href: "/updates", icon: Megaphone, keywords: "what is new version changelog release notes dev log update" },
     ],
   },
 ];

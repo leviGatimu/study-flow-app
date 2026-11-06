@@ -66,15 +66,13 @@ export default async function SchoolLessonsPage() {
   }
 
   return (
-    <Page>
-      <SchoolTimetable
-        lessons={data.lessons}
-        subjects={data.subjects}
-        canEdit={!data.scope?.isArchive}
-        timezone={data.timezone}
-        yearLabel={data.scope?.label ?? null}
-        initialNow={format(getZonedNow(data.timezone), "yyyy-MM-dd'T'HH:mm:ss")}
-      />
-    </Page>
+    <SchoolTimetable
+      lessons={data.lessons}
+      subjects={data.subjects}
+      canEdit={!data.scope?.isArchive}
+      timezone={data.timezone}
+      yearLabel={data.scope?.label ?? null}
+      initialNow={format(getZonedNow(data.timezone), "yyyy-MM-dd'T'HH:mm:ss")}
+    />
   );
 }

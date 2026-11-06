@@ -7,13 +7,12 @@
  * timetable, hardcoded - which the dashboard status card, the lesson notifier
  * and the week view all imported. Every account saw the same lessons. The
  * lessons now come from the database, per user and per academic year, and this
- * component is where they are edited. It renders the page header too, because
- * the header's buttons open dialogs whose state lives here.
+ * component is where they are edited. It renders the page's frame too, because
+ * the toolbar's buttons open dialogs whose state lives here.
  */
 
 import { useState, useEffect, useTransition } from 'react';
 import {
-  Zap,
   School,
   Plus,
   Pencil,
@@ -27,9 +26,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { EmptyState } from '@/components/ui/empty-state';
-import { PageHeader } from '@/components/ui/page-header';
-import { PageBody } from '@/components/ui/page';
-import { ScheduleBoard } from '@/components/ScheduleBoard';
+import { ScheduleFrame } from '@/components/schedule/ScheduleFrame';
+import { WeekBoard } from '@/components/schedule/WeekBoard';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { useTimetableSync } from '@/components/useTimetableSync';
 import { UploadSchoolTimetableDialog } from '@/components/UploadSchoolTimetableDialog';
@@ -133,39 +131,6 @@ export function SchoolTimetable({
   const hasLessons = lessons.length > 0;
   const attended = lessons.filter((l) => !l.isBreak).length;
 
-  const header = (
-    <div data-tour="school-timetable-intro">
-      <PageHeader
-        className="pt-7 pb-5 [&_h1]:text-3xl [&_h1]:font-semibold"
-        title="School lessons"
-        description={
-          yearLabel
-            ? `The lessons you attend in ${yearLabel}. Upload your timetable or add lessons by hand.`
-            : 'The lessons you attend. Upload your timetable or add lessons by hand.'
-        }
-        meta={hasLessons ? `${attended} ${attended === 1 ? 'lesson' : 'lessons'} each week` : undefined}
-        actions={
-          canEdit ? (
-            hasLessons ? (
-              <>
-                <Button variant="outline" size="lg" onClick={() => setUploading(true)}>
-                  <Upload /> Upload a new photo
-                </Button>
-                <Button size="lg" onClick={() => setEditing('new')}>
-                  <Plus /> Add lesson
-                </Button>
-              </>
-            ) : (
-              <Button size="lg" onClick={() => setUploading(true)}>
-                <Upload /> Upload a photo
-              </Button>
-            )
-          ) : undefined
-        }
-      />
-    </div>
-  );
-
   const dialogs = (
     <>
       {editing !== null && (
@@ -188,7 +153,7 @@ export function SchoolTimetable({
         title="Remove this lesson?"
         description={
           removing
-            ? `${removing.subject} on ${DAY_NAMES[removing.dayOfWeek]} at ${removing.startTime} will be removed from your school week.`
+            ? `${removing.subject} on ${DAY_NAMES[removing.dayOfWeek]} at ${removing.startTime} will be removed from your school lessons.`
             : ''
         }
       />
@@ -197,15 +162,25 @@ export function SchoolTimetable({
 
   if (!hasLessons) {
     return (
-      <>
-        {header}
-        <PageBody>
+      <ScheduleFrame
+        tour="school-timetable-intro"
+        title="School lessons"
+        meta={yearLabel ? `The lessons you attend in ${yearLabel}` : 'The lessons you attend'}
+        actions={
+          canEdit && (
+            <Button onClick={() => setUploading(true)}>
+              <Upload /> Upload a photo
+            </Button>
+          )
+        }
+      >
+        <div className="p-4 md:p-6">
           <EmptyState
             icon={<School />}
             title="No school lessons yet"
             description={
               canEdit
-                ? 'Upload a photo of your timetable and it will be read for you - or type the lessons in yourself. They show up on your dashboard, your week and as lesson reminders.'
+                ? 'Upload a photo of your timetable and it will be read for you, or type the lessons in yourself.'
                 : 'This academic year finished without a school timetable recorded.'
             }
             action={
@@ -217,132 +192,93 @@ export function SchoolTimetable({
             }
             className="py-12"
           />
-        </PageBody>
+        </div>
         {dialogs}
-      </>
+      </ScheduleFrame>
     );
   }
 
   const todayDow = now.getDay();
   const current = isTimetableSynced ? lessonAt(lessons, todayDow, nowMinutes) : null;
   const next = nextLessonAfter(lessons, todayDow, nowMinutes);
-  const todayBounds = schoolDayBounds(lessons, todayDow);
+  const left = current ? timeLeft(current.endTime) : null;
+  const status = current
+    ? `${current.isBreak ? 'On a break' : 'In class'}: ${current.subject}${left ? `, ${left}` : ''}`
+    : next
+      ? `Next: ${next.subject} at ${next.startTime}`
+      : null;
+
   return (
-    <>
-      {header}
-      <PageBody className="space-y-6 pt-6">
-        <NowCard
-          current={current}
-          next={next}
-          bounds={todayBounds}
-          nowMinutes={nowMinutes}
-          tracking={isTimetableSynced}
-          timeLeft={timeLeft}
-        />
-
-        <label className="flex cursor-pointer items-center justify-between gap-4 border-b border-border/60 pb-5">
-          <span className="flex items-center gap-2">
-            <Zap className="size-4 shrink-0 text-primary" />
-            <span>
-              <span className="block text-sm font-semibold text-foreground">Follow my school day</span>
-              <span id="lesson-tracking-help" className="block text-xs text-muted-foreground">
-                Highlight the current lesson and show the time left until the bell.
-              </span>
-            </span>
-          </span>
-          <Switch
-            checked={isTimetableSynced}
-            onCheckedChange={setIsTimetableSynced}
-            aria-describedby="lesson-tracking-help"
-          />
-        </label>
-
-        <ScheduleBoard
-          title="Your school week"
-          description="Select a lesson or break for details and editing"
-          emptyLabel="No lessons"
-          schoolWeek
-          nowMinutes={isTimetableSynced ? nowMinutes : undefined}
-          days={WEEK.map((day) => {
-            const dayLessons = lessonsOn(lessons, day);
-            const count = dayLessons.filter((lesson) => !lesson.isBreak).length;
-            const bounds = schoolDayBounds(lessons, day);
-            return {
-              key: String(day),
-              title: DAY_NAMES[day],
-              isToday: isSameDay(dateOf(day), now),
-              isWeekend: day === 0 || day === 6,
-              summary: count && bounds ? `${count} lessons · ${formatDuration(toMinutes(bounds.end) - toMinutes(bounds.start))}` : 'Day off',
-            };
-          })}
-          entries={lessons.map((lesson) => ({
-            id: lesson.id,
-            day: String(lesson.dayOfWeek),
-            title: lesson.subject,
-            startTime: lesson.startTime,
-            endTime: lesson.endTime,
-            kind: lesson.isBreak ? 'break' : 'school',
-            state: current?.id === lesson.id ? 'active' : undefined,
-            detail: current?.id === lesson.id ? timeLeft(lesson.endTime) ?? undefined : undefined,
-          }))}
-          renderActions={canEdit ? (entry) => {
-            const lesson = lessons.find((item) => item.id === entry.id);
-            return lesson && <>
-              <Button variant="outline" onClick={() => setEditing(lesson)}><Pencil /> Edit lesson</Button>
-              <Button variant="destructive" disabled={pending} onClick={() => setRemoving(lesson)}><Trash2 /> Remove lesson</Button>
-            </>;
-          } : undefined}
-        />
-      </PageBody>
+    <ScheduleFrame
+      tour="school-timetable-intro"
+      title="School lessons"
+      meta={[`${attended} ${attended === 1 ? 'lesson' : 'lessons'} a week`, status].filter(Boolean).join(' · ')}
+      actions={
+        <>
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Switch checked={isTimetableSynced} onCheckedChange={setIsTimetableSynced} aria-label="Follow my school day" />
+            Follow my day
+          </label>
+          {canEdit && (
+            <>
+              <Button variant="outline" onClick={() => setUploading(true)}>
+                <Upload /> Upload photo
+              </Button>
+              <Button onClick={() => setEditing('new')}>
+                <Plus /> Add lesson
+              </Button>
+            </>
+          )}
+        </>
+      }
+    >
+      <WeekBoard
+        label="Your school week"
+        compact
+        emptyLabel="No lessons"
+        days={WEEK.map((day) => {
+          const dayLessons = lessonsOn(lessons, day);
+          const count = dayLessons.filter((lesson) => !lesson.isBreak).length;
+          const bounds = schoolDayBounds(lessons, day);
+          return {
+            key: String(day),
+            title: DAY_NAMES[day],
+            isToday: isSameDay(dateOf(day), now),
+            isWeekend: day === 0 || day === 6,
+            summary: count && bounds ? `${count} lessons · ${bounds.start}–${bounds.end}` : undefined,
+          };
+        })}
+        entries={lessons.map((lesson) => ({
+          id: lesson.id,
+          day: String(lesson.dayOfWeek),
+          title: lesson.subject,
+          startTime: lesson.startTime,
+          endTime: lesson.endTime,
+          kind: lesson.isBreak ? 'break' : 'school',
+          state: current?.id === lesson.id ? 'active' : undefined,
+          detail: current?.id === lesson.id ? timeLeft(lesson.endTime) ?? undefined : undefined,
+        }))}
+        renderActions={
+          canEdit
+            ? (entry) => {
+                const lesson = lessons.find((item) => item.id === entry.id);
+                return (
+                  lesson && (
+                    <>
+                      <Button variant="outline" onClick={() => setEditing(lesson)}><Pencil /> Edit lesson</Button>
+                      <Button variant="destructive" disabled={pending} onClick={() => setRemoving(lesson)}><Trash2 /> Remove lesson</Button>
+                    </>
+                  )
+                );
+              }
+            : undefined
+        }
+      />
       {dialogs}
-    </>
+    </ScheduleFrame>
   );
 }
 
-function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m ? `${h}h ${m}m` : `${h}h`;
-}
-
-/**
- * A compact status strip leaves the timetable as the page's main surface.
- */
-function NowCard({
-  current,
-  next,
-  bounds,
-  nowMinutes,
-  tracking,
-  timeLeft,
-}: {
-  current: SchoolLesson | null;
-  next: SchoolLesson | null;
-  bounds: { start: string; end: string } | null;
-  nowMinutes: number;
-  tracking: boolean;
-  timeLeft: (endTime: string) => string | null;
-}) {
-  const title = current?.subject ?? (next ? next.subject : bounds && nowMinutes >= toMinutes(bounds.end) ? "School’s out for today" : 'No school today');
-  const label = current ? (current.isBreak ? 'On a break' : 'In class now') : next ? 'Up next' : 'Today';
-  const detail = current
-    ? `${current.startTime} – ${current.endTime}${next ? ` · Next: ${next.subject} at ${next.startTime}` : ''}`
-    : next ? `${next.startTime} – ${next.endTime}` : bounds ? `School day · ${bounds.start} – ${bounds.end}` : 'A little breathing room in your week';
-  return (
-    <section aria-label="School status" className="flex flex-wrap items-center justify-between gap-5 rounded-xl border border-border bg-card px-5 py-4">
-      <div className="flex min-w-0 items-center gap-4">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><School className="size-5" /></div>
-        <div className="min-w-0">
-          <p className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">{current && <span className="size-1.5 rounded-full bg-primary" />}{label}</p>
-          <p className="text-lg font-semibold leading-snug">{title}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-        </div>
-      </div>
-      {current ? <div className="ml-14 shrink-0 sm:ml-0 sm:text-right"><p className="text-xl font-medium tabular-nums">{timeLeft(current.endTime)?.replace(' left', '') ?? '0m'}</p><p className="mt-1 text-xs text-muted-foreground">until the bell</p></div> : !tracking && <p className="text-xs text-muted-foreground">Live tracking is off</p>}
-    </section>
-  );
-}
 /**
  * Add or edit one lesson.
  *

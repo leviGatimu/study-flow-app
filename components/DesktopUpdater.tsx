@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { AlertTriangle, CheckCircle2, Download, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 
 /**
  * The update control for the desktop build.
@@ -34,12 +35,14 @@ type UpdateState = {
   message: string | null;
   currentVersion: string;
   supported: boolean;
+  autoInstall?: boolean;
 };
 
 type UpdatesBridge = {
   status: () => Promise<UpdateState>;
   check: () => Promise<UpdateState>;
   install: () => Promise<UpdateState>;
+  setAuto: (enabled: boolean) => Promise<UpdateState>;
   subscribe: (callback: (state: UpdateState) => void) => () => void;
 };
 
@@ -111,7 +114,9 @@ export function DesktopUpdater() {
       case "downloading":
         return `Downloading version ${version}… ${percent}%`;
       case "downloaded":
-        return `Version ${version} is ready. Restart to finish installing it.`;
+        return state?.autoInstall
+          ? `Version ${version} is ready. It installs by itself when you are not using the app.`
+          : `Version ${version} is ready. Restart to finish installing it. The app reopens by itself.`;
       case "error":
         return state?.message
           ? `Could not check for updates: ${state.message}`
@@ -141,6 +146,13 @@ export function DesktopUpdater() {
 
   const onInstall = () => {
     bridge()?.install().catch(() => {});
+  };
+
+  const onToggleAuto = (enabled: boolean) => {
+    bridge()
+      ?.setAuto(enabled)
+      .then((next) => setState(next))
+      .catch(() => {});
   };
 
   return (
@@ -192,6 +204,18 @@ export function DesktopUpdater() {
         >
           {phase === "checking" ? "Checking…" : busy ? `Downloading… ${percent}%` : "Check for updates"}
         </Button>
+      )}
+
+      {phase !== "unsupported" && (
+        <label className="flex cursor-pointer items-start justify-between gap-3 border-t border-border/60 pt-3">
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-foreground">Auto update</span>
+            <span className="block text-xs text-muted-foreground">
+              Installs new versions by itself and reopens the app. It waits until you have been away for a couple of minutes and no focus session is running.
+            </span>
+          </span>
+          <Switch checked={state?.autoInstall ?? false} onCheckedChange={onToggleAuto} aria-label="Auto update" className="mt-0.5 shrink-0" />
+        </label>
       )}
     </div>
   );

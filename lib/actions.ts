@@ -40,6 +40,7 @@ import { normaliseCategory } from './exam-category';
 import { isDateKey, isTime, validateQuickTask } from './task-input';
 import { decideSlot, type ClashInfo, type ClashResolution, type DayBlocks } from './schedule-clash';
 import { clearBlocks, openBlocksAround, taskDateFromKey, taskDayKey, todayKey } from './schedule-placement';
+import { computeStreak, plannedDays } from './streak';
 import { isDailySummaryDue } from './daily-summary-time';
 import { holidaysBetween } from './holidays';
 import {
@@ -1037,26 +1038,62 @@ const syncStreakFor = cache(async function syncStreakFor(userId: string) {
   await ensureDefaultClass(userId);
   const schedule = await getScheduleState(userId);
 
-  // "All-time best" spans every year the user has studied; the current streak
-  // belongs to this one. The UserProgress value is included so the pre-Class
-  // history is not lost.
-  const best = await prisma.class.aggregate({
-    where: { userId, deletedAt: null },
-    _max: { longestStreak: true },
-  });
-  const allTimeBest = Math.max(best._max.longestStreak ?? 0, progress.longestStreak ?? 0);
+  // Worked out from what was actually finished, so it cannot drift from the
+  // record. The longest run covers every year; the current one belongs to this
+  // year, because the streak resets with each academic year.
+  const [allTasks, routine, terms] = await Promise.all([
+    prisma.task.findMany({
+      where: { userId, isDeleted: false },
+      select: { date: true, isDone: true, termId: true },
+    }),
+    schedule.classId
+      ? prisma.scheduleTemplate.findMany({ where: { userId, classId: schedule.classId }, select: { dayOfWeek: true } })
+      : [],
+    schedule.classId
+      ? prisma.term.findMany({
+          where: { classId: schedule.classId, status: { not: 'UPCOMING' } },
+          select: { id: true, status: true, startDate: true, endDate: true, createdAt: true, updatedAt: true },
+        })
+      : [],
+  ]);
+
+  const todayStr = format(today, 'yyyy-MM-dd');
+  const keyed = allTasks.map((t) => ({ day: taskDayKey(t.date, tz), isDone: t.isDone, termId: t.termId }));
+  const firstDay = keyed.reduce((first, t) => (t.day < first ? t.day : first), todayStr);
+  const holidays = new Set(holidaysBetween(tz, firstDay, todayStr).keys());
+  const termWindows = terms.map((term) => ({
+    from: taskDayKey(term.startDate ?? term.createdAt, tz),
+    to: term.endDate ? taskDayKey(term.endDate, tz) : term.status === 'ACTIVE' ? todayStr : taskDayKey(term.updatedAt, tz),
+  }));
+  const routineWeekdays = routine.map((t) => t.dayOfWeek);
+  const streakOver = (tasks: typeof keyed) =>
+    computeStreak({
+      studied: tasks.filter((t) => t.isDone).map((t) => t.day),
+      planned: plannedDays({ taskDays: tasks.map((t) => t.day), routineWeekdays, termWindows, holidays }),
+      today: todayStr,
+    });
+
+  const termIds = new Set(terms.map((term) => term.id));
+  const inThisYear = streakOver(keyed.filter((t) => t.termId !== null && termIds.has(t.termId)));
+  const longest = Math.max(streakOver(keyed).longest, inThisYear.longest);
 
   const activeClass = schedule.classId
     ? await prisma.class.findUnique({ where: { id: schedule.classId } })
     : null;
 
-  // Frozen while paused, between terms, or once the year is finished. Frozen
-  // means exactly that: no increment and no reset, so time off costs nothing.
+  // Time off costs nothing by itself: with no term running nothing is planned,
+  // so those days neither add to the streak nor end it.
   if (!activeClass || !schedule.isRunning) {
+    if (activeClass && activeClass.currentStreak !== inThisYear.current) {
+      await prisma.class.update({ where: { id: activeClass.id }, data: { currentStreak: inThisYear.current } });
+    }
+    if (progress.currentStreak !== inThisYear.current || progress.longestStreak !== longest) {
+      await prisma.userProgress.updateMany({ where: { userId }, data: { currentStreak: inThisYear.current, longestStreak: longest } });
+    }
     return {
       ...progress,
-      currentStreak: activeClass?.currentStreak ?? 0,
-      longestStreak: allTimeBest,
+      currentStreak: inThisYear.current,
+      longestStreak: longest,
       streakIncreased: false,
       yesterdayStats: null,
       streakPaused: true,
@@ -1064,7 +1101,7 @@ const syncStreakFor = cache(async function syncStreakFor(userId: string) {
     };
   }
 
-  let cls = activeClass;
+  const cls = activeClass;
   let streakIncreased = false;
   let yesterdayStats: {
     tasksCompleted: number;
@@ -1074,90 +1111,66 @@ const syncStreakFor = cache(async function syncStreakFor(userId: string) {
   } | null = null;
 
   const lastDate = cls.lastActiveDate ? startOfDay(cls.lastActiveDate) : null;
+  const firstVisitToday = !lastDate || !isSameDay(lastDate, today);
+  const yesterday = addDays(today, -1);
+  const yesterdayKey = format(yesterday, 'yyyy-MM-dd');
 
-  if (!lastDate) {
-    cls = await prisma.class.update({
-      where: { id: cls.id },
-      data: {
-        currentStreak: 1,
-        longestStreak: Math.max(1, cls.longestStreak),
-        lastActiveDate: today,
-      },
-    });
-  } else if (!isSameDay(lastDate, today)) {
-    const diff = differenceInDays(today, lastDate);
-    let newStreak = 1;
+  // The first visit of a day celebrates yesterday, only if yesterday earned it.
+  if (firstVisitToday && inThisYear.current > 0 && keyed.some((t) => t.isDone && t.day === yesterdayKey)) {
+    streakIncreased = true;
+    // Keyed on the class and the day that was studied, so re-running the sync -
+    // or a second device working out the same streak - cannot pay it twice.
+    await grantXp(userId, 50 * inThisYear.current, 'STREAK', `streak:${cls.id}:${yesterdayKey}`);
 
-    // Days off on public holidays are not a broken streak: the gap only
-    // counts if a day in it was an ordinary one.
-    const gapIsHolidays = diff > 1 && holidaysBetween(
-      tz,
-      format(addDays(lastDate, 1), 'yyyy-MM-dd'),
-      format(addDays(today, -1), 'yyyy-MM-dd')
-    ).size === diff - 1;
-
-    if (diff === 1 || gapIsHolidays) {
-      newStreak = cls.currentStreak + 1;
-      streakIncreased = true;
-      // Keyed on the class and the day the streak advanced TO, so re-running
-      // the sync - or a second device computing the same real-world
-      // transition - cannot pay the bonus twice.
-      await grantXp(
+    const yesterdayTasks = await prisma.task.findMany({
+      where: {
         userId,
-        50 * newStreak,
-        'STREAK',
-        `streak:${cls.id}:${format(today, 'yyyy-MM-dd')}`
-      );
-
-      const yesterday = addDays(today, -1);
-      const yesterdayTasks = await prisma.task.findMany({
-        where: {
-          userId,
-          // The streak belongs to this class, so the day it reports on does too.
-          ...byTerm(await getActiveScope(userId)),
-          date: { gte: startOfDay(yesterday), lte: endOfDay(yesterday) },
-          isDeleted: false
-        }
-      });
-
-      const completed = yesterdayTasks.filter(t => t.isDone).length;
-      const totalTime = yesterdayTasks
-        .filter(t => t.isDone)
-        .reduce((acc, t) => {
-          const [sH, sM] = t.startTime.split(':').map(Number);
-          const [eH, eM] = t.endTime.split(':').map(Number);
-          let mins = (eH * 60 + eM) - (sH * 60 + sM);
-          if (mins < 0) mins += 1440;
-          return acc + mins;
-        }, 0);
-
-      yesterdayStats = {
-        tasksCompleted: completed,
-        totalTasks: yesterdayTasks.length,
-        focusMinutes: totalTime,
-        xpEarned: 50 * newStreak + (completed * 100) + (totalTime * 10)
-      };
-    }
-
-    cls = await prisma.class.update({
-      where: { id: cls.id },
-      data: {
-        currentStreak: newStreak,
-        longestStreak: Math.max(newStreak, cls.longestStreak),
-        lastActiveDate: today,
-      },
+        // The streak belongs to this class, so the day it reports on does too.
+        ...byTerm(await getActiveScope(userId)),
+        date: { gte: startOfDay(yesterday), lte: endOfDay(yesterday) },
+        isDeleted: false
+      }
     });
+
+    const completed = yesterdayTasks.filter(t => t.isDone).length;
+    const totalTime = yesterdayTasks
+      .filter(t => t.isDone)
+      .reduce((acc, t) => {
+        const [sH, sM] = t.startTime.split(':').map(Number);
+        const [eH, eM] = t.endTime.split(':').map(Number);
+        let mins = (eH * 60 + eM) - (sH * 60 + sM);
+        if (mins < 0) mins += 1440;
+        return acc + mins;
+      }, 0);
+
+    yesterdayStats = {
+      tasksCompleted: completed,
+      totalTasks: yesterdayTasks.length,
+      focusMinutes: totalTime,
+      xpEarned: 50 * inThisYear.current + (completed * 100) + (totalTime * 10)
+    };
   }
 
-  // addXp above changed xp/level, so the row read earlier is stale.
+  // Only when something changed: this runs on every page.
+  if (firstVisitToday || cls.currentStreak !== inThisYear.current) {
+    await prisma.class.update({
+      where: { id: cls.id },
+      data: { currentStreak: inThisYear.current, lastActiveDate: today },
+    });
+  }
+  if (progress.currentStreak !== inThisYear.current || progress.longestStreak !== longest) {
+    await prisma.userProgress.updateMany({ where: { userId }, data: { currentStreak: inThisYear.current, longestStreak: longest } });
+  }
+
+  // The XP grant changed xp and level, so the row read earlier is stale.
   if (streakIncreased) {
-    progress = (await prisma.userProgress.findUnique({ where: { userId } })) ?? progress;
+    progress = (await prisma.userProgress.findUnique({ where: { userId }, select: PROGRESS_WITHOUT_KEYS })) ?? progress;
   }
 
   return {
     ...progress,
-    currentStreak: cls.currentStreak,
-    longestStreak: Math.max(allTimeBest, cls.longestStreak),
+    currentStreak: inThisYear.current,
+    longestStreak: longest,
     streakIncreased,
     yesterdayStats,
     streakPaused: false,

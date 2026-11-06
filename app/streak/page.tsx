@@ -2,9 +2,10 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { CalendarDays, Check, Clock, Flame, History, Lock, Trophy } from 'lucide-react';
-import { cn, getZonedNow } from '@/lib/utils';
+import { cn, DEFAULT_TIMEZONE, getZonedNow } from '@/lib/utils';
 
 import { syncStreak } from '@/lib/actions';
+import { taskDayKey } from '@/lib/schedule-placement';
 import { getUserId } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { byTerm, getViewScope } from '@/lib/scope';
@@ -43,15 +44,15 @@ export default async function StreakPage() {
     const [progress, scope] = await Promise.all([syncStreak(), getViewScope(userId)]);
     userProgress = progress;
 
-    // Finished blocks in the year on screen, keyed by calendar date formatted
-    // HERE, in the frame the task dates were written in: a raw timestamp
-    // re-bucketed by the browser lands on the wrong day across time zones.
+    // Finished blocks in the year on screen, by calendar day, read the same way
+    // the streak reads them so the two can never disagree about a day.
     const completed = await prisma.task.findMany({
       where: { userId, ...byTerm(scope), isDone: true, isDeleted: false },
       select: { date: true, startTime: true, endTime: true },
     });
+    const timeZone = progress?.timezone ?? DEFAULT_TIMEZONE;
     for (const t of completed) {
-      const key = format(t.date, 'yyyy-MM-dd');
+      const key = taskDayKey(t.date, timeZone);
       minutesByDay[key] = (minutesByDay[key] ?? 0) + Math.max(0, blockMinutes(t.startTime, t.endTime));
     }
   } catch (error) {

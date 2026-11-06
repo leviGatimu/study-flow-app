@@ -12,6 +12,7 @@ import { Panel, PanelTitle } from '@/components/ui/panel';
 import { Pill } from '@/components/ui/list-row';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { focusDuration } from '@/lib/focus-record';
+import { isOnline, lastSeenLabel } from '@/lib/last-seen';
 import { cn } from '@/lib/utils';
 import type { AdminConsole, SystemHealth } from '@/lib/admin-actions';
 
@@ -228,7 +229,7 @@ function Accounts({ users, suffix }: { users: AdminConsole['users']; suffix: str
           <thead className="border-b border-border/60 bg-muted/30 text-left text-xs text-muted-foreground">
             <tr>
               <th scope="col" className="px-4 py-2.5 font-medium">Account</th>
-              <th scope="col" className="px-4 py-2.5 font-medium">Last activity</th>
+              <th scope="col" className="px-4 py-2.5 font-medium">Last seen</th>
               <th scope="col" className="px-4 py-2.5 font-medium">Study records</th>
               <th scope="col" className="px-4 py-2.5 font-medium">AI</th>
               <th scope="col" className="w-10 px-4 py-2.5"><span className="sr-only">Open</span></th>
@@ -252,7 +253,7 @@ function Accounts({ users, suffix }: { users: AdminConsole['users']; suffix: str
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  {u.lastActiveDate ? dateTime(u.lastActiveDate) : 'Not recorded'}
+                  <span className={cn(isOnline(u.lastActiveDate, now) && 'font-medium text-success')}>{lastSeenLabel(u.lastActiveDate, now)}</span>
                   <p className="text-xs text-muted-foreground">Joined {date(u.createdAt)}</p>
                 </td>
                 <td className="px-4 py-3">
@@ -293,7 +294,7 @@ function ActivitySection({ overview }: { overview: Overview }) {
             ['Devices reporting status', overview.syncDevices],
           ]}
         />
-        <p className="mt-3 text-xs text-muted-foreground">Activity follows recorded app use. Focus totals include measured sessions; older totals stay on each account&apos;s page.</p>
+        <p className="mt-3 text-xs text-muted-foreground">Activity counts time with the app open. Focus totals include measured sessions; older totals stay on each account&apos;s page.</p>
       </Panel>
       <Panel>
         <PanelTitle icon={<BookOpen />}>What people have saved</PanelTitle>
