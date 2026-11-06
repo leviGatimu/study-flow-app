@@ -139,7 +139,7 @@ export const NAV: NavSection[] = [
     children: [
       { name: "Profile", href: "/profile", icon: UserRound, keywords: "account name photo avatar biography school" },
       { name: "Settings", href: "/settings", icon: Settings, keywords: "preferences account timezone ai keys sync" },
-      { name: "Year & terms", href: "/year", icon: CalendarClock, keywords: "class term semester pause archive academic year" },
+      { name: "Year & terms", href: "/year", icon: CalendarClock, keywords: "class term semester archive academic year" },
     ],
   },
 ];

@@ -59,7 +59,7 @@ export default async function HomeworkPage({ params }: { params: Promise<{ id: s
           )
         }
       />
-      <PageBody>
+      <PageBody className="@container">
         <HomeworkWorkspace
           subjects={subjects.map((s) => s.name)}
           homework={{

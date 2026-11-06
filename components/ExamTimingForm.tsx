@@ -3,16 +3,16 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Clock } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { updateExamDetails } from '@/lib/exam-actions';
 import { examDay, validateExamTimes, type TimedExam } from '@/lib/exam-time';
 import { useIsArchived } from '@/components/ArchiveContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Panel, PanelTitle } from '@/components/ui/panel';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-export function ExamTimingForm({
+export function EditExamButton({
   exam,
   timezone,
   categories = [],
@@ -29,9 +29,17 @@ export function ExamTimingForm({
   const [end, setEnd] = useState(exam.endTime ?? '');
   const [category, setCategory] = useState(exam.category ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  if (archived) return null;
   return (
-    <Panel>
-      <PanelTitle icon={<Clock />}>Exam details</PanelTitle>
+    <>
+    <Button variant="outline" onClick={() => setOpen(true)}><Pencil /> Edit</Button>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="sm:max-w-lg">
+      <DialogHeader>
+        <DialogTitle>Edit exam</DialogTitle>
+        <DialogDescription>The date, time and category of this exam.</DialogDescription>
+      </DialogHeader>
       <form onSubmit={(event) => {
         event.preventDefault();
         const invalid = validateExamTimes(start, end);
@@ -42,6 +50,7 @@ export function ExamTimingForm({
             const result = await updateExamDetails(exam.id, { date: new Date(`${date}T00:00:00Z`), startTime: start || null, endTime: end || null, category: category || null });
             if (result.error) return setError(result.error);
             toast.success('Exam details saved.');
+            setOpen(false);
             router.refresh();
           } catch { setError('Could not save the exam details. Please try again.'); }
         });
@@ -60,6 +69,8 @@ export function ExamTimingForm({
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         {!archived && <Button disabled={pending}>{pending ? 'Saving…' : 'Save'}</Button>}
       </form>
-    </Panel>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

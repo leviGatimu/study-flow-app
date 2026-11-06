@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { format } from 'date-fns';
 
@@ -7,10 +6,8 @@ import { getSubjects } from '@/lib/subject-actions';
 import { getCurrentUserTimezone } from '@/lib/actions';
 import { getUserId } from '@/lib/auth';
 import { getTimeZoneOffsetMinutes, getZonedNow, isSubjectSimilar } from '@/lib/utils';
-import { PageHeader } from '@/components/ui/page-header';
-import { Page, PageBody } from '@/components/ui/page';
+import { Page } from '@/components/ui/page';
 import { HomeworkList } from './HomeworkList';
-import { AddHomeworkButton } from './CreateHomeworkForm';
 import type { HomeworkItem, SubjectChip } from './homework-model';
 
 export const dynamic = 'force-dynamic';
@@ -62,6 +59,9 @@ export default async function HomeworksPage({
     completedDay: h.completedAt ? instantDay(h.completedAt, timeZone) : null,
     completedAt: h.completedAt ? h.completedAt.toISOString() : null,
     proofUrl: h.proofUrl,
+    answer: h.answer,
+    briefFileUrl: h.briefFileUrl,
+    answerFileUrl: h.answerFileUrl,
   }));
 
   // One chip per subject that has homework, so the row always shows every
@@ -82,34 +82,14 @@ export default async function HomeworksPage({
   const subjectOptions = subjects.map((s) => ({ id: s.id, name: s.name }));
 
   return (
-    <Page>
-      <PageHeader
-        title="Homework"
-        description="What is due, in the order it is due. Finish an assignment by uploading proof of the work."
-        actions={<AddHomeworkButton subjects={subjectOptions} defaultSubject={subjectFilter} />}
-        meta={
-          subjectFilter && (
-            <>
-              Showing {subjectFilter} only.{' '}
-              <Link
-                href={`/subjects?subject=${encodeURIComponent(subjectFilter)}`}
-                className="font-medium text-primary hover:underline"
-              >
-                Open {subjectFilter}
-              </Link>
-            </>
-          )
-        }
+    <Page bleed className="min-h-0">
+      <HomeworkList
+        homeworks={shown}
+        today={format(getZonedNow(timeZone), DAY)}
+        chips={chips}
+        activeSubject={subjectFilter}
+        subjects={subjectOptions}
       />
-      <PageBody>
-        <HomeworkList
-          homeworks={shown}
-          today={format(getZonedNow(timeZone), DAY)}
-          chips={chips}
-          activeSubject={subjectFilter}
-          subjects={subjectOptions}
-        />
-      </PageBody>
     </Page>
   );
 }

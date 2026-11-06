@@ -74,7 +74,7 @@ export function ScheduleSettings({ data }: { data: SettingsData }) {
         <SettingRow
           id="year-terms"
           label="Year & terms"
-          description="Start, pause, end or archive your academic years and terms."
+          description="Start, end or archive your academic years and terms."
         >
           <Button variant="outline" asChild>
             <Link href="/year">Open Year &amp; terms</Link>

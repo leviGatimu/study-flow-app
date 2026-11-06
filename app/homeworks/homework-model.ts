@@ -20,6 +20,9 @@ export type HomeworkItem = {
   /** ISO timestamp, only used to order the Done list newest first. */
   completedAt: string | null;
   proofUrl: string | null;
+  answer?: string | null;
+  briefFileUrl?: string | null;
+  answerFileUrl?: string | null;
 };
 
 export type SubjectChip = { name: string; open: number; active: boolean };

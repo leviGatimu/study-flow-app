@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -15,13 +16,14 @@ import { createEvent, deleteEvent } from '@/lib/actions';
 import { validateExamTimes } from '@/lib/exam-time';
 import { useIsArchived } from '@/components/ArchiveContext';
 
-const EMPTY = { title: '', date: '', priority: 'NORMAL', startTime: '', endTime: '', category: '' };
+const EMPTY = { subjectId: '', date: '', priority: 'NORMAL', startTime: '', endTime: '', category: '' };
 
 /** The Exams page's primary action: add an exam. Hidden in an archived year. */
 export function ExamsClient({
   variant = 'default',
   categories = [],
-}: { variant?: 'default' | 'outline'; categories?: string[] } = {}) {
+  subjects = [],
+}: { variant?: 'default' | 'outline'; categories?: string[]; subjects?: { id: string; name: string }[] } = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -30,19 +32,20 @@ export function ExamsClient({
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.subjectId) return toast.error('Pick a subject for this exam.');
     const error = validateExamTimes(formData.startTime, formData.endTime);
     if (error) return toast.error(error);
     startTransition(async () => {
       try {
         await createEvent({
-          title: formData.title.trim(),
+          subjectId: formData.subjectId,
           date: new Date(formData.date),
           priority: formData.priority,
           startTime: formData.startTime || null,
           endTime: formData.endTime || null,
           category: formData.category,
         });
-        toast.success(`${formData.title.trim()} added. Open it to link its subject and plan revision.`);
+        toast.success(`${subjects.find((s) => s.id === formData.subjectId)?.name ?? 'Exam'} added.`);
         setFormData(EMPTY);
         setOpen(false);
         router.refresh();
@@ -65,20 +68,27 @@ export function ExamsClient({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-heading text-lg font-semibold">Add exam</DialogTitle>
-          <DialogDescription>A test, exam or major assessment and the day it is on.</DialogDescription>
+          <DialogDescription>Pick the subject and the day. You can put it in a category now or later.</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleCreate} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="exam-title">Title</Label>
-            <Input
-              id="exam-title"
-              required
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="e.g. Physics midterm, paper 1"
-              className="h-10"
-            />
+            <Label htmlFor="exam-subject">Subject</Label>
+            <Select value={formData.subjectId} onValueChange={(v) => setFormData({ ...formData, subjectId: v })}>
+              <SelectTrigger id="exam-subject" className="h-10 w-full">
+                <SelectValue placeholder="Choose a subject" />
+              </SelectTrigger>
+              <SelectContent>
+                {subjects.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {subjects.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                You have no subjects yet. <Link href="/subjects" className="font-medium text-primary hover:underline">Add one in Subjects</Link>.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -124,7 +134,7 @@ export function ExamsClient({
                 <option key={c} value={c} />
               ))}
             </datalist>
-            <p className="text-xs text-muted-foreground">Exams with the same category are averaged together across subjects.</p>
+            <p className="text-xs text-muted-foreground">Exams in the same category are averaged together. You can add this later.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

@@ -22,7 +22,7 @@ import { ExamCountdown } from '@/components/ExamCountdown';
 import { DueHomework } from '@/components/DueHomework';
 import { QuickAddForm } from '@/components/QuickAddForm';
 import { DeleteTaskButton } from '@/components/DeleteTaskButton';
-import { TermStatusBanner, PauseScheduleButton } from '@/components/TermStatusBanner';
+import { TermStatusBanner } from '@/components/TermStatusBanner';
 import { SetupChecklist } from '@/components/onboarding/SetupChecklist';
 import { Section } from '@/components/ui/section';
 import { Panel, PanelTitle } from '@/components/ui/panel';
@@ -96,15 +96,13 @@ export default async function Dashboard() {
         {schedule?.classLabel && (
           <div className="bg-card border border-border/60 rounded-2xl p-5 shadow-sm sm:min-w-72">
             <p className="text-xs font-bold text-muted-foreground">Currently in</p>
-            {/* Pause sits with the term it pauses, not off in a corner. */}
-            <div className="flex items-center justify-between gap-5 mt-1">
+            <div className="mt-1">
               <Link href="/year" className="font-heading font-bold text-2xl leading-tight hover:text-primary transition-colors">
                 {schedule.classLabel}
                 {schedule.termName && (
                   <span className="text-muted-foreground font-bold text-lg"> · {schedule.termName}</span>
                 )}
               </Link>
-              <PauseScheduleButton state={schedule} />
             </div>
           </div>
         )}
@@ -116,7 +114,7 @@ export default async function Dashboard() {
             anything to say. */}
         {setupItems.length > 0 && <SetupChecklist items={setupItems} />}
 
-        {/* Pause, end-of-term prompt, start next term, new year. Silent while a
+        {/* End-of-term prompt, start next term, new year. Silent while a
             term is simply running. */}
         <TermStatusBanner state={schedule} />
 

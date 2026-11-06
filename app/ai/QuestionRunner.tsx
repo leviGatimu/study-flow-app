@@ -64,7 +64,6 @@ export function QuestionRunner({
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   // Exam only: the hand-in screen listing unanswered and flagged questions.
   const [reviewing, setReviewing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'unanswered' | 'flagged'>('all');
   // Set on mount rather than during render: reading the clock while rendering
   // is impure, and the value wanted here is "when did this run begin".
   const startedAt = useRef(0);
@@ -134,6 +133,43 @@ export function QuestionRunner({
     return () => clearInterval(timer);
   }, [deadline]);
 
+  // A question paper is quicker from the keyboard. Nothing here fires while typing
+  // an answer, and a modifier key always belongs to the browser.
+  useEffect(() => {
+    if (!item || reviewing || busy) return;
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+
+      if (event.key === 'ArrowRight' && index < items.length - 1) setIndex(index + 1);
+      else if (event.key === 'ArrowLeft' && index > 0) setIndex(index - 1);
+      else if (event.key.toLowerCase() === 'f') {
+        setFlags((current) => {
+          const next = new Set(current);
+          if (next.has(item.id)) next.delete(item.id);
+          else next.add(item.id);
+          return next;
+        });
+      } else if (/^[a-h]$/i.test(event.key) && !isRevealed) {
+        const option = document.querySelector<HTMLButtonElement>(`[data-option="${event.key.toUpperCase().charCodeAt(0) - 65}"]`);
+        option?.click();
+      } else if (event.key === 'Enter') {
+        // Enter on another button, such as Previous, means that button. A number in
+        // the grid has already done its job by moving here, so Enter carries on.
+        if (target?.closest('button:not([data-option])') && !target.closest('nav[aria-label="Questions"]')) return;
+        event.preventDefault();
+        if (mode === 'PRACTICE' && !isRevealed && given.trim()) setRevealed((r) => ({ ...r, [item.id]: true }));
+        else if (mode === 'EXAM' || isRevealed) {
+          if (isLast) setReviewing(true);
+          else setIndex(index + 1);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [item, reviewing, busy, index, items.length, isRevealed, mode, given, isLast]);
+
   if (!item) return null;
 
   const isAnswered = (q: StudyItem) => Boolean((answers[q.id] ?? '').trim());
@@ -167,55 +203,77 @@ export function QuestionRunner({
       </Pill>
     ) : null;
 
-  const navigator = (
-    <nav aria-label="Questions" className="space-y-1">
+  const flaggedCount = flagged.length;
+
+  const numberGrid = (
+    <nav aria-label="Questions" className="grid grid-cols-5 gap-1.5">
       {items.map((q, i) => {
         const answered = isAnswered(q);
         const isFlagged = flags.has(q.id);
-        if (filter === 'unanswered' && answered || filter === 'flagged' && !isFlagged) return null;
+        const current = i === index && !reviewing;
         return (
           <button
             key={q.id}
             type="button"
             onClick={() => goTo(i)}
             disabled={busy}
-            aria-current={i === index && !reviewing ? 'step' : undefined}
+            title={q.question}
+            aria-current={current ? 'step' : undefined}
             aria-label={`Question ${i + 1}${answered ? ', answered' : ', not answered'}${isFlagged ? ', flagged' : ''}`}
             className={cn(
-              'relative flex min-h-12 w-full items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm transition-colors',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-              i === index && !reviewing
+              'relative flex aspect-square items-center justify-center rounded-md border text-sm font-semibold tabular-nums transition-colors',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-card',
+              current
                 ? 'border-primary bg-primary text-primary-foreground'
                 : answered
-                  ? 'border-primary/30 bg-primary/10 text-foreground hover:bg-primary/15'
-                  : 'border-border bg-card text-muted-foreground hover:bg-muted'
+                  ? 'border-primary/40 bg-primary/15 text-foreground hover:bg-primary/25'
+                  : 'border-border bg-transparent text-muted-foreground hover:bg-muted'
             )}
           >
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-current/20 text-xs font-semibold tabular-nums">{i + 1}</span>
-            <span className="min-w-0 flex-1 truncate">{q.question}</span>
-            {answered && <Check className="size-4 shrink-0" aria-hidden />}
-            {isFlagged && (
-              <span aria-hidden="true" className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-card bg-orange-500" />
-            )}
+            {i + 1}
+            {isFlagged && <Flag aria-hidden="true" className="absolute -right-1 -top-1 size-3 fill-orange-500 text-orange-500" />}
           </button>
         );
       })}
     </nav>
   );
 
-  const questionList = <>
-    <div className="mb-4 flex items-baseline justify-between"><h2 className="font-heading text-lg font-semibold">Questions</h2><span className="text-xs text-muted-foreground">{answeredCount}/{items.length} answered</span></div>
-    <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Answered questions" aria-valuenow={answeredCount} aria-valuemax={items.length} aria-valuemin={0}><div className="h-full bg-primary" style={{ width: (answeredCount / items.length * 100) + '%' }} /></div>
-    <div className="mb-4 flex flex-wrap gap-1" aria-label="Filter questions">{(['all', 'unanswered', 'flagged'] as const).map((value) => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)} className={cn('rounded-md px-2 py-2 text-xs focus-visible:ring-2 focus-visible:ring-ring', filter === value ? 'bg-primary/10 font-semibold text-primary' : 'text-muted-foreground hover:bg-muted')}>{value === 'all' ? 'All' : value === 'flagged' ? 'Flagged' : 'Unanswered'}</button>)}</div>
-    {navigator}
-    {filter === 'flagged' && flagged.length === 0 && <p className="py-4 text-sm text-muted-foreground">Flag a question to come back to it.</p>}
-    {filter === 'unanswered' && unanswered.length === 0 && <p className="py-4 text-sm text-muted-foreground">Every question has an answer.</p>}
-    <Button className="mt-6 w-full" variant="outline" onClick={() => setReviewing(true)} disabled={busy}>Review & finish</Button>
-  </>;
-  const workspace = (content: React.ReactNode) => <div className="mx-auto grid max-w-[1440px] items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)] xl:gap-10">
-    <aside className="sticky top-0 hidden max-h-[calc(100dvh-11rem)] overflow-y-auto rounded-2xl border border-border bg-card p-5 lg:block">{questionList}</aside>
-    <div className="min-w-0 space-y-4"><details className="rounded-xl border border-border bg-card p-4 lg:hidden"><summary className="cursor-pointer font-semibold">Questions · {answeredCount}/{items.length} answered</summary><div className="mt-4">{questionList}</div></details>{content}</div>
-  </div>;
+  const progress = (
+    <div className="space-y-1.5">
+      <div className="flex items-baseline justify-between gap-2 text-sm">
+        <span className="font-semibold text-foreground">{answeredCount} of {items.length} answered</span>
+        {flaggedCount > 0 && <span className="text-xs text-orange-600 dark:text-orange-400">{flaggedCount} flagged</span>}
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Answered questions" aria-valuenow={answeredCount} aria-valuemin={0} aria-valuemax={items.length}>
+        <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${(answeredCount / items.length) * 100}%` }} />
+      </div>
+    </div>
+  );
+
+  const workspace = (content: React.ReactNode) => (
+    <div className="mx-auto grid max-w-[1440px] items-start gap-6 lg:grid-cols-[232px_minmax(0,1fr)] lg:gap-10">
+      <aside className="sticky top-0 hidden max-h-[calc(100dvh-7rem)] space-y-4 overflow-y-auto rounded-xl border border-border bg-card p-4 lg:block">
+        {clock}
+        {progress}
+        {numberGrid}
+        <Button className="w-full" variant="outline" onClick={() => setReviewing(true)} disabled={busy}>Review &amp; finish</Button>
+        <p className="text-xs leading-relaxed text-muted-foreground">A–D picks an answer. Enter checks or moves on. ← → changes question. F flags.</p>
+      </aside>
+      <div className="min-w-0 space-y-4">
+        <details className="rounded-xl border border-border bg-card p-3 lg:hidden">
+          <summary className="flex cursor-pointer items-center justify-between gap-2 text-sm font-semibold">
+            Questions, {answeredCount} of {items.length} answered
+            {clock}
+          </summary>
+          <div className="mt-3 space-y-3">
+            <div className="max-w-xs">{numberGrid}</div>
+            <Button className="w-full" variant="outline" onClick={() => setReviewing(true)} disabled={busy}>Review &amp; finish</Button>
+          </div>
+        </details>
+        {content}
+      </div>
+    </div>
+  );
 
   if (reviewing) {
     return workspace(
@@ -260,16 +318,12 @@ export function QuestionRunner({
   }
 
   return workspace(
-    <Panel className="min-h-[65dvh] rounded-none border-0 bg-transparent p-5 shadow-none md:p-10">
+    <div className="mx-auto w-full max-w-3xl pb-6">
       {/* Progress, the clock, and the way back out. */}
-      <div className="mb-6 space-y-4">
+      <div className="mb-4">
         <div className="flex items-center justify-between gap-4 text-sm font-medium text-muted-foreground">
           <span className="tabular-nums">
             Question {index + 1} of {items.length} · {answeredCount} answered
-          </span>
-          <span className="flex items-center gap-3">
-            {clock}
-
           </span>
         </div>
       </div>
@@ -297,7 +351,7 @@ export function QuestionRunner({
 
         <div aria-live="polite">{isRevealed && <Verdict item={item} given={given} />}</div>
 
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-6">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
           <Button variant="outline" size="lg" onClick={() => setIndex((i) => i - 1)} disabled={busy || index === 0}>
             <ArrowLeft />
             Previous
@@ -337,7 +391,7 @@ export function QuestionRunner({
           </div>
         </div>
       </div>
-    </Panel>
+    </div>
   );
 }
 
@@ -503,7 +557,7 @@ function AnswerWidget({
 
 function optionRow(state: 'idle' | 'picked' | 'right' | 'wrong') {
   return cn(
-    'flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition-colors',
+    'flex w-full items-start gap-3 rounded-lg border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
     state === 'right' && 'border-success/40 bg-success/10',
     state === 'wrong' && 'border-destructive/40 bg-destructive/10',
     state === 'picked' && 'border-primary bg-primary/10',
@@ -523,7 +577,7 @@ function ChoiceList({
   locked: boolean;
 }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {item.options.map((option, i) => {
         const picked = given === option;
         const isAnswer = normalise(option) === normalise(item.answer);
@@ -541,6 +595,7 @@ function ChoiceList({
           <button
             key={option}
             type="button"
+            data-option={i}
             disabled={locked}
             aria-pressed={picked}
             onClick={() => onChange(option)}
@@ -548,7 +603,7 @@ function ChoiceList({
           >
             <span
               className={cn(
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-sm font-bold',
+                'flex size-7 shrink-0 items-center justify-center rounded-md border text-sm font-bold',
                 state === 'right' && 'border-success/40 bg-success/20 text-success',
                 state === 'wrong' && 'border-destructive/40 bg-destructive/20 text-destructive',
                 state === 'picked' && 'border-primary bg-primary/20 text-primary',
@@ -563,7 +618,7 @@ function ChoiceList({
                 String.fromCharCode(65 + i)
               )}
             </span>
-            <span className="text-sm font-semibold md:text-base">{option}</span>
+            <span className="min-w-0 pt-0.5 text-sm font-medium md:text-base">{option}</span>
           </button>
         );
       })}
@@ -585,13 +640,14 @@ function MultiSelect({
   const chosen = useMemo(() => new Set(given ? decodeSelection(item, given) : []), [given, item]);
 
   return (
-    <div className="space-y-3">
-      {item.options.map((option) => {
+    <div className="space-y-2">
+      {item.options.map((option, i) => {
         const picked = chosen.has(option);
         return (
           <button
             key={option}
             type="button"
+            data-option={i}
             disabled={locked}
             aria-pressed={picked}
             onClick={() => {
@@ -611,7 +667,7 @@ function MultiSelect({
             >
               {picked && <Check className="h-3.5 w-3.5" />}
             </span>
-            <span className="text-sm font-semibold md:text-base">{option}</span>
+            <span className="min-w-0 text-sm font-medium md:text-base">{option}</span>
           </button>
         );
       })}

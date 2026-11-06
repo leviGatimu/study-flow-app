@@ -10,15 +10,13 @@ export { termHasStarted, termHasEnded } from '@/lib/term-dates';
 /**
  * Why the schedule is or is not running.
  *
- *   RUNNING         active class, active term, not paused
- *   PAUSED          the user hit pause; mid-term, any day
+ *   RUNNING         active class, active term
  *   BETWEEN_TERMS   a term finished and the next has not been started
  *   CLASS_COMPLETE  the year is finished; nothing runs until a new one opens
  *   NO_CLASS        no academic year set up at all
  */
 export type ScheduleReason =
   | 'RUNNING'
-  | 'PAUSED'
   /** The active term has a start date that has not arrived yet. */
   | 'TERM_NOT_STARTED'
   | 'BETWEEN_TERMS'
@@ -32,7 +30,6 @@ export type ScheduleState = {
    * the streak advances, ONLY when this is true.
    */
   isRunning: boolean;
-  isPaused: boolean;
 
   classId: string | null;
   classLabel: string | null;
@@ -54,7 +51,6 @@ export type ScheduleState = {
 const EMPTY: ScheduleState = {
   reason: 'NO_CLASS',
   isRunning: false,
-  isPaused: false,
   classId: null,
   classLabel: null,
   termId: null,
@@ -101,12 +97,10 @@ export const getScheduleState = cache(async function getScheduleState(
   const today = startOfDay(getZonedNow(progress?.timezone || DEFAULT_TIMEZONE));
   const term = activeClass.terms.find((t) => t.status === 'ACTIVE') ?? null;
   const upcoming = activeClass.terms.find((t) => t.status === 'UPCOMING') ?? null;
-  const isPaused = activeClass.pausedAt !== null;
 
   const base = {
     classId: activeClass.id,
     classLabel: activeClass.label,
-    isPaused,
     nextTerm: upcoming
       ? { id: upcoming.id, name: upcoming.name, startDate: upcoming.startDate }
       : null,
@@ -128,8 +122,8 @@ export const getScheduleState = cache(async function getScheduleState(
 
   return {
     ...base,
-    reason: isPaused ? 'PAUSED' : notStartedYet ? 'TERM_NOT_STARTED' : 'RUNNING',
-    isRunning: !isPaused && !notStartedYet,
+    reason: notStartedYet ? 'TERM_NOT_STARTED' : 'RUNNING',
+    isRunning: !notStartedYet,
     termId: term.id,
     termName: term.name,
     termStartDate: term.startDate,

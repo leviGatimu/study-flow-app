@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { CalendarCheck, CalendarClock, Flag, Pause, Play, Sparkles } from "lucide-react";
+import { CalendarCheck, CalendarClock, Flag, Play, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { addDays } from "date-fns";
 
@@ -13,7 +13,6 @@ import {
   completeActiveClass,
   endActiveTerm,
   extendActiveTerm,
-  resumeSchedule,
   startNewClass,
   startNextTerm,
 } from "@/lib/term-actions";
@@ -41,27 +40,6 @@ export function TermStatusBanner({ state }: { state: ScheduleState | null }) {
       if (res?.error) toast.error(res.error);
       else toast.success(ok);
     });
-
-  if (state.reason === "PAUSED") {
-    return (
-      <Banner
-        tone="amber"
-        icon={<Pause className="size-5" />}
-        title="Schedule paused"
-        body="No tasks are being generated and your streak is frozen at its current value. Nothing is lost while you are away."
-        action={
-          <Button
-            onClick={() => run(resumeSchedule, "Schedule resumed.")}
-            disabled={isPending}
-            className="gap-2"
-          >
-            <Play className="size-4" />
-            {isPending ? "Resuming..." : "Resume"}
-          </Button>
-        }
-      />
-    );
-  }
 
   if (state.reason === "TERM_NOT_STARTED") {
     const starts = state.termStartDate ? new Date(state.termStartDate) : null;
@@ -205,33 +183,5 @@ function Banner({
       </div>
       <div className="shrink-0">{action}</div>
     </div>
-  );
-}
-
-/** Pause / resume, for somewhere always visible rather than only on a banner. */
-export function PauseScheduleButton({ state }: { state: ScheduleState | null }) {
-  const [isPending, startTransition] = useTransition();
-  if (!state || (!state.isRunning && state.reason !== "PAUSED")) return null;
-
-  const paused = state.reason === "PAUSED";
-
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={isPending}
-      onClick={() =>
-        startTransition(async () => {
-          const { pauseSchedule } = await import("@/lib/term-actions");
-          const res = paused ? await resumeSchedule() : await pauseSchedule();
-          if (res?.error) toast.error(res.error);
-          else toast.success(paused ? "Schedule resumed." : "Schedule paused.");
-        })
-      }
-      className="gap-1.5 rounded-xl font-bold shrink-0"
-    >
-      {paused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
-      {isPending ? "..." : paused ? "Resume" : "Pause"}
-    </Button>
   );
 }

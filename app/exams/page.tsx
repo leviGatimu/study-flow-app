@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { format } from 'date-fns';
-import { Brain, CalendarClock, CheckCircle2, Clock, FolderOpen, History, ListChecks, Target } from 'lucide-react';
+import { Brain, CalendarClock, ChevronRight } from 'lucide-react';
 
 import { getEvents, getSubjectStats, getMasteryItems, getCurrentUserTimezone } from '@/lib/actions';
 import { getUserId } from '@/lib/auth';
@@ -11,37 +11,15 @@ import { isSubjectSimilar } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Page, PageBody } from '@/components/ui/page';
 import { PageHeader } from '@/components/ui/page-header';
-import { Panel, PanelTitle } from '@/components/ui/panel';
-import { Section } from '@/components/ui/section';
-import { ListRow, Pill } from '@/components/ui/list-row';
-import { Stat } from '@/components/ui/stat';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Progress } from '@/components/ui/progress';
-import { ExamsClient, DeleteExamButton } from '@/components/ExamsClient';
+import { ExamsClient } from '@/components/ExamsClient';
+import { ExamsView, type ExamRowData } from '@/components/exams/ExamsView';
 import { UploadTimetableDialog } from '@/components/UploadTimetableDialog';
-import { ExamCategories } from '@/components/ExamCategories';
 import { categoryNames, normaliseCategory, summariseCategories } from '@/lib/exam-category';
+import { listSubjects } from '@/lib/subject-actions';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-type Exam = Awaited<ReturnType<typeof getEvents>>[number];
-
-function priorityPill(priority: string) {
-  if (priority === 'HIGH') return <Pill tone="danger">High priority</Pill>;
-  if (priority === 'LOW') return <Pill>Low priority</Pill>;
-  return null;
-}
-
-function countdownLabel(days: number): string {
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Tomorrow';
-  return `In ${days} days`;
-}
-
-function countdownTone(days: number) {
-  return days <= 3 ? 'danger' : days <= 7 ? 'warning' : 'default';
-}
 
 export default async function ExamsPage({
   searchParams,
@@ -51,7 +29,7 @@ export default async function ExamsPage({
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
-  const [events, params, timezone] = await Promise.all([getEvents(), searchParams, getCurrentUserTimezone()]);
+  const [events, params, timezone, subjects] = await Promise.all([getEvents(), searchParams, getCurrentUserTimezone(), listSubjects()]);
 
   // ?subject= narrows the page to one subject; its page in Subjects links here.
   // An exam not yet linked to a subject is matched on its title, for the
@@ -62,19 +40,33 @@ export default async function ExamsPage({
     : events;
 
   const now = new Date();
-  const daysUntil = (e: Exam) => examDaysAway(e, timezone, now);
-  const upcoming = shown.filter((e) => examStatus(e, timezone, now) !== 'DONE').sort((a, b) => +new Date(a.date) - +new Date(b.date) || (a.startTime ?? '').localeCompare(b.startTime ?? ''));
-  const past = shown.filter((e) => examStatus(e, timezone, now) === 'DONE').sort((a, b) => +new Date(b.date) - +new Date(a.date));
+  const rows: ExamRowData[] = shown.map((exam) => {
+    const status = examStatus(exam, timezone, now);
+    return {
+      id: exam.id,
+      title: exam.title,
+      subject: exam.subject?.name ?? null,
+      category: normaliseCategory(exam.category),
+      at: new Date(exam.date).getTime(),
+      when: [format(new Date(exam.date), 'EEE d MMM yyyy'), examTimeLabel(exam)].filter(Boolean).join(' · '),
+      days: examDaysAway(exam, timezone, now),
+      inProgress: status === 'IN_PROGRESS',
+      isDone: status === 'DONE',
+      percent: exam.score !== null && exam.maxScore ? Math.round((exam.score / exam.maxScore) * 1000) / 10 : null,
+      priority: exam.priority,
+    };
+  });
 
-  const next = upcoming[0] ?? null;
+  const nextRow = rows.filter((r) => !r.isDone).sort((a, b) => a.at - b.at)[0] ?? null;
+  const next = nextRow ? shown.find((e) => e.id === nextRow.id) ?? null : null;
   const nextSubject = next?.subject?.name ?? null;
   const [stats, mastery] = nextSubject
     ? await Promise.all([getSubjectStats(nextSubject), getMasteryItems(nextSubject)])
     : [null, []];
   const topicsDone = mastery.filter((m) => m.isCompleted).length;
 
-  // Categories average one sitting across ALL subjects, so they ignore the
-  // subject filter and are hidden while it is on.
+  // Averages cover a whole sitting, so they are worked out from every exam even
+  // while the list is narrowed to one subject.
   const categories = summariseCategories(events);
   const names = categoryNames(events);
   const pickable = events.map((e) => ({
@@ -90,7 +82,6 @@ export default async function ExamsPage({
       <ExamStatusRefresh exams={shown} timezone={timezone} renderedAt={now.toISOString()} />
       <PageHeader
         title="Exams"
-        description="Every exam coming up, soonest first. Open one to plan its revision and record how it went."
         meta={
           subjectFilter ? (
             <>
@@ -99,181 +90,87 @@ export default async function ExamsPage({
                 Show all subjects
               </Link>
             </>
-          ) : upcoming.length > 0 ? (
-            `${upcoming.length} coming up`
           ) : undefined
         }
         actions={
           <>
             <UploadTimetableDialog />
-            <ExamsClient categories={names} />
+            <ExamsClient categories={names} subjects={subjects} />
           </>
         }
       />
 
-      <PageBody>
-        {next ? (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            <Panel className="lg:col-span-8">
-              <PanelTitle icon={<CalendarClock />} action={priorityPill(next.priority)}>
-                Next exam
-              </PanelTitle>
-              <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-                <div className="min-w-0 space-y-2">
-                  <Link href={`/exams/${next.id}`} className="group block">
-                    <p className="line-clamp-2 font-heading text-2xl font-bold tracking-tight text-foreground transition-colors group-hover:text-primary">
-                      {next.title}
-                    </p>
-                  </Link>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {format(new Date(next.date), 'EEEE d MMMM yyyy')} · {examTimeLabel(next)}
-                    {nextSubject && ` · ${nextSubject}`}
-                  </p>
+      <PageBody className="space-y-6 pt-6">
+        {nextRow && next && (
+          <section aria-label="Next exam" className="flex flex-wrap items-center gap-x-8 gap-y-4 rounded-xl border border-primary/30 bg-primary/5 px-5 py-4">
+            <div className="min-w-0 flex-1 basis-72">
+              <p className="text-xs font-semibold text-primary">Next exam</p>
+              <Link href={`/exams/${next.id}`} className="mt-0.5 block break-words font-heading text-xl font-bold tracking-tight text-foreground hover:text-primary">
+                {next.title}
+                {nextRow.category && <span className="font-medium text-muted-foreground"> · {nextRow.category}</span>}
+              </Link>
+              <p className="text-sm text-muted-foreground">{nextRow.when}</p>
+            </div>
+
+            <div className="shrink-0 text-right">
+              <p className="font-heading text-3xl font-black tabular-nums tracking-tight text-foreground">
+                {nextRow.inProgress ? 'Now' : nextRow.days === 0 ? 'Today' : nextRow.days}
+              </p>
+              {!nextRow.inProgress && nextRow.days > 0 && (
+                <p className="text-xs font-semibold text-muted-foreground">{nextRow.days === 1 ? 'day' : 'days'} left</p>
+              )}
+            </div>
+
+            {nextSubject && (
+              <dl className="flex shrink-0 gap-6 text-sm">
+                <div>
+                  <dt className="text-muted-foreground">Sessions done</dt>
+                  <dd className="font-semibold tabular-nums text-foreground">{stats?.completionRate ?? 0}%</dd>
                 </div>
-                <div className="shrink-0 md:text-right">
-                  <p className="font-heading text-5xl font-black tracking-tight tabular-nums text-foreground">
-                    {examStatus(next, timezone, now) === 'IN_PROGRESS' ? 'In progress' : daysUntil(next) === 0 ? 'Today' : daysUntil(next)}
-                  </p>
-                  {daysUntil(next) > 0 && (
-                    <p className="text-sm font-bold text-muted-foreground">
-                      {daysUntil(next) === 1 ? 'day' : 'days'} left
-                    </p>
-                  )}
+                <div>
+                  <dt className="text-muted-foreground">Focus time</dt>
+                  <dd className="font-semibold tabular-nums text-foreground">{stats?.timeSpent || '0m'}</dd>
                 </div>
-              </div>
-              <div className="mt-6 flex flex-wrap gap-2 border-t border-border/40 pt-6">
+                <div>
+                  <dt className="text-muted-foreground">Topics</dt>
+                  <dd className="font-semibold tabular-nums text-foreground">{mastery.length ? `${topicsDone}/${mastery.length}` : '0'}</dd>
+                </div>
+              </dl>
+            )}
+
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {nextSubject && (
                 <Button asChild variant="outline">
-                  <Link href={`/exams/${next.id}`}>
-                    <CalendarClock /> Plan revision
+                  <Link href={`/ai/practices?subject=${encodeURIComponent(nextSubject)}`}>
+                    <Brain /> Practice
                   </Link>
                 </Button>
-                {nextSubject && (
-                  <>
-                    <Button asChild variant="outline">
-                      <Link href={`/ai/practices?subject=${encodeURIComponent(nextSubject)}`}>
-                        <Brain /> Practice {nextSubject}
-                      </Link>
-                    </Button>
-                    <Button asChild variant="outline">
-                      <Link href={`/resources/${encodeURIComponent(nextSubject)}`}>
-                        <FolderOpen /> Resources
-                      </Link>
-                    </Button>
-                  </>
-                )}
-              </div>
-            </Panel>
-
-            <Panel className="lg:col-span-4">
-              <PanelTitle icon={<Target />}>Readiness</PanelTitle>
-              {nextSubject ? (
-                <div className="space-y-5">
-                  <div className="space-y-2">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-sm font-medium text-muted-foreground">Study sessions done</span>
-                      <span className="font-heading text-2xl font-bold text-primary tabular-nums">
-                        {stats?.completionRate ?? 0}%
-                      </span>
-                    </div>
-                    <Progress value={stats?.completionRate ?? 0} className="h-2" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 border-t border-border/40 pt-4">
-                    <Stat label="Focus time" icon={<Clock />} value={stats?.timeSpent || '0m'} />
-                    <Stat
-                      label="Topics mastered"
-                      icon={<ListChecks />}
-                      value={mastery.length ? `${topicsDone}/${mastery.length}` : '0'}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <EmptyState
-                  title="Not linked to a subject"
-                  description="Link this exam to its subject to see focus time, sessions and syllabus progress."
-                  action={
-                    <Button asChild variant="outline">
-                      <Link href={`/exams/${next.id}`}>Link a subject</Link>
-                    </Button>
-                  }
-                />
               )}
-            </Panel>
-          </div>
-        ) : (
+              <Button asChild>
+                <Link href={`/exams/${next.id}`}>
+                  Open <ChevronRight />
+                </Link>
+              </Button>
+            </div>
+          </section>
+        )}
+
+        {rows.length === 0 ? (
           <EmptyState
             icon={<CalendarClock />}
-            title={subjectFilter ? `No ${subjectFilter} exams coming up` : 'No exams coming up'}
+            title={subjectFilter ? `No ${subjectFilter} exams yet` : 'No exams yet'}
             description="Add an exam when its date is announced, or upload your exam timetable and add them all at once."
             action={
               <>
                 <UploadTimetableDialog />
-                <ExamsClient variant="outline" categories={names} />
+                <ExamsClient variant="outline" categories={names} subjects={subjects} />
               </>
             }
           />
-        )}
-
-        {upcoming.length > 1 && (
-          <Section title="Coming up" description="After the next one, in date order.">
-            <Panel>
-              <div className="space-y-3">
-                {upcoming.slice(1).map((exam) => (
-                  <ExamRow key={exam.id} exam={exam} days={daysUntil(exam)} />
-                ))}
-              </div>
-            </Panel>
-          </Section>
-        )}
-
-        {!subjectFilter && <ExamCategories categories={categories} exams={pickable} names={names} />}
-
-        {past.length > 0 && (
-          <Section title="Done exams" description="Record a result on any exam that does not have one yet.">
-            <Panel>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {past.slice(0, 12).map((exam) => (
-                  <ListRow
-                    key={exam.id}
-                    href={`/exams/${exam.id}`}
-                    leading={<History className="size-5 shrink-0 text-muted-foreground" />}
-                    title={exam.title}
-                    subtitle={[format(new Date(exam.date), 'd MMM yyyy'), examTimeLabel(exam), normaliseCategory(exam.category)].filter(Boolean).join(' · ')}
-                    trailing={
-                      exam.score !== null && exam.maxScore ? (
-                        <Pill tone="success">
-                          <CheckCircle2 /> {Math.round((exam.score / exam.maxScore) * 100)}%
-                        </Pill>
-                      ) : (
-                        <Pill tone="warning">Done · Pending marks</Pill>
-                      )
-                    }
-                  />
-                ))}
-              </div>
-            </Panel>
-          </Section>
+        ) : (
+          <ExamsView exams={rows} categories={categories} pickable={pickable} names={names} />
         )}
       </PageBody>
     </Page>
-  );
-}
-
-function ExamRow({ exam, days }: { exam: Exam; days: number }) {
-  return (
-    <ListRow
-      title={
-        <Link href={`/exams/${exam.id}`} className="hover:text-primary focus-visible:underline focus-visible:outline-none">
-          {exam.title}
-        </Link>
-      }
-      subtitle={[format(new Date(exam.date), 'EEE d MMM'), examTimeLabel(exam), exam.subject?.name, normaliseCategory(exam.category)].filter(Boolean).join(' · ')}
-      trailing={
-        <>
-          <span className="hidden sm:contents">{priorityPill(exam.priority)}</span>
-          <Pill tone={countdownTone(days)}>{countdownLabel(days)}</Pill>
-          <DeleteExamButton id={exam.id} title={exam.title} />
-        </>
-      }
-    />
   );
 }

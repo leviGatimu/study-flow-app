@@ -62,49 +62,6 @@ async function requireActiveClass(userId: string) {
 }
 
 /**
- * Pause the schedule. Usable any day, mid-term: stops task generation and
- * freezes the streak without ending anything.
- */
-export async function pauseSchedule() {
-  const userId = await getUserId();
-  if (!userId) return { error: 'Unauthorized' };
-
-  const cls = await requireActiveClass(userId);
-  if (!cls) return { error: 'No active year to pause.' };
-
-  await prisma.class.update({
-    where: { id: cls.id },
-    data: { pausedAt: new Date() },
-  });
-  refresh();
-  return { success: true };
-}
-
-/** Resume after a pause. The streak continues from its frozen value. */
-export async function resumeSchedule() {
-  const userId = await getUserId();
-  if (!userId) return { error: 'Unauthorized' };
-
-  const cls = await requireActiveClass(userId);
-  if (!cls) return { error: 'No active year to resume.' };
-
-  await prisma.class.update({
-    where: { id: cls.id },
-    data: { pausedAt: null },
-  });
-
-  // Clear the legacy school-break flag too, so a user who paused the old way
-  // is not left frozen by a field nothing sets any more.
-  await prisma.userProgress.updateMany({
-    where: { userId },
-    data: { schoolEndDate: null },
-  });
-
-  refresh();
-  return { success: true };
-}
-
-/**
  * Finish the running term. The class stays active and the timetable is
  * untouched; the schedule simply stops until the next term is started.
  */

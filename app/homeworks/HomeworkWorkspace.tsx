@@ -39,7 +39,16 @@ const NO_CHANGE: FileState = { picked: null, removed: false };
  * One homework, worked on in one place: what was set and your answers (text
  * and an optional photo or PDF each), then finishing it with proof.
  */
-export function HomeworkWorkspace({ homework: hw, subjects }: { homework: WorkspaceHomework; subjects: string[] }) {
+export function HomeworkWorkspace({
+  homework: hw,
+  subjects,
+  onDirtyChange,
+}: {
+  homework: WorkspaceHomework;
+  subjects: string[];
+  /** So a list beside this can warn before switching away from unsaved work. */
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   const router = useRouter();
   const archived = useIsArchived();
   const [saving, startSaving] = useTransition();
@@ -57,6 +66,10 @@ export function HomeworkWorkspace({ homework: hw, subjects }: { homework: Worksp
     brief.removed ||
     answerFile.picked !== null ||
     answerFile.removed;
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   /** Save the work; resolves true when saved (or nothing to save). */
   const saveWork = useCallback(async (): Promise<boolean> => {
@@ -116,8 +129,8 @@ export function HomeworkWorkspace({ homework: hw, subjects }: { homework: Worksp
   const readOnly = archived;
 
   return (
-    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-      <div className="min-w-0 space-y-6 lg:col-span-8">
+    <div className="grid grid-cols-1 items-start gap-6 @3xl:grid-cols-12">
+      <div className="min-w-0 space-y-6 @3xl:col-span-8">
         <Panel>
           <PanelTitle icon={<ClipboardList />}>What was set</PanelTitle>
           <div className="space-y-4">
@@ -187,7 +200,7 @@ export function HomeworkWorkspace({ homework: hw, subjects }: { homework: Worksp
         )}
       </div>
 
-      <div className="min-w-0 space-y-6 lg:col-span-4 lg:sticky lg:top-6">
+      <div className="min-w-0 space-y-6 @3xl:col-span-4 lg:sticky lg:top-6">
         <FinishPanel homework={hw} readOnly={readOnly} saveFirst={saveWork} hasUnsaved={dirty} />
         <DetailsPanel homework={hw} subjects={subjects} readOnly={readOnly} />
       </div>

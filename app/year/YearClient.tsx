@@ -3,7 +3,7 @@
 import { useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { differenceInCalendarDays, format } from "date-fns";
-import { Archive, Check, Flag, GraduationCap, Pause, Play, Plus, X } from "lucide-react";
+import { Archive, Check, Flag, GraduationCap, Play, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { exitArchive, openArchivedYear } from "@/app/archive-actions";
@@ -30,9 +30,7 @@ import {
   getClassArchive,
   getClassSummary,
   getTermSummary,
-  pauseSchedule,
   renameActiveClass,
-  resumeSchedule,
   startNewClass,
   startNextTerm,
   updateTerm,
@@ -53,7 +51,6 @@ type ClassRow = {
   status: string;
   startedAt: Date | string;
   completedAt: Date | string | null;
-  pausedAt: Date | string | null;
   longestStreak: number;
   terms: TermRow[];
 };
@@ -165,7 +162,7 @@ export function YearClient({ classes }: { classes: ClassRow[] }) {
                   <>
                     {active.label}
                     <span className="text-muted-foreground font-bold text-lg">
-                      {activeTerm ? ` · ${activeTerm.name}` : active.pausedAt ? " · paused" : " · between terms"}
+                      {activeTerm ? ` · ${activeTerm.name}` : " · between terms"}
                     </span>
                   </>
                 ),
@@ -237,14 +234,11 @@ function ActiveYear({
 }) {
   const [label, setLabel] = useState(cls.label);
   const [confirmFinish, setConfirmFinish] = useState(false);
-  const paused = cls.pausedAt !== null;
   const activeTerm = cls.terms.find((t) => t.status === "ACTIVE");
   const progress = useTermProgress(activeTerm);
   const finished = cls.terms.filter((t) => t.status === "COMPLETED").length;
 
-  const status = paused ? (
-    <Pill tone="warning">Paused</Pill>
-  ) : activeTerm ? (
+  const status = activeTerm ? (
     <Pill tone="success">{activeTerm.name} running</Pill>
   ) : (
     <Pill>Between terms</Pill>
@@ -273,11 +267,9 @@ function ActiveYear({
               </div>
 
               <p className="mt-4 text-sm text-muted-foreground">
-                {paused
-                  ? "No tasks are being generated and your streak is frozen. Nothing is lost while you are away."
-                  : activeTerm
-                    ? "Tasks generate from your weekly routine and your streak is counting."
-                    : "No term is running, so nothing is being generated. Start the next term when you are ready."}
+                {activeTerm
+                  ? "Tasks generate from your weekly routine and your streak is counting."
+                  : "No term is running, so nothing is being generated. Start the next term when you are ready."}
               </p>
 
               {activeTerm && progress && (
@@ -332,17 +324,6 @@ function ActiveYear({
                     </Button>
                   )}
                 </form>
-
-                <Button
-                  variant="outline"
-                  size="lg"
-                  disabled={isPending}
-                  className="gap-1.5"
-                  onClick={() => (paused ? run(resumeSchedule, "Schedule resumed.") : run(pauseSchedule, "Schedule paused."))}
-                >
-                  {paused ? <Play className="size-4" /> : <Pause className="size-4" />}
-                  {paused ? "Resume schedule" : "Pause schedule"}
-                </Button>
               </div>
             )}
           </Panel>

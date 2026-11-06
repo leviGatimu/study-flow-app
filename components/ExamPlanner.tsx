@@ -51,6 +51,7 @@ export function ExamPlanner({
   score,
   maxScore,
   isPast,
+  show,
 }: {
   examId: string;
   subjectId: string | null;
@@ -60,6 +61,8 @@ export function ExamPlanner({
   score: number | null;
   maxScore: number | null;
   isPast: boolean;
+  /** Which part this instance renders: getting ready, or how it went. */
+  show: 'prepare' | 'result';
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -88,7 +91,7 @@ export function ExamPlanner({
   return (
     <div className="space-y-6">
       {/* 1. What does this exam actually assess? */}
-      {!subjectId && !archived && (
+      {show === 'prepare' && !subjectId && !archived && (
         <Panel className="border-orange-500/30">
           <PanelTitle icon={<Link2 />}>Link a subject</PanelTitle>
           <p className="mb-4 text-sm text-muted-foreground">
@@ -131,7 +134,7 @@ export function ExamPlanner({
 
       {/* 2. Plan the revision backwards from the date. Never offered in a
           finished year - there is nothing left to revise for. */}
-      {!isPast && !archived && (
+      {show === 'prepare' && !isPast && !archived && (
         <Panel className="space-y-4">
           <PanelTitle
             icon={<CalendarClock />}
@@ -256,7 +259,7 @@ export function ExamPlanner({
       )}
 
       {/* 3. How did it go? */}
-      <Panel className="space-y-4">
+      {show === 'result' && <Panel className="space-y-4">
         <div>
           <PanelTitle icon={<Trophy />} className="mb-1">Result</PanelTitle>
           <p className="text-sm text-muted-foreground">
@@ -307,7 +310,7 @@ export function ExamPlanner({
             Save result
           </Button>
         </div>
-      </Panel>
+      </Panel>}
     </div>
   );
 }

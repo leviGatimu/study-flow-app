@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Maximize2, Minimize2, BookOpenCheck, CloudCheck, CloudOff, Loader2 } from 'lucide-react';
+import { ArrowLeft, Maximize2, Minimize2, CloudCheck, CloudOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
@@ -31,23 +31,24 @@ export function PracticeWorkspace({ title, subject, mode, saveStatus, busy, onLe
     <Dialog open>
       <DialogContent ref={root} showCloseButton={false}
         onEscapeKeyDown={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}
+        // Focus starts on the paper, not on Save & exit: Enter must never leave by accident.
+        onOpenAutoFocus={(e) => { e.preventDefault(); root.current?.focus(); }}
         className="practice-workspace left-0 top-0 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none bg-background p-0 sm:max-w-none">
-        <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border bg-card px-4 py-3 sm:px-8">
+        <header className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-3 py-2 sm:px-6">
           {onLeave && <Button variant="outline" disabled={busy} onClick={onLeave}><ArrowLeft /><span className="hidden sm:inline">Save & exit</span><span className="sm:hidden">Exit</span></Button>}
-          <BookOpenCheck className="hidden size-5 text-primary md:block" />
-          <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1">
             <DialogTitle className="truncate text-base font-semibold">{title}</DialogTitle>
             <DialogDescription className="mt-1 truncate text-xs">{subject} · {mode}</DialogDescription>
           </div>
           <Button variant="ghost" size="icon" onClick={() => void toggleFullscreen()} aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} title={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}>
             {fullscreen ? <Minimize2 /> : <Maximize2 />}
           </Button>
-          {saveStatus && <div role="status" className="flex basis-full items-center justify-end gap-2 text-xs text-muted-foreground sm:basis-auto">
+          {saveStatus && <div role="status" className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
             {saveStatus === 'saving' ? <><Loader2 className="size-4 animate-spin" />Saving…</> : saveStatus === 'error' ? <><CloudOff className="size-4 text-destructive" />Not saved <button className="font-semibold text-primary underline" onClick={onRetry}>Retry</button></> : <><CloudCheck className="size-4" />Progress saved</>}
           </div>}
         </header>
         {fullscreenError && <p role="status" className="border-b bg-muted px-6 py-2 text-sm">{fullscreenError}</p>}
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-8">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:px-6 sm:py-6">{children}</div>
       </DialogContent>
     </Dialog>
   );

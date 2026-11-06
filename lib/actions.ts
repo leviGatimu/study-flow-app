@@ -1602,17 +1602,24 @@ export async function getSubjectSessions(subject: string) {
 /**
  * Create an exam event
  */
-export async function createEvent(data: { title: string, date: Date, priority: string, startTime?: string | null, endTime?: string | null, category?: string | null }) {
+export async function createEvent(data: { title?: string, subjectId?: string | null, date: Date, priority: string, startTime?: string | null, endTime?: string | null, category?: string | null }) {
   const userId = await getUserId();
   if (!userId) throw new Error('Sign in to add an exam.');
 
   const invalid = validateExamTimes(data.startTime, data.endTime);
   if (invalid) throw new Error(invalid);
-  if (!data.title.trim() || !Number.isFinite(new Date(data.date).getTime())) throw new Error('Enter an exam title and valid date.');
+  if (!Number.isFinite(new Date(data.date).getTime())) throw new Error('Pick a valid date.');
+
+  // The subject names the exam; the category says which sitting it was.
+  const subject = data.subjectId ? await prisma.subject.findFirst({ where: { id: data.subjectId, userId }, select: { id: true, name: true } }) : null;
+  if (data.subjectId && !subject) throw new Error('That subject no longer exists. Pick another one.');
+  const title = subject?.name ?? data.title?.trim();
+  if (!title) throw new Error('Pick a subject for this exam.');
 
   await prisma.examEvent.create({
     data: {
-      title: data.title.trim(),
+      title,
+      subjectId: subject?.id ?? null,
       priority: data.priority,
       startTime: data.startTime || null,
       endTime: data.endTime || null,

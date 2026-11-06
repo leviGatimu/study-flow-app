@@ -1,24 +1,18 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { Layers, Loader2, Pencil, Plus } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { setExamCategory } from '@/lib/exam-actions';
-import { inCategory, normaliseCategory, CATEGORY_MAX_LENGTH, type CategorySummary } from '@/lib/exam-category';
-import { useIsArchived } from '@/components/ArchiveContext';
+import { inCategory, normaliseCategory, CATEGORY_MAX_LENGTH } from '@/lib/exam-category';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Panel } from '@/components/ui/panel';
-import { Pill } from '@/components/ui/list-row';
-import { Progress } from '@/components/ui/progress';
-import { Section } from '@/components/ui/section';
 import { cn } from '@/lib/utils';
 
 export type PickableExam = {
@@ -29,148 +23,8 @@ export type PickableExam = {
   category: string | null;
 };
 
-/** A result as a status tone: green when strong, orange when shaky. */
-function percentTone(percent: number): 'success' | 'warning' | 'danger' {
-  return percent >= 70 ? 'success' : percent >= 50 ? 'warning' : 'danger';
-}
-
-const shown = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1)}%`;
-
-/**
- * Exams grouped by sitting ("Midterm 1") with the average across subjects.
- * Exams are put in a category here in bulk, or one at a time on their own page.
- */
-export function ExamCategories({
-  categories,
-  exams,
-  names,
-}: {
-  categories: CategorySummary[];
-  exams: PickableExam[];
-  names: string[];
-}) {
-  const archived = useIsArchived();
-  const [editing, setEditing] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
-
-  const edit = (name: string | null) => {
-    setEditing(name);
-    setOpen(true);
-  };
-
-  if (!exams.length) return null;
-
-  return (
-    <Section
-      title="By category"
-      description="Exams from the same sitting across your subjects, with the average mark."
-      actions={
-        !archived && categories.length > 0 && (
-          <Button variant="outline" onClick={() => edit(null)}>
-            <Plus /> New category
-          </Button>
-        )
-      }
-    >
-      {categories.length === 0 ? (
-        <Panel className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <Layers className="mt-0.5 size-5 shrink-0 text-primary" />
-            <div>
-              <p className="font-semibold text-foreground">Group exams from the same sitting</p>
-              <p className="text-sm text-muted-foreground">
-                Put every subject&apos;s midterm in &quot;Midterm 1&quot;, for example, and see the average across all of them.
-              </p>
-            </div>
-          </div>
-          {!archived && (
-            <Button onClick={() => edit(null)} className="shrink-0">
-              <Plus /> Make a category
-            </Button>
-          )}
-        </Panel>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {categories.map((c) => (
-            <CategoryCard key={c.name} category={c} onEdit={archived ? null : () => edit(c.name)} />
-          ))}
-        </div>
-      )}
-
-      {open && (
-        <CategoryDialog
-          key={editing ?? '__new'}
-          initialName={editing}
-          exams={exams}
-          names={names}
-          onClose={() => setOpen(false)}
-        />
-      )}
-    </Section>
-  );
-}
-
-function CategoryCard({ category: c, onEdit }: { category: CategorySummary; onEdit: (() => void) | null }) {
-  const subjects = c.exams.length;
-  return (
-    <Panel className="flex flex-col">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="truncate font-heading text-lg font-bold text-foreground">{c.name}</h3>
-          <p className="text-sm text-muted-foreground">
-            {subjects} {subjects === 1 ? 'exam' : 'exams'} · {c.graded} marked
-          </p>
-        </div>
-        {onEdit && (
-          <Button variant="ghost" size="icon" onClick={onEdit} aria-label={`Edit ${c.name}`} className="-mr-2 -mt-1 shrink-0">
-            <Pencil />
-          </Button>
-        )}
-      </div>
-
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="text-sm font-medium text-muted-foreground">Average</span>
-        <span
-          className={cn(
-            'font-heading text-3xl font-black tabular-nums',
-            c.average === null ? 'text-muted-foreground' : 'text-foreground'
-          )}
-        >
-          {c.average === null ? '–' : shown(c.average)}
-        </span>
-      </div>
-      <Progress value={c.average ?? 0} className="mt-2 h-2" aria-label={`${c.name} average`} />
-      {c.average === null && <p className="mt-2 text-xs text-muted-foreground">Add results to these exams to see the average.</p>}
-
-      <ul className="mt-4 divide-y divide-border/60 border-t border-border/60">
-        {c.exams.map((e) => (
-          <li key={e.id}>
-            <Link
-              href={`/exams/${e.id}`}
-              className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-primary focus-visible:underline focus-visible:outline-none"
-            >
-              <span className="min-w-0 truncate font-medium">{e.subject ?? e.title}</span>
-              {e.percent === null ? (
-                <span className="shrink-0 text-xs text-muted-foreground">No mark yet</span>
-              ) : (
-                <Pill tone={percentTone(e.percent)}>{shown(e.percent)}</Pill>
-              )}
-            </Link>
-          </li>
-        ))}
-      </ul>
-
-      {c.best && c.lowest && (
-        <p className="mt-auto border-t border-border/60 pt-3 text-xs text-muted-foreground">
-          Best: <span className="font-semibold text-foreground">{c.best.subject ?? c.best.title}</span> · Needs work:{' '}
-          <span className="font-semibold text-foreground">{c.lowest.subject ?? c.lowest.title}</span>
-        </p>
-      )}
-    </Panel>
-  );
-}
-
-function CategoryDialog({
+/** Name a sitting ("Midterm 1") and tick every exam that belongs to it. */
+export function CategoryDialog({
   initialName,
   exams,
   names,
