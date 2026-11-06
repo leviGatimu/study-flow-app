@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import Link from 'next/link';
 import { Layers } from 'lucide-react';
 
 import { EmptyState } from '@/components/ui/empty-state';
@@ -10,9 +11,10 @@ import { EditTemplateForm } from '@/components/EditTemplateForm';
 import { useIsArchived } from '@/components/ArchiveContext';
 import { DAY_NAMES, toMinutes } from '@/lib/school';
 
-import { StudyLegend } from '../timetable/study-block';
 import { blockMinutes, formatMinutes } from '@/lib/schedule-layout';
-import { ScheduleBoard } from '@/components/ScheduleBoard';
+import { Button } from '@/components/ui/button';
+import { EdgeKey, ScheduleFrame } from '@/components/schedule/ScheduleFrame';
+import { WeekBoard } from '@/components/schedule/WeekBoard';
 
 type TemplateType = {
   id: string;
@@ -71,53 +73,90 @@ export function ManageClient({
     };
   }, [initialTemplates]);
 
-  if (initialTemplates.length === 0) {
-    return (
-      <EmptyState
-        icon={<Layers />}
-        title="No study routine yet"
-        description={
-          archived
-            ? 'This academic year finished without a study routine recorded.'
-            : 'Add the blocks you study every week - "Maths, Thursday 19:00 to 21:30". Each one appears on its weekday in your Week and Month, ready to tick off.'
-        }
-        action={archived ? undefined : <ManageForm subjects={subjects} variant="outline" />}
-        className="py-12"
-      />
-    );
-  }
+  const empty = initialTemplates.length === 0;
+  const meta = empty
+    ? 'The blocks you study every week'
+    : [
+        `${formatMinutes(stats.total)} a week`,
+        `${initialTemplates.length} blocks across ${byDay.size} days`,
+        stats.busiest !== null && `busiest on ${DAY_NAMES[stats.busiest]}`,
+      ]
+        .filter(Boolean)
+        .join(' · ');
 
   return (
-    <>
-      <div className="flex flex-wrap items-center gap-x-8 gap-y-4 border-b border-border/60 pb-6 text-sm">
-        <p><span className="mr-2 text-muted-foreground">Weekly study</span><strong className="font-medium tabular-nums">{formatMinutes(stats.total)}</strong></p>
-        <p><span className="mr-2 text-muted-foreground">Routine</span><strong className="font-medium">{initialTemplates.length} blocks across {byDay.size} days</strong></p>
-        {stats.busiest !== null && <p><span className="mr-2 text-muted-foreground">Busiest day</span><strong className="font-medium">{DAY_NAMES[stats.busiest]}</strong></p>}
-      </div>
-      <StudyLegend />
-      <ScheduleBoard
-        title="Your recurring week"
-        description="Select a block to edit its time, subject or deadline"
-        emptyLabel="No study planned"
-        days={WEEK.map((day) => {
-          const blocks = byDay.get(day) ?? [];
-          const minutes = blocks.reduce((sum, block) => sum + blockMinutes(block.startTime, block.endTime), 0);
-          return { key: String(day), title: DAY_NAMES[day], summary: blocks.length ? `${blocks.length} blocks · ${formatMinutes(minutes)}` : 'Free evening' };
-        })}
-        entries={initialTemplates.map((template) => ({
-          id: template.id,
-          day: String(template.dayOfWeek),
-          title: template.subject,
-          startTime: template.startTime,
-          endTime: template.endTime,
-          kind: template.type === 'REVISION' ? 'revision' : 'homework',
-          detail: template.deadlineDay ? `Due ${template.deadlineDay} · Repeats every week` : 'Repeats every week',
-        }))}
-        renderActions={archived ? undefined : (entry) => {
-          const template = initialTemplates.find((item) => item.id === entry.id);
-          return template && <><EditTemplateForm template={template} subjects={subjects} showLabel /><DeleteTemplateButton id={template.id} subject={template.subject} showLabel /></>;
-        }}
-      />
-    </>
+    <ScheduleFrame
+      tour="manage-intro"
+      title="Study routine"
+      meta={meta}
+      legend={empty ? undefined : <EdgeKey />}
+      actions={
+        <>
+          {!empty && (
+            <Button asChild variant="outline">
+              <Link href="/timetable">See this week</Link>
+            </Button>
+          )}
+          <span data-tour="manage-add">
+            <ManageForm subjects={subjects} />
+          </span>
+        </>
+      }
+    >
+      {empty ? (
+        <div className="p-4 md:p-6">
+          <EmptyState
+            icon={<Layers />}
+            title="No study routine yet"
+            description={
+              archived
+                ? 'This academic year finished without a study routine recorded.'
+                : 'Add the blocks you study every week - "Maths, Thursday 19:00 to 21:30". Each one appears on its weekday in your Week and Month, ready to tick off.'
+            }
+            action={archived ? undefined : <ManageForm subjects={subjects} variant="outline" />}
+            className="py-12"
+          />
+        </div>
+      ) : (
+        <WeekBoard
+          label="Your recurring week"
+          emptyLabel="No study planned"
+          days={WEEK.map((day) => {
+            const blocks = byDay.get(day) ?? [];
+            const minutes = blocks.reduce((sum, block) => sum + blockMinutes(block.startTime, block.endTime), 0);
+            return {
+              key: String(day),
+              title: DAY_NAMES[day],
+              isWeekend: day === 0 || day === 6,
+              summary: blocks.length ? `${blocks.length} ${blocks.length === 1 ? 'block' : 'blocks'} · ${formatMinutes(minutes)}` : undefined,
+            };
+          })}
+          entries={initialTemplates.map((template) => ({
+            id: template.id,
+            day: String(template.dayOfWeek),
+            title: template.subject,
+            startTime: template.startTime,
+            endTime: template.endTime,
+            kind: template.type === 'REVISION' ? 'revision' : 'homework',
+            detail: template.deadlineDay ? `Due ${template.deadlineDay} · Repeats every week` : 'Repeats every week',
+          }))}
+          renderActions={
+            archived
+              ? undefined
+              : (entry) => {
+                  const template = initialTemplates.find((item) => item.id === entry.id);
+                  return (
+                    template && (
+                      <>
+                        <EditTemplateForm template={template} subjects={subjects} showLabel />
+                        <DeleteTemplateButton id={template.id} subject={template.subject} showLabel />
+                      </>
+                    )
+                  );
+                }
+          }
+        />
+      )}
+    </ScheduleFrame>
   );
 }

@@ -22,17 +22,13 @@ import { listSubjects } from '@/lib/subject-actions';
 import { getZonedNow } from '@/lib/utils';
 import { holidaysBetween } from '@/lib/holidays';
 
-import { Page, PageBody } from '@/components/ui/page';
-import { PageHeader } from '@/components/ui/page-header';
-import { Section } from '@/components/ui/section';
-import { EmptyState } from '@/components/ui/empty-state';
+import { EdgeKey, ScheduleFrame } from '@/components/schedule/ScheduleFrame';
 import { ErrorState } from '@/components/ui/error-state';
 import { Button } from '@/components/ui/button';
 import { QuickAddForm } from '@/components/QuickAddForm';
 import { WeekGrid } from './WeekGrid';
 
 import { dayKey, parseDayKey, weekHref } from './schedule-dates';
-import { StudyLegend } from './study-block';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -112,21 +108,33 @@ export default async function WeekPage({
   const rangeLabel = `${format(weekStart, sameMonth ? 'd' : 'd MMM')} – ${format(weekEnd, 'd MMMM yyyy')}`;
 
   return (
-    <Page>
-      <PageHeader
-        className="pt-7 pb-5 [&_h1]:text-3xl [&_h1]:font-semibold"
-        title="Week"
-        description="Your study blocks and school day, Monday to Sunday."
-        meta={total > 0 ? `${done} of ${total} study blocks completed` : 'Nothing planned yet'}
-        actions={
-          <QuickAddForm
-            subjects={data?.subjects ?? []}
-            variant="default"
-          />
-        }
-      />
-      <PageBody className="space-y-6 pt-6">
-        {!data ? (
+    <ScheduleFrame
+      title={rangeLabel}
+      meta={total > 0 ? `${done} of ${total} study blocks done this week` : 'Nothing planned yet'}
+      controls={
+        <>
+          <Button asChild variant="outline" size="icon-sm" aria-label="Previous week">
+            <Link href={weekHref(addWeeks(weekStart, -1))}>
+              <ChevronLeft />
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="icon-sm" aria-label="Next week">
+            <Link href={weekHref(addWeeks(weekStart, 1))}>
+              <ChevronRight />
+            </Link>
+          </Button>
+          {!isThisWeek && (
+            <Button asChild variant="outline" size="sm">
+              <Link href="/timetable">This week</Link>
+            </Button>
+          )}
+        </>
+      }
+      legend={<EdgeKey />}
+      actions={<QuickAddForm subjects={data?.subjects ?? []} variant="default" />}
+    >
+      {!data ? (
+        <div className="p-4 md:p-6">
           <ErrorState
             title="Your week could not be loaded"
             description="Something went wrong reading your schedule. Your data is safe - try again in a moment."
@@ -136,84 +144,36 @@ export default async function WeekPage({
               </Button>
             }
           />
-        ) : (
-          <>
-            {(data.routineCount === 0 || data.lessons.length === 0) && (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {data.routineCount === 0 && (
-                  <EmptyState
-                    icon={<Layers />}
-                    title="No study routine yet"
-                    description="Add the study blocks you repeat every week and they will fill this page on their own."
-                    action={
-                      <Button asChild>
-                        <Link href="/manage">Set up your study routine</Link>
-                      </Button>
-                    }
-                  />
-                )}
-                {data.lessons.length === 0 && (
-                  <EmptyState
-                    icon={<GraduationCap />}
-                    title="No school lessons yet"
-                    description="Add your school timetable to see when you are in class alongside your study blocks."
-                    action={
-                      <Button asChild variant="outline">
-                        <Link href="/school-timetable">Add school lessons</Link>
-                      </Button>
-                    }
-                  />
-                )}
-              </div>
-            )}
-
-            <Section
-              title={rangeLabel}
-              actions={
-                <>
-                  {!isThisWeek && (
-                    <Button asChild variant="outline">
-                      <Link href="/timetable">This week</Link>
-                    </Button>
-                  )}
-                  <Button asChild variant="outline" size="icon" aria-label="Previous week">
-                    <Link href={weekHref(addWeeks(weekStart, -1))}>
-                      <ChevronLeft />
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" size="icon" aria-label="Next week">
-                    <Link href={weekHref(addWeeks(weekStart, 1))}>
-                      <ChevronRight />
-                    </Link>
-                  </Button>
-                </>
-              }
-            >
-              <StudyLegend
-                extra={
-                  <span className="flex items-center gap-2">
-                    <span aria-hidden="true" className="h-3 w-5 rounded border border-border bg-muted" />
-                    School
-                  </span>
-                }
-              />
-
-              <WeekGrid days={days} today={today} tasks={data.tasks} lessons={data.lessons} holidays={holidays} timezone={tz} initialNow={format(now, "yyyy-MM-dd'T'HH:mm:ss")} />
-
-              {total === 0 && data.routineCount > 0 && weekEnd >= today && (
-                <p className="text-sm text-muted-foreground">
-                  No study blocks this week. Blocks appear while a term is running -{' '}
-                  <Link href="/year" className="font-medium text-primary hover:underline">
-                    check Year &amp; terms
-                  </Link>{' '}
-                  if you expected some.
-                </p>
+        </div>
+      ) : (
+        <div className="flex h-full min-h-0 flex-col">
+          {(data.routineCount === 0 || data.lessons.length === 0) && (
+            <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1 border-b border-border/60 bg-muted/30 px-4 py-2 text-sm text-muted-foreground md:px-5">
+              {data.routineCount === 0 && (
+                <span className="flex items-center gap-1.5">
+                  <Layers aria-hidden="true" className="size-4" /> No study routine yet.{' '}
+                  <Link href="/manage" className="font-medium text-primary hover:underline">Set it up</Link>
+                </span>
               )}
-            </Section>
-          </>
-        )}
-      </PageBody>
-    </Page>
+              {data.lessons.length === 0 && (
+                <span className="flex items-center gap-1.5">
+                  <GraduationCap aria-hidden="true" className="size-4" /> No school lessons yet.{' '}
+                  <Link href="/school-timetable" className="font-medium text-primary hover:underline">Add them</Link>
+                </span>
+              )}
+            </div>
+          )}
+          {total === 0 && data.routineCount > 0 && weekEnd >= today && (
+            <p className="shrink-0 border-b border-border/60 bg-muted/30 px-4 py-2 text-sm text-muted-foreground md:px-5">
+              No study blocks this week. Blocks appear while a term is running -{' '}
+              <Link href="/year" className="font-medium text-primary hover:underline">check Year &amp; terms</Link> if you expected some.
+            </p>
+          )}
+          <div className="min-h-0 flex-1">
+            <WeekGrid days={days} today={today} tasks={data.tasks} lessons={data.lessons} holidays={holidays} timezone={tz} initialNow={format(now, "yyyy-MM-dd'T'HH:mm:ss")} />
+          </div>
+        </div>
+      )}
+    </ScheduleFrame>
   );
 }
-

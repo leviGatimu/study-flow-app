@@ -11,8 +11,7 @@ import { byTerm, getViewScope } from '@/lib/scope';
 import { getZonedNow } from '@/lib/utils';
 import { holidaysBetween } from '@/lib/holidays';
 
-import { Page, PageBody } from '@/components/ui/page';
-import { PageHeader } from '@/components/ui/page-header';
+import { ScheduleFrame } from '@/components/schedule/ScheduleFrame';
 import { ErrorState } from '@/components/ui/error-state';
 import { Button } from '@/components/ui/button';
 import { QuickAddForm } from '@/components/QuickAddForm';
@@ -117,38 +116,25 @@ export default async function MonthPage({
     console.error('Month page failed to load', error);
   }
 
+  const addTask = <QuickAddForm subjects={subjects} variant="default" />;
+
+  if (data) {
+    return <CalendarGrid monthKey={monthKey(month)} todayKey={dayKey(today)} data={data} subjects={subjects} actions={addTask} />;
+  }
+
   return (
-    <Page>
-      <PageHeader
-        title="Month"
-        description="Study blocks, homework deadlines and exams, a month at a time. Pick a day to see everything on it."
-        actions={
-          <QuickAddForm
-            subjects={subjects}
-            variant="default"
-          />
-        }
-      />
-      <PageBody>
-        {data ? (
-          <CalendarGrid
-            monthKey={monthKey(month)}
-            todayKey={dayKey(today)}
-            data={data}
-            subjects={subjects}
-          />
-        ) : (
-          <ErrorState
-            title="This month could not be loaded"
-            description="Something went wrong reading your calendar. Your data is safe - try again in a moment."
-            action={
-              <Button asChild variant="outline">
-                <Link href={monthHref(month)}>Try again</Link>
-              </Button>
-            }
-          />
-        )}
-      </PageBody>
-    </Page>
+    <ScheduleFrame title="Month" actions={addTask}>
+      <div className="p-4 md:p-6">
+        <ErrorState
+          title="This month could not be loaded"
+          description="Something went wrong reading your calendar. Your data is safe - try again in a moment."
+          action={
+            <Button asChild variant="outline">
+              <Link href={monthHref(month)}>Try again</Link>
+            </Button>
+          }
+        />
+      </div>
+    </ScheduleFrame>
   );
 }

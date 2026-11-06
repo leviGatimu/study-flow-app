@@ -16,6 +16,7 @@ import {
   BookmarkCheck,
   BookOpen,
   CalendarRange,
+  Check,
   ChevronLeft,
   ChevronRight,
   Flag,
@@ -24,6 +25,7 @@ import {
   Pencil,
   Plus,
   Trash2,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -36,7 +38,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Panel } from '@/components/ui/panel';
+import { BlockKey, ScheduleFrame } from '@/components/schedule/ScheduleFrame';
 import { ListRow, Pill } from '@/components/ui/list-row';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ModeBar, TaskTick } from '@/components/TaskCheckbox';
@@ -48,7 +50,6 @@ import { extendActiveTerm } from '@/lib/term-actions';
 import { cn } from '@/lib/utils';
 import { subscribeOnMount } from '@/lib/use-client-value';
 import {
-  StudyLegend,
   StudyTypeIcon,
 } from '@/app/timetable/study-block';
 import { dayKey, monthHref, parseDayKey, weekHref } from '@/app/timetable/schedule-dates';
@@ -130,11 +131,14 @@ export function CalendarGrid({
   todayKey,
   data,
   subjects,
+  actions,
 }: {
   monthKey: string;
   todayKey: string;
   data: CalendarData;
   subjects: { id: string; name: string }[];
+  /** The toolbar's Add task. */
+  actions?: React.ReactNode;
 }) {
   const isWide = useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE).matches, () => true);
   const isCurrentMonth = todayKey.startsWith(monthKey);
@@ -199,235 +203,225 @@ export function CalendarGrid({
 
   const selected = summaryOf(selectedKey);
 
+  const meta =
+    totals.blocks === 0
+      ? 'Nothing planned this month yet.'
+      : [
+          `${totals.blocks} ${totals.blocks === 1 ? 'block' : 'blocks'}`,
+          hoursLabel(totals.minutes) && `${hoursLabel(totals.minutes)} planned`,
+          `${totals.done} done`,
+          totals.exams > 0 && `${totals.exams} ${totals.exams === 1 ? 'exam' : 'exams'}`,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
-      <Panel padded={false} className="overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:px-6 sm:pt-5">
-          <div className="min-w-0">
-            <h2 className="font-heading text-2xl font-bold tracking-tight">{format(month, 'MMMM yyyy')}</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {totals.blocks === 0
-                ? 'Nothing planned this month yet.'
-                : [
-                    `${totals.blocks} ${totals.blocks === 1 ? 'block' : 'blocks'}`,
-                    hoursLabel(totals.minutes) && `${hoursLabel(totals.minutes)} planned`,
-                    `${totals.done} done`,
-                    totals.exams > 0 && `${totals.exams} ${totals.exams === 1 ? 'exam' : 'exams'}`,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {!isCurrentMonth && (
-              <Button asChild variant="outline" size="sm">
-                <Link href="/calendar">Today</Link>
-              </Button>
-            )}
-            <Button asChild variant="outline" size="icon-sm" aria-label="Previous month">
-              <Link href={monthHref(addMonths(month, -1))}>
-                <ChevronLeft />
-              </Link>
+    <ScheduleFrame
+      title={format(month, 'MMMM yyyy')}
+      meta={meta}
+      controls={
+        <>
+          <Button asChild variant="outline" size="icon-sm" aria-label="Previous month">
+            <Link href={monthHref(addMonths(month, -1))}>
+              <ChevronLeft />
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="icon-sm" aria-label="Next month">
+            <Link href={monthHref(addMonths(month, 1))}>
+              <ChevronRight />
+            </Link>
+          </Button>
+          {!isCurrentMonth && (
+            <Button asChild variant="outline" size="sm">
+              <Link href="/calendar">Today</Link>
             </Button>
-            <Button asChild variant="outline" size="icon-sm" aria-label="Next month">
-              <Link href={monthHref(addMonths(month, 1))}>
-                <ChevronRight />
-              </Link>
-            </Button>
-          </div>
-        </div>
-
-        {/* Phone: a list of the month's days. */}
-        <ul className="divide-y divide-border/60 border-t border-border/60 sm:hidden">
-          {monthDays.map((date) => {
-            const key = dayKey(date);
-            const s = summaryOf(key);
-            const count = s.tasks.length + s.exams.length + s.homework.length;
-            return (
-              <li key={key}>
-                <button
-                  type="button"
-                  onClick={() => select(key)}
-                  className={cn(
-                    'flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none',
-                    s.isToday && 'bg-primary/5'
-                  )}
-                >
-                  <DayNumber date={date} isToday={s.isToday} isMarked={s.isMarked} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-foreground">{format(date, 'EEEE')}</span>
-                    <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                      <DayDots summary={s} />
-                      {count > 0 ? `${count} ${count === 1 ? 'item' : 'items'}` : 'Nothing planned'}
-                      {s.isTermEnd && <Pill tone="warning">Term ends</Pill>}
-                      {s.holiday && <Pill tone="success">{s.holiday}</Pill>}
-                    </span>
-                  </span>
-                  {hoursLabel(s.minutes) && (
-                    <span className="text-xs font-medium tabular-nums text-muted-foreground">{hoursLabel(s.minutes)}</span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-
-        {/* Tablet and up: the month grid. */}
-        <div className="hidden px-3 pb-3 sm:block sm:px-4 sm:pb-4">
-          <div className="grid grid-cols-7 gap-1.5 pb-1.5">
-            {WEEKDAYS.map((d, i) => (
-              <div
-                key={d}
-                className={cn('px-2 py-1 text-xs font-medium text-muted-foreground', i >= 5 && 'text-muted-foreground/70')}
-              >
-                {d}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1.5" role="grid" aria-label={format(month, 'MMMM yyyy')}>
-            {gridDays.map((date) => {
+          )}
+        </>
+      }
+      legend={
+        <BlockKey>
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden="true" className="h-3 w-4 rounded-[3px] bg-orange-500" /> Exam
+          </span>
+          <span className="flex items-center gap-1.5">
+            <BookOpen aria-hidden="true" className="size-3" /> Due
+          </span>
+        </BlockKey>
+      }
+      actions={actions}
+    >
+      <div className="flex h-full min-h-0">
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Phone: a list of the month's days. */}
+          <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto sm:hidden">
+            {monthDays.map((date) => {
               const key = dayKey(date);
               const s = summaryOf(key);
-              const inMonth = isSameMonth(date, month);
-              const isSelected = key === selectedKey;
-              const chips = [
-                ...s.exams.map((e) => ({ id: e.id, kind: 'exam' as const, text: e.title })),
-                ...s.tasks.map((t) => ({ id: t.id, kind: 'task' as const, text: t.subject, task: t })),
-              ];
-              const shown = chips.slice(0, 3);
-              const hidden = chips.length - shown.length;
               const count = s.tasks.length + s.exams.length + s.homework.length;
               return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => select(key)}
-                  aria-pressed={isSelected}
-                  aria-label={`${format(date, 'EEEE d MMMM')}${s.holiday ? `, ${s.holiday}` : ''}, ${count} ${count === 1 ? 'item' : 'items'}`}
-                  className={cn(
-                    'group flex min-h-28 w-full min-w-0 flex-col gap-1.5 rounded-xl border p-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 lg:min-h-[7.5rem]',
-                    inMonth ? 'border-border/50 bg-background/40 hover:border-border hover:bg-muted/40' : 'border-transparent opacity-45 hover:opacity-80',
-                    s.isToday && 'border-primary/40 bg-primary/[0.06]',
-                    isSelected && 'border-primary bg-primary/[0.08] ring-1 ring-primary'
-                  )}
-                >
-                  <span className="flex items-center justify-between gap-1">
-                    <DayNumber date={date} isToday={s.isToday} isMarked={s.isMarked} muted={!inMonth} />
+                <li key={key}>
+                  <button
+                    type="button"
+                    onClick={() => select(key)}
+                    className={cn(
+                      'flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none',
+                      s.isToday && 'bg-primary/5'
+                    )}
+                  >
+                    <DayNumber date={date} isToday={s.isToday} isMarked={s.isMarked} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-foreground">{format(date, 'EEEE')}</span>
+                      <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                        <DayDots summary={s} />
+                        {count > 0 ? `${count} ${count === 1 ? 'item' : 'items'}` : 'Nothing planned'}
+                        {s.isTermEnd && <Pill tone="warning">Term ends</Pill>}
+                        {s.holiday && <Pill tone="success">{s.holiday}</Pill>}
+                      </span>
+                    </span>
                     {hoursLabel(s.minutes) && (
-                      <span className="text-[11px] font-medium tabular-nums text-muted-foreground">{hoursLabel(s.minutes)}</span>
+                      <span className="text-xs font-medium tabular-nums text-muted-foreground">{hoursLabel(s.minutes)}</span>
                     )}
-                  </span>
-                  {s.isTermEnd && (
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-orange-600 dark:text-orange-400">
-                      <Flag aria-hidden="true" className="size-3" /> Term ends
-                    </span>
-                  )}
-                  {s.holiday && (
-                    <span className="flex min-w-0 items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                      <PartyPopper aria-hidden="true" className="size-3 shrink-0" />
-                      <span className="truncate">{s.holiday}</span>
-                    </span>
-                  )}
-                  {/* md+: chips. sm: dots only, the chips do not fit. */}
-                  <span className="hidden w-full min-w-0 flex-col gap-1 md:flex">
-                    {shown.map((c) =>
-                      c.kind === 'exam' ? (
-                        <span
-                          key={c.id}
-                          className="flex min-w-0 items-center gap-1 rounded-md bg-orange-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-orange-700 dark:text-orange-300"
-                        >
-                          <GraduationCap aria-hidden="true" className="size-3 shrink-0" />
-                          <span className="truncate">{c.text}</span>
-                        </span>
-                      ) : (
-                        <span
-                          key={c.id}
-                          className={cn(
-                            'flex min-w-0 items-center gap-1.5 rounded-md bg-muted/60 px-1.5 py-0.5 text-[11px] font-medium text-foreground',
-                            (c.task.isDone || c.task.isMissed) && 'text-muted-foreground'
-                          )}
-                        >
-                          <span
-                            aria-hidden="true"
-                            className={cn(
-                              'h-2.5 shrink-0 border-l-[3px]',
-                              c.task.isDone
-                                ? 'border-success'
-                                : c.task.isMissed
-                                  ? 'border-destructive'
-                                  : c.task.type === 'REVISION'
-                                    ? 'border-dashed border-orange-500'
-                                    : 'border-primary'
-                            )}
-                          />
-                          <span className={cn('truncate', c.task.isDone && 'line-through')}>{c.text}</span>
-                        </span>
-                      )
-                    )}
-                    {hidden > 0 && <span className="px-1 text-[11px] font-medium text-muted-foreground">+{hidden} more</span>}
-                  </span>
-                  <span className="mt-auto flex md:hidden">
-                    <DayDots summary={s} />
-                  </span>
-                  {s.homework.length > 0 && (
-                    <span className="mt-auto hidden items-center gap-1 text-[11px] text-muted-foreground md:flex">
-                      <BookOpen aria-hidden="true" className="size-3" /> {s.homework.length} due
-                    </span>
-                  )}
-                </button>
+                  </button>
+                </li>
               );
             })}
+          </ul>
+
+          {/* Tablet and up: one edge-to-edge sheet that fills the screen. */}
+          <div className="hidden min-h-0 flex-1 flex-col sm:flex">
+            <div className="grid shrink-0 grid-cols-7 border-b border-border/60">
+              {WEEKDAYS.map((d, i) => (
+                <div key={d} className={cn('border-l border-border/40 px-2.5 py-1.5 text-xs font-semibold text-muted-foreground first:border-l-0', i >= 5 && 'bg-muted/20')}>
+                  {d}
+                </div>
+              ))}
+            </div>
+            <div
+              className="grid min-h-0 flex-1 grid-cols-7 overflow-y-auto"
+              style={{ gridTemplateRows: `repeat(${gridDays.length / 7}, minmax(6.5rem, 1fr))` }}
+              role="grid"
+              aria-label={format(month, 'MMMM yyyy')}
+            >
+              {gridDays.map((date, index) => {
+                const key = dayKey(date);
+                const s = summaryOf(key);
+                const inMonth = isSameMonth(date, month);
+                const isSelected = key === selectedKey;
+                const weekend = index % 7 >= 5;
+                const chips = [
+                  ...s.exams.map((e) => ({ id: e.id, kind: 'exam' as const, text: e.title })),
+                  ...s.tasks.map((t) => ({ id: t.id, kind: 'task' as const, text: t.subject, task: t })),
+                ];
+                const shown = chips.slice(0, 3);
+                const hidden = chips.length - shown.length;
+                const count = s.tasks.length + s.exams.length + s.homework.length;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => select(key)}
+                    aria-pressed={isSelected}
+                    aria-label={`${format(date, 'EEEE d MMMM')}${s.holiday ? `, ${s.holiday}` : ''}, ${count} ${count === 1 ? 'item' : 'items'}`}
+                    className={cn(
+                      'flex min-h-0 min-w-0 flex-col gap-1 overflow-hidden border-b border-l border-border/40 p-1.5 text-left transition-colors [&:nth-child(7n+1)]:border-l-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/60',
+                      inMonth ? 'hover:bg-muted/40' : 'bg-muted/10 opacity-50 hover:opacity-90',
+                      weekend && inMonth && 'bg-muted/20',
+                      s.isToday && 'bg-primary/[0.07]',
+                      isSelected && 'ring-2 ring-inset ring-primary'
+                    )}
+                  >
+                    <span className="flex items-center justify-between gap-1">
+                      <DayNumber date={date} isToday={s.isToday} isMarked={s.isMarked} muted={!inMonth} />
+                      <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+                        {s.homework.length > 0 && (
+                          <span className="hidden items-center gap-0.5 md:flex" title={`${s.homework.length} homework due`}>
+                            <BookOpen aria-hidden="true" className="size-3" /> {s.homework.length}
+                          </span>
+                        )}
+                        {hoursLabel(s.minutes)}
+                      </span>
+                    </span>
+                    {s.isTermEnd && (
+                      <span className="flex items-center gap-1 text-[11px] font-semibold text-orange-600 dark:text-orange-400">
+                        <Flag aria-hidden="true" className="size-3" /> Term ends
+                      </span>
+                    )}
+                    {s.holiday && (
+                      <span className="flex min-w-0 items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        <PartyPopper aria-hidden="true" className="size-3 shrink-0" />
+                        <span className="truncate">{s.holiday}</span>
+                      </span>
+                    )}
+                    {/* md+: chips. sm: dots only, the chips do not fit. */}
+                    <span className="hidden w-full min-w-0 flex-col gap-[3px] md:flex">
+                      {shown.map((c) =>
+                        c.kind === 'exam' ? (
+                          <span key={c.id} className="flex min-w-0 items-center gap-1 rounded bg-orange-500 px-1.5 py-[3px] text-[11px] font-semibold leading-none text-white">
+                            <GraduationCap aria-hidden="true" className="size-3 shrink-0" />
+                            <span className="truncate">{c.text}</span>
+                          </span>
+                        ) : (
+                          <span
+                            key={c.id}
+                            className={cn(
+                              'flex min-w-0 items-center gap-1 rounded px-1.5 py-[3px] text-[11px] font-medium leading-none',
+                              c.task.isDone
+                                ? 'bg-success/15 text-foreground/70'
+                                : c.task.isMissed
+                                  ? 'bg-destructive/10 text-foreground/70'
+                                  : c.task.type === 'REVISION'
+                                    ? 'outline-1 -outline-offset-1 outline-dashed outline-orange-500 bg-orange-500/15 text-foreground'
+                                    : 'bg-primary text-primary-foreground'
+                            )}
+                          >
+                            {c.task.isDone && <Check aria-hidden="true" className="size-3 shrink-0 text-success" />}
+                            {c.task.isMissed && !c.task.isDone && <X aria-hidden="true" className="size-3 shrink-0 text-destructive" />}
+                            <span className="truncate">{c.text}</span>
+                          </span>
+                        )
+                      )}
+                      {hidden > 0 && <span className="px-1 text-[11px] font-medium leading-none text-muted-foreground">+{hidden} more</span>}
+                    </span>
+                    <span className="mt-auto flex md:hidden">
+                      <DayDots summary={s} />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
-        <div className="border-t border-border/60 p-4 sm:px-6">
-          <StudyLegend
-            extra={
-              <>
-                <span className="flex items-center gap-2">
-                  <span aria-hidden="true" className="size-2 rounded-full bg-orange-500" /> Exam
-                </span>
-                <span className="flex items-center gap-2">
-                  <BookOpen aria-hidden="true" className="size-3 text-muted-foreground" /> Homework due
-                </span>
-                <span className="flex items-center gap-2">
-                  <Bookmark aria-hidden="true" className="size-3 text-destructive" /> Marked day
-                </span>
-              </>
-            }
-          />
-        </div>
-      </Panel>
-
-      {/* Wide screens: the selected day, beside the grid. */}
-      {isWide && (
-        <Panel padded={false} className="sticky top-4 hidden overflow-hidden lg:block">
-          <DayDetails
-            key={selectedKey}
-            dateKey={selectedKey}
-            summary={selected}
-            term={data.term}
-            subjects={subjects}
-            variant="panel"
-          />
-        </Panel>
-      )}
-
-      {!isWide && (
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="max-h-[90vh] overflow-y-auto p-0 sm:max-w-2xl">
+        {/* Wide screens: the selected day, as a full-height column. */}
+        {isWide && (
+          <aside className="hidden w-[360px] shrink-0 overflow-y-auto border-l border-border/60 lg:block">
             <DayDetails
               key={selectedKey}
               dateKey={selectedKey}
               summary={selected}
               term={data.term}
               subjects={subjects}
-              variant="dialog"
+              variant="panel"
             />
-          </DialogContent>
-        </Dialog>
-      )}
-    </div>
+          </aside>
+        )}
+
+        {!isWide && (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogContent className="max-h-[90vh] overflow-y-auto p-0 sm:max-w-2xl">
+              <DayDetails
+                key={selectedKey}
+                dateKey={selectedKey}
+                summary={selected}
+                term={data.term}
+                subjects={subjects}
+                variant="dialog"
+              />
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+    </ScheduleFrame>
   );
 }
 

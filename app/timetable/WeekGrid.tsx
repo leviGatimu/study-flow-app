@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { format, isSameDay } from 'date-fns';
-import { ScheduleBoard, type ScheduleDay } from '@/components/ScheduleBoard';
-import { blockMinutes, formatMinutes } from '@/lib/schedule-layout';
+import { Timer } from 'lucide-react';
+import { WeekBoard, type BoardDay } from '@/components/schedule/WeekBoard';
+import { Button } from '@/components/ui/button';
+import { blockMinutes, entryRange, formatMinutes } from '@/lib/schedule-layout';
 import type { ScheduleEntry } from '@/lib/schedule-layout';
 import type { Holiday } from '@/lib/holidays';
 import { lessonsOn, schoolDayBounds, type SchoolLesson } from '@/lib/school';
@@ -39,7 +41,9 @@ export function WeekGrid({ days, today, tasks, lessons, holidays, timezone, init
     return () => clearInterval(timer);
   }, [timezone]);
 
-  const boardDays: ScheduleDay[] = days.map((date) => {
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const boardDays: BoardDay[] = days.map((date) => {
     const holiday = holidays.get(dayKey(date));
     const blocks = tasks.filter((task) => isSameDay(task.date, date));
     const minutes = blocks.reduce((sum, task) => sum + blockMinutes(task.startTime, task.endTime), 0);
@@ -51,13 +55,20 @@ export function WeekGrid({ days, today, tasks, lessons, holidays, timezone, init
       title: format(date, 'EEEE'),
       dateLabel: format(date, 'd'),
       isToday: isSameDay(date, today),
+      isWeekend: date.getDay() === 0 || date.getDay() === 6,
       note: holiday?.name,
-      summary: blocks.length ? `${done}/${blocks.length} done · ${formatMinutes(minutes)}` : 'No study blocks',
-      context: school && <Link href="/school-timetable"><strong>School · {count} lessons</strong>{school.start} – {school.end}</Link>,
+      summary: blocks.length ? `${done}/${blocks.length} · ${formatMinutes(minutes)}` : undefined,
+      context: school && (
+        <Link href="/school-timetable" title={`School, ${count} lessons`} className="block truncate rounded-md bg-muted/70 px-2 py-1 text-[11px] font-medium tabular-nums text-muted-foreground transition-colors hover:text-foreground">
+          School {school.start} – {school.end}
+        </Link>
+      ),
     };
   });
   const entries: ScheduleEntry[] = tasks.map((task) => {
     const status = statusOf(task);
+    const range = entryRange(task);
+    const onNow = status === 'open' && isSameDay(task.date, today) && nowMinutes >= range.start && nowMinutes < range.end;
     return {
       id: task.id,
       day: dayKey(task.date),
@@ -65,16 +76,25 @@ export function WeekGrid({ days, today, tasks, lessons, holidays, timezone, init
       startTime: task.startTime,
       endTime: task.endTime,
       kind: task.type === 'REVISION' ? 'revision' : 'homework',
-      state: status === 'open' ? undefined : status,
+      state: onNow ? 'active' : status === 'open' ? undefined : status,
     };
   });
 
-  return <ScheduleBoard
-    title="Your study week"
-    description="School hours above, your study blocks below"
-    days={boardDays}
-    entries={entries}
-    emptyLabel="Free evening"
-    nowMinutes={now.getHours() * 60 + now.getMinutes()}
-  />;
+  return (
+    <WeekBoard
+      label="Your study week"
+      days={boardDays}
+      entries={entries}
+      emptyLabel="Free evening"
+      renderActions={(entry) =>
+        entry.state === 'done' ? null : (
+          <Button asChild>
+            <Link href={`/focus/${entry.id}`}>
+              <Timer /> Focus on it
+            </Link>
+          </Button>
+        )
+      }
+    />
+  );
 }
