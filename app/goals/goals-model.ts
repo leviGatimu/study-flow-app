@@ -76,20 +76,3 @@ export function buildSubjectStandings(
     .map(([subject, grade]) => ({ subject, currentGrade: Number.isNaN(grade) ? undefined : grade }))
     .sort((a, b) => a.subject.localeCompare(b.subject));
 }
-
-/** The latest mark for a goal's subject, matched case-insensitively. */
-export function currentGradeFor(standings: SubjectStanding[], subject: string): number | undefined {
-  const wanted = cleanSubject(subject).toLowerCase();
-  return standings.find((s) => s.subject.toLowerCase() === wanted)?.currentGrade;
-}
-
-/** The latest report card's average, or the mean of latest marks when it has none. Null with no marks. */
-export function currentAverage(reportCards: ReportCardType[], standings: SubjectStanding[]): number | null {
-  const latest = [...reportCards].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  )[0];
-  if (latest?.overallAverage) return latest.overallAverage;
-  const grades = standings.map((s) => s.currentGrade).filter((g): g is number => g !== undefined);
-  if (grades.length === 0) return null;
-  return parseFloat((grades.reduce((a, b) => a + b, 0) / grades.length).toFixed(1));
-}

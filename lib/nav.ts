@@ -128,7 +128,7 @@ export const NAV: NavSection[] = [
     icon: Activity,
     children: [
       { name: "History", href: "/history", icon: CheckCircle, keywords: "completed done log insights overview progress stats analytics charts attention" },
-      { name: "Marks", href: "/marks", icon: TrendingUp, keywords: "grades results report card goals targets" },
+      { name: "Marks", href: "/marks", icon: TrendingUp, keywords: "grades results report card goals targets focus weakest subjects midterm exam results" },
       { name: "Reports", href: "/summaries", icon: FileText, keywords: "daily summary weekly review report pdf" },
       { name: "Streak", href: "/streak", icon: Trophy, keywords: "consistency days xp level rank badges" },
     ],

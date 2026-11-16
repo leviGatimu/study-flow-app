@@ -6,6 +6,7 @@ import { getUniqueSubjects } from "@/lib/actions";
 import { Page, PageBody } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState } from "@/components/ui/error-state";
+import { loadSubjectProgress } from "@/lib/subject-progress-data";
 import { GoalsClient } from "./GoalsClient";
 import type { ReportCardType } from "./goals-model";
 
@@ -14,14 +15,19 @@ export async function GoalsView({ tabs }: { tabs: React.ReactNode }) {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
-  let data: [Awaited<ReturnType<typeof getReportCards>>, Awaited<ReturnType<typeof getGoals>>, string[]];
+  let data: [
+    Awaited<ReturnType<typeof getReportCards>>,
+    Awaited<ReturnType<typeof getGoals>>,
+    string[],
+    Awaited<ReturnType<typeof loadSubjectProgress>>,
+  ];
   try {
-    data = await Promise.all([getReportCards(), getGoals(), getUniqueSubjects()]);
+    data = await Promise.all([getReportCards(), getGoals(), getUniqueSubjects(), loadSubjectProgress()]);
   } catch (error) {
     console.error('Goals failed to load', error);
     return (
       <Page>
-        <PageHeader title="Marks" description="A target mark for each subject, next to your latest mark." />
+        <PageHeader title="Marks" description="A target mark for each subject, next to where your exam results and report card put you." />
         {tabs}
         <PageBody>
           <ErrorState
@@ -32,13 +38,14 @@ export async function GoalsView({ tabs }: { tabs: React.ReactNode }) {
       </Page>
     );
   }
-  const [reportCards, goals, uniqueSubjects] = data;
+  const [reportCards, goals, uniqueSubjects, progress] = data;
 
   return (
     <GoalsClient
       initialReportCards={reportCards as unknown as ReportCardType[]}
       initialGoals={goals}
       uniqueSubjects={uniqueSubjects}
+      progress={progress}
       tabs={tabs}
     />
   );

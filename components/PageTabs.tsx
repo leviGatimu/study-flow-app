@@ -4,7 +4,7 @@ import { Segmented, type SegmentedOption } from "@/app/insights/Segmented";
  * Two views of one page, switched by the URL (?view=...), so each view stays
  * server-rendered and a reload or a link lands on the right one. Used where two
  * pages were merged: History (completed work / overview) and Marks (report
- * cards / goals).
+ * cards / goals / focus).
  */
 export function PageTabs({ label, value, options }: { label: string; value: string; options: SegmentedOption[] }) {
   return (
@@ -27,7 +27,7 @@ export function historyTabs(view: "log" | "overview") {
   );
 }
 
-export function marksTabs(view: "marks" | "goals") {
+export function marksTabs(view: "marks" | "goals" | "focus") {
   return (
     <PageTabs
       label="Marks view"
@@ -35,6 +35,7 @@ export function marksTabs(view: "marks" | "goals") {
       options={[
         { value: "marks", label: "Report cards", href: "/marks" },
         { value: "goals", label: "Goals", href: "/marks?view=goals" },
+        { value: "focus", label: "Focus", href: "/marks?view=focus" },
       ]}
     />
   );

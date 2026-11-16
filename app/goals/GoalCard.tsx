@@ -6,28 +6,33 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Panel } from "@/components/ui/panel";
 import { Pill } from "@/components/ui/list-row";
+import type { SubjectProgress } from "@/lib/subject-progress";
+import { GoalBar, neededText, ResultChips, sourceText } from "@/components/marks/GoalProgress";
 import type { GoalType } from "./goals-model";
 
 /**
- * One subject's target against its latest mark, with the next step: practise
- * when it is behind, add a mark when there is none yet.
+ * One subject's target against where the student is now (exam results this
+ * term, else the newest report card), with what the coming exams need and the
+ * next step: practise when it is behind, add a mark when there is none yet.
  */
 export function GoalCard({
   goal,
-  current,
+  progress,
   readOnly,
   busy,
   onEdit,
   onDelete,
 }: {
   goal: GoalType;
-  current: number | undefined;
+  progress: SubjectProgress | undefined;
   readOnly: boolean;
   busy: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const current = progress?.current ?? undefined;
   const isGraded = current !== undefined;
+  const needed = progress ? neededText(progress) : null;
   const isMet = isGraded && current >= goal.targetGrade;
   const gap = isGraded ? current - goal.targetGrade : 0;
 
@@ -67,7 +72,7 @@ export function GoalCard({
 
       <dl className="grid grid-cols-2 gap-4">
         <div>
-          <dt className="text-xs font-medium text-muted-foreground">Latest mark</dt>
+          <dt className="text-xs font-medium text-muted-foreground">Where you are</dt>
           <dd className="font-heading text-2xl font-black tabular-nums text-foreground">
             {isGraded ? `${current.toFixed(1)}%` : "None"}
           </dd>
@@ -78,16 +83,26 @@ export function GoalCard({
         </div>
       </dl>
 
-      {/* The bar is the mark; the tick is the target. */}
-      <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted" aria-hidden="true">
-        {isGraded && (
-          <div
-            className={cn("h-full rounded-full", isMet ? "bg-success" : "bg-orange-500")}
-            style={{ width: `${Math.min(current, 100)}%` }}
-          />
-        )}
-        <div className="absolute inset-y-0 w-0.5 bg-foreground/70" style={{ left: `${goal.targetGrade}%` }} />
+      <div className="space-y-2">
+        <GoalBar current={current ?? null} target={goal.targetGrade} />
+        {progress && <p className="text-xs text-muted-foreground">{sourceText(progress)}</p>}
       </div>
+
+      {progress && <ResultChips progress={progress} />}
+
+      {needed && (
+        <p
+          className={cn(
+            "text-sm",
+            needed.tone === "success" && "text-success",
+            needed.tone === "warning" && "text-orange-600 dark:text-orange-400",
+            needed.tone === "danger" && "text-destructive",
+            needed.tone === "default" && "text-muted-foreground"
+          )}
+        >
+          {needed.text}
+        </p>
+      )}
 
       {!isMet && (
         <div className="mt-auto border-t border-border/40 pt-3">
@@ -100,7 +115,7 @@ export function GoalCard({
             </Button>
           ) : (
             <Button asChild variant="outline" size="sm">
-              <Link href="/marks">Add a mark</Link>
+              <Link href="/exams">Add an exam result</Link>
             </Button>
           )}
         </div>

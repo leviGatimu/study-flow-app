@@ -14,10 +14,9 @@ import { Section } from '@/components/ui/section';
 import { Stat } from '@/components/ui/stat';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
+import { progressKey, type SubjectProgress } from '@/lib/subject-progress';
 import {
   buildSubjectStandings,
-  currentAverage,
-  currentGradeFor,
   type GoalType,
   type ReportCardType,
 } from './goals-model';
@@ -28,9 +27,11 @@ interface GoalsClientProps {
   initialReportCards: ReportCardType[];
   initialGoals: GoalType[];
   uniqueSubjects: string[];
+  /** Each subject's standing from exam results and report cards (lib/subject-progress). */
+  progress: SubjectProgress[];
 }
 
-export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects, tabs }: GoalsClientProps & { tabs?: React.ReactNode }) {
+export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects, progress, tabs }: GoalsClientProps & { tabs?: React.ReactNode }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   // A finished year's targets are a record, not something to set.
@@ -41,14 +42,24 @@ export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects, 
     () => buildSubjectStandings(initialReportCards, uniqueSubjects),
     [initialReportCards, uniqueSubjects]
   );
-  const average = useMemo(() => currentAverage(initialReportCards, standings), [initialReportCards, standings]);
+  const progressBySubject = useMemo(
+    () => new Map(progress.map((p) => [progressKey(p.subject), p])),
+    [progress]
+  );
+  const progressFor = (subject: string) => progressBySubject.get(progressKey(subject));
+  // Where the student is across every subject with a mark, exams first.
+  const average = useMemo(() => {
+    const marks = progress.map((p) => p.current).filter((c): c is number => c !== null);
+    return marks.length === 0 ? null : parseFloat((marks.reduce((a, b) => a + b, 0) / marks.length).toFixed(1));
+  }, [progress]);
+  const usesExams = progress.some((p) => p.source === 'exams');
   const targetAverage =
     initialGoals.length === 0
       ? null
       : parseFloat((initialGoals.reduce((acc, g) => acc + g.targetGrade, 0) / initialGoals.length).toFixed(1));
   const metCount = initialGoals.filter((g) => {
-    const current = currentGradeFor(standings, g.subject);
-    return current !== undefined && current >= g.targetGrade;
+    const current = progressFor(g.subject)?.current ?? null;
+    return current !== null && current >= g.targetGrade;
   }).length;
 
   const focusForm = () => {
@@ -77,7 +88,7 @@ export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects, 
     <Page>
       <PageHeader
         title="Marks"
-        description="A target mark for each subject, next to your latest mark."
+        description="A target mark for each subject, next to where your exam results and report card put you."
         actions={
           <>
             {!archived && (
@@ -96,9 +107,15 @@ export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects, 
           <Panel className="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3">
             <Stat
               icon={<TrendingUp />}
-              label="Latest average"
+              label="Where you are"
               value={average === null ? 'No marks' : `${average.toFixed(1)}%`}
-              hint={average === null ? 'Add a report card in Marks' : 'From your newest report card'}
+              hint={
+                average === null
+                  ? 'Add an exam result or a report card'
+                  : usesExams
+                    ? 'Average from exams this term and report cards'
+                    : 'From your newest report card'
+              }
             />
             <Stat
               icon={<Target />}
@@ -147,7 +164,7 @@ export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects, 
                 description={
                   archived
                     ? 'No targets were set in this year.'
-                    : 'Pick a subject and a target mark in the form. Each target is compared with your latest mark.'
+                    : 'Pick a subject and a target mark in the form. Each target is compared with your exam results this term, or your report card when there are none.'
                 }
                 action={
                   archived ? undefined : (
@@ -161,7 +178,7 @@ export function GoalsClient({ initialReportCards, initialGoals, uniqueSubjects, 
                   <GoalCard
                     key={goal.id}
                     goal={goal}
-                    current={currentGradeFor(standings, goal.subject)}
+                    progress={progressFor(goal.subject)}
                     readOnly={archived}
                     busy={isPending}
                     onEdit={() => {

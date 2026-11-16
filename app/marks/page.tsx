@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState } from "@/components/ui/error-state";
 import { MarksClient } from "./MarksClient";
 import { GoalsView } from "../goals/GoalsView";
+import { FocusView } from "./FocusView";
 import { marksTabs } from "@/components/PageTabs";
 import type { ReportCardType } from "./marks-model";
 
@@ -16,14 +17,16 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 /**
- * Marks: report cards, and (?view=goals) the target mark for each subject -
- * formerly two pages.
+ * Marks: report cards, (?view=goals) the target mark for each subject against
+ * exam results, and (?view=focus) the subjects that need attention most.
  */
 export default async function MarksPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
-  if ((await searchParams).view === 'goals') return <GoalsView tabs={marksTabs('goals')} />;
+  const { view } = await searchParams;
+  if (view === 'goals') return <GoalsView tabs={marksTabs('goals')} />;
+  if (view === 'focus') return <FocusView tabs={marksTabs('focus')} />;
 
   let data: [
     Awaited<ReturnType<typeof getReportCards>>,

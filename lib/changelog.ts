@@ -28,6 +28,23 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.27',
+    date: '2026-11-16',
+    title: 'Exam results count towards your goals',
+    changes: {
+      new: [
+        'Focus, a new tab in Marks: the subjects that need you most, in order, with the reasons (below target, an exam coming up, marks falling) and buttons to practise or start a focus session.',
+        'Each exam page shows your goal for that subject: where you are now, your target, and the mark you need on the exams left.',
+      ],
+      better: [
+        'Goals now use your exam results. Mark a midterm and its subject shows where you are against your target straight away. With no exam results yet, your report card is used as before.',
+        'Each goal shows the exams it is based on and what you need on the exams left to reach it. Exams with a share of the grade set are weighted by it.',
+      ],
+      fixed: ['The exam page said a result fed into Marks, but Marks never read it.'],
+      dev: ['lib/subject-progress.ts works out every subject\'s standing and the focus ranking, and is tested on its own.'],
+    },
+  },
+  {
     version: '1.0.26',
     date: '2026-11-06',
     title: 'A streak you actually earn',

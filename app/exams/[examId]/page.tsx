@@ -22,6 +22,9 @@ import { ExamPlanner } from '@/components/ExamPlanner';
 import { DeleteExamButton } from '@/components/ExamsClient';
 import { MasteryList } from '@/components/MasteryList';
 import { AddMasteryForm } from '@/components/AddMasteryForm';
+import { ExamGoalPanel } from '@/components/marks/ExamGoalPanel';
+import { loadSubjectProgress } from '@/lib/subject-progress-data';
+import { progressKey } from '@/lib/subject-progress';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -43,13 +46,15 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
   // would need one.
   const subject = exam.subject?.name ?? null;
 
-  const [stats, masteryItems, sessions, prep, allExams] = await Promise.all([
+  const [stats, masteryItems, sessions, prep, allExams, progress] = await Promise.all([
     subject ? getSubjectStats(subject) : null,
     subject ? getMasteryItems(subject) : [],
     subject ? getSubjectSessions(subject) : [],
     getExamWithPrep(examId),
     getEvents(),
+    subject ? loadSubjectProgress() : [],
   ]);
+  const subjectProgress = subject ? progress.find((p) => progressKey(p.subject) === progressKey(subject)) : undefined;
   const category = normaliseCategory(exam.category);
 
   const timezone = await getCurrentUserTimezone();
@@ -153,6 +158,8 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 
           <div className="min-w-0 space-y-6 lg:col-span-5 xl:col-span-4">
             {planner && <ExamPlanner {...planner} show="result" />}
+
+            {subjectProgress && <ExamGoalPanel progress={subjectProgress} />}
 
             {subject && (
               <Panel>

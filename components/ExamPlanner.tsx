@@ -267,7 +267,7 @@ export function ExamPlanner({
               ? `You scored ${score} out of ${maxScore} (${Math.round((score / maxScore) * 100)}%).`
               : archived
                 ? 'No mark was recorded for this exam.'
-                : 'Record your mark once you have it. It feeds Marks and Insights.'}
+                : 'Record your mark once you have it. It counts towards your goal for this subject in Marks.'}
           </p>
         </div>
         <div className={cn("flex flex-wrap items-end gap-3", archived && "hidden")}>
