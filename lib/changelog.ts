@@ -28,6 +28,24 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.28',
+    date: '2026-11-17',
+    title: 'Your year in review',
+    changes: {
+      new: [
+        'A recap of each finished year that plays like a story: hours studied, your top subjects, your biggest month, when you studied, days in a row, exams, homework, practice and XP. Tap or use the arrow keys to move through it.',
+        'A home page for each year. Opening a finished year now lands there, with its highlights, each term, your most studied subjects, every month, and buttons to look back at that year’s calendar, marks, exams, homework, reports and files.',
+      ],
+      fixed: [
+        'Days after the last day of term still had study blocks. Setting the end of term now clears every day after it, and none are planned there again.',
+        'Changing a block in Study routine did not change the blocks already on Week, so Week showed clashes Study routine did not. Edits now reach Week from today on. A block you moved by itself stays where you put it.',
+      ],
+      dev: [
+        'lib/year-recap.ts and lib/schedule-sync.ts hold the rules and are tested on their own. Blocks the app withdraws are detached from their routine slot so sync cannot fold a later block into them.',
+      ],
+    },
+  },
+  {
     version: '1.0.27',
     date: '2026-11-16',
     title: 'Exam results count towards your goals',
