@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { getScheduleState, type ScheduleState } from '@/lib/term';
+import { withdrawAfterTermEnd } from '@/lib/schedule-placement';
+import { DEFAULT_TIMEZONE } from '@/lib/utils';
 import {
   buildTermSummary,
   buildClassSummary,
@@ -21,6 +23,17 @@ import {
  *   - The timetable belongs to the class, so a new term resumes the same
  *     weekly schedule. Only a NEW CLASS starts blank.
  */
+
+/**
+ * After an ACTIVE term's end date is set or moved: withdraw the study blocks
+ * already made for days after it. Moving the date later needs nothing here;
+ * the days come back as they are next viewed.
+ */
+async function clearPastTermEnd(userId: string, termId: string, endDate: Date | null) {
+  if (!endDate) return;
+  const progress = await prisma.userProgress.findUnique({ where: { userId }, select: { timezone: true } });
+  await withdrawAfterTermEnd(userId, termId, endDate, progress?.timezone || DEFAULT_TIMEZONE);
+}
 
 function refresh() {
   revalidatePath('/');
@@ -88,7 +101,10 @@ export async function endActiveTerm() {
   return { success: true, summary };
 }
 
-/** Push the active term's end date out, for "ends today - extend" prompts. */
+/**
+ * Set the active term's last day: the "ends today - extend" prompt, and
+ * "Make this the last day of term" on the calendar (which can move it earlier).
+ */
 export async function extendActiveTerm(newEndDate: Date) {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
@@ -100,6 +116,7 @@ export async function extendActiveTerm(newEndDate: Date) {
     where: { id: state.termId },
     data: { endDate: newEndDate },
   });
+  await clearPastTermEnd(userId, state.termId, newEndDate);
   refresh();
   return { success: true };
 }
@@ -213,6 +230,7 @@ export async function updateTerm(
       ...(data.endDate !== undefined ? { endDate: data.endDate } : {}),
     },
   });
+  if (data.endDate !== undefined && term.status === 'ACTIVE') await clearPastTermEnd(userId, termId, data.endDate);
   refresh();
   return { success: true };
 }

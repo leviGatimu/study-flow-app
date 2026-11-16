@@ -39,7 +39,7 @@ import { validateExamTimes } from './exam-time';
 import { normaliseCategory } from './exam-category';
 import { isDateKey, isTime, validateQuickTask } from './task-input';
 import { decideSlot, type ClashInfo, type ClashResolution, type DayBlocks } from './schedule-clash';
-import { clearBlocks, openBlocksAround, taskDateFromKey, taskDayKey, todayKey } from './schedule-placement';
+import { clearBlocks, followRoutineEdit, openBlocksAround, taskDateFromKey, taskDayKey, todayKey, withdrawAfterTermEnd } from './schedule-placement';
 import { computeStreak, plannedDays } from './streak';
 import { isDailySummaryDue } from './daily-summary-time';
 import { holidaysBetween } from './holidays';
@@ -262,6 +262,15 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
   const tz = await getUserTimezone(userId);
   const tzOffsetMinutes = getTimeZoneOffsetMinutes(tz);
 
+  // Nothing is planned after the term's last day. Callers clamp their ranges
+  // too, but not all of them (tomorrow's list, clash checks, revision plans),
+  // so the rule lives here; blocks made before the end date was set or moved
+  // earlier are withdrawn.
+  const lastDay = schedule.termEndDate ? taskDayKey(schedule.termEndDate, tz) : null;
+  if (schedule.termEndDate && schedule.termId) {
+    await withdrawAfterTermEnd(userId, schedule.termId, schedule.termEndDate, tz);
+  }
+
   const templates = await getTemplatesForUser(userId);
   const start = startOfDay(startDate);
   const end = endOfDay(endDate);
@@ -322,6 +331,7 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
 
   while (currentDate <= end) {
     const dateKey = dateKeyOf(currentDate);
+    if (lastDay && dateKey > lastDay) break;
     if (holidays.has(dateKey)) {
       currentDate = addDays(currentDate, 1);
       continue;
@@ -1375,7 +1385,20 @@ export async function updateTemplate(id: string, data: {
     where: { id, userId },
     data: { ...data, ...decision.slot }
   });
+  // The blocks already made from it follow, or Week keeps the old times
+  // (and shows clashes Study routine no longer has).
+  await followRoutineEdit(userId, {
+    id,
+    dayOfWeek,
+    startTime: decision.slot.startTime,
+    endTime: decision.slot.endTime,
+    subject: data.subject ?? existing.subject,
+    type: data.type ?? existing.type,
+  }, { dayOfWeek: existing.dayOfWeek, startTime: existing.startTime, endTime: existing.endTime }, await getUserTimezone(userId));
   revalidatePath('/manage');
+  revalidatePath('/timetable');
+  revalidatePath('/calendar');
+  revalidatePath('/');
   return { success: true };
 }
 
