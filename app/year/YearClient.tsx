@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useSyncExternalStore, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { differenceInCalendarDays, format } from "date-fns";
-import { Archive, Check, Flag, GraduationCap, Play, Plus, X } from "lucide-react";
+import { Archive, Check, Flag, GraduationCap, Play, Plus, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { exitArchive, openArchivedYear } from "@/app/archive-actions";
@@ -739,6 +740,12 @@ function ArchivedYear({ cls, isOpen }: { cls: ClassRow; isOpen: boolean }) {
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Button asChild>
+            <Link href={`/year/${cls.id}`}>
+              <Sparkles />
+              Highlights
+            </Link>
+          </Button>
           <Button variant="ghost" onClick={toggle} aria-expanded={open}>
             {open ? "Hide report" : "Report"}
           </Button>

@@ -1,6 +1,7 @@
 "use client";
 
-import { Archive } from "lucide-react";
+import Link from "next/link";
+import { Archive, Sparkles } from "lucide-react";
 
 import { exitArchive } from "@/app/archive-actions";
 import { useArchive } from "@/components/ArchiveContext";
@@ -38,6 +39,14 @@ export function ArchiveBanner() {
           &mdash; a finished year. Everything here is read-only.
         </span>
       </p>
+
+      <Button asChild variant="ghost" size="sm" className="shrink-0">
+        <Link href={`/year/${archive.classId}`}>
+          <Sparkles />
+          <span className="hidden sm:inline">Year home</span>
+          <span className="sr-only sm:hidden">{archive.label} home</span>
+        </Link>
+      </Button>
 
       {/* Always rendered. Without an active year the label has to be generic,
           but leaving the bar with no way out would strand the user here. */}

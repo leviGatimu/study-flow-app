@@ -26,12 +26,17 @@ const COOKIE_OPTIONS = {
   maxAge: 60 * 60 * 24 * 30, // 30 days, same as the session
 } as const;
 
+/** Pages a year can be opened onto; anything else lands on the Year home. */
+const OPEN_TARGETS = new Set(['/calendar', '/marks', '/exams', '/homeworks', '/history', '/resources', '/summaries']);
+
 /**
- * Browse a finished year read-only. Lands on the dashboard, because the point
- * is to see the whole app in that year rather than one page of it.
+ * Browse a finished year read-only. Lands on that year's home page (its
+ * highlights and recap), or on `to` when it names one of OPEN_TARGETS, which
+ * is how the Year home's "Look back" links open the year onto a page.
  */
 export async function openArchivedYear(formData: FormData) {
   const classId = String(formData.get('classId') ?? '');
+  const to = String(formData.get('to') ?? '');
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
 
@@ -51,7 +56,8 @@ export async function openArchivedYear(formData: FormData) {
     store.set(VIEW_COOKIE, cls.id, COOKIE_OPTIONS);
   }
 
-  redirect('/');
+  if (OPEN_TARGETS.has(to)) redirect(to);
+  redirect(cls.status === 'ACTIVE' ? '/' : `/year/${cls.id}`);
 }
 
 /** Leave the archive and go back to the active year. */

@@ -6,6 +6,7 @@ import { CalendarDays, CheckCircle2, History } from 'lucide-react';
 import { getTodayTasks, syncStreak, getEvents, getTomorrowTasks, getYesterdayTasks } from '@/lib/actions';
 import { getCurrentScheduleState } from '@/lib/term-actions';
 import { getUserId } from '@/lib/auth';
+import { getViewScope } from '@/lib/scope';
 import { listSubjects } from '@/lib/subject-actions';
 import { getSchoolLessons } from '@/lib/school-actions';
 import { getHomeworks } from '@/lib/homework-actions';
@@ -38,6 +39,10 @@ export const revalidate = 0;
 export default async function Dashboard() {
   const userId = await getUserId();
   if (!userId) redirect('/welcome');
+
+  // "Today" means nothing in a finished year: its home is the year's highlights.
+  const scope = await getViewScope(userId);
+  if (scope?.isArchive) redirect(`/year/${scope.classId}`);
 
   const [todayTasks, tomorrowTasks, yesterdayTasks, streakData, events, subjects, schedule, schoolLessons, setup, homework] = await Promise.all([
     getTodayTasks(),

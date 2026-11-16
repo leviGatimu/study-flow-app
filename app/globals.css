@@ -465,3 +465,17 @@
   .ai-logo-spark, .ai-logo-lift, .ai-caret,
   .ai-typing > :last-child::after, .ai-typing li::after { animation: none; }
 }
+
+/* Year recap story (components/year/RecapStory.tsx). The progress bar is a
+   CSS animation so pausing is just animation-play-state, and its end moves
+   the story on. */
+@keyframes recap-progress { from { width: 0%; } to { width: 100%; } }
+.recap-progress { width: 0%; animation-name: recap-progress; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes recap-glow {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(35vw, 30vh) scale(1.15); }
+}
+.recap-glow { animation: recap-glow 18s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .recap-glow { animation: none; }
+}
