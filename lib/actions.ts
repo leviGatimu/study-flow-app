@@ -39,7 +39,7 @@ import { validateExamTimes } from './exam-time';
 import { normaliseCategory } from './exam-category';
 import { isDateKey, isTime, validateQuickTask } from './task-input';
 import { decideSlot, type ClashInfo, type ClashResolution, type DayBlocks } from './schedule-clash';
-import { clearBlocks, followRoutineEdit, openBlocksAround, taskDateFromKey, taskDayKey, todayKey, withdrawAfterTermEnd } from './schedule-placement';
+import { clearBlocks, followRoutineEdit, openBlocksAround, repairOutOfStep, taskDateFromKey, taskDayKey, todayKey, withdrawAfterTermEnd } from './schedule-placement';
 import { computeStreak, plannedDays } from './streak';
 import { isDailySummaryDue } from './daily-summary-time';
 import { holidaysBetween } from './holidays';
@@ -272,6 +272,9 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
   }
 
   const templates = await getTemplatesForUser(userId);
+  // Blocks made from an older version of a routine block follow it, so Week
+  // shows what Study routine says.
+  await repairOutOfStep(userId, templates, tz);
   const start = startOfDay(startDate);
   const end = endOfDay(endDate);
 

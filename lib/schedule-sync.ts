@@ -77,6 +77,79 @@ export function followTemplateEdit(
 }
 
 /**
+ * Routine blocks made before their routine block was last edited, that no
+ * longer match it. Before 1.0.28 an edit in Study routine never reached blocks
+ * already made, and those stale blocks are why Week disagreed with Study
+ * routine. Run whenever blocks are made, so Week always shows the routine:
+ *   - on the routine's weekday: take its current times, subject and type;
+ *   - on another weekday: withdrawn (the routine's own day is made as usual).
+ *
+ * "Made before the edit" (changedAt) is what keeps the student's own changes:
+ * a block they retimed or moved after the last edit is newer than the routine
+ * and stays as they left it. A block moved by hand to another day also leaves
+ * its original behind, deleted but still attached to the slot (`removedByHand`
+ * holds "templateId|day" for those); a block with one of those within a week
+ * of it is a move, not a stale copy, and stays too. Past days, missed, done,
+ * written up and homework-planned blocks are never touched.
+ */
+export type RoutineBlock = TimedBlock & { subject: string; type: string; changedAt: number };
+export type RoutineSlot = {
+  id: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  subject: string;
+  type: string;
+  changedAt: number;
+};
+
+const shiftDay = (day: string, days: number) => {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
+/**
+ * Blocks still waiting from a routine block that was removed from Study
+ * routine. Removing one deletes its blocks on the device it happens on, but a
+ * copy made on another device before the removal synced over stays, and Week
+ * showed blocks Study routine no longer has. From today on, untouched only.
+ */
+export function blocksOfRemovedRoutine(blocks: MadeBlock[], removedRoutine: Set<string>, today: string): string[] {
+  return blocks
+    .filter((b) => b.templateId !== null && removedRoutine.has(b.templateId) && b.day >= today && untouched(b) && !b.isMissed)
+    .map((b) => b.id);
+}
+
+export function outOfStepBlocks(
+  blocks: RoutineBlock[],
+  routine: RoutineSlot[],
+  removedByHand: Set<string>,
+  today: string
+): { update: { id: string; templateId: string }[]; withdraw: string[] } {
+  const slots = new Map(routine.map((slot) => [slot.id, slot]));
+  const update: { id: string; templateId: string }[] = [];
+  const withdraw: string[] = [];
+  for (const b of blocks) {
+    const slot = b.templateId ? slots.get(b.templateId) : undefined;
+    if (!slot || b.day < today || !untouched(b) || b.isMissed) continue;
+    if (b.changedAt >= slot.changedAt) continue;
+    if (weekdayOf(b.day) === slot.dayOfWeek) {
+      const same = b.startTime === slot.startTime && b.endTime === slot.endTime && b.subject === slot.subject && b.type === slot.type;
+      if (!same) update.push({ id: b.id, templateId: slot.id });
+      continue;
+    }
+    let moved = false;
+    for (let offset = -6; offset <= 6 && !moved; offset++) {
+      const day = shiftDay(b.day, offset);
+      moved = weekdayOf(day) === slot.dayOfWeek && removedByHand.has(`${slot.id}|${day}`);
+    }
+    if (!moved) withdraw.push(b.id);
+  }
+  return { update, withdraw };
+}
+
+/**
  * How a withdrawn block is written. Marked deleted like a block the student
  * removed, and detached from its routine slot and exam, so:
  *   - sync matches routine blocks by template and day, and a deleted copy

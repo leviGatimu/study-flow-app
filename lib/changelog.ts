@@ -28,6 +28,21 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.29',
+    date: '2026-11-17',
+    title: 'Week follows your study routine',
+    changes: {
+      fixed: [
+        'Week still showed blocks at old times after you changed them in Study routine. Blocks planned before your last change now take the routine’s times, and ones left on a day the routine no longer uses are removed.',
+        'Blocks from routine blocks you deleted still showed on Week. They are now removed from today on.',
+        'Done blocks, blocks with notes or homework, past days and blocks you moved by hand stay as they are.',
+      ],
+      dev: [
+        'repairOutOfStep (lib/schedule-placement.ts) runs whenever blocks are made: a block older than its template’s last edit that no longer matches it is fixed; blocks of deleted templates are soft-deleted. Rules in lib/schedule-sync.ts.',
+      ],
+    },
+  },
+  {
     version: '1.0.28',
     date: '2026-11-17',
     title: 'Your year in review',
