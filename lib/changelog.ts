@@ -28,17 +28,23 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
-    version: '1.0.30',
+    version: '1.0.31',
     date: '2026-11-17',
-    title: 'Double lessons and a cleaner Schedule bar',
+    title: 'Double lessons, quick chat replies and a cleaner Schedule bar',
     changes: {
+      new: [
+        'The Study chat answers hello, thanks, bye, "ok" and "what can you do" straight away, without waiting for the AI or using up your AI requests. Anything with a real question in it still goes to the AI.',
+      ],
       fixed: [
         'A double lesson (two of the same subject back to back) now shows on the home card as one lesson. The countdown runs to the end of the whole lesson, not the end of the first half, and "Then" names the lesson after it.',
       ],
       better: [
         'The Week, Month, Study routine and School lessons bar looks cleaner: the tabs sit in the middle of their box, it lines up with the buttons next to it, and the open page is easy to see in dark mode.',
       ],
-      dev: ['joinDoubleLessons in lib/school.ts (test/double-lessons.test.mjs) joins same-subject lessons with up to 5 minutes between them; breaks are never joined.'],
+      dev: [
+        'joinDoubleLessons in lib/school.ts (test/double-lessons.test.mjs) joins same-subject lessons with up to 5 minutes between them; breaks are never joined.',
+        'lib/quick-replies.ts (test/quick-replies.test.mjs) answers whole-message small talk in askCopilot before any AI call. 1.0.30 was never published (GitHub uploads timed out); its changes are here.',
+      ],
     },
   },
   {
