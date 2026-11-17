@@ -28,6 +28,16 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.32',
+    date: '2026-11-17',
+    title: 'Schedule bar fixed',
+    changes: {
+      fixed: [
+        'The Week, Month, Study routine and School lessons tabs no longer slip down and get cut off inside their bar. The bar now fits the tabs and the tab names are a little bigger.',
+      ],
+    },
+  },
+  {
     version: '1.0.31',
     date: '2026-11-17',
     title: 'Double lessons, quick chat replies and a cleaner Schedule bar',
