@@ -31,6 +31,7 @@ import {
   type Source,
 } from '@/lib/copilot-retrieval';
 import { beginTurn, failTurn, finishTurn } from '@/lib/copilot-turns';
+import { quickReply } from '@/lib/quick-replies';
 import { generateStudySet, listStudySets, type StudySetSummary } from '@/lib/study-actions';
 import { parsePracticeRequest, practiceReference, practiceRefsForModel, splitPracticeRefs } from '@/lib/practice-request';
 
@@ -433,6 +434,17 @@ export async function askCopilot(input: { sessionId: string | null; question: st
   }
   const userMessage = begun.userMessage;
   await prisma.chatSession.update({ where: { id: sessionId }, data: { updatedAt: new Date() } });
+
+  // "hello", "thanks", "ok": answered here, without a request to the AI.
+  const ready = quickReply(question, requestId);
+  if (ready) {
+    const finished = await finishTurn(prisma, sessionId, userMessage.id, ready, null);
+    revalidatePath('/ai');
+    if ('stopped' in finished) {
+      return { sessionId, session: created, userMessage: toMessage({ ...userMessage, status: 'FAILED' }), error: 'Stopped.' };
+    }
+    return { sessionId, session: created, userMessage: toMessage(finished.userMessage), reply: toMessage(finished.reply) };
+  }
 
   const [earlier, gathered] = await Promise.all([
     prisma.chatMessage.findMany({
