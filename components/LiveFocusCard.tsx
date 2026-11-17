@@ -12,6 +12,7 @@ import { useFocus } from '@/lib/FocusContext';
 import { useTimetableSync } from '@/components/useTimetableSync';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  joinDoubleLessons,
   lessonAt,
   nextLessonAfter,
   schoolDayBounds,
@@ -87,6 +88,10 @@ export function LiveFocusCard({
   // 0. Search Pool: Check today's tasks and yesterday's tasks (for midnight crossing)
   const searchPool = useMemo(() => [...todayTasks, ...yesterdayTasks], [todayTasks, yesterdayTasks]);
 
+  // A double lesson counts as one: the countdown runs to the end of the whole
+  // lesson, and "Then ..." names the lesson after it.
+  const lessons = useMemo(() => joinDoubleLessons(schoolLessons), [schoolLessons]);
+
   // Update current scheduled task, school lesson and timers
   useEffect(() => {
     const updateTaskAndTimer = () => {
@@ -95,7 +100,7 @@ export function LiveFocusCard({
 
       // 1. Find School Lesson scheduled for RIGHT NOW
       const activeLesson = isTimetableSynced
-        ? lessonAt(schoolLessons, now.getDay(), currentTimeInMins)
+        ? lessonAt(lessons, now.getDay(), currentTimeInMins)
         : null;
       setActiveSchoolLesson(activeLesson);
 
@@ -137,7 +142,7 @@ export function LiveFocusCard({
 
       // 3. Find NEXT School Lesson today
       const nextLesson = isTimetableSynced
-        ? nextLessonAfter(schoolLessons, now.getDay(), currentTimeInMins)
+        ? nextLessonAfter(lessons, now.getDay(), currentTimeInMins)
         : null;
       setNextSchoolLesson(nextLesson);
 
@@ -236,7 +241,7 @@ export function LiveFocusCard({
     updateTaskAndTimer();
     const interval = setInterval(updateTaskAndTimer, 1000);
     return () => clearInterval(interval);
-  }, [searchPool, todayTasks, tomorrowTasks, isActive, isTimetableSynced, schoolLessons, timezone]);
+  }, [searchPool, todayTasks, tomorrowTasks, isActive, isTimetableSynced, lessons, timezone]);
 
   const isActuallyRunning = !!activeTask && step === 'FOCUS';
 

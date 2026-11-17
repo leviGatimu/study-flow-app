@@ -47,7 +47,10 @@ export function ScheduleFrame({
         {legend && <div className="hidden xl:block">{legend}</div>}
 
         <div className="ml-auto flex min-w-0 flex-wrap items-center gap-3">
-          <nav aria-label="Schedule pages" className="scrollbar-none flex max-w-full overflow-x-auto rounded-lg border border-border/60 bg-muted/40 p-0.5">
+          <nav
+            aria-label="Schedule pages"
+            className="scrollbar-none flex h-9 max-w-full items-stretch gap-0.5 overflow-x-auto rounded-xl bg-muted/70 p-1 ring-1 ring-border/50 ring-inset"
+          >
             {PAGES.map((page) => {
               const active = pathname === page.href;
               const Icon = page.icon;
@@ -57,11 +60,13 @@ export function ScheduleFrame({
                   href={page.href}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-                    active ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    'flex shrink-0 items-center gap-1.5 rounded-lg px-3 text-[13px] leading-none font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
+                    active
+                      ? 'bg-background text-foreground shadow-sm ring-1 ring-border/60'
+                      : 'text-muted-foreground hover:bg-background/60 hover:text-foreground'
                   )}
                 >
-                  <Icon aria-hidden="true" className="size-3.5" />
+                  <Icon aria-hidden="true" className={cn('size-4', active && 'text-primary')} />
                   {page.name}
                 </Link>
               );

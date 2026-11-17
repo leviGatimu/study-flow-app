@@ -90,6 +90,41 @@ export function nextLessonAfter(
   return lessonsOn(lessons, dayOfWeek).find((lesson) => toMinutes(lesson.startTime) > minutes) ?? null;
 }
 
+/** Changeover allowed between the halves of a double lesson, in minutes. */
+const DOUBLE_LESSON_GAP = 5;
+
+const sameSubject = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/**
+ * The timetable with back-to-back lessons of the same subject joined into one,
+ * so a double lesson (Database 08:00-09:00 then 09:00-10:00) reads as one
+ * lesson from 08:00 to 10:00. The home card counts down to the end of the
+ * whole lesson, not the end of its first half. Breaks are never joined, and a
+ * gap longer than a changeover keeps the two apart.
+ */
+export function joinDoubleLessons(lessons: SchoolLesson[]): SchoolLesson[] {
+  const joined: SchoolLesson[] = [];
+  for (const day of [...new Set(lessons.map((lesson) => lesson.dayOfWeek))]) {
+    for (const lesson of lessonsOn(lessons, day)) {
+      const last = joined[joined.length - 1];
+      const continues =
+        last &&
+        last.dayOfWeek === day &&
+        !last.isBreak &&
+        !lesson.isBreak &&
+        sameSubject(last.subject, lesson.subject) &&
+        toMinutes(lesson.startTime) >= toMinutes(last.endTime) &&
+        toMinutes(lesson.startTime) - toMinutes(last.endTime) <= DOUBLE_LESSON_GAP;
+      if (continues) {
+        if (toMinutes(lesson.endTime) > toMinutes(last.endTime)) last.endTime = lesson.endTime;
+      } else {
+        joined.push({ ...lesson });
+      }
+    }
+  }
+  return joined;
+}
+
 /**
  * When the school day starts and ends on a given day, or null if there is none.
  *

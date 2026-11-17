@@ -28,6 +28,20 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.30',
+    date: '2026-11-17',
+    title: 'Double lessons and a cleaner Schedule bar',
+    changes: {
+      fixed: [
+        'A double lesson (two of the same subject back to back) now shows on the home card as one lesson. The countdown runs to the end of the whole lesson, not the end of the first half, and "Then" names the lesson after it.',
+      ],
+      better: [
+        'The Week, Month, Study routine and School lessons bar looks cleaner: the tabs sit in the middle of their box, it lines up with the buttons next to it, and the open page is easy to see in dark mode.',
+      ],
+      dev: ['joinDoubleLessons in lib/school.ts (test/double-lessons.test.mjs) joins same-subject lessons with up to 5 minutes between them; breaks are never joined.'],
+    },
+  },
+  {
     version: '1.0.29',
     date: '2026-11-17',
     title: 'Week follows your study routine',
