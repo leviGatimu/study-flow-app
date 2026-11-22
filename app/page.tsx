@@ -32,6 +32,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { DashboardClient } from './DashboardClient';
 import { HolidayBanner } from '@/components/HolidayBanner';
 import { holidayOn } from '@/lib/holidays';
+import { redactTasksForMentor } from '@/lib/mentor-redact';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -45,9 +46,9 @@ export default async function Dashboard() {
   if (scope?.isArchive) redirect(`/year/${scope.classId}`);
 
   const [todayTasks, tomorrowTasks, yesterdayTasks, streakData, events, subjects, schedule, schoolLessons, setup, homework] = await Promise.all([
-    getTodayTasks(),
-    getTomorrowTasks(),
-    getYesterdayTasks(),
+    getTodayTasks().then(redactTasksForMentor),
+    getTomorrowTasks().then(redactTasksForMentor),
+    getYesterdayTasks().then(redactTasksForMentor),
     syncStreak(),
     getEvents(),
     listSubjects(),

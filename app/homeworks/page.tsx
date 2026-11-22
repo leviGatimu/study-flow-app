@@ -9,6 +9,7 @@ import { getTimeZoneOffsetMinutes, getZonedNow, isSubjectSimilar } from '@/lib/u
 import { Page } from '@/components/ui/page';
 import { HomeworkList } from './HomeworkList';
 import type { HomeworkItem, SubjectChip } from './homework-model';
+import { redactHomeworkForMentor } from '@/lib/mentor-redact';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,7 +48,7 @@ export default async function HomeworksPage({
   // ?subject= narrows the list to one subject; its page in Subjects links here.
   const subjectFilter = (Array.isArray(params.subject) ? params.subject[0] : params.subject)?.trim() || null;
 
-  const items: HomeworkItem[] = homeworks.map((h) => ({
+  const items: HomeworkItem[] = (await redactHomeworkForMentor(homeworks)).map((h) => ({
     id: h.id,
     subject: h.subject,
     title: h.title,

@@ -28,7 +28,19 @@ import {
   removeStoredFile,
   statStoredFile,
   storeResourceFile,
+  fileTypeError,
 } from '@/lib/library-store';
+import {
+  createDirectUpload,
+  deleteUpload,
+  isAllowedUpload,
+  MAX_REMOTE_UPLOAD_BYTES,
+  mintUploadName,
+  remoteUploadSize,
+  usesRemoteStorage,
+} from '@/lib/upload';
+import { readUploadTicket, signUploadTicket } from '@/lib/upload-ticket';
+import { basename } from 'path';
 
 /**
  * The resource explorer's server side.
@@ -531,6 +543,112 @@ export async function uploadResourceFiles(
     errors.push((error as Error).message);
   }
 
+  return { added, errors };
+}
+
+/** One file the client wants to upload directly to the bucket. */
+export type DirectUploadRequest = { name: string; size: number; type: string };
+
+export type DirectUploadPlan =
+  /** Storage is local (the desktop, or a web build without the bucket): post the files as before. */
+  | { mode: 'form' }
+  | {
+      mode: 'direct';
+      /** One entry per requested file, in order. */
+      files: ({ ok: true; uploadUrl: string; ticket: string } | { ok: false; error: string })[];
+    };
+
+/**
+ * Start a direct upload: check each file, mint its object name and return a
+ * signed URL to PUT it to, plus a ticket to finish with. See lib/upload.ts
+ * "direct uploads" for why the website cannot take the bytes itself.
+ */
+export async function beginResourceUploads(
+  subjectInput: string,
+  folderInput: string,
+  requests: DirectUploadRequest[]
+): Promise<DirectUploadPlan | { mode: 'error'; error: string }> {
+  const userId = await getUserId();
+  if (!userId) return { mode: 'error', error: 'Not signed in.' };
+  if (libraryEnabled() || !usesRemoteStorage()) return { mode: 'form' };
+
+  try {
+    await requireWritableScope(userId);
+    const subject = normalizeSubject(String(subjectInput ?? ''));
+    if (!subject) return { mode: 'error', error: 'Choose a subject first.' };
+    const folder = normalizeFolder(String(folderInput ?? ''));
+    if (!Array.isArray(requests) || requests.length === 0) return { mode: 'error', error: 'No files were selected.' };
+    if (requests.length > 50) return { mode: 'error', error: 'Upload at most 50 files at a time.' };
+
+    const files: Extract<DirectUploadPlan, { mode: 'direct' }>['files'] = [];
+    for (const request of requests) {
+      const name = String(request?.name ?? '').slice(0, 255);
+      const size = Number(request?.size);
+      const type = String(request?.type ?? '');
+      const problem =
+        fileTypeError({ name, size } as File) ??
+        (size > MAX_REMOTE_UPLOAD_BYTES ? `${name} is larger than 50 MB.` : null) ??
+        (isAllowedUpload(name, type) ? null : `${name}: that kind of file is not supported.`);
+      if (problem) {
+        files.push({ ok: false, error: problem });
+        continue;
+      }
+      const objectName = mintUploadName('resource', name);
+      const direct = await createDirectUpload(objectName);
+      if (!direct) return { mode: 'form' };
+      const ticket = await signUploadTicket({ name: objectName, userId, subject, folder, title: basename(name), size });
+      files.push({ ok: true, uploadUrl: direct.uploadUrl, ticket });
+    }
+    return { mode: 'direct', files };
+  } catch (error) {
+    return { mode: 'error', error: (error as Error).message };
+  }
+}
+
+/**
+ * Finish direct uploads: for each ticket whose object really arrived in the
+ * bucket, create the resource row that points at it.
+ */
+export async function finishResourceUploads(tickets: string[]): Promise<{ added: number; errors: string[] }> {
+  const userId = await getUserId();
+  if (!userId) return { added: 0, errors: ['Not signed in.'] };
+
+  const errors: string[] = [];
+  let added = 0;
+  const subjects = new Set<string>();
+  try {
+    const scope = await requireWritableScope(userId);
+    for (const token of Array.isArray(tickets) ? tickets.slice(0, 50) : []) {
+      const ticket = await readUploadTicket(String(token));
+      if (!ticket || ticket.userId !== userId) {
+        errors.push('An upload could not be confirmed. Try it again.');
+        continue;
+      }
+      const size = await remoteUploadSize(ticket.name);
+      if (size === null) {
+        errors.push(`${ticket.title} did not finish uploading.`);
+        continue;
+      }
+      if (size > MAX_REMOTE_UPLOAD_BYTES) {
+        await deleteUpload(`/uploads/${ticket.name}`);
+        errors.push(`${ticket.title} is larger than 50 MB.`);
+        continue;
+      }
+      const url = `/uploads/${ticket.name}`;
+      // Finishing twice (a retry after a dropped response) must not make two rows.
+      const existing = await prisma.resource.findFirst({ where: { userId, url, deletedAt: null }, select: { id: true } });
+      if (!existing) {
+        await prisma.resource.create({
+          data: { userId, subject: ticket.subject, title: ticket.title, type: 'FILE', url, folder: ticket.folder, ...byClass(scope) },
+        });
+      }
+      subjects.add(ticket.subject);
+      added++;
+    }
+    for (const subject of subjects) revalidate(subject);
+  } catch (error) {
+    errors.push((error as Error).message);
+  }
   return { added, errors };
 }
 

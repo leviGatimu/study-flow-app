@@ -6,7 +6,7 @@ import { Timer } from 'lucide-react';
 import { getHomework } from '@/lib/homework-actions';
 import { getSubjects } from '@/lib/subject-actions';
 import { getCurrentUserTimezone } from '@/lib/actions';
-import { getUserId } from '@/lib/auth';
+import { getMentorSession, getUserId } from '@/lib/auth';
 import { getTimeZoneOffsetMinutes, getZonedNow } from '@/lib/utils';
 import { Page, PageBody } from '@/components/ui/page';
 import { PageHeader } from '@/components/ui/page-header';
@@ -28,6 +28,8 @@ export default async function HomeworkPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const [hw, subjects, timeZone] = await Promise.all([getHomework(id), getSubjects(), getCurrentUserTimezone()]);
   if (!hw) notFound();
+  // A mentor sees the homework and whether it is done, not the student's answers or proof.
+  const mentor = (await getMentorSession()) !== null;
 
   const today = format(getZonedNow(timeZone), DAY);
   const dueDay = dateOnlyDay(hw.dueDate);
@@ -50,7 +52,7 @@ export default async function HomeworkPage({ params }: { params: Promise<{ id: s
           )
         }
         actions={
-          !hw.isCompleted && (
+          !hw.isCompleted && !mentor && (
             <Button asChild variant="outline">
               <Link href={`/focus?subject=${encodeURIComponent(hw.subject)}`}>
                 <Timer /> Focus on it
@@ -68,10 +70,10 @@ export default async function HomeworkPage({ params }: { params: Promise<{ id: s
             subject: hw.subject,
             dueDay,
             description: hw.description ?? '',
-            answer: hw.answer ?? '',
+            answer: mentor ? '' : hw.answer ?? '',
             briefFileUrl: hw.briefFileUrl,
-            answerFileUrl: hw.answerFileUrl,
-            proofUrl: hw.proofUrl,
+            answerFileUrl: mentor ? null : hw.answerFileUrl,
+            proofUrl: mentor ? null : hw.proofUrl,
             isCompleted: hw.isCompleted,
             completedLabel: completedDay ? formatDay(completedDay, today) : null,
           }}

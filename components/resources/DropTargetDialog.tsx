@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { FileText, Loader2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { uploadResourceFiles } from '@/lib/library-actions';
+import { uploadIntoResources } from './upload-files';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -33,12 +33,8 @@ export function DropTargetDialog({
   const upload = () => {
     if (!files?.length || !folder) return;
     start(async () => {
-      const form = new FormData();
-      form.set('subject', folder);
-      form.set('folder', '');
-      for (const file of files) form.append('file', file);
       try {
-        const result = await uploadResourceFiles(form);
+        const result = await uploadIntoResources(files, folder, '');
         if (result.added) toast.success(`Added ${result.added} ${result.added === 1 ? 'file' : 'files'} to ${folder}.`);
         for (const message of result.errors) toast.error(message);
         if (result.added) onDone();

@@ -7,7 +7,8 @@ import { motion, useReducedMotion } from "framer-motion";
 import { ShieldCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { NAV, NavSection, resolveNav } from "@/lib/nav";
+import { mentorVisible, NAV, NavSection, resolveNav } from "@/lib/nav";
+import { useMentor } from "@/components/ArchiveContext";
 import { getRankInfo, getXpForNextLevel } from "@/lib/levels";
 import { SafeUserProgress as UserProgress } from "@/lib/types";
 
@@ -50,6 +51,7 @@ export function Sidebar({
   userProgress: UserProgress | null;
   isAdmin?: boolean;
 }) {
+  const mentor = useMentor();
   const pathname = usePathname();
   const activeSection = resolveNav(pathname)?.section;
   const isActive = (section: NavSection) =>
@@ -86,7 +88,7 @@ export function Sidebar({
 
         <nav aria-label="Primary" className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-3 py-3">
           <ul className="flex flex-col gap-1">
-            {MAIN.map((section) => (
+            {(mentor ? mentorVisible(MAIN) : MAIN).map((section) => (
               <li key={section.name}>
                 <RailLink section={section} active={isActive(section)} />
               </li>
@@ -96,7 +98,7 @@ export function Sidebar({
           <div aria-hidden className="mx-2 my-3 h-px bg-sidebar-border" />
 
           <ul className="flex flex-col gap-1">
-            {SETTINGS.map((section) => (
+            {(mentor ? mentorVisible(SETTINGS) : SETTINGS).map((section) => (
               <li key={section.name}>
                 <RailLink section={section} active={isActive(section)} />
               </li>

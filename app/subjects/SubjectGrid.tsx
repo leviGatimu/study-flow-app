@@ -1,14 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BookOpen, BookOpenText, CalendarClock, Edit3, FolderOpen, MoreHorizontal, Plus, Search, Target, Trash2, Wand2 } from "lucide-react";
+import { BookOpen, BookOpenText, Edit3, FolderOpen, MoreHorizontal, Plus, Search, Target, Trash2, Wand2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageBody } from "@/components/ui/page";
-import { Panel } from "@/components/ui/panel";
-import { Pill } from "@/components/ui/list-row";
+import { subjectStyle } from "@/components/subjects/SubjectIcon";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   DropdownMenu,
@@ -16,7 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { isSubjectSimilar } from "@/lib/utils";
+import { cn, isSubjectSimilar } from "@/lib/utils";
 import {
   countdown,
   daysFromToday,
@@ -157,7 +156,7 @@ export function SubjectGrid({
                 }
               />
             ) : (
-              <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+              <ul className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
                 {shown.map((s) => (
                   <SubjectCard
                     key={s.id}
@@ -213,26 +212,42 @@ function SubjectCard({
   onRename: () => void;
   onDelete: () => void;
 }) {
+  const { Icon, classes } = subjectStyle(subject.name);
   const pending = pendingHomework(homeworks);
   const nextHomework = pending[0] ?? null;
   const nextExam = upcomingExams(exams)[0] ?? null;
   const late = nextHomework ? isOverdue(nextHomework) : false;
   const examDays = nextExam ? daysFromToday(nextExam.date) : null;
 
+  // The one thing on the tile's corner: what most needs attention.
+  const flag = late
+    ? { text: "Overdue", className: "bg-destructive text-white" }
+    : examDays !== null && examDays <= 7
+      ? { text: `Exam ${countdown(nextExam!.date).toLowerCase()}`, className: examDays <= 3 ? "bg-destructive text-white" : "bg-amber-500 text-white" }
+      : null;
+
   return (
     <li className="relative">
-      <Panel interactive className="group flex h-full flex-col gap-4">
+      <div className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card text-card-foreground shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0">
         {/* The whole card opens the subject; the menu sits above this layer. */}
         <button
           type="button"
           onClick={onOpen}
           aria-label={`Open ${subject.name}`}
-          className="absolute inset-0 cursor-pointer rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="absolute inset-0 z-[1] cursor-pointer rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         />
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="line-clamp-2 min-w-0 font-heading text-lg font-bold leading-snug text-foreground transition-colors group-hover:text-primary">
-            {subject.name}
-          </h3>
+
+        <div className={cn("relative grid aspect-[16/10] place-items-center overflow-hidden", classes.tile, classes.ink)}>
+          {/* Soft shapes behind the icon, so each tile reads as a little picture. */}
+          <span aria-hidden className="absolute -top-6 -left-6 size-24 rounded-full bg-white/30 dark:bg-white/5" />
+          <span aria-hidden className="absolute -right-4 -bottom-8 size-28 rounded-full bg-white/25 dark:bg-white/5" />
+          <Icon aria-hidden strokeWidth={1.5} className="relative size-14 transition-transform duration-300 group-hover:scale-110 motion-reduce:transition-none sm:size-16" />
+
+          {flag && (
+            <span className={cn("absolute top-2.5 left-2.5 rounded-full px-2 py-0.5 text-[11px] font-semibold shadow-sm", flag.className)}>
+              {flag.text}
+            </span>
+          )}
           {!archived && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -240,7 +255,7 @@ function SubjectCard({
                   variant="ghost"
                   size="icon-sm"
                   aria-label={`Options for ${subject.name}`}
-                  className="relative z-10 -mr-1.5 -mt-1 shrink-0 text-muted-foreground"
+                  className="absolute top-1.5 right-1.5 z-10 bg-white/50 text-current hover:bg-white/80 dark:bg-black/20 dark:hover:bg-black/40"
                 >
                   <MoreHorizontal />
                 </Button>
@@ -257,63 +272,42 @@ function SubjectCard({
           )}
         </div>
 
-        <dl className="space-y-3 text-sm">
-          <Fact icon={<BookOpen />} label="Homework">
+        <div className="flex flex-1 flex-col gap-1.5 p-4">
+          <h3 className="line-clamp-2 font-heading text-base leading-snug font-bold text-foreground transition-colors group-hover:text-primary sm:text-lg">
+            {subject.name}
+          </h3>
+          <p className="line-clamp-2 text-sm text-muted-foreground">
             {nextHomework ? (
-              <span className="flex min-w-0 items-center justify-between gap-2">
-                <span className="truncate text-foreground">{nextHomework.title}</span>
-                <Pill tone={late ? "danger" : "default"}>
-                  {late ? "Overdue" : shortDate(nextHomework.dueDate)}
-                </Pill>
-              </span>
+              <>
+                <span className={cn(late && "font-medium text-destructive")}>{nextHomework.title}</span>
+                {!late && <> · due {shortDate(nextHomework.dueDate)}</>}
+              </>
+            ) : nextExam ? (
+              <>{nextExam.title} · {countdown(nextExam.date).toLowerCase()}</>
+            ) : homeworks.length > 0 ? (
+              "All homework done"
             ) : (
-              <span className="text-muted-foreground">
-                {homeworks.length > 0 ? "All done" : "None yet"}
-              </span>
+              "Nothing due"
             )}
-          </Fact>
-          <Fact icon={<CalendarClock />} label="Next exam">
-            {nextExam && examDays !== null ? (
-              <span className="flex min-w-0 items-center justify-between gap-2">
-                <span className="truncate text-foreground">{nextExam.title}</span>
-                <Pill tone={examDays <= 3 ? "danger" : examDays <= 7 ? "warning" : "default"}>
-                  {countdown(nextExam.date)}
-                </Pill>
-              </span>
-            ) : (
-              <span className="text-muted-foreground">None scheduled</span>
-            )}
-          </Fact>
-        </dl>
+          </p>
 
-        <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/40 pt-4 text-xs font-medium text-muted-foreground">
-          {pending.length > 0 && (
-            <span className="flex items-center gap-1.5">
-              <BookOpen className="size-3.5" /> {pending.length} open
+          <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-3 text-xs font-medium">
+            <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5", classes.soft)}>
+              <BookOpen className="size-3" /> {pending.length} open
             </span>
-          )}
-          <span className="flex items-center gap-1.5">
-            <FolderOpen className="size-3.5" /> {plural(fileCount, "file")}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Target className="size-3.5" />
-            {goal ? `Target ${goal.targetGrade}%` : "No target"}
-            {latestGrade && ` · latest ${latestGrade}`}
-          </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
+              <FolderOpen className="size-3" /> {plural(fileCount, "file")}
+            </span>
+            {(goal || latestGrade) && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
+                <Target className="size-3" />
+                {latestGrade ?? "–"}
+                {goal && ` / ${goal.targetGrade}%`}
+              </span>
+            )}
+          </div>
         </div>
-      </Panel>
+      </div>
     </li>
-  );
-}
-
-function Fact({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex min-w-0 items-start gap-3">
-      <dt className="mt-0.5 shrink-0 text-muted-foreground [&_svg]:size-4" title={label}>
-        {icon}
-        <span className="sr-only">{label}</span>
-      </dt>
-      <dd className="min-w-0 flex-1">{children}</dd>
-    </div>
   );
 }

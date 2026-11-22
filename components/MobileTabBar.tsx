@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
-import { NAV, resolveNav } from "@/lib/nav";
+import { mentorVisible, NAV, resolveNav } from "@/lib/nav";
+import { useMentor } from "@/components/ArchiveContext";
 
 /**
  * Primary navigation below md: the five working sections as a bottom tab bar,
@@ -22,13 +23,14 @@ export function MobileTabBar() {
   const pathname = usePathname();
   const current = resolveNav(pathname)?.section;
   const active = current?.mobileGroup ?? current?.name;
+  const tabs = useMentor() ? mentorVisible(TABS) : TABS;
 
   return (
     <nav
       aria-label="Primary"
       className="flex shrink-0 items-stretch border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
     >
-      {TABS.map((section) => {
+      {tabs.map((section) => {
         const Icon = section.icon;
         const isActive = active === section.name;
         return (

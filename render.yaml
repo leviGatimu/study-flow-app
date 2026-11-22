@@ -1,0 +1,44 @@
+# Study Flow website on Render (free), while the Vercel account is paused.
+#
+# Same app, same Supabase database as studyingflow.vercel.app. Frankfurt, next
+# to the database (aws eu-central-1). Runs the lean standalone server the
+# desktop app also ships (next.config.ts output: "standalone").
+#
+# Secrets are NOT in this file: set them in the Render dashboard (sync: false).
+# JWT_SECRET must be the SAME value Vercel uses, so existing logins and paired
+# desktops keep working with only the address changed.
+#
+# Free plan: sleeps after 15 min with no visitors (first visit then takes up to
+# a minute), 512 MB RAM, 0.1 CPU, temporary disk - uploads go to the Supabase
+# bucket (lib/upload.ts), never the disk.
+services:
+  - type: web
+    name: study-flow
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: >-
+      npm ci &&
+      npm run build &&
+      cp -r .next/static .next/standalone/.next/static &&
+      cp -r public .next/standalone/public
+    startCommand: node .next/standalone/server.js
+    healthCheckPath: /welcome
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: HOSTNAME
+        value: 0.0.0.0
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: uploads

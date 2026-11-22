@@ -96,6 +96,7 @@ export const SOFT_DELETE_CASCADES: Record<string, { model: string; fk: string }[
     { model: 'homework', fk: 'userId' },
     { model: 'markedDay', fk: 'userId' },
     { model: 'masteryItem', fk: 'userId' },
+    { model: 'mentorAccess', fk: 'studentId' },
     { model: 'playlist', fk: 'userId' },
     { model: 'project', fk: 'userId' },
     { model: 'reportCard', fk: 'userId' },

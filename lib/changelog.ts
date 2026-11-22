@@ -28,6 +28,34 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.33',
+    date: '2026-11-22',
+    title: 'Mentor access, Word and PowerPoint files, and sharing your timetable',
+    changes: {
+      new: [
+        'Mentor access: in Settings > Account, make a username and password for your mentor. They sign in on the Study Flow website and see your schedule, study logs, reports, marks and streak. They cannot change anything, and they do not see your AI chats, notes, homework answers or settings. Turn it off any time and they are signed out straight away.',
+        'Word (.docx), PowerPoint (.pptx), Excel (.xlsx), CSV and text files in Resources now open inside Study Flow instead of downloading. PowerPoint shows every slide, with Previous and Next and the arrow keys; Excel shows each sheet as a tab. Older .doc, .ppt and .xls files explain how to save them in the newer format, and every file still has a Download button.',
+        'Subjects has a new look: every subject gets its own colour and an icon that matches it (code, maths, physics, a chip for embedded systems...), with a badge when homework is overdue or an exam is close. A subject page opens with a big banner in its colour showing what is open, your average mark against your target, and Focus, Practice and Ask. Resources uses the same icons and colours for every subject folder.',
+        'Calm tools: a round leaf button in the bottom-right corner. Hover or tap it for small tools for when studying gets too much: pull out a sticky note (pin it to keep it on every page), a Calm room with a breathing circle and music from a YouTube link you paste, Talk it out (an AI that listens, answers in a few words and starts replying straight away), a two-minute Body reset, and Calm words. Your notes and chat are kept on this device only.',
+        'Share your timetable: on School lessons or Study routine, choose Share > Download to share to get a file you can send to anyone. They choose Share > Import a timetable, check what is in it, and it replaces their school lessons and study routine for this year. Blocks they have already finished stay in History, and subjects they do not have yet are added.',
+      ],
+      fixed: [
+        'Finishing a focus session no longer needs notes or a PDF. Before, closing the "What did you get done?" box saved nothing, and the block was then marked missed even though you had studied. Now the session is always saved and the block ticked; notes are optional.',
+        'A block you spent focus time on is never marked missed.',
+        'A missed block can be ticked off (or given proof) if you did study it; ticking it clears "missed".',
+        'Syncing no longer sends the same files to the website over and over. A file the website already has is not checked again, and one that fails is retried after 5 minutes, then less and less often.',
+        'On the website, large files (a slide deck over about 4 MB) can now be uploaded and opened, and files are kept safely instead of disappearing when the website is updated.',
+      ],
+      dev: [
+        'Viewers in components/resources/viewers (docx-preview, pptx-preview, read-excel-file, each loaded only when a file of that kind opens); lib/file-preview.ts (test/file-preview.test.mjs). Rendered documents are cleaned: no scripts, frames or inline handlers, only http(s)/mailto links.',
+        'Website uploads go straight to the private Supabase bucket through signed upload URLs (beginResourceUploads / finishResourceUploads, tickets in lib/upload-ticket.ts); /uploads answers with a 60-second signed link. Desktop sync writes into the bucket and uses POST /api/sync/file/ticket for files over 4 MB.',
+        'Mentor access: MentorAccess table (migration 20261120000000_mentor_access); a mentor session is a token for the student with a mentorId, re-checked on every request (lib/auth.ts). proxy.ts marks mentor requests and keeps them off private pages (lib/mentor-header.ts); lib/mentor-guard.ts refuses every database write inside a server action a mentor makes; mentor tokens are never accepted as device tokens or admin; notes, answers and proof are removed before pages render (lib/mentor-redact.ts).',
+        'File sync backoff (lib/sync/file-backoff.ts); lib/sync/server-url.ts can move a retired address (off: sync stays on Vercel until the Render service in render.yaml exists).',
+        'Timetable files: lib/timetable-share.ts (format, checks; test/timetable-share.test.mjs), lib/timetable-import.ts (one transaction, rows on the same natural key edited in place; test/timetable-import.test.mjs).',
+      ],
+    },
+  },
+  {
     version: '1.0.32',
     date: '2026-11-17',
     title: 'Schedule bar fixed',

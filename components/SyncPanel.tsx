@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useState, useTransition } from 'react';
+import { SYNC_SERVER_URL } from '@/lib/sync/server-url';
 import { RefreshCw, Link2, Link2Off, AlertCircle, Check, CloudUpload } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -61,7 +62,7 @@ export function SyncPanel({
    * Study Flow. A wrong password gives 401, an unreachable host gives a network
    * error, and this build talking to itself gives 400.
    */
-  const [serverUrl, setServerUrl] = useState('https://studyingflow.vercel.app');
+  const [serverUrl, setServerUrl] = useState(SYNC_SERVER_URL);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   /** What should happen the moment this device connects. */

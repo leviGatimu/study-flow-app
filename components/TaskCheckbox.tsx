@@ -133,8 +133,10 @@ export function TaskTick({
       <button
         type="button"
         onClick={toggleDone}
-        disabled={locked || isMissed}
-        title={archiveReason ?? (isMissed ? 'Marked as missed' : undefined)}
+        // A missed block can still be ticked: you are the one who knows you
+        // studied. Ticking it clears "missed" (toggleTaskDone).
+        disabled={locked}
+        title={archiveReason ?? (isMissed ? 'Marked as missed. Tick it if you did study.' : undefined)}
         aria-label={isDone ? `Mark ${subject} as not done` : `Mark ${subject} as done`}
         aria-pressed={isDone}
         className={cn(

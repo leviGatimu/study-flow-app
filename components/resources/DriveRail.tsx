@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileBarChart, Folder, FolderOpen, HardDrive, Library } from 'lucide-react';
+import { HardDrive, Library } from 'lucide-react';
+
+import { SubjectIcon } from '@/components/subjects/SubjectIcon';
 
 import type { RailFolder } from '@/lib/library-actions';
 import { cn } from '@/lib/utils';
@@ -35,7 +37,7 @@ export function DriveRail({ folders, folderPath }: { folders: RailFolder[]; fold
           : 'border-border bg-card text-foreground/85 hover:bg-muted hover:text-foreground lg:bg-transparent'
       )}
     >
-      <span className={cn('shrink-0 [&_svg]:size-4', active ? 'text-primary' : 'text-muted-foreground')}>{icon}</span>
+      <span className={cn('shrink-0 [&>svg]:size-4', active ? 'text-primary' : 'text-muted-foreground')}>{icon}</span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {count !== null && <span className="hidden shrink-0 text-xs tabular-nums text-muted-foreground lg:inline">{count}</span>}
     </Link>
@@ -50,13 +52,13 @@ export function DriveRail({ folders, folderPath }: { folders: RailFolder[]; fold
           item(
             `/resources/${encodeURIComponent(f.name)}`,
             f.name,
-            current?.toLowerCase() === f.name.toLowerCase() ? <FolderOpen /> : <Folder />,
+            <SubjectIcon name={f.name} className="size-6 rounded-md" iconClassName="!size-3.5" />,
             f.count,
             current?.toLowerCase() === f.name.toLowerCase()
           )
         )}
         <p className="hidden px-3 pb-1 pt-4 text-xs font-semibold text-muted-foreground lg:block">Saved by the app</p>
-        {item(`/resources/${REPORTS}`, 'Reports', <FileBarChart />, reports?.count ?? 0, current?.toLowerCase() === 'reports')}
+        {item(`/resources/${REPORTS}`, 'Reports', <SubjectIcon name={REPORTS} className="size-6 rounded-md" iconClassName="!size-3.5" />, reports?.count ?? 0, current?.toLowerCase() === 'reports')}
       </div>
       {folderPath && (
         <p className="mt-4 hidden items-start gap-1.5 px-3 text-xs text-muted-foreground lg:flex" title={folderPath}>

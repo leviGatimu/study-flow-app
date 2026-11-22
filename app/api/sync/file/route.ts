@@ -3,6 +3,7 @@
  *
  * HEAD  /api/sync/file?name=x   does the server already have this file?
  * POST  /api/sync/file          take this one (multipart: name + file)
+ * POST  /api/sync/file/ticket   a signed URL to PUT a large one to (bucket only)
  *
  * Reading is not here: devices fetch through the existing authenticated
  * /uploads route, which already handles Range requests and content types. This
@@ -21,11 +22,13 @@ import { existsSync } from 'fs';
 import { mkdir, writeFile } from 'fs/promises';
 import { dirname } from 'path';
 
-import { getUserId, userIdFromBearer } from '@/lib/auth';
+import { getMentorSession, getUserId, userIdFromBearer } from '@/lib/auth';
 import { ownsUpload } from '@/lib/file-access';
 import {
   MAX_AUDIO_UPLOAD_BYTES,
+  remoteUploadSize,
   resolveUploadPath,
+  saveRemoteUploadAs,
   usesRemoteStorage,
 } from '@/lib/upload';
 
@@ -33,7 +36,9 @@ export const dynamic = 'force-dynamic';
 
 async function requester(request: NextRequest): Promise<string | null> {
   return (
-    (await userIdFromBearer(request.headers.get('authorization'))) ?? (await getUserId())
+    (await userIdFromBearer(request.headers.get('authorization'))) ??
+    // A mentor's browser session is read-only; this route writes.
+    ((await getMentorSession()) ? null : await getUserId())
   );
 }
 
@@ -50,10 +55,10 @@ export async function HEAD(request: NextRequest) {
   // probe for.
   if (!(await ownsUpload(userId, name!))) return new NextResponse(null, { status: 404 });
 
-  // With remote storage configured the local filesystem says nothing useful, so
-  // the honest answer is "ask by trying" - reported as absent, which makes the
-  // device send it. An extra upload is cheaper than a silently missing file.
-  if (usesRemoteStorage()) return new NextResponse(null, { status: 404 });
+  // With remote storage configured, the bucket is where the file would be.
+  if (usesRemoteStorage()) {
+    return new NextResponse(null, { status: (await remoteUploadSize(name!)) !== null ? 200 : 404 });
+  }
 
   return new NextResponse(null, { status: existsSync(path) ? 200 : 404 });
 }
@@ -89,14 +94,11 @@ export async function POST(request: NextRequest) {
   }
 
   if (usesRemoteStorage()) {
-    // Phase 8's storage backend takes a File and mints its own name, which
-    // would break the URL the synced row already carries. Rather than write a
-    // second, subtly different upload path, this is refused loudly until the
-    // bucket is enabled and the two can be reconciled properly.
-    return NextResponse.json(
-      { error: 'Remote storage is enabled; file sync into it is not implemented yet.' },
-      { status: 501 }
-    );
+    // The row already carries this exact name, so it is stored under it; a
+    // copy that is already there is the same file (the name embeds a random
+    // suffix) and counts as success.
+    await saveRemoteUploadAs(name, await file.arrayBuffer(), file.type);
+    return NextResponse.json({ success: true });
   }
 
   if (existsSync(path)) return NextResponse.json({ success: true, alreadyHad: true });

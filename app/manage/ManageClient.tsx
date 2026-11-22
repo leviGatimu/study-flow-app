@@ -15,6 +15,7 @@ import { blockMinutes, formatMinutes } from '@/lib/schedule-layout';
 import { Button } from '@/components/ui/button';
 import { EdgeKey, ScheduleFrame } from '@/components/schedule/ScheduleFrame';
 import { WeekBoard } from '@/components/schedule/WeekBoard';
+import { TimetableShare } from '@/components/schedule/TimetableShare';
 
 type TemplateType = {
   id: string;
@@ -97,6 +98,7 @@ export function ManageClient({
               <Link href="/timetable">See this week</Link>
             </Button>
           )}
+          <TimetableShare page="routine" canImport={!archived} />
           <span data-tour="manage-add">
             <ManageForm subjects={subjects} />
           </span>

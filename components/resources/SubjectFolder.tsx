@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Copy,
   ExternalLink,
+  Eye,
   FolderOpen,
   FolderPlus,
   FolderSymlink,
@@ -39,6 +40,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { SubjectIcon } from "@/components/subjects/SubjectIcon";
 import { useIsDesktopApp } from "@/components/DesktopUpdater";
 import { cn } from "@/lib/utils";
 import { folderAncestors, folderName, folderParent, isWithinFolder, joinFolder } from "@/lib/library-paths";
@@ -48,13 +50,14 @@ import {
   deleteResourceItem,
   moveResource,
   renameResource,
-  uploadResourceFiles,
   type ResourceItem,
   type SubjectLibrary,
 } from "@/lib/library-actions";
 import { folderAbsolutePath, libraryFileAbsolutePath, openInExplorer, revealInExplorer } from "./desktop-bridge";
 import { ContextMenu, type MenuEntry } from "./ContextMenu";
 import { ItemDetails } from "./ItemDetails";
+import { FileViewer } from "./viewers/FileViewer";
+import { uploadIntoResources } from "./upload-files";
 import { LinkDialog, MoveDialog, NameDialog } from "./explorer-dialogs";
 import { displayName, formatBytes, formatWhen, hostOf, KindGlyph, kindLabel, kindOf } from "./file-kind";
 import { useStoredPref } from "./use-stored-view";
@@ -157,6 +160,7 @@ export function SubjectFolder({ library, initialPath }: Props) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [viewing, setViewing] = useState<ResourceItem | null>(null);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; entries: MenuEntry[] } | null>(null);
   const [fileDrag, setFileDrag] = useState(false);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -231,7 +235,11 @@ export function SubjectFolder({ library, initialPath }: Props) {
       toast.info("That file lives in the library folder on your desktop computer.");
       return;
     }
-    window.open(item.url, "_blank", "noopener,noreferrer");
+    if (item.type === "LINK") {
+      window.open(item.url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    setViewing(item);
   };
 
   const showInExplorer = async (item: ResourceItem | null) => {
@@ -257,12 +265,13 @@ export function SubjectFolder({ library, initialPath }: Props) {
 
   const uploadFiles = async (list: File[], into = path) => {
     if (!canWrite || list.length === 0) return;
-    const form = new FormData();
-    form.set("subject", library.subject);
-    form.set("folder", into);
-    for (const f of list) form.append("file", f);
     const id = toast.loading(list.length === 1 ? `Adding ${list[0].name}…` : `Adding ${list.length} files…`);
-    const result = await uploadResourceFiles(form);
+    let result: { added: number; errors: string[] };
+    try {
+      result = await uploadIntoResources(list, library.subject, into);
+    } catch {
+      result = { added: 0, errors: ["The files could not be added. Check your connection and try again."] };
+    }
     toast.dismiss(id);
     if (result.added > 0) {
       toast.success(result.added === 1 ? "File added" : `${result.added} files added`, {
@@ -324,7 +333,7 @@ export function SubjectFolder({ library, initialPath }: Props) {
     const editable = list.filter((i) => !isImplied(i));
     const e: MenuEntry[] = [];
     if (one) {
-      e.push({ kind: "item", label: one.type === "FOLDER" ? "Open" : one.type === "LINK" ? "Open link" : "Open file", icon: one.type === "FOLDER" ? <FolderOpen /> : <ExternalLink />, onSelect: () => openItem(one) });
+      e.push({ kind: "item", label: one.type === "FOLDER" ? "Open" : one.type === "LINK" ? "Open link" : "Open", icon: one.type === "FOLDER" ? <FolderOpen /> : one.type === "LINK" ? <ExternalLink /> : <Eye />, onSelect: () => openItem(one) });
       if (hasDisk && (one.type === "FOLDER" || one.inLibrary)) {
         e.push({ kind: "item", label: one.type === "FOLDER" ? "Open in Windows Explorer" : "Show in Explorer", icon: <FolderSymlink />, onSelect: () => void showInExplorer(one) });
       }
@@ -484,7 +493,10 @@ export function SubjectFolder({ library, initialPath }: Props) {
               </span>
             ))}
           </nav>
-          <h1 className="truncate font-heading text-3xl font-bold tracking-tight">{currentLabel}</h1>
+          <div className="flex min-w-0 items-center gap-3">
+            <SubjectIcon name={library.subject} className="size-12 rounded-2xl" iconClassName="!size-6" />
+            <h1 className="truncate font-heading text-3xl font-bold tracking-tight">{currentLabel}</h1>
+          </div>
           <p className="text-sm text-muted-foreground">
             {folders.length + files.length === 0
               ? "Empty"
@@ -792,6 +804,8 @@ export function SubjectFolder({ library, initialPath }: Props) {
           )}
         </DialogContent>
       </Dialog>
+
+      <FileViewer item={viewing} onClose={() => setViewing(null)} />
     </div>
   );
 }

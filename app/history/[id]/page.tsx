@@ -4,7 +4,7 @@ import { format, parseISO } from 'date-fns';
 import { ArrowUpRight, BookOpen, CalendarDays, CheckCircle2, CircleDashed, ClipboardList, Clock3, FileText, FolderOpen, GraduationCap, Target, Timer, XCircle } from 'lucide-react';
 
 import { prisma } from '@/lib/prisma';
-import { getUserId } from '@/lib/auth';
+import { getMentorSession, getUserId } from '@/lib/auth';
 import { getCurrentUserTimezone, getSubjectSessions } from '@/lib/actions';
 import { getViewScope } from '@/lib/scope';
 import { readStudyLog } from '@/lib/study-log';
@@ -32,7 +32,10 @@ export default async function StudyLogPage({ params }: { params: Promise<{ id: s
   const log = await readStudyLog(prisma, id, userId, scope?.termIds);
   if (!log) notFound();
 
-  const { task, summary, sessions } = log;
+  // A mentor sees what was studied and when, not the student's own notes or attached work.
+  const mentor = (await getMentorSession()) !== null;
+  const { summary, sessions } = log;
+  const task = mentor ? { ...log.task, workDescription: null, proofPdfUrl: null } : log.task;
   const subject = cleanSubject(task.subject) || task.subject;
   const [homework, subjectBlocks] = await Promise.all([
     prisma.homework.findFirst({ where: { userId, taskId: id }, select: { id: true, title: true } }),
@@ -85,16 +88,20 @@ export default async function StudyLogPage({ params }: { params: Promise<{ id: s
           <Button asChild variant="outline">
             <Link href={`/resources/${encoded}`}><FolderOpen /> Resources</Link>
           </Button>
-          <div className="ml-auto">
-            <DeleteTaskButton taskId={task.id} />
-          </div>
+          {!mentor && (
+            <div className="ml-auto">
+              <DeleteTaskButton taskId={task.id} />
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
           <div className="min-w-0 space-y-6 lg:col-span-7 xl:col-span-8">
             <Panel>
               <PanelTitle icon={<FileText />}>What you studied</PanelTitle>
-              {task.workDescription ? (
+              {mentor ? (
+                <p className="text-sm text-muted-foreground">Notes and attached work are private to the student.</p>
+              ) : task.workDescription ? (
                 <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{task.workDescription}</p>
               ) : (
                 <p className="text-sm text-muted-foreground">No notes were added to this block.</p>

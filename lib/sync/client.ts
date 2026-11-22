@@ -22,6 +22,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { currentServerUrl } from './server-url.ts';
 
 import { prisma } from '@/lib/prisma';
 import { ownedBy } from './ownership.ts';
@@ -108,6 +109,8 @@ export async function pairDevice(
     where: { id: state.id },
     data: { serverUrl: base, token: body.token, lastError: null },
   });
+  // A different server has different files; what was learned about the old one does not carry over.
+  (await import('./files.ts')).resetFileBackoff();
   return { success: true };
 }
 
@@ -195,6 +198,17 @@ async function adoptRemaps(remapped: PushResponse['remapped']): Promise<void> {
 export async function runSync(userId: string): Promise<SyncResult> {
   const state = await getSyncState(userId);
   const at = new Date();
+
+  // A pairing saved with the website's old address follows it to the new one,
+  // once, so nobody has to sign in again (lib/sync/server-url.ts).
+  if (state.serverUrl) {
+    const moved = currentServerUrl(state.serverUrl);
+    if (moved !== state.serverUrl) {
+      await prisma.syncState.update({ where: { id: state.id }, data: { serverUrl: moved } });
+      state.serverUrl = moved;
+      (await import('./files.ts')).resetFileBackoff();
+    }
+  }
 
   if (!state.serverUrl || !state.token) {
     return {

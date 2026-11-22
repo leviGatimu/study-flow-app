@@ -28,17 +28,24 @@ export async function bumpSessionVersion(userId: string): Promise<void> {
 }
 
 /** Sign a session or sync token for the account's current session version. */
-export async function signSessionToken(userId: string, expiresIn: string): Promise<string> {
+export async function signSessionToken(userId: string, expiresIn: string, extra: { mentorId?: string } = {}): Promise<string> {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { sessionVersion: true } });
-  return new SignJWT({ userId, sv: user?.sessionVersion ?? 0 })
+  return new SignJWT({ userId, sv: user?.sessionVersion ?? 0, ...extra })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(expiresIn)
     .sign(SECRET);
 }
 
-export async function login(userId: string) {
-  const token = await signSessionToken(userId, '30d');
+/**
+ * Sign in. With `mentorId`, the session opens THIS student's account read-only
+ * for that mentor: the token names the student (so every page reads their data
+ * unchanged), carries the student's session version (so "Log out everywhere"
+ * signs the mentor out too), and carries the mentor's id, which getUserId
+ * re-checks on every request so turning access off takes effect at once.
+ */
+export async function login(userId: string, mentorId?: string) {
+  const token = await signSessionToken(userId, '30d', mentorId ? { mentorId } : {});
 
   const cookieStore = await cookies();
   cookieStore.set('session', token, {
@@ -67,16 +74,31 @@ export async function logout() {
  * very next navigation.
  */
 export const getUserId = cache(async function getUserId(): Promise<string | null> {
+  return (await readSession())?.userId ?? null;
+});
+
+export type MentorSession = { mentorId: string; username: string };
+
+/** The mentor looking at this account, or null for the student themselves (and signed out). */
+export const getMentorSession = cache(async function getMentorSession(): Promise<MentorSession | null> {
+  return (await readSession())?.mentor ?? null;
+});
+
+const MENTOR_SEEN_EVERY_MS = 5 * 60_000;
+
+const readSession = cache(async function readSession(): Promise<{ userId: string; mentor: MentorSession | null } | null> {
   const cookieStore = await cookies();
   const session = cookieStore.get('session')?.value;
   if (!session) return null;
 
   let userId: string;
   let version: number;
+  let mentorId: string | null = null;
   try {
     const { payload } = await jwtVerify(session, SECRET, { algorithms: ['HS256'] });
     userId = payload.userId as string;
     version = versionOf(payload);
+    mentorId = typeof payload.mentorId === 'string' ? payload.mentorId : null;
     if (!userId) return null;
   } catch {
     // The token is missing, expired, tampered with or signed by another
@@ -103,7 +125,21 @@ export const getUserId = cache(async function getUserId(): Promise<string | null
     // A definite answer: the account is gone or deactivated, or this session
     // was logged out (password changed, "log out everywhere"). Reject it.
     if (!user || user.sessionVersion !== version) return null;
-    return userId;
+    if (!mentorId) return { userId, mentor: null };
+
+    // A mentor's access must still be on, and still be for THIS student.
+    const access = await prisma.mentorAccess.findUnique({
+      where: { id: mentorId },
+      select: { studentId: true, username: true, revokedAt: true, lastSeenAt: true },
+    });
+    if (!access || access.revokedAt || access.studentId !== userId) return null;
+    if (!access.lastSeenAt || Date.now() - access.lastSeenAt.getTime() > MENTOR_SEEN_EVERY_MS) {
+      // Best effort, and never inside a mentor's own action (the read-only guard would refuse it).
+      void prisma.mentorAccess
+        .update({ where: { id: mentorId }, data: { lastSeenAt: new Date() } })
+        .catch(() => undefined);
+    }
+    return { userId, mentor: { mentorId, username: access.username } };
   } catch (error) {
     // No answer at all. The token itself is cryptographically valid, so the
     // session is honoured for this request and the incident is logged. Nothing
@@ -112,7 +148,10 @@ export const getUserId = cache(async function getUserId(): Promise<string | null
     // someone else's data. Logging them out instead would be a lie about the
     // one thing we actually know.
     console.error('[auth] could not verify the session user; honouring the token:', error);
-    return userId;
+    // Unverifiable mentor access is NOT honoured: unlike the student's own
+    // session, a mentor's can be revoked, and "the database was slow" must not
+    // stretch a revoked mentor's view.
+    return mentorId ? null : { userId, mentor: null };
   }
 });
 
@@ -136,6 +175,8 @@ export async function userIdFromBearer(header: string | null): Promise<string | 
   try {
     const { payload } = await jwtVerify(header.slice(7).trim(), SECRET, { algorithms: ['HS256'] });
     if (typeof payload.userId !== 'string' || !payload.userId) return null;
+    // A mentor's browser token must never become a device token: /api/sync writes.
+    if (payload.mentorId !== undefined) return null;
     userId = payload.userId;
     version = versionOf(payload);
   } catch {

@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { EmptyState } from '@/components/ui/empty-state';
+import { TimetableShare } from '@/components/schedule/TimetableShare';
 import { ScheduleFrame } from '@/components/schedule/ScheduleFrame';
 import { WeekBoard } from '@/components/schedule/WeekBoard';
 import { ConfirmModal } from '@/components/ConfirmModal';
@@ -167,11 +168,14 @@ export function SchoolTimetable({
         title="School lessons"
         meta={yearLabel ? `The lessons you attend in ${yearLabel}` : 'The lessons you attend'}
         actions={
-          canEdit && (
-            <Button onClick={() => setUploading(true)}>
-              <Upload /> Upload a photo
-            </Button>
-          )
+          <>
+            <TimetableShare page="lessons" canImport={canEdit} yearLabel={yearLabel} />
+            {canEdit && (
+              <Button onClick={() => setUploading(true)}>
+                <Upload /> Upload a photo
+              </Button>
+            )}
+          </>
         }
       >
         <div className="p-4 md:p-6">
@@ -219,6 +223,7 @@ export function SchoolTimetable({
             <Switch checked={isTimetableSynced} onCheckedChange={setIsTimetableSynced} aria-label="Follow my school day" />
             Follow my day
           </label>
+          <TimetableShare page="lessons" canImport={canEdit} yearLabel={yearLabel} />
           {canEdit && (
             <>
               <Button variant="outline" onClick={() => setUploading(true)}>

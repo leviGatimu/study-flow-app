@@ -1,6 +1,7 @@
 import { createReadStream } from 'fs';
 import { stat } from 'fs/promises';
 import { Readable } from 'stream';
+import { basename } from 'path';
 
 /**
  * Stream a file off the local disk as an HTTP response, with Range support.
@@ -92,6 +93,17 @@ export function parseRange(header: string | null, size: number) {
  * a year; a library file keeps its human name and can be overwritten from
  * Windows Explorer, so it is revalidated on every open.
  */
+/**
+ * `inline` normally; `attachment` when the URL asks for ?download=1, so the
+ * viewer's Download button saves the file even for types the browser would
+ * otherwise show (PDF, images, text).
+ */
+export function contentDisposition(request: Request, filename: string): string {
+  if (new URL(request.url).searchParams.get('download') !== '1') return 'inline';
+  const ascii = filename.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+}
+
 export async function serveLocalFile(
   full: string,
   request: Request,
@@ -113,7 +125,7 @@ export async function serveLocalFile(
     // Private either way: it is the user's own file.
     'Cache-Control': immutable ? 'private, max-age=31536000, immutable' : 'private, no-cache',
     'Last-Modified': mtime.toUTCString(),
-    'Content-Disposition': 'inline',
+    'Content-Disposition': contentDisposition(request, basename(full)),
     // Never let a stored file be interpreted as something else.
     'X-Content-Type-Options': 'nosniff',
     // Advertised on every response, not just partial ones - it is how a client

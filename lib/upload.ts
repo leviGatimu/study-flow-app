@@ -108,26 +108,6 @@ async function getStorageClient(cfg: NonNullable<ReturnType<typeof storageConfig
 }
 
 /**
- * Fetch a stored object out of Supabase Storage. Used by the /uploads route,
- * which is what serves these files now that the bucket is private.
- */
-export async function readRemoteUpload(
-  filename: string
-): Promise<{ body: ArrayBuffer; contentType: string | null } | null> {
-  const cfg = storageConfig();
-  if (!cfg) return null;
-
-  const safe = basename(filename);
-  if (!safe) return null;
-
-  const supabase = await getStorageClient(cfg);
-  const { data, error } = await supabase.storage.from(cfg.bucket).download(safe);
-  if (error || !data) return null;
-
-  return { body: await data.arrayBuffer(), contentType: data.type || null };
-}
-
-/**
  * Validate an uploaded file and persist it. Returns the URL to store on the
  * record: always "/uploads/<filename>", whichever backend holds the bytes.
  *
@@ -209,3 +189,89 @@ export async function deleteUpload(url: string | null | undefined): Promise<void
     // File may already be gone; ignore.
   }
 }
+
+// ---------------------------------------------------------------- direct uploads
+//
+// Vercel refuses any function request or response body over about 4.5 MB, so
+// on the website a normal-sized PowerPoint can neither be posted to a server
+// action nor streamed back through /uploads. With the bucket configured, the
+// bytes skip the app entirely: the server checks the request and hands out a
+// signed upload URL for one exact object name, the client PUTs the file to
+// it, and reads are answered with a short-lived signed download URL.
+
+// Supabase's free plan refuses single files over 50 MB.
+export const MAX_REMOTE_UPLOAD_BYTES = 50 * 1024 * 1024;
+
+/** A fresh object name: the prefix and timestamp saveUpload uses, plus randomness so it cannot be guessed. */
+export function mintUploadName(prefix: string, originalName: string): string {
+  const safeName = basename(originalName).replace(/[^a-zA-Z0-9.]/g, '_').slice(-120) || 'file';
+  const random = Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, '0')).join('');
+  return `${prefix}-${Date.now()}-${random}-${safeName}`;
+}
+
+/** Whether a file name and MIME type pass the same allowlist saveUpload applies. */
+export function isAllowedUpload(name: string, mime: string): boolean {
+  return isAllowedType({ name, type: mime } as File);
+}
+
+/**
+ * A signed URL the client may PUT exactly one object to. Null when the bucket
+ * is not configured (the desktop, or a web build without storage).
+ */
+export async function createDirectUpload(filename: string): Promise<{ uploadUrl: string } | null> {
+  const cfg = storageConfig();
+  if (!cfg) return null;
+  const safe = basename(filename);
+  const supabase = await getStorageClient(cfg);
+  const { data, error } = await supabase.storage.from(cfg.bucket).createSignedUploadUrl(safe);
+  if (error || !data) throw new Error(`Upload could not start: ${error?.message ?? 'no URL returned'}`);
+  return { uploadUrl: data.signedUrl };
+}
+
+/** Size of a stored object, or null when it is not in the bucket. */
+export async function remoteUploadSize(filename: string): Promise<number | null> {
+  const cfg = storageConfig();
+  if (!cfg) return null;
+  const safe = basename(filename);
+  const supabase = await getStorageClient(cfg);
+  const { data, error } = await supabase.storage.from(cfg.bucket).list('', { search: safe, limit: 10 });
+  if (error || !data) return null;
+  const match = data.find((entry) => entry.name === safe);
+  if (!match) return null;
+  const size = (match.metadata as { size?: unknown } | null)?.size;
+  return typeof size === 'number' ? size : 0;
+}
+
+/**
+ * A short-lived link straight to the object, for the /uploads route to
+ * redirect to after it has checked ownership. 60 seconds is enough to start
+ * a download or a media stream; the link is useless after that.
+ */
+export async function signedDownloadUrl(filename: string, downloadAs?: string): Promise<string | null> {
+  const cfg = storageConfig();
+  if (!cfg) return null;
+  const safe = basename(filename);
+  const supabase = await getStorageClient(cfg);
+  const { data, error } = await supabase.storage
+    .from(cfg.bucket)
+    .createSignedUrl(safe, 60, downloadAs ? { download: downloadAs } : undefined);
+  if (error || !data) return null;
+  return data.signedUrl;
+}
+
+/**
+ * Store bytes under an exact name. Used by desktop file sync, whose rows
+ * already carry the name: unlike saveUpload, nothing new may be minted.
+ * An object that is already there counts as success.
+ */
+export async function saveRemoteUploadAs(filename: string, body: ArrayBuffer, contentType: string): Promise<void> {
+  const cfg = storageConfig();
+  if (!cfg) throw new Error('Remote storage is not configured.');
+  const safe = basename(filename);
+  const supabase = await getStorageClient(cfg);
+  const { error } = await supabase.storage
+    .from(cfg.bucket)
+    .upload(safe, Buffer.from(body), { contentType: contentType || 'application/octet-stream', upsert: false });
+  if (error && !/exists|duplicate/i.test(error.message)) throw new Error(`Upload failed: ${error.message}`);
+}
+

@@ -210,3 +210,11 @@ export function pageTitle(pathname: string | null): string {
   if (!segment) return "Today";
   return segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, " ");
 }
+
+/** Sections a mentor never sees: the AI chat and the student's settings (proxy.ts redirects them too). */
+const MENTOR_HIDDEN = new Set(["/ai", "/settings"]);
+
+/** The nav a mentor sees: everything about progress, nothing private or editable. */
+export function mentorVisible<T extends { href: string }>(sections: T[]): T[] {
+  return sections.filter((section) => !MENTOR_HIDDEN.has(section.href));
+}

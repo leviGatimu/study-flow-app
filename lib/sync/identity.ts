@@ -290,6 +290,12 @@ export const SYNC_RULES: Record<string, SyncRule> = {
       'Failed sign-in counters for the server they were counted on. Syncing them ' +
       'would let one device lock an account out everywhere, or wipe the count.',
   },
+  mentorAccess: {
+    match: 'LOCAL_ONLY',
+    why:
+      'Mentor sign-ins live on the website, the only place a mentor can sign in. ' +
+      'Syncing them would copy password hashes onto every desktop for nothing.',
+  },
   song: { match: 'LOCAL_ONLY', why: 'Real audio files up to 60MB behind audioUrl.' },
   playlist: { match: 'LOCAL_ONLY', why: 'Meaningless without song, which is local-only.' },
   aiNote: { match: 'LOCAL_ONLY', why: 'Generated notes; sourceName is a filename, not a stored file.' },

@@ -97,14 +97,26 @@ export async function loginUser(formData: FormData) {
     // An unknown username is checked against a dummy hash, so it takes as long
     // as a wrong password and the timing does not reveal which usernames exist.
     const user = await prisma.user.findUnique({ where: { username } });
-    const valid = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
-    if (!user || !valid) {
+    // Not a student: maybe a mentor sign-in a student made. Either way exactly
+    // one bcrypt comparison runs, so timing tells nothing about which it was.
+    const mentor = user
+      ? null
+      : await prisma.mentorAccess.findFirst({
+          where: { username, revokedAt: null },
+          select: { id: true, studentId: true, passwordHash: true },
+        });
+    const valid = await bcrypt.compare(password, user?.passwordHash ?? mentor?.passwordHash ?? DUMMY_HASH);
+    if ((!user && !mentor) || !valid) {
       await recordFailure(prisma, keys);
       return { error: 'Invalid credentials' };
     }
 
     await clearFailures(prisma, username);
-    await login(user.id);
+    if (mentor) {
+      await login(mentor.studentId, mentor.id);
+      return { success: true };
+    }
+    await login(user!.id);
     return { success: true };
   } catch {
     console.error('Login failed');
@@ -122,7 +134,9 @@ export async function registerUser(formData: FormData) {
     const { username, password, profile } = input;
 
     const existing = await prisma.user.findUnique({ where: { username } });
-    if (existing) return { error: 'Username already taken' };
+    // Mentor sign-ins share the login box, so they share the names too.
+    const mentorName = existing ? null : await prisma.mentorAccess.findUnique({ where: { username }, select: { id: true } });
+    if (existing || mentorName) return { error: 'Username already taken' };
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
@@ -411,10 +425,22 @@ export async function checkAndMarkMissedTasks(userId: string) {
     }
   }
 
-  if (tasksToMark.length > 0) {
+  if (tasksToMark.length === 0) return;
+
+  // A block you focused on was not missed, whatever happened to its tick: a
+  // session can end on a screen that saves the time but not the tick, or be
+  // finished after the block's end time. Recorded focus time is the evidence.
+  const focused = await prisma.xpEvent.findMany({
+    where: { userId, source: 'FOCUS', taskId: { in: tasksToMark }, focusSeconds: { gt: 0 } },
+    select: { taskId: true },
+  });
+  const studied = new Set(focused.map((event) => event.taskId));
+  const missed = tasksToMark.filter((id) => !studied.has(id));
+
+  if (missed.length > 0) {
     await prisma.task.updateMany({
       where: {
-        id: { in: tasksToMark }
+        id: { in: missed }
       },
       data: {
         isMissed: true

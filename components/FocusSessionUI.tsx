@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Volume2, VolumeX, Maximize2, Minimize2,
@@ -494,21 +495,32 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
     await completeFocus();
   }, [completeFocus]);
 
+  /**
+   * Notes and a PDF are optional. The session itself is what proves the block
+   * was studied: it is saved and the block ticked off whatever happens to the
+   * notes. Requiring them used to mean that closing this form saved nothing,
+   * and the block was then marked missed at its end time.
+   */
   const handleFinishWithProof = async () => {
     setIsFinishing(true);
     try {
-      if (task.id !== 'free') {
+      const hasNotes = proofDescription.trim() !== '' || proofFile !== null;
+      if (task.id !== 'free' && hasNotes) {
         const formData = new FormData();
         formData.append('taskId', task.id);
         formData.append('description', proofDescription);
         if (proofFile) formData.append('file', proofFile);
-
-        await updateTaskProof(formData);
+        try {
+          const result = await updateTaskProof(formData);
+          if (result && 'error' in result) {
+            toast.error('Your notes were not saved', { description: `${result.error} Your session is still saved.` });
+          }
+        } catch {
+          toast.error('Your notes were not saved', { description: 'Your session is still saved.' });
+        }
       }
-      await handleSessionComplete();
-    } catch (error) {
-      console.error('Failed to finish session', error);
     } finally {
+      await handleSessionComplete();
       setIsFinishing(false);
     }
   };
@@ -1865,7 +1877,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
 
               <div className="space-y-4">
                  <Textarea
-                   placeholder="A sentence about what you worked on."
+                   placeholder="Optional: a sentence about what you worked on."
                    value={proofDescription}
                    onChange={(e) => setProofDescription(e.target.value)}
                    className="bg-white/5 border-white/10 min-h-[100px] rounded-2xl font-bold placeholder:text-white/25 text-white"
@@ -1875,7 +1887,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     <label className="flex-1 flex items-center justify-center gap-2 h-14 bg-white/5 border border-white/10 rounded-2xl cursor-pointer hover:bg-white/10 transition-colors px-4">
                        <Paperclip className="w-5 h-5 text-primary" />
                        <span className="font-bold text-sm truncate">
-                         {proofFile ? proofFile.name : 'Attach a PDF'}
+                         {proofFile ? proofFile.name : 'Attach a PDF (optional)'}
                        </span>
                        <input
                          type="file"
@@ -1886,7 +1898,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     </label>
 
                     <Button
-                      disabled={isFinishing || (task.id !== 'free' && !proofDescription.trim() && !proofFile)}
+                      disabled={isFinishing}
                       onClick={handleFinishWithProof}
                       className="h-14 px-8 rounded-2xl bg-primary font-black gap-2 shadow-lg"
                     >

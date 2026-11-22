@@ -21,6 +21,7 @@ import {
   reportError,
   type SettingsData,
 } from "./settings-ui";
+import { MentorSettings } from "./MentorSettings";
 
 /**
  * Account settings. On /settings it is the Account section; /profile reuses
@@ -47,6 +48,7 @@ export function ProfileSettings({ data, showDetails = true }: { data: SettingsDa
           </form>
         </SettingRow>
       </SettingsCard>
+      {showDetails && <MentorSettings />}
       {/* The way back into onboarding. Both can be dismissed for good from the
           dashboard, so without a permanent door here a user who skipped setup on
           day one would never find it again. */}

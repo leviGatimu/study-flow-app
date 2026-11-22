@@ -8,6 +8,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { HistoryClient } from './HistoryClient';
 import { InsightsView } from '../insights/InsightsView';
 import { historyTabs } from '@/components/PageTabs';
+import { redactTasksForMentor } from '@/lib/mentor-redact';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -33,7 +34,7 @@ export default async function HistoryPage({
   let tasks: Awaited<ReturnType<typeof getHistoryTasks>>;
   let userProgress: Awaited<ReturnType<typeof syncStreak>>;
   try {
-    [tasks, userProgress] = await Promise.all([getHistoryTasks(), syncStreak()]);
+    [tasks, userProgress] = await Promise.all([getHistoryTasks().then(redactTasksForMentor), syncStreak()]);
   } catch (error) {
     console.error('History failed to load', error);
     return (

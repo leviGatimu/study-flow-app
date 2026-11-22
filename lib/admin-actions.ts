@@ -43,13 +43,15 @@ import {
 } from './admin-remote';
 import { UPLOAD_DIR, usesRemoteStorage } from './upload';
 import { prisma, IS_SQLITE } from '@/lib/prisma';
-import { getUserId, userIdFromBearer } from '@/lib/auth';
+import { getUserId, userIdFromBearer, getMentorSession } from '@/lib/auth';
 
 /** The caller's id if they are an admin, otherwise null. */
 const adminId = cache(async function adminId(): Promise<string | null> {
-  const userId =
-    (await userIdFromBearer((await headers()).get('authorization'))) ??
-    (await getUserId());
+  const bearer = await userIdFromBearer((await headers()).get('authorization'));
+  // A mentor reads an admin's account as that admin's user id; they must never
+  // inherit the admin role with it.
+  if (!bearer && (await getMentorSession())) return null;
+  const userId = bearer ?? (await getUserId());
   return (await hasAdminRole(prisma, userId)) ? userId : null;
 });
 

@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { SubjectIcon, subjectStyle } from "@/components/subjects/SubjectIcon";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useIsDesktopApp } from "@/components/DesktopUpdater";
 import { deleteSubject } from "@/lib/actions";
@@ -32,6 +33,7 @@ import { DropTargetDialog } from "./DropTargetDialog";
 import { folderAbsolutePath, openInExplorer } from "./desktop-bridge";
 import { displayName, formatWhen, hostOf, KindIcon } from "./file-kind";
 import { useStoredView } from "./use-stored-view";
+import { FileViewer } from "./viewers/FileViewer";
 
 /**
  * The top of the explorer: one folder per subject.
@@ -53,6 +55,7 @@ export function LibraryOverview({ overview }: { overview: Overview }) {
   const [clearing, setClearing] = useState<LibrarySubject | null>(null);
   const [dragging, setDragging] = useState(false);
   const [dropped, setDropped] = useState<File[] | null>(null);
+  const [viewing, setViewing] = useState<ResourceItem | null>(null);
 
   // Files whose name, subject or folder matches, newest first.
   const matches = useMemo(() => {
@@ -172,7 +175,7 @@ export function LibraryOverview({ overview }: { overview: Overview }) {
           {matches.length > 0 ? (
             <ul role="list" className="grid grid-cols-1 gap-2 md:grid-cols-2">
               {matches.slice(0, 60).map((item) => (
-                <RecentCard key={item.id} item={item} onDesktop={onDesktop} />
+                <RecentCard key={item.id} item={item} onDesktop={onDesktop} onView={setViewing} />
               ))}
             </ul>
           ) : (
@@ -187,7 +190,7 @@ export function LibraryOverview({ overview }: { overview: Overview }) {
             </h2>
             <ul role="list" className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
               {overview.recent.map((item) => (
-                <RecentCard key={item.id} item={item} onDesktop={onDesktop} />
+                <RecentCard key={item.id} item={item} onDesktop={onDesktop} onView={setViewing} />
               ))}
             </ul>
           </section>
@@ -267,6 +270,8 @@ export function LibraryOverview({ overview }: { overview: Overview }) {
           });
         }}
       />
+
+      <FileViewer item={viewing} onClose={() => setViewing(null)} />
     </div>
   );
 }
@@ -280,6 +285,7 @@ function SubjectTile({
 }) {
   const pct = s.masteryTotal === 0 ? null : Math.round((s.masteryDone / s.masteryTotal) * 100);
   const count = s.files + s.links;
+  const look = subjectStyle(s.name);
   return (
     <li
       onContextMenu={(e) => {
@@ -291,20 +297,26 @@ function SubjectTile({
     >
       <Link
         href={`/resources/${encodeURIComponent(s.name)}`}
-        className="flex h-full flex-col gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
       >
-        <div className="flex items-start gap-3 pr-8">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-400/15">
-            <KindIcon item={{ type: "FOLDER", ext: "" }} size="sm" />
-          </span>
+        <div className={cn("relative grid h-28 place-items-center overflow-hidden", look.classes.tile, look.classes.ink)}>
+          <span aria-hidden className="absolute -top-6 -left-6 size-20 rounded-full bg-white/30 dark:bg-white/5" />
+          <span aria-hidden className="absolute -right-4 -bottom-8 size-24 rounded-full bg-white/25 dark:bg-white/5" />
+          <look.Icon aria-hidden strokeWidth={1.5} className="relative size-12 transition-transform duration-300 group-hover:scale-110 motion-reduce:transition-none" />
+          {count > 0 && (
+            <span className="absolute bottom-2.5 left-3 rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-semibold text-slate-900 dark:bg-black/30 dark:text-white">
+              {count} {count === 1 ? "item" : "items"}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-1 flex-col gap-3 p-4">
           <div className="min-w-0">
-            <p className="line-clamp-2 break-words font-heading text-base font-semibold leading-snug text-foreground">{s.name}</p>
+            <p className="line-clamp-2 break-words font-heading text-base font-bold leading-snug text-foreground transition-colors group-hover:text-primary">{s.name}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {count === 0 ? "No files yet" : `${count} ${count === 1 ? "item" : "items"}`}
+              {count === 0 ? "No files yet" : `${s.files} ${s.files === 1 ? "file" : "files"} · ${s.links} ${s.links === 1 ? "link" : "links"}`}
               {s.folders > 0 ? ` · ${s.folders} ${s.folders === 1 ? "folder" : "folders"}` : ""}
             </p>
           </div>
-        </div>
         <div className="mt-auto space-y-3">
           <p className="text-xs text-muted-foreground">{s.lastAdded ? `Last added ${formatWhen(s.lastAdded)}` : "Nothing added yet"}</p>
           {pct !== null && (
@@ -314,10 +326,11 @@ function SubjectTile({
                 <span className="font-medium tabular-nums">{pct}%</span>
               </div>
               <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${pct}%` }} />
+                <div className={cn("h-full rounded-full transition-[width]", look.classes.bar)} style={{ width: `${pct}%` }} />
               </div>
             </div>
           )}
+        </div>
         </div>
       </Link>
       <button
@@ -328,7 +341,7 @@ function SubjectTile({
           const r = e.currentTarget.getBoundingClientRect();
           onMenu({ x: r.right - 200, y: r.bottom + 4 });
         }}
-        className="absolute right-3 top-3 rounded-lg p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+        className="absolute right-2 top-2 rounded-lg bg-white/60 p-1.5 text-slate-700 opacity-0 transition-opacity hover:bg-white focus-visible:opacity-100 group-hover:opacity-100 dark:bg-black/30 dark:text-white dark:hover:bg-black/50"
       >
         <MoreHorizontal className="size-4" />
       </button>
@@ -371,7 +384,7 @@ function SubjectRows({
               className={cn(cols, "group cursor-pointer rounded-lg px-3 py-1.5 transition-colors hover:bg-muted/60")}
             >
               <div role="cell" className="flex min-w-0 items-center gap-3">
-                <KindIcon item={{ type: "FOLDER", ext: "" }} size="sm" />
+                <SubjectIcon name={s.name} className="size-8 rounded-lg" iconClassName="!size-4" />
                 <span className="truncate font-medium text-foreground">{s.name}</span>
                 <ChevronRight className="size-3.5 text-muted-foreground/50" />
               </div>
@@ -384,7 +397,7 @@ function SubjectRows({
                 ) : (
                   <>
                     <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                      <div className={cn("h-full rounded-full", subjectStyle(s.name).classes.bar)} style={{ width: `${pct}%` }} />
                     </div>
                     <span className="w-8 text-right text-xs tabular-nums text-muted-foreground">{pct}%</span>
                   </>
@@ -398,13 +411,20 @@ function SubjectRows({
   );
 }
 
-function RecentCard({ item, onDesktop }: { item: ResourceItem; onDesktop: boolean }) {
+function RecentCard({ item, onDesktop, onView }: { item: ResourceItem; onDesktop: boolean; onView: (item: ResourceItem) => void }) {
   const href = `/resources/${encodeURIComponent(item.subject)}${item.folder ? `?path=${encodeURIComponent(item.folder)}` : ""}`;
   const unavailable = item.type === "FILE" && item.inLibrary && !onDesktop;
+  const viewable = item.type === "FILE" && !unavailable;
   return (
     <li>
       <Link
         href={href}
+        onClick={(e) => {
+          // A file opens in the viewer; a link or a desktop-only file still goes to its folder.
+          if (!viewable || e.ctrlKey || e.metaKey || e.shiftKey) return;
+          e.preventDefault();
+          onView(item);
+        }}
         className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm transition-shadow hover:shadow-md"
         title={unavailable ? "Stored in the library folder on your desktop" : undefined}
       >

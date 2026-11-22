@@ -362,7 +362,7 @@ function TimelineItem({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
-                    {!task.isMissed && !isActiveSession && (
+                    {!isActiveSession && (
                       <DropdownMenuItem onSelect={onEditProof}>
                         <FileEdit /> {hasProof ? 'Edit proof' : 'Add proof'}
                       </DropdownMenuItem>

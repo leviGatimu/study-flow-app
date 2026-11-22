@@ -23,6 +23,25 @@ export type ArchiveView = {
 
 const ArchiveContext = createContext<ArchiveView>(null);
 
+/**
+ * A mentor looking at a student's account (lib/auth.ts). Read-only like an
+ * archive, so every control that hides itself for an archive hides itself
+ * for a mentor too - the server refuses the writes either way
+ * (lib/mentor-guard.ts); this only stops the UI offering them.
+ */
+export type MentorView = { username: string; studentName: string } | null;
+
+const MentorContext = createContext<MentorView>(null);
+
+export function MentorProvider({ value, children }: { value: MentorView; children: React.ReactNode }) {
+  return <MentorContext.Provider value={value}>{children}</MentorContext.Provider>;
+}
+
+/** The mentor viewing this account, or null for the student themselves. */
+export function useMentor(): MentorView {
+  return useContext(MentorContext);
+}
+
 export function ArchiveProvider({
   value,
   children,
@@ -40,7 +59,8 @@ export function useArchive(): ArchiveView {
 
 /** True while a finished year is open. */
 export function useIsArchived(): boolean {
-  return useContext(ArchiveContext) !== null;
+  const mentor = useContext(MentorContext);
+  return useContext(ArchiveContext) !== null || mentor !== null;
 }
 
 /**
@@ -50,6 +70,8 @@ export function useIsArchived(): boolean {
  */
 export function useArchiveReason(): string | null {
   const archive = useContext(ArchiveContext);
+  const mentor = useContext(MentorContext);
+  if (mentor) return "Mentor access is read-only.";
   if (!archive) return null;
   return archive.activeLabel
     ? `${archive.label} is an archive. Go back to ${archive.activeLabel} to make changes.`
@@ -71,5 +93,6 @@ export function ArchiveGate({
   fallback?: React.ReactNode;
 }) {
   const archive = useContext(ArchiveContext);
-  return <>{archive ? fallback : children}</>;
+  const mentor = useContext(MentorContext);
+  return <>{archive || mentor ? fallback : children}</>;
 }

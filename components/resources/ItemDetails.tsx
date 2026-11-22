@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   ExternalLink,
+  Eye,
   FolderOpen,
   FolderSymlink,
   Pencil,
@@ -138,7 +139,7 @@ export function ItemDetails({
           </Button>
         ) : (
           <Button onClick={onOpen} className="col-span-2" disabled={onlyOnDesktop} title={onlyOnDesktop ? "This file lives on your desktop computer" : undefined}>
-            <ExternalLink /> {isLink ? `Open ${hostOf(item.url)}` : onlyOnDesktop ? "Only on your desktop" : "Open"}
+            {isLink ? <ExternalLink /> : <Eye />} {isLink ? `Open ${hostOf(item.url)}` : onlyOnDesktop ? "Only on your desktop" : "Open"}
           </Button>
         )}
         {isFolder && onDesktop && onOpenFolder && (

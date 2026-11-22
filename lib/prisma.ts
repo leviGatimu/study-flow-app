@@ -2,6 +2,7 @@ import { PrismaClient, Prisma } from '../node_modules/.prisma/client-custom-v8';
 import { softDeleteExtension, tombstoneModels } from './soft-delete';
 import { syncStampExtension } from './sync/stamp';
 import { connectionRetryExtension } from './db-retry';
+import { mentorGuardExtension } from './mentor-guard';
 
 /**
  * How many pooler slots one serverless instance is allowed to hold.
@@ -99,6 +100,8 @@ export const IS_SQLITE = (process.env.DATABASE_URL ?? '').startsWith('file:');
 export const prisma = base
   .$extends(syncStampExtension(!IS_SQLITE))
   .$extends(softDeleteExtension())
+  // Website only: mentors sign in there, never on a desktop (lib/mentor-guard.ts).
+  .$extends(mentorGuardExtension(!IS_SQLITE))
   .$extends(connectionRetryExtension());
 
 /**

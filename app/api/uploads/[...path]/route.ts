@@ -1,18 +1,16 @@
 import { getUserId, userIdFromBearer } from '@/lib/auth';
-import { resolveUploadPath, readRemoteUpload } from '@/lib/upload';
-import { mimeFor, serveLocalFile } from '@/lib/serve-file';
+import { resolveUploadPath, signedDownloadUrl, usesRemoteStorage } from '@/lib/upload';
+import { serveLocalFile } from '@/lib/serve-file';
 import { ownsUpload } from '@/lib/file-access';
 
 /**
  * Serve a locally-stored upload. Reached as /uploads/<name>: proxy.ts rewrites
  * every such URL here, so a copy in public/uploads is never served statically.
  *
- * On the web build, uploads sit in public/uploads and Next serves them as
- * static assets before this route is ever consulted - or they live in Supabase
- * Storage and are fetched from an absolute URL, so this route is not involved
- * at all. It exists for the desktop build, where uploads had to move out of the
- * application directory (an auto-update deletes that) into userData, which
- * puts them outside public/ and therefore out of reach of static serving.
+ * On the desktop, uploads sit in userData (an auto-update deletes the
+ * application directory), outside public/, so they are streamed from here.
+ * On the website with the Supabase bucket configured, the bytes are in the
+ * bucket and this route answers with a short-lived signed link to them.
  *
  * Reads are authenticated: these are the user's own PDFs, proofs of work and
  * report cards, and on the web build the same files would otherwise be
@@ -42,17 +40,19 @@ export async function GET(
   if (!(await ownsUpload(userId, name))) return new Response('Not found', { status: 404 });
 
   // Object storage (the web build, once configured) holds the bytes remotely.
-  const remote = await readRemoteUpload(name);
-  if (remote) {
-    return new Response(remote.body, {
-      headers: {
-        'Content-Type': remote.contentType ?? mimeFor(name),
-        'Content-Length': String(remote.body.byteLength),
-        'Cache-Control': 'private, max-age=31536000, immutable',
-        'Content-Disposition': 'inline',
-        'X-Content-Type-Options': 'nosniff',
-      },
-    });
+  // Answer with a 60-second signed link instead of the bytes: Vercel refuses
+  // function responses over about 4.5 MB, which most slide decks are.
+  if (usesRemoteStorage()) {
+    const download = new URL(request.url).searchParams.get('download') === '1';
+    const signed = await signedDownloadUrl(name, download ? name : undefined);
+    if (signed) {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: signed, 'Cache-Control': 'private, no-store' },
+      });
+    }
+    // Not in the bucket: a record made before storage was switched on may
+    // still have its file on this disk, so fall through.
   }
 
   // resolveUploadPath rejects anything that escapes the uploads directory.

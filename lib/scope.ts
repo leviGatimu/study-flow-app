@@ -3,6 +3,7 @@ import { cache } from 'react';
 import { cookies } from 'next/headers';
 
 import { prisma } from '@/lib/prisma';
+import { isMentorAction, MENTOR_READ_ONLY_ERROR } from '@/lib/mentor-guard';
 
 /**
  * Which academic year the app is showing right now.
@@ -135,6 +136,9 @@ export const ARCHIVE_WRITE_ERROR =
  * behind it, because hidden is not the same as prevented.
  */
 export async function requireWritableScope(userId: string): Promise<ClassScope | null> {
+  // A mentor's actions are refused here with a readable message, before the
+  // database guard (lib/mentor-guard.ts) would refuse the write itself.
+  if (await isMentorAction()) throw new Error(MENTOR_READ_ONLY_ERROR);
   const scope = await getViewScope(userId);
   if (scope?.isArchive) {
     throw new Error(ARCHIVE_WRITE_ERROR);
@@ -161,6 +165,8 @@ export async function assertWritableScope(userId: string): Promise<void> {
 
 /** True while a finished year is open for browsing. */
 export async function isViewingArchive(userId: string): Promise<boolean> {
+  // Callers return ARCHIVE_WRITE_ERROR on true; for a mentor, "read-only" is the truth either way.
+  if (await isMentorAction()) return true;
   const scope = await getViewScope(userId);
   return scope?.isArchive ?? false;
 }

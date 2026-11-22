@@ -1,21 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { Brain, Edit3, MessageCircle, MoreHorizontal, Timer, Trash2 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/ui/page-header";
 import { PageBody } from "@/components/ui/page";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { AiLogo } from "@/components/ai/AiLogo";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { FilesPanel, MarksPanel, SubjectStats, SyllabusPanel, UpNextPanel } from "./SubjectPanels";
+import { SubjectHero } from "./SubjectHero";
 import { SubjectBuddy, buddyGreeting, type BuddyMessage } from "./SubjectBuddy";
 import type {
   ExamEvent,
@@ -68,50 +59,18 @@ export function SubjectDetail({
 
   return (
     <>
-      <PageHeader
-        back={{ onClick: onBack, label: "All subjects" }}
-        title={subject.name}
-        description="What is due, your files, marks and syllabus for this subject."
-        actions={
-          <>
-            <Button asChild size="lg">
-              <Link href={`/focus?subject=${encodeURIComponent(subject.name)}`}>
-                <Timer />
-                Focus
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link href={`/ai/practices?subject=${encodeURIComponent(subject.name)}`}>
-                <Brain />
-                Practice
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" onClick={() => setAskOpen(true)}>
-              <MessageCircle />
-              Ask
-            </Button>
-            {!archived && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon-lg" aria-label={`Options for ${subject.name}`}>
-                    <MoreHorizontal />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={onRename}>
-                    <Edit3 /> Rename
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={onDelete}
-                    className="text-destructive focus:text-destructive [&_svg]:text-destructive"
-                  >
-                    <Trash2 /> Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </>
-        }
+      <SubjectHero
+        subject={subject}
+        homeworks={homeworks}
+        exams={exams}
+        fileCount={resources.length}
+        chartData={chartData}
+        goal={goal}
+        archived={archived}
+        onBack={onBack}
+        onAsk={() => setAskOpen(true)}
+        onRename={onRename}
+        onDelete={onDelete}
       />
 
       <PageBody>

@@ -22,6 +22,7 @@ model User {
   sessionVersion  Int                @default(0)
   currentTerm     String             @default("Term 1")
   createdAt       DateTime           @default(now())
+  mentorAccesses  MentorAccess[]     @relation("MentorAccessStudent")
   templates       ScheduleTemplate[]
   tasks           Task[]
   resources       Resource[]
@@ -1027,4 +1028,24 @@ model AuthThrottle {
   windowStart DateTime  @default(now())
   lockedUntil DateTime?
   updatedAt   DateTime  @updatedAt
+}
+
+/// A read-only sign-in a student makes for their mentor. Signing in with it
+/// opens the STUDENT's Study Flow with every write refused (lib/mentor.ts).
+/// Server-only: LOCAL_ONLY in lib/sync/identity.ts, so it never syncs.
+model MentorAccess {
+  id           String    @id @default(cuid())
+  studentId    String
+  student      User      @relation("MentorAccessStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  /// Unique across mentors; sign-up and mentor creation also check User.username.
+  username     String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  /// Set when the student turns access off. A revoked mentor is signed out on their next request.
+  revokedAt    DateTime?
+  lastSeenAt   DateTime?
+  /// Set when the student's account is deleted (the soft-delete cascade from User).
+  deletedAt    DateTime?
+
+  @@index([studentId])
 }
