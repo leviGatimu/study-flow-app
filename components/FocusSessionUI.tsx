@@ -8,13 +8,13 @@ import {
   Play, Pause, Flame, Zap, CheckCircle2,
   ArrowLeft, ListTodo, BookOpen, Plus,
   Clock, ChevronRight, Paperclip, Send, X,
-  Music, SkipForward, SkipBack, Eye, EyeOff, Info,
+  Music, SkipForward, SkipBack, Info,
   Shuffle, Repeat, Repeat1, ListMusic, Disc3, Timer,
   Upload, Trash2, ImagePlus, Loader2,
-  Droplets, PersonStanding, Coffee, CalendarClock, ScrollText, GraduationCap,
+  Droplets, PersonStanding, Coffee, CalendarClock, ScrollText,
   ListPlus, Pencil, Check, FolderPlus, RotateCcw,
   Search, Globe, WifiOff, Settings, Palette, ImageIcon, Sparkles,
-  Infinity as InfinityIcon, CalendarDays,
+  Infinity as InfinityIcon, CalendarDays, FolderOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,7 +29,8 @@ import { useFocus } from '@/lib/FocusContext';
 import { FluidGradient } from '@/components/focus/FluidGradient';
 import { LyricsPanel } from '@/components/focus/LyricsPanel';
 import { useMusicPlayer, DEFAULT_PALETTE } from '@/components/focus/useMusicPlayer';
-import { FlowAIPanel } from '@/components/focus/FlowAIPanel';
+import { FocusRing } from '@/components/focus/FocusRing';
+import { CLOCK_FONTS, CLOCK_FONT_KEY, clockFontClass, isClockFontId, type ClockFontId } from '@/components/focus/clock-fonts';
 import { searchOnlineSongs, getTrendingOnlineSongs, type OnlineTrack } from '@/lib/online-music';
 import { fallbackPalette } from '@/lib/palette';
 
@@ -47,10 +48,24 @@ const INTENSE_PALETTE = ['#7c2d12', '#451a03', '#f97316', '#1c1917'];
 const DEFAULT_CUSTOM_PALETTE = ['#1e1b4b', '#312e81', '#7c3aed', '#0b1020'];
 const PRESET_BG_PALETTES: { name: string; colors: string[] }[] = [
   { name: 'Midnight', colors: ['#1e1b4b', '#312e81', '#7c3aed', '#0b1020'] },
-  { name: 'Ember', colors: ['#7c2d12', '#9a3412', '#f97316', '#1c1917'] },
+  { name: 'Aurora', colors: ['#064e3b', '#1e3a8a', '#34d399', '#020617'] },
   { name: 'Ocean', colors: ['#0c4a6e', '#0e7490', '#22d3ee', '#082f49'] },
+  { name: 'Lagoon', colors: ['#134e4a', '#0f766e', '#5eead4', '#042f2e'] },
   { name: 'Forest', colors: ['#14532d', '#166534', '#84cc16', '#052e16'] },
+  { name: 'Matcha', colors: ['#3f6212', '#4d7c0f', '#bef264', '#1a2e05'] },
+  { name: 'Sunset', colors: ['#9a3412', '#be185d', '#fb923c', '#1c0a12'] },
+  { name: 'Ember', colors: ['#7c2d12', '#9a3412', '#f97316', '#1c1917'] },
+  { name: 'Honey', colors: ['#78350f', '#a16207', '#facc15', '#1c1208'] },
   { name: 'Rose', colors: ['#831843', '#9d174d', '#fb7185', '#1a0a12'] },
+  { name: 'Peach', colors: ['#9f1239', '#c2410c', '#fdba74', '#1f0a0a'] },
+  { name: 'Candy', colors: ['#86198f', '#be185d', '#f0abfc', '#1a0520'] },
+  { name: 'Lavender', colors: ['#4c1d95', '#6d28d9', '#c4b5fd', '#120a24'] },
+  { name: 'Grape', colors: ['#581c87', '#701a75', '#e879f9', '#13051c'] },
+  { name: 'Sky', colors: ['#1e3a8a', '#0369a1', '#7dd3fc', '#0a1128'] },
+  { name: 'Cobalt', colors: ['#1e40af', '#1d4ed8', '#60a5fa', '#050b1f'] },
+  { name: 'Wine', colors: ['#4c0519', '#7f1d1d', '#f43f5e', '#0f0306'] },
+  { name: 'Coffee', colors: ['#44260f', '#6b3e1e', '#d6a77a', '#140a04'] },
+  { name: 'Slate', colors: ['#1e293b', '#334155', '#94a3b8', '#020617'] },
   { name: 'Mono', colors: ['#27272a', '#3f3f46', '#a1a1aa', '#09090b'] },
 ];
 
@@ -72,6 +87,18 @@ const STRETCH_INTERVAL_MIN = 45;
 
 
 type Reminder = 'WATER' | 'STRETCH';
+
+/** The lightest colour in a palette, lifted if it is still too dark to see. */
+function brightestColour(colors: string[]): string {
+  const lum = (hex: string) => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+    if (!m) return 0;
+    const n = parseInt(m[1], 16);
+    return 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
+  };
+  const best = [...colors].sort((a, b) => lum(b) - lum(a))[0] ?? '#ffffff';
+  return lum(best) < 110 ? `color-mix(in srgb, ${best} 45%, white)` : best;
+}
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
@@ -127,6 +154,47 @@ function Field({ label, hint, children }: { label: string; hint?: React.ReactNod
   );
 }
 
+/** One round button in the focus toolbar. `active` shows a pressed state. */
+function BarButton({
+  title,
+  active,
+  tone,
+  size = 'bar',
+  onClick,
+  children,
+}: {
+  title: string;
+  active?: boolean;
+  tone?: 'ember';
+  size?: 'bar' | 'dock';
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        'grid shrink-0 place-items-center text-white/65 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40',
+        size === 'dock' ? 'size-12 rounded-[22px] [&_svg]:size-5' : 'size-9 rounded-full [&_svg]:size-[18px]',
+        active && (tone === 'ember' ? 'bg-orange-500/25 text-orange-300 hover:bg-orange-500/30 hover:text-orange-200' : 'bg-white/15 text-white')
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** A tool in the bottom dock: bigger than the top-bar buttons, same behaviour. */
+function DockButton(props: React.ComponentProps<typeof BarButton>) {
+  return (
+    <BarButton {...props} size="dock" />
+  );
+}
+
 /** Today's date and the time, for the top bar. Renders after mount so the
  * server and the browser never disagree about the minute. */
 function NowClock({ className }: { className?: string }) {
@@ -143,7 +211,7 @@ function NowClock({ className }: { className?: string }) {
   if (!now) return null;
   return (
     <div className={className}>
-      <CalendarDays className="w-4 h-4 text-white/50" />
+      <CalendarDays className="size-4 text-white/45" />
       <span>{now.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}</span>
       <span className="text-white/30">·</span>
       <span>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -191,9 +259,10 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
   // "No limit": run until the student ends it rather than for a set length.
   const [noLimit, setNoLimit] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [isZenMode, setIsZenMode] = useState(false);
+  const [showSessionPanel, setShowSessionPanel] = useState(false);
+  const [addingGoal, setAddingGoal] = useState(false);
+  const [clockFont, setClockFont] = useState<ClockFontId>('BOLD');
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [showFlowAI, setShowFlowAI] = useState(false);
   // Playlist management (library slide-over)
   const [newPlaylistOpen, setNewPlaylistOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
@@ -292,6 +361,8 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
     : isIntense
     ? INTENSE_PALETTE
     : basePalette;
+  // The ring needs a colour that shows up on the dark room: the brightest of the scene.
+  const ringAccent = brightestColour(scenePalette);
 
   // Restore the user's preferred break rhythm.
   useEffect(() => {
@@ -371,12 +442,19 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
       }
       const photo = localStorage.getItem('study-flow-bg-photo');
       if (photo) setBgPhoto(photo);
+      const font = localStorage.getItem(CLOCK_FONT_KEY);
+      if (isClockFontId(font)) setClockFont(font);
       const reminders = localStorage.getItem('study-flow-reminders-on');
       if (reminders === 'false') setRemindersOn(false);
     } catch {
       // Ignore corrupt preferences.
     }
   }, []);
+
+  const chooseClockFont = (id: ClockFontId) => {
+    setClockFont(id);
+    try { localStorage.setItem(CLOCK_FONT_KEY, id); } catch {}
+  };
 
   const chooseBgMode = (mode: BgMode) => {
     setBgMode(mode);
@@ -603,9 +681,9 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
             pauseFocus();
           }
           break;
-        case 'KeyZ':
+        case 'KeyD':
           e.preventDefault();
-          setIsZenMode(prev => !prev);
+          setShowSessionPanel(prev => !prev);
           break;
         case 'KeyM':
           e.preventDefault();
@@ -618,10 +696,6 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
         case 'KeyV':
           e.preventDefault();
           setViewMode(prev => (prev === 'TIMER' ? 'SONG' : 'TIMER'));
-          break;
-        case 'KeyP':
-          e.preventDefault();
-          setShowFlowAI(prev => !prev);
           break;
         case 'ArrowRight':
           e.preventDefault();
@@ -702,7 +776,6 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
     : totalDurationSeconds > 0
     ? Math.min(1, Math.max(0, elapsedSeconds / totalDurationSeconds))
     : 0;
-  const elapsedPercent = Math.round(elapsedFraction * 100);
 
   // Today's still-pending sessions that start after the current task.
   const nextSessions = upcomingTasks
@@ -899,6 +972,18 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
             className="absolute inset-0 overflow-hidden"
           />
         )}
+        {/* Music view: the cover, blurred, fills the room */}
+        {viewMode === 'SONG' && currentSong?.coverUrl && bgMode !== 'PHOTO' && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={currentSong.coverUrl}
+            alt=""
+            aria-hidden
+            className="pointer-events-none absolute inset-0 size-full scale-125 object-cover opacity-45"
+            style={{ filter: 'blur(70px) saturate(1.3)' }}
+          />
+        )}
+
         {/* Readability veil */}
         <div className="absolute inset-0 bg-black/25 pointer-events-none" />
 
@@ -938,7 +1023,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                   : <PersonStanding className="w-6 h-6 text-white" />}
               </div>
               <div className="pr-2">
-                <p className="text-sm font-black leading-tight">
+                <p className="text-sm font-semibold leading-tight">
                   {activeReminder === 'WATER' ? 'Have some water' : 'Time to stretch'}
                 </p>
                 <p className="text-xs font-semibold text-white/55 leading-tight mt-0.5">
@@ -969,24 +1054,24 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
               className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-8 bg-black/30 backdrop-blur-md"
             >
               <div
-                className="w-24 h-24 rounded-[32px] flex items-center justify-center shadow-2xl"
+                className="w-24 h-24 rounded-3xl flex items-center justify-center shadow-2xl"
                 style={{ background: `linear-gradient(135deg, ${BREAK_PALETTE[0]}, ${BREAK_PALETTE[1]})` }}
               >
                 <Coffee className="w-12 h-12 text-white" />
               </div>
               <div className="text-center space-y-3">
-                <h2 className="text-5xl md:text-6xl font-heading font-black tracking-tight drop-shadow-xl">Break</h2>
+                <h2 className="text-5xl md:text-6xl font-heading font-semibold tracking-tight drop-shadow-xl">Break</h2>
                 <p className="text-base font-bold text-white/60">
                   Stand up, look away from the screen, have some water.
                 </p>
               </div>
               <div className="flex flex-col items-center gap-2">
-                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-white/40">Back to work in</p>
-                <p className="text-6xl font-heading font-black tabular-nums drop-shadow-xl" style={{ color: BREAK_PALETTE[2] }}>
+                <p className="text-[11px] font-semibold text-white/40">Back to work in</p>
+                <p className="text-6xl font-heading font-semibold tabular-nums drop-shadow-xl" style={{ color: BREAK_PALETTE[2] }}>
                   {formatTime(breakRemainingSeconds)}
                 </p>
               </div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">
+              <p className="text-xs font-bold text-white/30">
                 The session timer keeps running. Music is turned down.
               </p>
             </motion.div>
@@ -1000,155 +1085,67 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-4 z-50 rounded-[40px] border-2 border-dashed border-white/50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center gap-4 pointer-events-none"
+              className="absolute inset-4 z-50 rounded-3xl border-2 border-dashed border-white/50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center gap-4 pointer-events-none"
             >
               <Upload className="w-16 h-16 text-white/80" />
-              <p className="text-2xl font-heading font-black">Drop songs to add them to your music</p>
+              <p className="text-2xl font-heading font-semibold">Drop songs to add them to your music</p>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Top Ribbon Controls */}
-        <div className="py-4 px-8 flex items-center justify-between relative z-20 shrink-0">
-          <div className="flex items-center gap-4">
-             <div className="flex items-center gap-3 px-5 py-2 bg-white/5 border border-white/10 rounded-full backdrop-blur-xl shadow-inner">
-               <Flame className="w-5 h-5 text-orange-500 fill-orange-500 animate-pulse" />
-               <span className="font-black text-lg tabular-nums tracking-tight">{sessionXP} XP</span>
-             </div>
-             <NowClock className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full backdrop-blur-xl text-sm font-bold text-white/80 tabular-nums" />
+        {/* Top bar: leave + session facts on the left, a few window controls on the right. */}
+        <div className="relative z-20 flex shrink-0 items-center justify-between gap-3 px-4 py-4 md:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <Link
+              href="/"
+              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-black/25 pl-3 pr-4 text-sm font-medium text-white/80 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            >
+              <ArrowLeft className="size-4" /> Leave
+            </Link>
+            <div className="hidden h-10 items-center gap-3 rounded-full border border-white/10 bg-black/25 px-4 text-sm text-white/70 backdrop-blur-xl md:flex">
+              <span className="inline-flex items-center gap-1.5 font-semibold tabular-nums text-white">
+                <Flame className={cn('size-4 text-orange-400', isIntense && 'fill-orange-400')} /> {sessionXP} XP
+              </span>
+              <span aria-hidden className="h-4 w-px bg-white/15" />
+              <NowClock className="flex items-center gap-2 tabular-nums" />
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Widget Mode Button (Electron only) */}
+          {viewMode === 'SONG' && (
+            <button
+              type="button"
+              onClick={() => setViewMode('TIMER')}
+              title="Back to the timer (V)"
+              className="hidden h-10 items-center gap-2 rounded-full border border-white/10 bg-black/25 px-4 text-sm backdrop-blur-xl transition-colors hover:bg-white/10 sm:inline-flex"
+            >
+              <span className={cn('size-1.5 rounded-full', isPaused ? 'bg-amber-400' : 'bg-emerald-400 motion-safe:animate-pulse')} />
+              <span className="font-semibold tabular-nums">
+                {timeLeft.h > 0 && `${timeLeft.h}:`}{String(timeLeft.m).padStart(2, '0')}:{String(timeLeft.s).padStart(2, '0')}
+              </span>
+              <span className="max-w-[10rem] truncate text-white/60">{task.subject}</span>
+            </button>
+          )}
+
+          <div className="flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-black/25 p-1 backdrop-blur-xl">
             {typeof window !== 'undefined' && 'electron' in window && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="w-12 h-12 rounded-2xl border bg-white/5 border-white/10 hover:bg-white/10 text-white transition-all duration-300"
+              <BarButton
+                title="Small always-on-top window"
                 onClick={() => {
                   (window as any).electron.send('enter-widget', { taskId: task.id });
                 }}
-                title="Small always-on-top window"
               >
-                <Minimize2 className="w-5 h-5 text-white/80" />
-              </Button>
+                <Minimize2 />
+              </BarButton>
             )}
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "w-12 h-12 rounded-2xl border transition-all duration-300",
-                showKeybindsInfo ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
-              )}
-              onClick={() => setShowKeybindsInfo(!showKeybindsInfo)}
-              title="Keyboard shortcuts"
-            >
-              <Info className="w-5 h-5" />
-            </Button>
-
-            {/* Focus settings (background, timer style, breaks, reminders) */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "w-12 h-12 rounded-2xl border transition-all duration-300",
-                showSettings ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
-              )}
-              onClick={() => setShowSettings(true)}
-              title="Focus settings"
-            >
-              <Settings className="w-5 h-5" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "w-12 h-12 rounded-2xl border transition-all duration-300",
-                isZenMode ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
-              )}
-              onClick={() => setIsZenMode(!isZenMode)}
-              title={isZenMode ? "Show side panels (Z)" : "Hide side panels (Z)"}
-            >
-              {isZenMode ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-            </Button>
-
-            {/* Flow AI study workspace */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "w-12 h-12 rounded-2xl border transition-all duration-300",
-                showFlowAI ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
-              )}
-              onClick={() => setShowFlowAI(prev => !prev)}
-              title="Study tools: notes, a tutor and flashcards from your material (P)"
-            >
-              <GraduationCap className="w-5 h-5" />
-            </Button>
-
-            {/* Song / Timer view toggle */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "w-12 h-12 rounded-2xl border transition-all duration-300",
-                viewMode === 'SONG' ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
-              )}
-              onClick={() => setViewMode(viewMode === 'TIMER' ? 'SONG' : 'TIMER')}
-              title={viewMode === 'TIMER' ? 'Music view (V)' : 'Timer view (V)'}
-            >
-              {viewMode === 'TIMER' ? <Disc3 className="w-5 h-5" /> : <Timer className="w-5 h-5" />}
-            </Button>
-
-            {/* Music library */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "w-12 h-12 rounded-2xl border transition-all duration-300",
-                isLibraryOpen ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
-              )}
-              onClick={() => setIsLibraryOpen(!isLibraryOpen)}
-              title="Your music"
-            >
-              <ListMusic className="w-5 h-5" />
-            </Button>
-
-            <div className="h-6 w-px bg-white/10 mx-1" />
-
-            <Link href="/">
-              <Button variant="ghost" size="icon" className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white" title="Leave">
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-            </Link>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("w-12 h-12 rounded-2xl border transition-all duration-500", intensity === 'INTENSE' ? "bg-orange-500/20 border-orange-500/40 text-orange-500" : "bg-white/5 border-white/10 hover:bg-white/10 text-white")}
-              onClick={() => setIntensity(intensity === 'INTENSE' ? 'CHILL' : 'INTENSE')}
-              title={intensity === 'INTENSE' ? 'Switch to normal focus' : 'Switch to deep focus (double XP)'}
-            >
-              <Zap className="w-5 h-5" />
-            </Button>
-
-            <Button variant="ghost" size="icon" className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white" onClick={toggleFullscreen}>
-              <Maximize2 className="w-5 h-5" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "w-12 h-12 rounded-2xl border transition-all",
-                isPaused ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/30" : "bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20"
-              )}
-              onClick={() => isPaused ? resumeFocus() : pauseFocus()}
-            >
-              {isPaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
-            </Button>
+            <BarButton title="Keyboard shortcuts" active={showKeybindsInfo} onClick={() => setShowKeybindsInfo(!showKeybindsInfo)}>
+              <Info />
+            </BarButton>
+            <BarButton title="Focus settings" active={showSettings} onClick={() => setShowSettings(true)}>
+              <Settings />
+            </BarButton>
+            <BarButton title="Full screen (F)" onClick={toggleFullscreen}>
+              <Maximize2 />
+            </BarButton>
           </div>
         </div>
 
@@ -1189,7 +1186,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     <div className="w-10 h-10 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
                       <Settings className="w-5 h-5 text-primary" />
                     </div>
-                    <h3 className="text-lg font-heading font-black tracking-tight">Focus settings</h3>
+                    <h3 className="text-lg font-heading font-semibold tracking-tight">Focus settings</h3>
                   </div>
                   <Button
                     variant="ghost" size="icon"
@@ -1203,7 +1200,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
                   {/* ---- Background ---- */}
                   <section className="space-y-4">
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-white/40 flex items-center gap-2">
+                    <h4 className="text-xs font-semibold text-white/40 flex items-center gap-2">
                       <Palette className="w-3.5 h-3.5" /> Background
                     </h4>
                     <div className="grid grid-cols-3 gap-2">
@@ -1218,7 +1215,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                           className={cn(
                             'flex flex-col items-center gap-2 py-3 rounded-2xl border-2 transition-all font-bold text-xs',
                             bgMode === id
-                              ? 'bg-primary/15 border-primary text-white'
+                              ? 'bg-white/10 border-white/60 text-white'
                               : 'bg-white/5 border-white/10 text-white/50 hover:border-white/25'
                           )}
                         >
@@ -1256,28 +1253,41 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                           >
                             <ImageIcon className="w-7 h-7 text-white/40" />
                             <span className="text-xs font-bold text-white/60">Upload a background photo</span>
-                            <span className="text-[10px] font-semibold text-white/30">Shown slightly blurred so the timer stays readable</span>
+                            <span className="text-xs font-semibold text-white/30">Shown slightly blurred so the timer stays readable</span>
                           </button>
                         )}
                       </div>
                     )}
 
-                    {bgMode === 'CUSTOM' && (
-                      <div className="space-y-4">
-                        <div className="flex flex-wrap gap-2">
-                          {PRESET_BG_PALETTES.map((p) => (
+                    {bgMode !== 'PHOTO' && (
+                      <div className="grid grid-cols-5 gap-x-2 gap-y-3">
+                        {PRESET_BG_PALETTES.map((p) => {
+                          const selected = bgMode === 'CUSTOM' && p.colors.every((c, i) => customPalette[i] === c);
+                          return (
                             <button
                               key={p.name}
+                              type="button"
                               onClick={() => applyPresetPalette(p.colors)}
-                              title={p.name}
-                              className="h-9 w-14 rounded-xl border border-white/15 overflow-hidden flex hover:scale-105 transition-transform"
+                              aria-pressed={selected}
+                              className="group flex flex-col items-center gap-1.5 focus-visible:outline-none"
                             >
-                              {p.colors.map((c, i) => (
-                                <span key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
-                              ))}
+                              <span
+                                className={cn(
+                                  'size-11 rounded-full ring-2 ring-offset-2 ring-offset-zinc-950 transition-transform group-hover:scale-105 group-focus-visible:ring-white/60',
+                                  selected ? 'ring-white' : 'ring-transparent'
+                                )}
+                                style={{ background: `radial-gradient(circle at 30% 25%, ${p.colors[2]}, ${p.colors[1]} 45%, ${p.colors[0]} 70%, ${p.colors[3]})` }}
+                              />
+                              <span className={cn('text-[11px]', selected ? 'text-white' : 'text-white/50')}>{p.name}</span>
                             </button>
-                          ))}
-                        </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {bgMode === 'CUSTOM' && (
+                      <div className="space-y-4">
+                        <p className="text-xs text-white/45">Or mix your own:</p>
                         <div className="grid grid-cols-4 gap-3">
                           {[0, 1, 2, 3].map((i) => (
                             <label key={i} className="flex flex-col items-center gap-1.5 cursor-pointer">
@@ -1292,7 +1302,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                                   className="absolute inset-0 opacity-0 cursor-pointer"
                                 />
                               </span>
-                              <span className="text-[9px] font-bold text-white/30 uppercase tracking-wider">
+                              <span className="text-[11px] font-bold text-white/30">
                                 {i === 0 ? 'Base' : i === 3 ? 'Deep' : `Tone ${i}`}
                               </span>
                             </label>
@@ -1302,9 +1312,33 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     )}
                   </section>
 
+                  {/* ---- Clock font ---- */}
+                  <section className="space-y-3">
+                    <h4 className="text-sm font-semibold text-white/85 flex items-center gap-2">
+                      <Timer className="size-4 text-white/45" /> Clock
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {CLOCK_FONTS.map((f) => (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => chooseClockFont(f.id)}
+                          aria-pressed={clockFont === f.id}
+                          className={cn(
+                            'flex flex-col items-center gap-1 rounded-2xl border py-3 transition-colors',
+                            clockFont === f.id ? 'border-white/60 bg-white/10' : 'border-white/10 bg-white/[0.04] hover:bg-white/10'
+                          )}
+                        >
+                          <span className={cn('text-2xl leading-none text-white', f.className)}>25:00</span>
+                          <span className="text-xs text-white/55">{f.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+
                   {/* ---- Break Cycle ---- */}
                   <section className="space-y-4">
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-white/40 flex items-center gap-2">
+                    <h4 className="text-xs font-semibold text-white/40 flex items-center gap-2">
                       <Coffee className="w-3.5 h-3.5" /> Breaks
                     </h4>
                     <div className="grid grid-cols-3 gap-2">
@@ -1317,7 +1351,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                             className={cn(
                               'py-2.5 rounded-xl border-2 transition-all font-bold text-xs',
                               selected
-                                ? 'bg-primary/15 border-primary text-white'
+                                ? 'bg-white/10 border-white/60 text-white'
                                 : 'bg-white/5 border-white/10 text-white/50 hover:border-white/25'
                             )}
                           >
@@ -1332,7 +1366,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                   <section className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="space-y-1 pr-4">
-                        <h4 className="text-sm font-black text-white flex items-center gap-2">
+                        <h4 className="text-sm font-semibold text-white flex items-center gap-2">
                           <Droplets className="w-4 h-4 text-cyan-400" /> Water and stretch reminders
                         </h4>
                         <p className="text-[11px] font-semibold text-white/40 leading-relaxed">
@@ -1349,528 +1383,395 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
         </AnimatePresence>
 
         {/* ============ WORKSPACE ============ */}
-        {showFlowAI ? (
-          /* ---------- FLOW AI WORKSPACE ---------- */
-          <FlowAIPanel
-            subject={task.subject}
-            timerLabel={`${timeLeft.h > 0 ? `${timeLeft.h}:` : ''}${timeLeft.m.toString().padStart(2, '0')}:${timeLeft.s.toString().padStart(2, '0')}`}
-            onClose={() => setShowFlowAI(false)}
-          />
-        ) : viewMode === 'TIMER' ? (
-          /* ---------- TIMER VIEW ---------- */
-          <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-24 px-8 md:px-16 relative z-10 overflow-y-auto pb-16">
-            <AnimatePresence>
-              {!isZenMode && (
-                <motion.div
-                  initial={{ opacity: 0, x: -40 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -40 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 26 }}
-                  className="w-full lg:w-[320px] shrink-0 space-y-6 hidden lg:block"
-                >
-                  <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 flex items-center gap-2">
-                        <ListTodo className="w-4 h-4 text-primary" /> Goals
-                      </h3>
-                    </div>
+        {viewMode === 'TIMER' ? (
+          /* ---------- TIMER VIEW: the ring, then your goals ---------- */
+          <div className="relative z-10 flex flex-1 flex-col items-center justify-center overflow-y-auto px-4 pb-4">
+            <motion.div
+              animate={{ scale: isPaused ? 0.98 : 1 }}
+              transition={{ duration: 0.4 }}
+            >
+              <FocusRing
+                time={timeLeft}
+                fraction={elapsedFraction}
+                paused={isPaused}
+                accent={ringAccent}
+                fontClass={clockFontClass(clockFont)}
+                subject={task.subject}
+                status={isPaused ? 'Paused' : onBreak ? 'Break' : isIntense ? 'Deep focus' : 'Focusing'}
+                detail={isPaused ? 'Space to carry on' : openEnded ? 'no set length' : `${initialDurationMinutes} min`}
+              />
+            </motion.div>
 
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={newGoalInput}
-                          onChange={(e) => setNewGoalInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && newGoalInput.trim()) {
-                              setGoals([...goals, newGoalInput.trim()]);
-                              setCompletedGoals([...completedGoals, false]);
-                              setNewGoalInput('');
-                            }
-                          }}
-                          placeholder="Add a goal"
-                          className="h-10 rounded-xl bg-white/5 border-white/10 font-bold px-4 text-xs placeholder:text-white/20"
-                        />
-                        <Button
-                          size="icon"
-                          onClick={() => {
-                            if (newGoalInput.trim()) {
-                              setGoals([...goals, newGoalInput.trim()]);
-                              setCompletedGoals([...completedGoals, false]);
-                              setNewGoalInput('');
-                            }
-                          }}
-                          className="h-10 w-10 shrink-0 rounded-xl bg-primary/20 text-primary hover:bg-primary/30 border border-primary/20"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
-
-                      <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                        {goals.filter(g => g.trim()).length === 0 ? (
-                          <p className="text-xs font-bold text-white/30 text-center py-4">No goals yet.</p>
-                        ) : (
-                          goals.filter(g => g.trim()).map((goal, i) => (
-                            <div
-                              key={i}
-                              onClick={() => toggleGoal(i)}
-                              className={cn(
-                                "flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer",
-                                completedGoals[i] ? "bg-primary/10 border-primary/20 text-white/50" : "bg-white/5 border-white/5 hover:border-white/10"
-                              )}
-                            >
-                              <div className={cn(
-                                "w-5 h-5 rounded border transition-colors flex items-center justify-center shrink-0",
-                                completedGoals[i] ? "bg-primary border-primary" : "border-white/20"
-                              )}>
-                                {completedGoals[i] && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                              </div>
-                              <span className={cn("text-sm font-bold truncate", completedGoals[i] && "line-through")}>{goal}</span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* The clock. min-w-0 lets the column shrink so the digits never push
-                the side panels off-screen; containerType powers the cqw sizing. */}
-            <div className="flex-1 min-w-0 w-full flex flex-col items-center justify-center py-4" style={{ containerType: 'inline-size' }}>
-              <motion.div
-                className="flex w-full flex-col items-center text-center px-4"
-                animate={{ scale: isPaused ? 0.985 : [1, 1.006, 1] }}
-                transition={isPaused ? { duration: 0.4 } : { duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-              >
-                {/* What this session is */}
-                <div className="mb-8 inline-flex max-w-full items-center gap-3 rounded-full border border-white/10 bg-white/[0.06] py-1.5 pl-1.5 pr-5 backdrop-blur-xl">
-                  <span
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em]"
-                    style={{ backgroundColor: `${isPaused ? '#f59e0b' : scenePalette[2] || '#ffffff'}26`, color: isPaused ? '#fbbf24' : scenePalette[2] || '#ffffff' }}
+            {/* Goals */}
+            <div className="mt-6 flex max-w-2xl flex-wrap items-center justify-center gap-2">
+              {goals.map((goal, i) =>
+                goal.trim() ? (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => toggleGoal(i)}
+                    aria-pressed={!!completedGoals[i]}
+                    className={cn(
+                      'inline-flex max-w-full items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-4 text-sm backdrop-blur-xl transition-colors',
+                      completedGoals[i]
+                        ? 'border-white/5 bg-black/15 text-white/45'
+                        : 'border-white/10 bg-black/25 text-white hover:bg-white/10'
+                    )}
                   >
-                    <span className={cn('size-1.5 rounded-full bg-current', !isPaused && 'motion-safe:animate-pulse')} />
-                    {isPaused ? 'Paused' : onBreak ? 'Break' : isIntense ? 'Deep focus' : 'Focusing'}
-                  </span>
-                  <span className="min-w-0 truncate text-sm font-bold text-white">{task.subject}</span>
-                  <span className="hidden shrink-0 text-xs font-semibold text-white/50 sm:inline">{typeLabel}</span>
-                </div>
-
-                {/* Time left */}
-                <div
-                  role="timer"
-                  aria-label={`${openEnded ? 'Time so far' : 'Time left'}: ${timeLeft.h > 0 ? `${timeLeft.h} hours ` : ''}${timeLeft.m} minutes ${timeLeft.s} seconds`}
-                  className={cn(
-                    'flex max-w-full items-baseline justify-center font-heading font-black tabular-nums leading-[0.8] tracking-tight text-white transition-[font-size,opacity] duration-700 ease-in-out drop-shadow-[0_10px_40px_rgba(0,0,0,0.35)]',
-                    isPaused && 'opacity-45'
-                  )}
-                  style={{ fontSize: timeLeft.h > 0 ? 'clamp(3.5rem, 24cqw, 14rem)' : 'clamp(4.5rem, 34cqw, 18rem)' }}
-                >
-                  {timeLeft.h > 0 && (
-                    <>
-                      <span>{timeLeft.h.toString().padStart(2, '0')}</span>
-                      <span className="mx-[0.04em] -translate-y-[0.06em] font-sans font-extralight text-white/30">:</span>
-                    </>
-                  )}
-                  <span>{timeLeft.m.toString().padStart(2, '0')}</span>
-                  <span className="mx-[0.04em] -translate-y-[0.06em] font-sans font-extralight text-white/30">:</span>
-                  <span className="text-white/75">{timeLeft.s.toString().padStart(2, '0')}</span>
-                </div>
-                <p className="mt-6 text-[11px] font-black uppercase tracking-[0.35em] text-white/45">
-                  {openEnded ? 'Time so far' : 'Time left'}
-                </p>
-
-                {/* Progress through the session */}
-                <div className="mt-8 w-full max-w-[min(32rem,80cqw)]">
-                  <div className="relative h-1.5 overflow-hidden rounded-full bg-white/10">
-                    <div
-                      className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-1000 ease-linear"
-                      style={{
-                        width: `${Math.max(elapsedPercent, 1)}%`,
-                        background: `linear-gradient(to right, ${scenePalette[1] || '#ffffff'}, ${scenePalette[2] || '#ffffff'})`,
-                      }}
-                    />
-                  </div>
-                  <div className="mt-2.5 flex items-center justify-between text-[11px] font-bold tabular-nums text-white/45">
-                    <span>{openEnded ? 'No set length' : `${elapsedPercent}% done`}</span>
-                    <span>{openEnded ? 'Finish when you are ready' : `${initialDurationMinutes} min session`}</span>
-                  </div>
-                </div>
-
-                {isPaused && (
-                  <p className="mt-6 text-xs font-semibold text-white/50">
-                    Press <kbd className="rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 font-mono text-[11px] text-white/80">Space</kbd> to carry on
-                  </p>
-                )}
-              </motion.div>
-            </div>
-
-            <AnimatePresence>
-              {!isZenMode && (
-                <motion.div
-                  initial={{ opacity: 0, x: 40 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 40 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 26 }}
-                  className="w-full lg:w-[320px] shrink-0 space-y-6 hidden lg:block"
-                >
-                  <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 space-y-6">
-                    <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 flex items-center gap-2">
-                      <BookOpen className="w-4 h-4 text-primary" /> Files
-                    </h3>
-                    <div className="space-y-3">
-                       {resources.length === 0 ? (
-                         <p className="text-xs font-bold text-white/30 text-center py-4">No files for this subject yet.</p>
-                       ) : (
-                         resources.map((res) => (
-                           <a
-                             key={res.id}
-                             href={res.url}
-                             target="_blank"
-                             rel="noreferrer"
-                             className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors group"
-                           >
-                             <span className="text-sm font-bold truncate pr-4">{res.title}</span>
-                             <ChevronRight className="w-4 h-4 text-white/30 group-hover:translate-x-0.5 transition-all" />
-                           </a>
-                         ))
-                       )}
-                    </div>
-                  </div>
-
-                  {/* Next focus sessions today */}
-                  {nextSessions.length > 0 && (
-                    <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 space-y-4">
-                      <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 flex items-center gap-2">
-                        <CalendarClock className="w-4 h-4 text-primary" /> Later today
-                      </h3>
-                      <div className="space-y-2">
-                        {nextSessions.map((next) => (
-                          <Link
-                            key={next.id}
-                            href={`/focus/${next.id}`}
-                            className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-white/5 border border-white/5 hover:border-white/15 hover:bg-white/10 transition-colors group"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-sm font-bold truncate">{next.subject}</p>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-white/35">{next.type === 'REVISION' ? 'Revision' : 'Homework'}</p>
-                            </div>
-                            <span className="text-xs font-black tabular-nums text-white/55 group-hover:text-white shrink-0">
-                              {next.startTime}
-                            </span>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
+                    <span
+                      className={cn(
+                        'grid size-5 shrink-0 place-items-center rounded-full border',
+                        completedGoals[i] ? 'border-emerald-400 bg-emerald-400' : 'border-white/35'
+                      )}
+                    >
+                      {completedGoals[i] && <Check className="size-3 text-black" strokeWidth={3} />}
+                    </span>
+                    <span className={cn('truncate', completedGoals[i] && 'line-through')}>{goal}</span>
+                  </button>
+                ) : null
               )}
-            </AnimatePresence>
+              {addingGoal ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const text = newGoalInput.trim();
+                    if (text) {
+                      setGoals([...goals, text]);
+                      setCompletedGoals([...completedGoals, false]);
+                    }
+                    setNewGoalInput('');
+                    setAddingGoal(false);
+                  }}
+                >
+                  <input
+                    autoFocus
+                    value={newGoalInput}
+                    onChange={(e) => setNewGoalInput(e.target.value)}
+                    onBlur={() => { if (!newGoalInput.trim()) setAddingGoal(false); }}
+                    onKeyDown={(e) => { if (e.key === 'Escape') { setNewGoalInput(''); setAddingGoal(false); } }}
+                    placeholder="What will you get done?"
+                    aria-label="New goal"
+                    className="h-9 w-64 rounded-full border border-white/20 bg-black/30 px-4 text-sm text-white outline-none backdrop-blur-xl placeholder:text-white/40 focus:border-white/40"
+                  />
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAddingGoal(true)}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-dashed border-white/25 px-4 text-sm text-white/65 transition-colors hover:border-white/45 hover:text-white"
+                >
+                  <Plus className="size-4" /> {goals.some((g) => g.trim()) ? 'Add a goal' : 'Add a goal for this session'}
+                </button>
+              )}
+            </div>
           </div>
         ) : (
-          /* ---------- SONG VIEW (Apple Music style) ---------- */
-          <div className="flex-1 relative z-10 overflow-y-auto custom-scrollbar">
+          /* ---------- MUSIC VIEW ---------- */
+          <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar">
             {!hasSongs ? (
-              <div className="h-full flex flex-col items-center justify-center gap-8 px-8">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="max-w-lg w-full bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[40px] p-12 text-center space-y-6"
-                >
-                  <div className="w-24 h-24 mx-auto rounded-[28px] flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${palette[0]}, ${palette[1]})` }}>
-                    <Music className="w-12 h-12 text-white/80" />
+              <div className="flex h-full flex-col items-center justify-center px-6">
+                <div className="w-full max-w-md space-y-5 rounded-3xl border border-white/10 bg-black/30 p-10 text-center backdrop-blur-xl">
+                  <div className="mx-auto grid size-20 place-items-center rounded-3xl" style={{ background: `linear-gradient(135deg, ${palette[0]}, ${palette[2]})` }}>
+                    <Music className="size-9 text-white" />
                   </div>
                   <div className="space-y-2">
-                    <h2 className="text-3xl font-heading font-black tracking-tight">Add music for your sessions</h2>
-                    <p className="text-sm font-semibold text-white/50 leading-relaxed">
-                      Add your own songs. Titles, artists and covers are read from the files, and the background takes its colours from each cover.
+                    <h2 className="font-heading text-2xl font-semibold">Add music for your sessions</h2>
+                    <p className="text-sm text-white/55">
+                      Add your own songs or find some online. The background takes its colours from each cover.
                     </p>
                   </div>
-                  <Button
-                    onClick={() => uploadInputRef.current?.click()}
-                    className="h-14 px-10 rounded-2xl bg-white text-black hover:bg-white/90 font-black text-base gap-3"
-                  >
-                    <Upload className="w-5 h-5" /> Add music
-                  </Button>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">or drag audio files anywhere on this screen</p>
-                </motion.div>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Button onClick={() => uploadInputRef.current?.click()} className="h-11 gap-2 rounded-full bg-white px-6 font-semibold text-black hover:bg-white/90">
+                      <Upload className="size-4" /> Add songs
+                    </Button>
+                    <Button
+                      onClick={() => { setLibraryTab('ONLINE'); setIsLibraryOpen(true); }}
+                      variant="ghost"
+                      className="h-11 gap-2 rounded-full border border-white/15 px-6 text-white hover:bg-white/10"
+                    >
+                      <Globe className="size-4" /> Find online
+                    </Button>
+                  </div>
+                  <p className="text-xs text-white/40">Or drag audio files anywhere on this screen.</p>
+                </div>
               </div>
             ) : (
-              <div className="min-h-full flex items-center justify-center px-8 md:px-12 py-8">
-                <div className="w-full max-w-[1500px] grid grid-cols-1 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] gap-12 lg:gap-16 items-center">
-                  {/* Left: artwork + transport */}
-                  <div className="flex flex-col items-center lg:items-start gap-8 max-w-[520px] mx-auto lg:mx-0 w-full">
-                    <motion.div
-                      key={currentSong?.id}
-                      initial={{ opacity: 0.6, scale: 0.96 }}
-                      animate={{
-                        opacity: 1,
-                        scale: player.isPlaying ? 1 : 0.94
-                      }}
-                      transition={{ type: 'spring', stiffness: 220, damping: 24 }}
-                      className="group/cover relative w-full max-w-[440px] aspect-square rounded-[28px] overflow-hidden shadow-[0_40px_90px_-20px_rgba(0,0,0,0.8)] ring-1 ring-white/10"
+              <div className="mx-auto grid min-h-full w-full max-w-6xl grid-cols-1 items-center gap-10 px-6 py-2 md:px-10 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:gap-14">
+                {/* Now playing */}
+                <div className="mx-auto flex w-full max-w-[min(380px,44vh)] flex-col gap-4 lg:max-w-[min(380px,44vh)]">
+                  <motion.div
+                    key={currentSong?.id}
+                    initial={{ opacity: 0.6, scale: 0.97 }}
+                    animate={{ opacity: 1, scale: player.isPlaying ? 1 : 0.95 }}
+                    transition={{ type: 'spring', stiffness: 220, damping: 24 }}
+                    className="group/cover relative aspect-square w-full overflow-hidden rounded-3xl ring-1 ring-white/10"
+                    style={{ boxShadow: `0 30px 80px -20px ${palette[2]}66, 0 20px 50px -20px rgba(0,0,0,0.8)` }}
+                  >
+                    <CoverArt song={currentSong} palette={palette} className="size-full" iconSize="w-20 h-20" />
+                    <button
+                      type="button"
+                      onClick={() => setImmersiveCover(true)}
+                      className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 text-xs font-medium text-white opacity-0 backdrop-blur-md transition-opacity hover:bg-black/70 focus-visible:opacity-100 group-hover/cover:opacity-100"
                     >
-                      <CoverArt song={currentSong} palette={palette} className="w-full h-full" iconSize="w-20 h-20" />
+                      <Maximize2 className="size-3.5" /> Full screen
+                    </button>
+                  </motion.div>
 
-                      {/* Hover controls over the artwork */}
-                      <div className="absolute inset-0 flex flex-col justify-between p-4 bg-gradient-to-t from-black/60 via-transparent to-black/30 opacity-0 group-hover/cover:opacity-100 transition-opacity">
-                        <div className="flex justify-end">
-                          <button
-                            onClick={() => setImmersiveCover(true)}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-black/50 backdrop-blur-md border border-white/15 text-white text-[11px] font-black hover:bg-black/70 transition-colors"
-                            title="Full screen cover"
-                          >
-                            <Maximize2 className="w-3.5 h-3.5" /> Full screen
-                          </button>
-                        </div>
-                        <div className="flex items-center justify-center">
-                          <button
-                            onClick={player.togglePlay}
-                            className="w-16 h-16 rounded-full bg-white/90 text-black flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition-transform"
-                          >
-                            {player.isPlaying ? <Pause className="w-7 h-7 fill-current" /> : <Play className="w-7 h-7 fill-current ml-1" />}
-                          </button>
-                        </div>
-                        <div />
-                      </div>
-                    </motion.div>
+                  <div className="min-w-0">
+                    <h2 className="truncate font-heading text-2xl font-semibold leading-tight md:text-3xl">{currentSong?.title}</h2>
+                    <p className="truncate text-base text-white/60">{currentSong?.artist || 'Unknown artist'}</p>
+                  </div>
 
-                    <div className="w-full max-w-[440px] space-y-5">
-                      <div className="space-y-1 text-center lg:text-left">
-                        <h2 className="text-2xl md:text-3xl font-heading font-black tracking-tight leading-tight truncate drop-shadow-lg">
-                          {currentSong?.title}
-                        </h2>
-                        <p className="text-base font-bold text-white/55 truncate">
-                          {currentSong?.artist || 'Unknown artist'}
-                        </p>
-                      </div>
+                  <div className="space-y-1.5">
+                    <Slider
+                      value={[Math.min(player.currentTime, player.duration || player.currentTime)]}
+                      max={player.duration || 1}
+                      min={0}
+                      step={1}
+                      onValueChange={(v) => player.seek(v[0])}
+                      aria-label="Song position"
+                      className="cursor-pointer py-1 [&_[data-slot=slider-range]]:bg-white [&_[data-slot=slider-track]]:bg-white/15 [&_[data-slot=slider-thumb]]:border-white"
+                    />
+                    <div className="flex justify-between text-xs tabular-nums text-white/45">
+                      <span>{formatTime(player.currentTime)}</span>
+                      <span>-{formatTime(Math.max(0, (player.duration || 0) - player.currentTime))}</span>
+                    </div>
+                  </div>
 
-                      {/* Seek */}
-                      <div className="space-y-1.5">
-                        <Slider
-                          value={[Math.min(player.currentTime, player.duration || player.currentTime)]}
-                          max={player.duration || 1}
-                          min={0}
-                          step={1}
-                          onValueChange={(v) => player.seek(v[0])}
-                          className="cursor-pointer py-1"
-                        />
-                        <div className="flex justify-between text-[11px] font-bold tabular-nums text-white/40">
-                          <span>{formatTime(player.currentTime)}</span>
-                          <span>-{formatTime(Math.max(0, (player.duration || 0) - player.currentTime))}</span>
-                        </div>
-                      </div>
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={player.toggleShuffle}
+                      title="Shuffle"
+                      aria-pressed={player.shuffle}
+                      className={cn('grid size-10 place-items-center rounded-full transition-colors hover:bg-white/10', player.shuffle ? 'text-white' : 'text-white/40')}
+                    >
+                      <Shuffle className="size-5" />
+                    </button>
+                    <button type="button" onClick={player.prev} title="Previous (←)" className="grid size-12 place-items-center rounded-full text-white transition-colors hover:bg-white/10">
+                      <SkipBack className="size-6 fill-current" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={player.togglePlay}
+                      title={player.isPlaying ? 'Pause music' : 'Play music'}
+                      className="grid size-16 place-items-center rounded-full bg-white text-black shadow-2xl transition-transform hover:scale-105 active:scale-95"
+                    >
+                      {player.isPlaying ? <Pause className="size-7 fill-current" /> : <Play className="ml-1 size-7 fill-current" />}
+                    </button>
+                    <button type="button" onClick={player.next} title="Next (→)" className="grid size-12 place-items-center rounded-full text-white transition-colors hover:bg-white/10">
+                      <SkipForward className="size-6 fill-current" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={player.toggleRepeatOne}
+                      title="Repeat this song"
+                      aria-pressed={player.repeatOne}
+                      className={cn('grid size-10 place-items-center rounded-full transition-colors hover:bg-white/10', player.repeatOne ? 'text-white' : 'text-white/40')}
+                    >
+                      {player.repeatOne ? <Repeat1 className="size-5" /> : <Repeat className="size-5" />}
+                    </button>
+                  </div>
 
-                      {/* Transport */}
-                      <div className="flex items-center justify-center gap-2">
-                        <Button
-                          variant="ghost" size="icon"
-                          onClick={player.toggleShuffle}
-                          className={cn("w-11 h-11 rounded-xl hover:bg-white/10", player.shuffle ? "text-white" : "text-white/40")}
-                          title="Shuffle"
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => setIsMuted(!isMuted)} title="Mute (M)" className="text-white/50 transition-colors hover:text-white">
+                      {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+                    </button>
+                    <Slider
+                      value={[isMuted ? 0 : volume]}
+                      max={1} min={0} step={0.01}
+                      onValueChange={(v) => {
+                        setVolume(v[0]);
+                        if (isMuted && v[0] > 0) setIsMuted(false);
+                      }}
+                      aria-label="Volume"
+                      className="w-full cursor-pointer py-1 [&_[data-slot=slider-range]]:bg-white [&_[data-slot=slider-track]]:bg-white/15 [&_[data-slot=slider-thumb]]:border-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Lyrics / Up next */}
+                <div className="flex min-h-[50vh] w-full flex-col rounded-3xl border border-white/10 bg-black/25 p-2 backdrop-blur-xl lg:h-[min(64vh,600px)]">
+                  <div className="flex shrink-0 items-center justify-between gap-2 p-2">
+                    <div className="flex items-center gap-1 rounded-full bg-white/[0.06] p-1">
+                      {([
+                        { id: 'LYRICS', label: 'Lyrics', icon: ScrollText },
+                        { id: 'QUEUE', label: 'Up next', icon: ListMusic },
+                      ] as const).map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setSongPanelTab(t.id)}
+                          aria-pressed={songPanelTab === t.id}
+                          className={cn(
+                            'inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
+                            songPanelTab === t.id ? 'bg-white text-black' : 'text-white/60 hover:text-white'
+                          )}
                         >
-                          <Shuffle className="w-5 h-5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={player.prev} className="w-14 h-14 rounded-2xl hover:bg-white/10 text-white">
-                          <SkipBack className="w-7 h-7 fill-current" />
-                        </Button>
-                        <Button
-                          onClick={player.togglePlay}
-                          className="w-[72px] h-[72px] rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 active:scale-95 transition-all shadow-2xl"
-                          title={player.musicOn ? 'Pause music' : 'Play music'}
-                        >
-                          {player.isPlaying
-                            ? <Pause className="w-8 h-8 fill-current" />
-                            : <Play className="w-8 h-8 fill-current ml-1" />}
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={player.next} className="w-14 h-14 rounded-2xl hover:bg-white/10 text-white">
-                          <SkipForward className="w-7 h-7 fill-current" />
-                        </Button>
-                        <Button
-                          variant="ghost" size="icon"
-                          onClick={player.toggleRepeatOne}
-                          className={cn("w-11 h-11 rounded-xl hover:bg-white/10", player.repeatOne ? "text-white" : "text-white/40")}
-                          title="Repeat this song"
-                        >
-                          {player.repeatOne ? <Repeat1 className="w-5 h-5" /> : <Repeat className="w-5 h-5" />}
-                        </Button>
-                      </div>
-
-                      {/* Volume */}
-                      <div className="flex items-center gap-3 px-2">
-                        <button onClick={() => setIsMuted(!isMuted)} className="text-white/40 hover:text-white transition-colors">
-                          {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                          <t.icon className="size-3.5" /> {t.label}
                         </button>
-                        <Slider
-                          value={[isMuted ? 0 : volume]}
-                          max={1} min={0} step={0.01}
-                          onValueChange={(v) => {
-                            setVolume(v[0]);
-                            if (isMuted && v[0] > 0) setIsMuted(false);
-                          }}
-                          className="w-full cursor-pointer py-1"
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsLibraryOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                    >
+                      <ListMusic className="size-4" /> Library
+                    </button>
+                  </div>
+
+                  {songPanelTab === 'LYRICS' ? (
+                    player.lyrics ? (
+                      <div className="relative min-h-0 flex-1">
+                        <LyricsPanel
+                          lyrics={player.lyrics}
+                          currentTime={player.currentTime}
+                          onSeek={player.seek}
+                          immersive
+                          accent={scenePalette[2] || '#ffffff'}
+                          className="absolute inset-0 h-full"
                         />
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Right: timer pill + lyrics / up next */}
-                  <div className="flex flex-col gap-5 w-full mx-auto lg:mx-0 lg:self-stretch">
-                    {/* Compact session timer */}
-                    <div className="shrink-0 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[28px] p-6 flex items-center justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/40 mb-1 truncate">
-                          {task.subject} • {isPaused ? 'Paused' : 'Focusing'}
-                        </p>
-                        <p className={cn("text-4xl font-heading font-black tabular-nums tracking-tight leading-none", isPaused && "opacity-40")}>
-                          {timeLeft.h > 0 && `${timeLeft.h.toString().padStart(2, '0')}:`}
-                          {timeLeft.m.toString().padStart(2, '0')}
-                          <span className="text-white/40">:{timeLeft.s.toString().padStart(2, '0')}</span>
-                        </p>
+                    ) : (
+                      <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
+                        <ScrollText className="size-8 text-white/25" />
+                        <p className="text-sm text-white/45">No lyrics for this song yet. They show up here when they are found.</p>
                       </div>
-                      <Button
-                        variant="ghost" size="icon"
-                        onClick={() => isPaused ? resumeFocus() : pauseFocus()}
-                        className="w-14 h-14 shrink-0 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/10"
-                      >
-                        {isPaused ? <Play className="w-6 h-6 fill-current" /> : <Pause className="w-6 h-6 fill-current" />}
-                      </Button>
-                    </div>
-
-                    {/* Lyrics / Up Next */}
-                    {!isZenMode && (
-                      <div className="flex-1 flex flex-col min-h-[52vh]">
-                        {/* Chrome-free tab toggle */}
-                        <div className="flex items-center justify-between mb-4 shrink-0">
-                          <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-xl p-1">
-                            <button
-                              onClick={() => setSongPanelTab('LYRICS')}
-                              className={cn(
-                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors",
-                                songPanelTab === 'LYRICS' ? "bg-white/15 text-white" : "text-white/40 hover:text-white/70"
-                              )}
-                            >
-                              <ScrollText className="w-3 h-3" /> Lyrics
-                            </button>
-                            <button
-                              onClick={() => setSongPanelTab('QUEUE')}
-                              className={cn(
-                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors",
-                                songPanelTab === 'QUEUE' ? "bg-white/15 text-white" : "text-white/40 hover:text-white/70"
-                              )}
-                            >
-                              <ListMusic className="w-3 h-3" /> Up next
-                            </button>
+                    )
+                  ) : (
+                    <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto custom-scrollbar px-1 pb-1">
+                      {currentSong && (
+                        <div className="flex items-center gap-3 rounded-2xl bg-white/10 p-2">
+                          <CoverArt song={currentSong} palette={palette} className="size-11 shrink-0 rounded-xl" iconSize="w-4 h-4" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold">{currentSong.title}</p>
+                            <p className="truncate text-xs text-white/50">Playing now</p>
                           </div>
-                          <button
-                            onClick={() => uploadInputRef.current?.click()}
-                            className="text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white flex items-center gap-1.5 transition-colors"
-                          >
-                            <Plus className="w-3.5 h-3.5" /> Add music
-                          </button>
                         </div>
-
-                        {songPanelTab === 'LYRICS' ? (
-                          player.lyrics ? (
-                            /* Borderless, full-height karaoke that fills the right side */
-                            <div className="relative flex-1 min-h-0">
-                              <LyricsPanel
-                                lyrics={player.lyrics}
-                                currentTime={player.currentTime}
-                                onSeek={player.seek}
-                                immersive
-                                accent={scenePalette[2] || '#ffffff'}
-                                className="absolute inset-0 h-full"
-                              />
+                      )}
+                      {player.upNext.length === 0 ? (
+                        <p className="py-8 text-center text-sm text-white/40">Nothing after this one. Add more songs from the library.</p>
+                      ) : (
+                        player.upNext.map((song) => (
+                          <button
+                            key={song.id}
+                            type="button"
+                            onClick={() => player.selectSong(song.id)}
+                            className="group flex w-full items-center gap-3 rounded-2xl p-2 text-left transition-colors hover:bg-white/10"
+                          >
+                            <CoverArt song={song} palette={palette} className="size-11 shrink-0 rounded-xl" iconSize="w-4 h-4" />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">{song.title}</p>
+                              <p className="truncate text-xs text-white/50">{song.artist || 'Unknown artist'}</p>
                             </div>
-                          ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-6">
-                              <ScrollText className="w-8 h-8 text-white/20" />
-                              <p className="text-xs font-bold text-white/35 leading-relaxed">
-                                No lyrics found for this track yet.<br />They appear automatically when available.
-                              </p>
-                            </div>
-                          )
-                        ) : (
-                          <div className="flex-1 space-y-1 overflow-y-auto custom-scrollbar pr-1 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[28px] p-4">
-                            {player.upNext.length === 0 ? (
-                              <p className="text-xs font-bold text-white/30 text-center py-6">Nothing queued. Add more songs.</p>
-                            ) : (
-                              player.upNext.map((song) => (
-                                <button
-                                  key={song.id}
-                                  onClick={() => player.selectSong(song.id)}
-                                  className="w-full flex items-center gap-3 p-2.5 rounded-2xl hover:bg-white/10 transition-colors text-left group"
-                                >
-                                  <CoverArt song={song} palette={palette} className="w-11 h-11 rounded-lg shrink-0" iconSize="w-4 h-4" />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-bold truncate">{song.title}</p>
-                                    <p className="text-[11px] font-semibold text-white/40 truncate">{song.artist || 'Unknown artist'}</p>
-                                  </div>
-                                  {song.duration ? (
-                                    <span className="text-[10px] font-bold tabular-nums text-white/30 group-hover:text-white/60">{formatTime(song.duration)}</span>
-                                  ) : null}
-                                </button>
-                              ))
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                            {song.duration ? (
+                              <span className="text-xs tabular-nums text-white/40 group-hover:text-white/70">{formatTime(song.duration)}</span>
+                            ) : null}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
           </div>
         )}
 
-        {/* Mini now-playing bar (timer view only) */}
-        {!showFlowAI && viewMode === 'TIMER' && currentSong && (
-          <div className="absolute bottom-8 left-8 z-20 hidden md:flex items-center gap-3 pl-3 pr-4 py-3 bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[24px] shadow-2xl max-w-[360px]">
-            <button onClick={() => setViewMode('SONG')} className="shrink-0 group relative" title="Open Song View">
-              <CoverArt song={currentSong} palette={palette} className="w-12 h-12 rounded-xl" iconSize="w-5 h-5" />
-              <div className="absolute inset-0 rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Disc3 className="w-5 h-5 text-white" />
-              </div>
-            </button>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-black truncate">{currentSong.title}</p>
-              <p className="text-[10px] font-bold text-white/40 truncate">{currentSong.artist || 'Unknown artist'}</p>
-            </div>
-            <div className="flex items-center gap-0.5 shrink-0">
-              <Button variant="ghost" size="icon" onClick={player.prev} className="w-8 h-8 rounded-lg hover:bg-white/10 text-white/80">
-                <SkipBack className="w-4 h-4 fill-current" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={player.togglePlay} className="w-9 h-9 rounded-lg hover:bg-white/10 text-white">
-                {player.isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
-              </Button>
-              <Button variant="ghost" size="icon" onClick={player.next} className="w-8 h-8 rounded-lg hover:bg-white/10 text-white/80">
-                <SkipForward className="w-4 h-4 fill-current" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Footer Actions */}
-        {!showFlowAI && (
-        <div className="p-8 flex justify-center relative z-10 bg-gradient-to-t from-black/70 to-transparent">
+        {/* ============ DOCK: music, pause, finish, tools ============ */}
+        <div className="relative z-20 flex shrink-0 justify-center px-3 pb-5 pt-2">
           {!showProofForm ? (
-            <Button
-              onClick={() => setShowProofForm(true)}
-              className="h-16 px-12 rounded-[24px] bg-white text-black hover:bg-white/90 font-black text-lg gap-3 shadow-2xl hover:scale-105 transition-all"
-            >
-              <CheckCircle2 className="w-6 h-6" />
-              Finish session
-            </Button>
+            <div className="flex max-w-full items-center gap-1.5 rounded-[28px] border border-white/10 bg-black/35 p-1.5 shadow-2xl backdrop-blur-2xl">
+              {viewMode === 'TIMER' && (
+                <>
+                  {currentSong ? (
+                    <div className="hidden min-w-0 items-center gap-2.5 pl-1 pr-1 md:flex md:w-[250px]">
+                      <button type="button" onClick={() => setViewMode('SONG')} title="Music view (V)" className="shrink-0">
+                        <CoverArt song={currentSong} palette={palette} className="size-11 rounded-2xl" iconSize="w-4 h-4" />
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{currentSong.title}</p>
+                        <p className="truncate text-xs text-white/50">{currentSong.artist || 'Unknown artist'}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={player.togglePlay}
+                        title={player.isPlaying ? 'Pause music' : 'Play music'}
+                        className="grid size-9 shrink-0 place-items-center rounded-full text-white transition-colors hover:bg-white/10"
+                      >
+                        {player.isPlaying ? <Pause className="size-4 fill-current" /> : <Play className="size-4 fill-current" />}
+                      </button>
+                      <button type="button" onClick={player.next} title="Next song (→)" className="grid size-9 shrink-0 place-items-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white">
+                        <SkipForward className="size-4 fill-current" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsLibraryOpen(true)}
+                      className="hidden h-12 items-center gap-2 rounded-[22px] px-4 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white md:inline-flex"
+                    >
+                      <Music className="size-4" /> Add music
+                    </button>
+                  )}
+                  <span aria-hidden className="mx-1 hidden h-8 w-px bg-white/10 md:block" />
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={() => isPaused ? resumeFocus() : pauseFocus()}
+                title={isPaused ? 'Carry on (Space)' : 'Pause (Space)'}
+                aria-label={isPaused ? 'Carry on' : 'Pause'}
+                className={cn(
+                  'grid size-12 shrink-0 place-items-center rounded-[22px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40',
+                  isPaused ? 'bg-emerald-400 text-black hover:bg-emerald-300' : 'bg-white/10 text-white hover:bg-white/20'
+                )}
+              >
+                {isPaused ? <Play className="size-5 fill-current" /> : <Pause className="size-5 fill-current" />}
+              </button>
+              <Button
+                onClick={() => setShowProofForm(true)}
+                className="h-12 shrink-0 gap-2 rounded-[22px] bg-white px-5 text-base font-semibold text-black hover:bg-white/90"
+              >
+                <CheckCircle2 className="size-5" />
+                Finish
+              </Button>
+
+              <span aria-hidden className="mx-1 h-8 w-px bg-white/10" />
+
+              <DockButton
+                title={intensity === 'INTENSE' ? 'Deep focus is on (double XP). Turn off' : 'Deep focus: double XP'}
+                active={intensity === 'INTENSE'}
+                tone="ember"
+                onClick={() => setIntensity(intensity === 'INTENSE' ? 'CHILL' : 'INTENSE')}
+              >
+                <Zap />
+              </DockButton>
+              <DockButton title="Files and later today (D)" active={showSessionPanel} onClick={() => setShowSessionPanel(v => !v)}>
+                <FolderOpen />
+              </DockButton>
+              <DockButton
+                title={viewMode === 'TIMER' ? 'Music view (V)' : 'Timer view (V)'}
+                active={viewMode === 'SONG'}
+                onClick={() => setViewMode(viewMode === 'TIMER' ? 'SONG' : 'TIMER')}
+              >
+                {viewMode === 'TIMER' ? <Disc3 /> : <Timer />}
+              </DockButton>
+              <DockButton title="Music library" active={isLibraryOpen} onClick={() => setIsLibraryOpen(!isLibraryOpen)}>
+                <ListMusic />
+              </DockButton>
+            </div>
           ) : (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="max-w-2xl w-full bg-zinc-900/90 backdrop-blur-3xl border border-white/10 p-8 rounded-[32px] space-y-6 shadow-2xl text-left"
+              className="max-w-xl w-full rounded-3xl border border-white/10 bg-zinc-950/85 p-6 space-y-5 shadow-2xl backdrop-blur-xl text-left"
             >
               <div className="flex justify-between items-center">
-                 <h3 className="text-xl font-black">What did you get done?</h3>
-                 <Button variant="ghost" size="icon" onClick={() => setShowProofForm(false)} className="hover:bg-white/5 text-white/80">
+                 <h3 className="font-heading text-lg font-semibold">What did you get done?</h3>
+                 <Button variant="ghost" size="icon" onClick={() => setShowProofForm(false)} className="hover:bg-white/5 text-white/80" aria-label="Back to the session">
                    <X className="w-5 h-5" />
                  </Button>
               </div>
@@ -1880,13 +1781,13 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                    placeholder="Optional: a sentence about what you worked on."
                    value={proofDescription}
                    onChange={(e) => setProofDescription(e.target.value)}
-                   className="bg-white/5 border-white/10 min-h-[100px] rounded-2xl font-bold placeholder:text-white/25 text-white"
+                   className="min-h-[96px] rounded-2xl border-white/10 bg-white/[0.06] text-white placeholder:text-white/35"
                  />
 
-                 <div className="flex flex-col sm:flex-row gap-4">
-                    <label className="flex-1 flex items-center justify-center gap-2 h-14 bg-white/5 border border-white/10 rounded-2xl cursor-pointer hover:bg-white/10 transition-colors px-4">
-                       <Paperclip className="w-5 h-5 text-primary" />
-                       <span className="font-bold text-sm truncate">
+                 <div className="flex flex-col sm:flex-row gap-3">
+                    <label className="flex h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 transition-colors hover:bg-white/10">
+                       <Paperclip className="size-4 text-white/60" />
+                       <span className="truncate text-sm font-medium">
                          {proofFile ? proofFile.name : 'Attach a PDF (optional)'}
                        </span>
                        <input
@@ -1900,9 +1801,9 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     <Button
                       disabled={isFinishing}
                       onClick={handleFinishWithProof}
-                      className="h-14 px-8 rounded-2xl bg-primary font-black gap-2 shadow-lg"
+                      className="h-12 gap-2 rounded-full bg-white px-6 font-semibold text-black hover:bg-white/90"
                     >
-                       {isFinishing ? <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /> : <Send className="w-5 h-5" />}
+                       {isFinishing ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
                        Finish session
                     </Button>
                  </div>
@@ -1910,7 +1811,95 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
             </motion.div>
           )}
         </div>
-        )}
+
+        {/* ============ SESSION DRAWER: files + later today ============ */}
+        <AnimatePresence>
+          {showSessionPanel && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-40 bg-black/30"
+                onClick={() => setShowSessionPanel(false)}
+              />
+              <motion.aside
+                initial={{ x: '-100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '-100%' }}
+                transition={{ type: 'spring', stiffness: 320, damping: 34 }}
+                aria-label="This session"
+                className="absolute inset-y-0 left-0 z-50 flex w-full max-w-[380px] flex-col border-r border-white/10 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl"
+              >
+                <div className="flex shrink-0 items-start justify-between gap-3 px-6 pb-4 pt-6">
+                  <div className="min-w-0">
+                    <p className="text-sm text-white/50">{typeLabel}{isScheduled ? ` · ${task.startTime}–${task.endTime}` : ''}</p>
+                    <h3 className="truncate font-heading text-2xl font-semibold">{task.subject}</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSessionPanel(false)}
+                    aria-label="Close"
+                    className="grid size-9 shrink-0 place-items-center rounded-full text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    <X className="size-5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 space-y-7 overflow-y-auto custom-scrollbar px-4 pb-6">
+                  <section className="space-y-2">
+                    <h4 className="flex items-center gap-2 px-2 text-sm font-semibold text-white/85">
+                      <BookOpen className="size-4 text-white/45" /> Files
+                    </h4>
+                    {resources.length === 0 ? (
+                      <p className="px-2 py-2 text-sm text-white/45">No files for this subject yet. Add them in Resources.</p>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {resources.map((res) => (
+                          <a
+                            key={res.id}
+                            href={res.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="group flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-white/10"
+                          >
+                            <span className="truncate text-sm font-medium">{res.title}</span>
+                            <ChevronRight className="size-4 shrink-0 text-white/35 transition-transform group-hover:translate-x-0.5" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="space-y-2">
+                    <h4 className="flex items-center gap-2 px-2 text-sm font-semibold text-white/85">
+                      <CalendarClock className="size-4 text-white/45" /> Later today
+                    </h4>
+                    {nextSessions.length === 0 ? (
+                      <p className="px-2 py-2 text-sm text-white/45">Nothing else planned today.</p>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {nextSessions.map((next) => (
+                          <Link
+                            key={next.id}
+                            href={`/focus/${next.id}`}
+                            className="group flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-white/10"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">{next.subject}</p>
+                              <p className="text-xs text-white/45">{next.type === 'REVISION' ? 'Revision' : 'Homework'}</p>
+                            </div>
+                            <span className="shrink-0 text-sm tabular-nums text-white/60 group-hover:text-white">{next.startTime}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                </div>
+              </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
 
         {/* Hidden upload inputs */}
         <input
@@ -1946,12 +1935,10 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 60 }}
               transition={{ type: 'spring', stiffness: 300, damping: 32 }}
-              className="absolute top-24 bottom-8 right-8 w-[380px] z-40 bg-black/55 backdrop-blur-3xl border border-white/10 rounded-[32px] shadow-2xl flex flex-col overflow-hidden"
+              className="absolute inset-y-0 right-0 z-50 flex w-full max-w-[400px] flex-col overflow-hidden border-l border-white/10 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl"
             >
               <div className="p-6 pb-4 flex items-center justify-between shrink-0">
-                <h3 className="text-lg font-heading font-black flex items-center gap-2.5">
-                  <ListMusic className="w-5 h-5 text-white/60" /> Your music
-                </h3>
+                <h3 className="font-heading text-2xl font-semibold">Music</h3>
                 <Button variant="ghost" size="icon" onClick={() => setIsLibraryOpen(false)} className="w-9 h-9 rounded-xl hover:bg-white/10 text-white/70">
                   <X className="w-4 h-4" />
                 </Button>
@@ -1968,7 +1955,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                       key={t.id}
                       onClick={() => setLibraryTab(t.id)}
                       className={cn(
-                        'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-colors',
+                        'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-colors',
                         libraryTab === t.id ? 'bg-white text-black' : 'text-white/50 hover:text-white',
                       )}
                     >
@@ -1982,7 +1969,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
               <div className="px-6 pb-4 shrink-0">
                 <Button
                   onClick={() => uploadInputRef.current?.click()}
-                  className="w-full h-12 rounded-2xl bg-white text-black hover:bg-white/90 font-black gap-2"
+                  className="w-full h-12 rounded-2xl bg-white text-black hover:bg-white/90 font-semibold gap-2"
                 >
                   <Upload className="w-4 h-4" /> Add music
                 </Button>
@@ -1996,10 +1983,10 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
               {libraryTab === 'LIBRARY' && (
               <div className="px-6 pb-4 shrink-0 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Playlists</span>
+                  <span className="text-xs font-semibold text-white/40">Playlists</span>
                   <button
                     onClick={() => { setNewPlaylistOpen(o => !o); setNewPlaylistName(''); }}
-                    className="text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white flex items-center gap-1"
+                    className="text-xs font-semibold text-white/50 hover:text-white flex items-center gap-1"
                   >
                     <FolderPlus className="w-3.5 h-3.5" /> New
                   </button>
@@ -2035,7 +2022,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                   <button
                     onClick={() => player.selectPlaylist(null)}
                     className={cn(
-                      "px-3 py-1.5 rounded-full text-[11px] font-black border transition-colors",
+                      "px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-colors",
                       !player.activePlaylistId ? "bg-white text-black border-white" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
                     )}
                   >
@@ -2065,15 +2052,15 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                               value={renameValue}
                               onChange={(e) => setRenameValue(e.target.value)}
                               onBlur={() => setRenamingPlaylistId(null)}
-                              className="bg-transparent outline-none text-[11px] font-black px-3 py-1.5 w-24"
+                              className="bg-transparent outline-none text-[11px] font-semibold px-3 py-1.5 w-24"
                             />
                           </form>
                         ) : (
                           <>
-                            <button onClick={() => player.selectPlaylist(pl.id)} className="pl-3 pr-1 py-1.5 text-[11px] font-black max-w-[120px] truncate">
+                            <button onClick={() => player.selectPlaylist(pl.id)} className="pl-3 pr-1 py-1.5 text-[11px] font-semibold max-w-[120px] truncate">
                               {pl.name}
                             </button>
-                            <span className={cn("text-[10px] font-bold pr-1.5", active ? "text-black/40" : "text-white/30")}>{pl.songIds.length}</span>
+                            <span className={cn("text-xs font-bold pr-1.5", active ? "text-black/40" : "text-white/30")}>{pl.songIds.length}</span>
                             {active && (
                               <div className="flex items-center pr-1.5 gap-0.5">
                                 <button onClick={() => { setRenamingPlaylistId(pl.id); setRenameValue(pl.name); }} className="p-1 rounded-full hover:bg-black/10" title="Rename">
@@ -2184,7 +2171,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                       {menuOpen && (
                         <div className="mx-2 mb-1 mt-0.5 p-2 rounded-2xl bg-black/50 border border-white/10 space-y-1" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-between px-2 pb-1">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Add to playlist</span>
+                            <span className="text-xs font-semibold text-white/40">Add to playlist</span>
                             <button onClick={() => setPlaylistMenuSongId(null)} className="text-white/40 hover:text-white">
                               <X className="w-3.5 h-3.5" />
                             </button>
@@ -2259,7 +2246,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     ) : (
                       <>
                         {!onlineSearched && (
-                          <p className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-white/40">Popular now</p>
+                          <p className="px-2 py-1.5 text-xs font-semibold text-white/40">Popular now</p>
                         )}
                         {onlineResults.map((track) => {
                           const added = player.songs.some((s) => (s as any).externalId === track.id);
@@ -2320,7 +2307,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
               <div className="absolute top-0 inset-x-0 p-6 flex items-center justify-between z-10">
                 <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10">
                   <div className={cn("w-2 h-2 rounded-full", isPaused ? "bg-amber-500" : "bg-red-500 animate-pulse")} />
-                  <span className="text-sm font-black tabular-nums">
+                  <span className="text-sm font-semibold tabular-nums">
                     {timeLeft.h > 0 && `${timeLeft.h.toString().padStart(2, '0')}:`}
                     {timeLeft.m.toString().padStart(2, '0')}:{timeLeft.s.toString().padStart(2, '0')}
                   </span>
@@ -2338,7 +2325,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
               {/* Bottom: now playing + controls */}
               <div className="absolute bottom-0 inset-x-0 p-8 md:p-14 space-y-6 z-10">
                 <div className="max-w-3xl">
-                  <h2 className="text-4xl md:text-6xl lg:text-7xl font-heading font-black tracking-tight drop-shadow-2xl truncate">{currentSong.title}</h2>
+                  <h2 className="text-4xl md:text-6xl lg:text-7xl font-heading font-semibold tracking-tight drop-shadow-2xl truncate">{currentSong.title}</h2>
                   <p className="text-lg md:text-2xl font-bold text-white/70 truncate mt-2">{currentSong.artist || 'Unknown artist'}</p>
                 </div>
 
@@ -2403,11 +2390,11 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="w-full max-w-md bg-[#070b19]/95 border border-white/10 p-6 rounded-[32px] shadow-2xl space-y-6 text-white text-left relative"
+                className="w-full max-w-md bg-[#070b19]/95 border border-white/10 p-6 rounded-3xl shadow-2xl space-y-6 text-white text-left relative"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex justify-between items-center">
-                  <h3 className="text-xl font-black flex items-center gap-2">
+                  <h3 className="text-xl font-semibold flex items-center gap-2">
                     <Info className="w-5 h-5 text-primary" /> Keyboard shortcuts
                   </h3>
                   <Button
@@ -2421,20 +2408,19 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 </div>
 
                 <div className="space-y-4">
-                  <p className="text-xs text-white/60 font-semibold uppercase tracking-wider">Shortcuts</p>
+                  <p className="text-xs text-white/60 font-semibold">Shortcuts</p>
                   <div className="grid grid-cols-1 gap-3">
                     {[
                       { key: 'Space', desc: 'Pause or resume' },
                       { key: 'V', desc: 'Timer or music view' },
-                      { key: 'P', desc: 'Study tools' },
-                      { key: 'Z', desc: 'Hide or show side panels' },
+                      { key: 'D', desc: 'Files and later today' },
                       { key: 'M', desc: 'Mute music' },
                       { key: 'F', desc: 'Full screen' },
                       { key: '← / →', desc: 'Previous or next song' },
                     ].map((shortcut) => (
                       <div key={shortcut.key} className="flex items-center justify-between p-3.5 bg-white/5 border border-white/5 rounded-2xl">
                         <span className="text-sm font-bold text-white">{shortcut.desc}</span>
-                        <kbd className="px-3 py-1 bg-white/10 rounded-xl text-xs font-black uppercase border border-white/10 shadow-sm font-mono text-center min-w-[2.5rem]">
+                        <kbd className="px-3 py-1 bg-white/10 rounded-xl text-xs font-semibold uppercase border border-white/10 shadow-sm font-mono text-center min-w-[2.5rem]">
                           {shortcut.key}
                         </kbd>
                       </div>

@@ -28,6 +28,28 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.34',
+    date: '2026-11-22',
+    title: 'A new focus screen',
+    changes: {
+      new: [
+        'The focus screen is redesigned. The time sits inside a ring that fills as the session goes, with your goals underneath as pills you tap to tick off. Pause, Finish, the song playing, Deep focus, your files and your music are all in one bar at the bottom.',
+        'Choose how the clock looks in Focus settings: Bold, Mono, Rounded or Classic.',
+        'Twenty colour themes for the focus background in Focus settings, and you can still mix your own.',
+        'The music view is new: the album cover fills the room behind it, with bigger controls and a cleaner Lyrics and Up next panel. Your music library opens as a full-height panel.',
+      ],
+      better: [
+        'Files and the rest of the plan for today open in a side panel from the bottom bar (or press D), so the screen stays clear while you work.',
+      ],
+      removed: [
+        'Study tools (notes, tutor and flashcards inside a focus session) are gone from the focus screen.',
+      ],
+      dev: [
+        'components/focus/FocusRing.tsx (ring clock), components/focus/clock-fonts.ts (next/font, self-hosted so it works offline). FlowAIPanel and its render test removed; P and Z shortcuts removed, D opens the session panel.',
+      ],
+    },
+  },
+  {
     version: '1.0.33',
     date: '2026-11-22',
     title: 'Mentor access, Word and PowerPoint files, and sharing your timetable',
