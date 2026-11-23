@@ -28,6 +28,25 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.40',
+    date: '2026-11-23',
+    title: 'New Focus page and mini window sizes',
+    changes: {
+      new: [
+        'The small always-on-top focus window now comes in three sizes: Mini, Compact and Card. Hover it to switch; it remembers your choice and stays in its corner.',
+        'Space pauses and resumes from the small window.',
+      ],
+      better: [
+        'The Focus page shows the block that matters now in a big card at the top, with a live "starts in" or "time left", and one button to start.',
+        "Today's plan on the Focus page is a timeline with each subject's icon, time chips and the minutes you already focused.",
+        'Your progress today, a free session and your focus totals sit beside the plan.',
+      ],
+      dev: [
+        'lib/focus-plan.ts (tested) places blocks against the clock. desktop-app/main.js: WIDGET_SIZES and a widget:size message; the widget window is no longer freely resizable.',
+      ],
+    },
+  },
+  {
     version: '1.0.39',
     date: '2026-11-23',
     title: 'Window buttons fixed',
