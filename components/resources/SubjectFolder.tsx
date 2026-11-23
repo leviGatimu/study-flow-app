@@ -235,7 +235,9 @@ export function SubjectFolder({ library, initialPath }: Props) {
       toast.info("That file lives in the library folder on your desktop computer.");
       return;
     }
-    if (item.type === "LINK") {
+    // On the desktop a link opens inside the app too (FileViewer's link view);
+    // a browser cannot show most sites in a frame, so there it gets a new tab.
+    if (item.type === "LINK" && !onDesktop) {
       window.open(item.url, "_blank", "noopener,noreferrer");
       return;
     }

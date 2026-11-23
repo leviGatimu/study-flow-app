@@ -28,7 +28,6 @@ import {
   CalendarClock,
   ChevronRight,
   Clock,
-  FileText,
   History,
   KeyRound,
   Layers,
@@ -43,8 +42,6 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Page, PageBody } from '@/components/ui/page';
 import { PageHeader } from '@/components/ui/page-header';
 import { Panel, PanelTitle } from '@/components/ui/panel';
@@ -57,11 +54,10 @@ import { cn } from '@/lib/utils';
 import { createRunSaveQueue } from '@/lib/run-save-queue';
 import { formatAnswer } from '@/lib/marking';
 import type { RunDraft, RunSnapshot } from '@/lib/run-draft';
-import { readStudyDocument, type StudyDocument } from '@/lib/file-extract';
+import type { StudyDocument } from '@/lib/file-extract';
 import {
   deleteStudySet,
   generateFlashcards,
-  generateStudySet,
   getStudySet,
   submitAttempt,
   retryAttemptMarking,
@@ -71,20 +67,13 @@ import {
   type AttemptResult,
   type StudySetDetail,
   type StudySetSummary,
-  type StudyStyle,
 } from '@/lib/study-actions';
 import { PracticeWorkspace, type SaveStatus } from './PracticeWorkspace';
 import { QuestionRunner, type RunnerMode } from './QuestionRunner';
 import { FlashcardRunner } from './FlashcardRunner';
+import { PracticeBuilder, PracticeWriting } from './PracticeBuilder';
 
 type Stage = 'library' | 'configure' | 'generating' | 'set' | 'running' | 'cards' | 'results';
-
-const STYLES: { id: StudyStyle; label: string; blurb: string }[] = [
-  { id: 'MULTIPLE_CHOICE', label: 'Multiple choice', blurb: 'Pick one, sometimes pick several.' },
-  { id: 'TRUE_FALSE', label: 'True/false and blanks', blurb: 'Quick recall, fast to answer.' },
-  { id: 'WRITTEN', label: 'Written answers', blurb: 'Short and long answers, marked by AI.' },
-  { id: 'MIXED', label: 'A mix of everything', blurb: 'All eight types, like a real paper.' },
-];
 
 const MODE_LABEL: Record<RunnerMode, string> = {
   PRACTICE: 'Practice',
@@ -138,6 +127,7 @@ export function StudyGenerator({
   const [draft, setDraft] = useState<RunDraft | null>(null);
   const [runKey, setRunKey] = useState(0);
   const [configSubject, setConfigSubject] = useState<string | null>(initialSubject);
+  const [writingSubject, setWritingSubject] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
 
@@ -274,7 +264,7 @@ export function StudyGenerator({
 
   if (stage === 'configure') {
     return (
-      <Configure
+      <PracticeBuilder
         key={configSubject ?? ''}
         subjects={subjects}
         initialSubject={configSubject}
@@ -282,7 +272,7 @@ export function StudyGenerator({
         doc={doc}
         setDoc={setDoc}
         onBack={toLibrary}
-        onGenerating={() => setStage('generating')}
+        onGenerating={(subject) => { setWritingSubject(subject); setStage('generating'); }}
         onDone={async (setId) => {
           setDoc(null);
           await openSet(setId);
@@ -293,7 +283,7 @@ export function StudyGenerator({
     );
   }
 
-  if (stage === 'generating') return <Generating doc={doc} />;
+  if (stage === 'generating') return <PracticeWriting doc={doc} subject={writingSubject} />;
 
   if (stage === 'set' && detail) {
     return (
@@ -538,314 +528,6 @@ function LibraryView({
 }
 
 /* --------------------------------------------------------------- configure */
-
-function Configure({
-  subjects,
-  initialSubject,
-  aiReady,
-  doc,
-  setDoc,
-  onBack,
-  onGenerating,
-  onDone,
-  onFailed,
-}: {
-  subjects: string[];
-  initialSubject: string | null;
-  aiReady: boolean;
-  doc: StudyDocument | null;
-  setDoc: (d: StudyDocument | null) => void;
-  onBack?: () => void;
-  onGenerating: () => void;
-  onDone: (setId: string) => Promise<void>;
-  onFailed: () => void;
-}) {
-  // A subject passed in from another page wins; matched case-insensitively
-  // against the student's list, and added to it if it is not there.
-  const matched = initialSubject
-    ? subjects.find((s) => s.toLowerCase() === initialSubject.toLowerCase()) ?? initialSubject
-    : null;
-  const options = matched && !subjects.includes(matched) ? [matched, ...subjects] : subjects;
-
-  const [reading, setReading] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const [subject, setSubject] = useState(matched ?? subjects[0] ?? '');
-  const [count, setCount] = useState(10);
-  const [style, setStyle] = useState<StudyStyle>('MIXED');
-  const [focus, setFocus] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const take = async (file: File) => {
-    setReading(true);
-    try {
-      const read = await readStudyDocument(file);
-      setDoc(read);
-      // The File is deliberately not kept anywhere. Only `read` survives, and
-      // it holds text, never bytes.
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'That file could not be read.');
-    } finally {
-      setReading(false);
-    }
-  };
-
-  const generate = async () => {
-    if (!doc) return;
-    if (!subject.trim()) {
-      toast.error('Pick a subject.');
-      return;
-    }
-    onGenerating();
-    const res = await generateStudySet({
-      subject: subject.trim(),
-      sourceName: doc.name,
-      text: doc.text || undefined,
-      image: doc.image,
-      count,
-      style,
-      instructions: focus.trim() || undefined,
-    });
-
-    if ('error' in res) {
-      toast.error(res.error);
-      onFailed();
-      return;
-    }
-    if (res.generated < res.requested) {
-      toast.warning(
-        `Asked for ${res.requested}, got ${res.generated}. The document may not have enough material for more.`
-      );
-    } else {
-      toast.success(`${res.generated} questions ready.`);
-    }
-    await onDone(res.setId);
-  };
-
-  return (
-    <Page>
-      <PageHeader
-        title="New practice set"
-        description="Upload a document, say how many questions and what kind, and they are written for you."
-        actions={
-          onBack && (
-            <Button variant="outline" size="lg" onClick={onBack}>
-              <ArrowLeft />
-              Your sets
-            </Button>
-          )
-        }
-      />
-      <PageBody>
-        <div className="mx-auto w-full max-w-3xl space-y-6">
-          {!aiReady && <AiKeyNotice />}
-
-          <Panel>
-            <PanelTitle icon={<FileText />}>What are you studying?</PanelTitle>
-            {!doc ? (
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragging(true);
-                }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragging(false);
-                  const file = e.dataTransfer.files?.[0];
-                  if (file) void take(file);
-                }}
-                className={cn(
-                  'rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors',
-                  dragging ? 'border-primary bg-primary/5' : 'border-border/60 bg-muted/30'
-                )}
-              >
-                {reading ? (
-                  <p className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground">
-                    <Loader2 className="size-4 animate-spin" />
-                    Reading it…
-                  </p>
-                ) : (
-                  <>
-                    <Upload className="mx-auto size-6 text-muted-foreground" />
-                    <p className="mt-3 font-heading text-lg font-bold">Drop a file here</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      PDF, Word (.docx), a text file, or a photo of a page
-                    </p>
-                    <Button variant="outline" className="mt-4" onClick={() => inputRef.current?.click()}>
-                      Choose a file
-                    </Button>
-                    <input
-                      ref={inputRef}
-                      type="file"
-                      accept=".pdf,.docx,.txt,.md,image/*"
-                      className="hidden"
-                      aria-label="Choose a file to practise from"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) void take(file);
-                        e.target.value = '';
-                      }}
-                    />
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-border/40 bg-muted/40 px-5 py-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-2 font-bold">
-                      <FileText className="size-4 shrink-0 text-primary" />
-                      <span className="truncate">{doc.name}</span>
-                    </p>
-                    <p className="mt-1 text-xs font-medium text-muted-foreground">
-                      {doc.image
-                        ? 'Image. The AI will read it directly.'
-                        : `${doc.totalChars.toLocaleString()} characters${
-                            doc.pageCount ? ` · ${doc.pageCount} pages` : ''
-                          }`}
-                    </p>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => setDoc(null)}>
-                    Change
-                  </Button>
-                </div>
-
-                {doc.truncated && (
-                  <p className="mt-3 rounded-xl border border-orange-500/20 bg-orange-500/10 px-3 py-2 text-xs font-semibold text-orange-600 dark:text-orange-400">
-                    That is longer than can be used at once. Only the first part will be read. Split
-                    it into two sets to cover all of it.
-                  </p>
-                )}
-
-                {doc.text && (
-                  <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-                    {doc.text.slice(0, 400)}…
-                  </p>
-                )}
-              </div>
-            )}
-          </Panel>
-
-          <Panel className={cn(!doc && 'opacity-60')}>
-            <PanelTitle icon={<ListChecks />}>What should it test?</PanelTitle>
-            <fieldset disabled={!doc} className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="set-subject">Subject</Label>
-                  {options.length > 0 ? (
-                    <select
-                      id="set-subject"
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      className="h-11 w-full rounded-xl border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                    >
-                      {options.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <Input
-                      id="set-subject"
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      placeholder="e.g. Physics"
-                      className="h-11 rounded-xl px-3 text-base"
-                    />
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="set-count">
-                    How many questions? <span className="text-primary tabular-nums">{count}</span>
-                  </Label>
-                  <input
-                    id="set-count"
-                    type="range"
-                    min={3}
-                    max={40}
-                    step={1}
-                    value={count}
-                    onChange={(e) => setCount(Number(e.target.value))}
-                    className="h-11 w-full accent-primary"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <p id="set-style-label" className="text-sm font-medium">
-                  What kind?
-                </p>
-                <div role="group" aria-labelledby="set-style-label" className="grid gap-3 sm:grid-cols-2">
-                  {STYLES.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      aria-pressed={style === option.id}
-                      onClick={() => setStyle(option.id)}
-                      className={cn(
-                        'rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-                        style === option.id
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border/60 hover:bg-muted/60'
-                      )}
-                    >
-                      <p className="font-bold">{option.label}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{option.blurb}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="set-focus">
-                  Anything to focus on? <span className="font-normal text-muted-foreground">Optional</span>
-                </Label>
-                <Input
-                  id="set-focus"
-                  value={focus}
-                  onChange={(e) => setFocus(e.target.value)}
-                  placeholder="e.g. only chapter 3, or go hard on the formulas"
-                  className="h-11 rounded-xl px-3 text-base"
-                />
-              </div>
-            </fieldset>
-
-            <Button
-              size="lg"
-              className="mt-6 h-12 w-full rounded-xl text-base"
-              disabled={!doc || !aiReady}
-              onClick={generate}
-            >
-              <Sparkles />
-              Write my {count} questions
-            </Button>
-          </Panel>
-        </div>
-      </PageBody>
-    </Page>
-  );
-}
-
-function Generating({ doc }: { doc: StudyDocument | null }) {
-  return (
-    <Page>
-      <PageHeader
-        title="Writing your questions"
-        description="Longer sets are written in batches, so this can take up to a minute. Keep this tab open."
-      />
-      <PageBody>
-        <Panel className="mx-auto flex w-full max-w-3xl flex-col items-center gap-3 py-12 text-center">
-          <Loader2 className="size-8 animate-spin text-primary" aria-hidden />
-          <p className="font-heading text-lg font-bold" role="status">
-            Reading {doc?.name ?? 'your document'}
-          </p>
-        </Panel>
-      </PageBody>
-    </Page>
-  );
-}
 
 /* -------------------------------------------------------------- set detail */
 

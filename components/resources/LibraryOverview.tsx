@@ -217,7 +217,7 @@ export function LibraryOverview({ overview }: { overview: Overview }) {
             />
           )
         ) : view === "grid" ? (
-          <ul role="list" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <ul role="list" className="stagger-in grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {subjects.map((s) => (
               <SubjectTile key={s.name} subject={s} onMenu={(at) => openMenu(at, s)} />
             ))}
@@ -414,13 +414,13 @@ function SubjectRows({
 function RecentCard({ item, onDesktop, onView }: { item: ResourceItem; onDesktop: boolean; onView: (item: ResourceItem) => void }) {
   const href = `/resources/${encodeURIComponent(item.subject)}${item.folder ? `?path=${encodeURIComponent(item.folder)}` : ""}`;
   const unavailable = item.type === "FILE" && item.inLibrary && !onDesktop;
-  const viewable = item.type === "FILE" && !unavailable;
+  // Files open in the viewer; links do too on the desktop, where any site can be shown inside the app.
+  const viewable = (item.type === "FILE" && !unavailable) || (item.type === "LINK" && onDesktop);
   return (
     <li>
       <Link
         href={href}
         onClick={(e) => {
-          // A file opens in the viewer; a link or a desktop-only file still goes to its folder.
           if (!viewable || e.ctrlKey || e.metaKey || e.shiftKey) return;
           e.preventDefault();
           onView(item);

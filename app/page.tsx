@@ -5,7 +5,7 @@ import { CalendarDays, CheckCircle2, History } from 'lucide-react';
 
 import { getTodayTasks, syncStreak, getEvents, getTomorrowTasks, getYesterdayTasks } from '@/lib/actions';
 import { getCurrentScheduleState } from '@/lib/term-actions';
-import { getUserId, getMentorSession } from '@/lib/auth';
+import { getUserId } from '@/lib/auth';
 import { getViewScope } from '@/lib/scope';
 import { listSubjects } from '@/lib/subject-actions';
 import { getSchoolLessons } from '@/lib/school-actions';
@@ -42,8 +42,6 @@ export default async function Dashboard() {
   if (!userId) redirect('/welcome');
 
   // "Today" means nothing in a finished year: its home is the year's highlights.
-  // A mentor's home is their own dashboard, not the student's planner.
-  if (await getMentorSession()) redirect('/mentor');
 
   const scope = await getViewScope(userId);
   if (scope?.isArchive) redirect(`/year/${scope.classId}`);
@@ -145,7 +143,7 @@ export default async function Dashboard() {
             close in height. */}
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
           {/* Left: the day itself, what is next, and what was done. */}
-          <div className="min-w-0 space-y-6 lg:col-span-8">
+          <div className="stagger-in min-w-0 space-y-6 lg:col-span-8">
             <Section
               title="Today's focus"
               actions={
@@ -185,7 +183,7 @@ export default async function Dashboard() {
                   }
                 />
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="stagger-in grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {tomorrowTasks.map((task) => (
                     <ListRow
                       key={task.id}
@@ -216,7 +214,7 @@ export default async function Dashboard() {
                   description="Blocks you tick off show up here the next day."
                 />
               ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="stagger-in grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {yesterdayTasks.slice(0, 6).map((task) => (
                     <ListRow
                       key={task.id}
@@ -233,7 +231,7 @@ export default async function Dashboard() {
           </div>
 
           {/* Right: how the day is going, and what is coming. */}
-          <div className="min-w-0 space-y-6 lg:col-span-4">
+          <div className="stagger-in min-w-0 space-y-6 lg:col-span-4">
             <ProgressWidget
               percentage={progressPercentage}
               completed={completedTasks}

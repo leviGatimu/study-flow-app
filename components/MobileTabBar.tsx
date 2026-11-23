@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion, useReducedMotion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 import { mentorVisible, NAV, resolveNav } from "@/lib/nav";
@@ -24,6 +25,7 @@ export function MobileTabBar() {
   const current = resolveNav(pathname)?.section;
   const active = current?.mobileGroup ?? current?.name;
   const tabs = useMentor() ? mentorVisible(TABS) : TABS;
+  const reduceMotion = useReducedMotion();
 
   return (
     <nav
@@ -44,13 +46,17 @@ export function MobileTabBar() {
               isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <span
-              className={cn(
-                "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
-                isActive && "bg-primary/10"
+            <span className="relative flex h-7 w-12 items-center justify-center">
+              {/* The highlight slides from the old tab to the new one. */}
+              {isActive && (
+                <motion.span
+                  layoutId="mobile-tab-active"
+                  aria-hidden
+                  transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 40 }}
+                  className="absolute inset-0 rounded-full bg-primary/10"
+                />
               )}
-            >
-              <Icon className="size-5" />
+              <Icon className="relative size-5" />
             </span>
             {section.name}
           </Link>

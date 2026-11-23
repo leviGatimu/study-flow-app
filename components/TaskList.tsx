@@ -134,7 +134,7 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
 
   return (
     <div>
-      <ol aria-label="Today's blocks, in time order" className="space-y-3">
+      <ol aria-label="Today's blocks, in time order" className="stagger-in space-y-3">
         {tasks.map((task) => (
           <TimelineItem
             key={task.id}

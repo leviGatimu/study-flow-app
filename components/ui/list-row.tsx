@@ -50,7 +50,7 @@ export function ListRow({
         href={href}
         className={cn(
           rowClass,
-          "group hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+          "group transition-[background-color,translate] duration-200 hover:translate-x-0.5 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:hover:translate-x-0",
           className
         )}
       >

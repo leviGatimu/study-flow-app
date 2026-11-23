@@ -129,3 +129,46 @@ export function isSafeDocumentHref(href: string | null): boolean {
   if (value.startsWith('#')) return true;
   return value.startsWith('http://') || value.startsWith('https://') || value.startsWith('mailto:');
 }
+
+const GOOGLE_DOC = /^\/(document|presentation|spreadsheets)\/d\/([A-Za-z0-9_-]+)/;
+const DRIVE_FILE = /^\/file\/d\/([A-Za-z0-9_-]+)/;
+const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
+
+/**
+ * The address to show a saved link at inside the app (the desktop link
+ * viewer), or null when it is not a web page. YouTube becomes its player,
+ * and Google Docs, Slides, Sheets and Drive files their read-only preview
+ * pages, because their normal pages refuse to sit inside another app. Every
+ * other http(s) page is shown as it is. Pure, tested in test/file-preview.
+ */
+export function linkEmbedUrl(raw: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+  const host = url.hostname.toLowerCase().replace(/^www\.|^m\./, '');
+
+  let video: string | null = null;
+  if (host === 'youtu.be') video = url.pathname.split('/')[1] ?? null;
+  else if (host === 'youtube.com' || host === 'music.youtube.com') {
+    if (url.pathname === '/watch') video = url.searchParams.get('v');
+    else {
+      const [, kind, value] = url.pathname.split('/');
+      if (kind === 'shorts' || kind === 'embed' || kind === 'live') video = value ?? null;
+    }
+  }
+  if (video && YOUTUBE_ID.test(video)) return `https://www.youtube-nocookie.com/embed/${video}?rel=0`;
+
+  if (host === 'docs.google.com') {
+    const doc = GOOGLE_DOC.exec(url.pathname);
+    if (doc) return `https://docs.google.com/${doc[1]}/d/${doc[2]}/preview`;
+  }
+  if (host === 'drive.google.com') {
+    const file = DRIVE_FILE.exec(url.pathname);
+    if (file) return `https://drive.google.com/file/d/${file[1]}/preview`;
+  }
+  return url.toString();
+}

@@ -8,13 +8,13 @@ import {
   Play, Pause, Flame, Zap, CheckCircle2,
   ArrowLeft, ListTodo, BookOpen, Plus,
   Clock, ChevronRight, Paperclip, Send, X,
-  Music, SkipForward, SkipBack, Info,
+  Music, SkipForward, SkipBack, Eye, EyeOff, Info,
   Shuffle, Repeat, Repeat1, ListMusic, Disc3, Timer,
   Upload, Trash2, ImagePlus, Loader2,
   Droplets, PersonStanding, Coffee, CalendarClock, ScrollText,
   ListPlus, Pencil, Check, FolderPlus, RotateCcw,
   Search, Globe, WifiOff, Settings, Palette, ImageIcon, Sparkles,
-  Infinity as InfinityIcon, CalendarDays, FolderOpen,
+  Infinity as InfinityIcon, CalendarDays, ArrowRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,7 +29,8 @@ import { useFocus } from '@/lib/FocusContext';
 import { FluidGradient } from '@/components/focus/FluidGradient';
 import { LyricsPanel } from '@/components/focus/LyricsPanel';
 import { useMusicPlayer, DEFAULT_PALETTE } from '@/components/focus/useMusicPlayer';
-import { FocusRing } from '@/components/focus/FocusRing';
+import { FocusCard } from '@/components/focus/FocusCard';
+import { CountUp } from '@/components/ui/count-up';
 import { CLOCK_FONTS, CLOCK_FONT_KEY, clockFontClass, isClockFontId, type ClockFontId } from '@/components/focus/clock-fonts';
 import { searchOnlineSongs, getTrendingOnlineSongs, type OnlineTrack } from '@/lib/online-music';
 import { fallbackPalette } from '@/lib/palette';
@@ -107,94 +108,7 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-/** A row of mutually exclusive choices, used throughout the setup and settings. */
-function Segmented<T extends string | number>({
-  value,
-  options,
-  onChange,
-  label,
-}: {
-  value: T | null;
-  options: { value: T; label: React.ReactNode }[];
-  onChange: (value: T) => void;
-  label: string;
-}) {
-  return (
-    <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-1 rounded-xl border border-border bg-muted/50 p-1">
-      {options.map((o) => {
-        const selected = o.value === value;
-        return (
-          <button
-            key={String(o.value)}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            onClick={() => onChange(o.value)}
-            className={cn(
-              'flex min-w-16 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 [&_svg]:size-4',
-              selected ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 /** A labelled group inside the setup screen and the settings panel. */
-function Field({ label, hint, children }: { label: string; hint?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="space-y-2">
-      <p className="text-sm font-semibold text-foreground">{label}</p>
-      {children}
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-    </div>
-  );
-}
-
-/** One round button in the focus toolbar. `active` shows a pressed state. */
-function BarButton({
-  title,
-  active,
-  tone,
-  size = 'bar',
-  onClick,
-  children,
-}: {
-  title: string;
-  active?: boolean;
-  tone?: 'ember';
-  size?: 'bar' | 'dock';
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        'grid shrink-0 place-items-center text-white/65 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40',
-        size === 'dock' ? 'size-12 rounded-[22px] [&_svg]:size-5' : 'size-9 rounded-full [&_svg]:size-[18px]',
-        active && (tone === 'ember' ? 'bg-orange-500/25 text-orange-300 hover:bg-orange-500/30 hover:text-orange-200' : 'bg-white/15 text-white')
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-/** A tool in the bottom dock: bigger than the top-bar buttons, same behaviour. */
-function DockButton(props: React.ComponentProps<typeof BarButton>) {
-  return (
-    <BarButton {...props} size="dock" />
-  );
-}
-
 /** Today's date and the time, for the top bar. Renders after mount so the
  * server and the browser never disagree about the minute. */
 function NowClock({ className }: { className?: string }) {
@@ -259,9 +173,8 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
   // "No limit": run until the student ends it rather than for a set length.
   const [noLimit, setNoLimit] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [showSessionPanel, setShowSessionPanel] = useState(false);
-  const [addingGoal, setAddingGoal] = useState(false);
-  const [clockFont, setClockFont] = useState<ClockFontId>('BOLD');
+  const [isZenMode, setIsZenMode] = useState(false);
+  const [clockFont, setClockFont] = useState<ClockFontId>('ORIGINAL');
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   // Playlist management (library slide-over)
   const [newPlaylistOpen, setNewPlaylistOpen] = useState(false);
@@ -361,8 +274,8 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
     : isIntense
     ? INTENSE_PALETTE
     : basePalette;
-  // The ring needs a colour that shows up on the dark room: the brightest of the scene.
-  const ringAccent = brightestColour(scenePalette);
+  // The palette's darkest colours vanish on the dark room; use its lightest for text and bars.
+  const sceneAccent = brightestColour(scenePalette);
 
   // Restore the user's preferred break rhythm.
   useEffect(() => {
@@ -681,9 +594,9 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
             pauseFocus();
           }
           break;
-        case 'KeyD':
+        case 'KeyZ':
           e.preventDefault();
-          setShowSessionPanel(prev => !prev);
+          setIsZenMode(prev => !prev);
           break;
         case 'KeyM':
           e.preventDefault();
@@ -776,6 +689,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
     : totalDurationSeconds > 0
     ? Math.min(1, Math.max(0, elapsedSeconds / totalDurationSeconds))
     : 0;
+  const elapsedPercent = Math.round(elapsedFraction * 100);
 
   // Today's still-pending sessions that start after the current task.
   const nextSessions = upcomingTasks
@@ -785,148 +699,203 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
 
   const isScheduled = task.id !== 'free';
   const typeLabel = task.type === 'REVISION' ? 'Revision' : task.type === 'HOMEWORK' ? 'Homework' : 'Free session';
-  const durationChoices = (
-    <div className="space-y-4">
-      <Segmented
-        label="Session length"
-        value={noLimit ? -1 : presets.includes(customDuration) ? customDuration : null}
-        options={[
-          ...presets.map((mins) => ({ value: mins, label: `${mins} min` })),
-          { value: -1, label: <><InfinityIcon /> No limit</> },
-        ]}
-        onChange={(v) => {
-          if (v === -1) setNoLimit(true);
-          else {
-            setCustomDuration(v);
-            setNoLimit(false);
-          }
-        }}
-      />
-      {noLimit ? (
-        <p className="text-sm text-muted-foreground">
-          The timer counts up from 0:00 and keeps going until you finish the session yourself.
-        </p>
-      ) : (
-        <div className="space-y-2">
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Or pick your own</span>
-            <span className="font-medium tabular-nums text-foreground">{customDuration} min</span>
-          </div>
-          <Slider
-            value={[customDuration]}
-            onValueChange={(v) => setCustomDuration(v[0])}
-            max={180}
-            min={5}
-            step={5}
-            aria-label="Session length in minutes"
-          />
-        </div>
-      )}
-    </div>
-  );
-
   if (currentStep === 'PREP') {
+    const blockMinutes = (() => {
+      if (!isScheduled) return 0;
+      const [sh, sm] = task.startTime.split(':').map(Number);
+      const [eh, em] = task.endTime.split(':').map(Number);
+      let d = (eh * 60 + em) - (sh * 60 + sm);
+      if (d <= 0) d += 1440;
+      return d;
+    })();
+    const untilBlockEnd = isScheduled && isSyncedWithTimetable;
+    const previewMinutes = untilBlockEnd ? blockMinutes : noLimit ? 0 : customDuration;
+    const chooseLength = (choice: 'BLOCK' | 'NOLIMIT' | number) => {
+      if (choice === 'BLOCK') {
+        setIsSyncedWithTimetable(true);
+        setNoLimit(false);
+        setCustomDuration(blockMinutes);
+      } else if (choice === 'NOLIMIT') {
+        setIsSyncedWithTimetable(false);
+        setNoLimit(true);
+      } else {
+        setIsSyncedWithTimetable(false);
+        setNoLimit(false);
+        setCustomDuration(choice);
+      }
+    };
+    const pill = (selected: boolean) => cn(
+      'inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50',
+      selected ? 'bg-white text-black' : 'bg-white/[0.08] text-white/80 hover:bg-white/15 hover:text-white'
+    );
+    const roomPalette = isIntense ? INTENSE_PALETTE : basePalette;
+
     return (
-      <div className="h-full overflow-y-auto bg-background text-foreground">
-        <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-center gap-8 px-4 py-10 md:px-8">
-          <div className="space-y-2">
+      <div className="dark relative h-full overflow-hidden bg-black text-white">
+        <FluidGradient colors={roomPalette} intense={isIntense} className="absolute inset-0 overflow-hidden" />
+        <div className="pointer-events-none absolute inset-0 bg-black/40" />
+
+        <div className="relative z-10 flex h-full flex-col">
+          <div className="flex shrink-0 items-center px-4 py-4 md:px-6">
             <Link
               href="/focus"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-primary/80 transition-colors hover:text-primary"
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-black/25 pl-3 pr-4 text-sm font-medium text-white/80 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white"
             >
-              <ArrowLeft className="size-3.5" /> Back
+              <ArrowLeft className="size-4" /> Back
             </Link>
-            <h1 className="font-heading text-4xl font-bold tracking-tight break-words">{task.subject}</h1>
-            <p className="text-base text-muted-foreground">
-              {typeLabel}
-              {isScheduled && ` · ${task.startTime}–${task.endTime}`}
-            </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <section className="space-y-6 rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
-              <h2 className="flex items-center gap-2 font-heading text-lg font-bold">
-                <Clock className="size-5 text-primary" /> Length
-              </h2>
-              {isScheduled ? (
-                <>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold">Stop when the block ends</p>
-                      <p className="text-xs text-muted-foreground">
-                        {isSyncedWithTimetable
-                          ? `Runs until ${task.endTime}, the end of this block.`
-                          : 'Off: choose a length below.'}
-                      </p>
-                    </div>
-                    <Switch
-                      checked={isSyncedWithTimetable}
-                      aria-label="Stop when the block ends"
-                      onCheckedChange={(checked) => {
-                        setIsSyncedWithTimetable(checked);
-                        if (checked) {
-                          const [startH, startM] = task.startTime.split(':').map(Number);
-                          const [endH, endM] = task.endTime.split(':').map(Number);
-                          let diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
-                          if (diffMinutes <= 0) diffMinutes += 1440;
-                          setCustomDuration(diffMinutes);
-                        }
-                      }}
-                    />
-                  </div>
-                  {!isSyncedWithTimetable && durationChoices}
-                </>
-              ) : (
-                durationChoices
-              )}
-
-              <Field label="Mode" hint={intensity === 'INTENSE' ? 'Earns double XP for the time you focus.' : 'Earns XP for the time you focus.'}>
-                <Segmented
-                  label="Mode"
-                  value={intensity}
-                  options={[
-                    { value: 'CHILL', label: 'Normal' },
-                    { value: 'INTENSE', label: <><Zap /> Deep focus</> },
-                  ]}
-                  onChange={setIntensity}
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+            <div className="mx-auto grid min-h-full w-full max-w-6xl grid-cols-1 items-center gap-10 px-6 pb-8 md:px-10 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:gap-14">
+              {/* Left: what you are about to start */}
+              <div className="mx-auto flex w-full max-w-[min(380px,44vh)] flex-col gap-4 lg:max-w-[min(380px,44vh)]">
+                <FocusCard
+                  subject={task.subject}
+                  time={{ h: Math.floor(previewMinutes / 60), m: previewMinutes % 60, s: 0 }}
+                  chip={isIntense ? 'Deep focus' : 'Ready'}
+                  chipTone={isIntense ? 'ember' : 'idle'}
+                  note={untilBlockEnd ? `until ${task.endTime}` : noLimit ? 'counts up, no set length' : 'session length'}
+                  palette={roomPalette}
+                  accent={brightestColour(roomPalette)}
+                  fontClass={clockFontClass(clockFont)}
                 />
-              </Field>
-            </section>
-
-            <section className="space-y-6 rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
-              <h2 className="flex items-center gap-2 font-heading text-lg font-bold">
-                <ListTodo className="size-5 text-primary" /> Goals
-              </h2>
-              <div className="space-y-2">
-                {goals.map((goal, idx) => (
-                  <Input
-                    key={idx}
-                    value={goal}
-                    onChange={(e) => updateGoal(idx, e.target.value)}
-                    placeholder={idx === 0 ? 'What will you get done?' : `Goal ${idx + 1}`}
-                    aria-label={`Goal ${idx + 1}`}
-                    className="h-10"
-                  />
-                ))}
-                <Button variant="ghost" size="sm" onClick={addGoal} className="gap-1 text-primary">
-                  <Plus className="size-4" /> Add a goal
+                <div className="min-w-0">
+                  <h1 className="truncate font-heading text-2xl font-semibold leading-tight md:text-3xl">{task.subject}</h1>
+                  <p className="truncate text-base text-white/60">
+                    {typeLabel}
+                    {isScheduled && ` · ${task.startTime}–${task.endTime}`}
+                  </p>
+                </div>
+                <Button
+                  onClick={handleStartFocus}
+                  className="h-14 w-full gap-2 rounded-full bg-white text-base font-semibold text-black shadow-2xl hover:bg-white/90"
+                >
+                  <Play className="size-5 fill-current" /> Start session
                 </Button>
               </div>
 
-              <Field label="Breaks" hint="Work and rest minutes. The session timer keeps running and the music gets quieter.">
-                <Segmented
-                  label="Breaks"
-                  value={breakCycle ? breakCycle.work : 0}
-                  options={BREAK_PRESETS.map((p) => ({ value: p.work, label: p.label }))}
-                  onChange={(work) => chooseBreakCycle(BREAK_PRESETS.find((p) => p.work === work) ?? BREAK_PRESETS[0])}
-                />
-              </Field>
-            </section>
-          </div>
+              {/* Right: how the session runs */}
+              <div className="w-full space-y-7 rounded-3xl border border-white/10 bg-black/25 p-6 backdrop-blur-xl md:p-7">
+                <section className="space-y-3">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-white/85">
+                    <Clock className="size-4 text-white/45" /> How long
+                  </h2>
+                  <div role="radiogroup" aria-label="Session length" className="flex flex-wrap gap-2">
+                    {isScheduled && (
+                      <button type="button" role="radio" aria-checked={untilBlockEnd} onClick={() => chooseLength('BLOCK')} className={pill(untilBlockEnd)}>
+                        Until {task.endTime}
+                      </button>
+                    )}
+                    {presets.map((mins) => {
+                      const on = !untilBlockEnd && !noLimit && customDuration === mins;
+                      return (
+                        <button key={mins} type="button" role="radio" aria-checked={on} onClick={() => chooseLength(mins)} className={pill(on)}>
+                          {mins} min
+                        </button>
+                      );
+                    })}
+                    <button type="button" role="radio" aria-checked={!untilBlockEnd && noLimit} onClick={() => chooseLength('NOLIMIT')} className={pill(!untilBlockEnd && noLimit)}>
+                      <InfinityIcon className="size-4" /> No limit
+                    </button>
+                  </div>
+                  {!untilBlockEnd && !noLimit && (
+                    <div className="space-y-2 pt-1">
+                      <div className="flex justify-between text-xs text-white/50">
+                        <span>Or pick your own</span>
+                        <span className="font-medium tabular-nums text-white">{customDuration} min</span>
+                      </div>
+                      <Slider
+                        value={[customDuration]}
+                        onValueChange={(v) => setCustomDuration(v[0])}
+                        max={180}
+                        min={5}
+                        step={5}
+                        aria-label="Session length in minutes"
+                        className="[&_[data-slot=slider-range]]:bg-white [&_[data-slot=slider-track]]:bg-white/15 [&_[data-slot=slider-thumb]]:border-white"
+                      />
+                    </div>
+                  )}
+                </section>
 
-          <Button onClick={handleStartFocus} size="lg" className="h-12 w-full text-base">
-            <Play className="size-5" /> Start session
-          </Button>
+                <section className="space-y-3">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-white/85">
+                    <ListTodo className="size-4 text-white/45" /> Goals
+                  </h2>
+                  <div className="space-y-2">
+                    {goals.map((goal, idx) => (
+                      <input
+                        key={idx}
+                        value={goal}
+                        onChange={(e) => updateGoal(idx, e.target.value)}
+                        placeholder={idx === 0 ? 'What will you get done?' : 'Another goal'}
+                        aria-label={`Goal ${idx + 1}`}
+                        className="h-11 w-full rounded-full border border-white/10 bg-white/[0.06] px-4 text-sm text-white outline-none transition-colors placeholder:text-white/35 focus:border-white/35"
+                      />
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addGoal}
+                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-white/65 transition-colors hover:bg-white/10 hover:text-white"
+                    >
+                      <Plus className="size-4" /> Add another goal
+                    </button>
+                  </div>
+                </section>
+
+                <section className="space-y-3">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-white/85">
+                    <Zap className="size-4 text-white/45" /> Mode
+                  </h2>
+                  <div role="radiogroup" aria-label="Mode" className="grid grid-cols-2 gap-2">
+                    {([
+                      { value: 'CHILL', title: 'Normal', hint: 'XP for the time you focus' },
+                      { value: 'INTENSE', title: 'Deep focus', hint: 'Double XP, the room turns to embers' },
+                    ] as const).map((m) => {
+                      const on = intensity === m.value;
+                      return (
+                        <button
+                          key={m.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={on}
+                          onClick={() => setIntensity(m.value)}
+                          className={cn(
+                            'rounded-2xl border p-4 text-left transition-colors',
+                            on
+                              ? m.value === 'INTENSE' ? 'border-orange-400/70 bg-orange-500/15' : 'border-white/60 bg-white/10'
+                              : 'border-white/10 bg-white/[0.04] hover:bg-white/10'
+                          )}
+                        >
+                          <p className="flex items-center gap-1.5 text-sm font-semibold">
+                            {m.value === 'INTENSE' && <Zap className={cn('size-4', on ? 'text-orange-300' : 'text-white/60')} />}
+                            {m.title}
+                          </p>
+                          <p className="mt-0.5 text-xs text-white/55">{m.hint}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <section className="space-y-3">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-white/85">
+                    <Coffee className="size-4 text-white/45" /> Breaks
+                  </h2>
+                  <div role="radiogroup" aria-label="Breaks" className="flex flex-wrap gap-2">
+                    {BREAK_PRESETS.map((preset) => {
+                      const on = preset.work === 0 ? !breakCycle : breakCycle?.work === preset.work;
+                      return (
+                        <button key={preset.label} type="button" role="radio" aria-checked={on} onClick={() => chooseBreakCycle(preset)} className={pill(on)}>
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-white/45">Work and rest minutes. The session timer keeps running and the music gets quieter.</p>
+                </section>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1093,59 +1062,133 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
           )}
         </AnimatePresence>
 
-        {/* Top bar: leave + session facts on the left, a few window controls on the right. */}
-        <div className="relative z-20 flex shrink-0 items-center justify-between gap-3 px-4 py-4 md:px-6">
-          <div className="flex min-w-0 items-center gap-2">
-            <Link
-              href="/"
-              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-black/25 pl-3 pr-4 text-sm font-medium text-white/80 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-            >
-              <ArrowLeft className="size-4" /> Leave
-            </Link>
-            <div className="hidden h-10 items-center gap-3 rounded-full border border-white/10 bg-black/25 px-4 text-sm text-white/70 backdrop-blur-xl md:flex">
-              <span className="inline-flex items-center gap-1.5 font-semibold tabular-nums text-white">
-                <Flame className={cn('size-4 text-orange-400', isIntense && 'fill-orange-400')} /> {sessionXP} XP
-              </span>
-              <span aria-hidden className="h-4 w-px bg-white/15" />
-              <NowClock className="flex items-center gap-2 tabular-nums" />
-            </div>
+        {/* Top Ribbon Controls */}
+        <div className="py-4 px-8 flex items-center justify-between relative z-20 shrink-0">
+          <div className="flex items-center gap-4">
+             <div className="flex items-center gap-3 px-5 py-2 bg-white/5 border border-white/10 rounded-full backdrop-blur-xl shadow-inner">
+               <Flame className="w-5 h-5 text-orange-500 fill-orange-500 animate-pulse" />
+               <span className="font-black text-lg tabular-nums tracking-tight">{sessionXP} XP</span>
+             </div>
+             <NowClock className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full backdrop-blur-xl text-sm font-bold text-white/80 tabular-nums" />
           </div>
 
-          {viewMode === 'SONG' && (
-            <button
-              type="button"
-              onClick={() => setViewMode('TIMER')}
-              title="Back to the timer (V)"
-              className="hidden h-10 items-center gap-2 rounded-full border border-white/10 bg-black/25 px-4 text-sm backdrop-blur-xl transition-colors hover:bg-white/10 sm:inline-flex"
-            >
-              <span className={cn('size-1.5 rounded-full', isPaused ? 'bg-amber-400' : 'bg-emerald-400 motion-safe:animate-pulse')} />
-              <span className="font-semibold tabular-nums">
-                {timeLeft.h > 0 && `${timeLeft.h}:`}{String(timeLeft.m).padStart(2, '0')}:{String(timeLeft.s).padStart(2, '0')}
-              </span>
-              <span className="max-w-[10rem] truncate text-white/60">{task.subject}</span>
-            </button>
-          )}
-
-          <div className="flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-black/25 p-1 backdrop-blur-xl">
+          <div className="flex items-center gap-3">
+            {/* Widget Mode Button (Electron only) */}
             {typeof window !== 'undefined' && 'electron' in window && (
-              <BarButton
-                title="Small always-on-top window"
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-12 h-12 rounded-2xl border bg-white/5 border-white/10 hover:bg-white/10 text-white transition-all duration-300"
                 onClick={() => {
                   (window as any).electron.send('enter-widget', { taskId: task.id });
                 }}
+                title="Small always-on-top window"
               >
-                <Minimize2 />
-              </BarButton>
+                <Minimize2 className="w-5 h-5 text-white/80" />
+              </Button>
             )}
-            <BarButton title="Keyboard shortcuts" active={showKeybindsInfo} onClick={() => setShowKeybindsInfo(!showKeybindsInfo)}>
-              <Info />
-            </BarButton>
-            <BarButton title="Focus settings" active={showSettings} onClick={() => setShowSettings(true)}>
-              <Settings />
-            </BarButton>
-            <BarButton title="Full screen (F)" onClick={toggleFullscreen}>
-              <Maximize2 />
-            </BarButton>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "w-12 h-12 rounded-2xl border transition-all duration-300",
+                showKeybindsInfo ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
+              )}
+              onClick={() => setShowKeybindsInfo(!showKeybindsInfo)}
+              title="Keyboard shortcuts"
+            >
+              <Info className="w-5 h-5" />
+            </Button>
+
+            {/* Focus settings (background, timer style, breaks, reminders) */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "w-12 h-12 rounded-2xl border transition-all duration-300",
+                showSettings ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
+              )}
+              onClick={() => setShowSettings(true)}
+              title="Focus settings"
+            >
+              <Settings className="w-5 h-5" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "w-12 h-12 rounded-2xl border transition-all duration-300",
+                isZenMode ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
+              )}
+              onClick={() => setIsZenMode(!isZenMode)}
+              title={isZenMode ? "Show side panels (Z)" : "Hide side panels (Z)"}
+            >
+              {isZenMode ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+            </Button>
+
+            {/* Song / Timer view toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "w-12 h-12 rounded-2xl border transition-all duration-300",
+                viewMode === 'SONG' ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
+              )}
+              onClick={() => setViewMode(viewMode === 'TIMER' ? 'SONG' : 'TIMER')}
+              title={viewMode === 'TIMER' ? 'Music view (V)' : 'Timer view (V)'}
+            >
+              {viewMode === 'TIMER' ? <Disc3 className="w-5 h-5" /> : <Timer className="w-5 h-5" />}
+            </Button>
+
+            {/* Music library */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "w-12 h-12 rounded-2xl border transition-all duration-300",
+                isLibraryOpen ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
+              )}
+              onClick={() => setIsLibraryOpen(!isLibraryOpen)}
+              title="Your music"
+            >
+              <ListMusic className="w-5 h-5" />
+            </Button>
+
+            <div className="h-6 w-px bg-white/10 mx-1" />
+
+            <Link href="/">
+              <Button variant="ghost" size="icon" className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white" title="Leave">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("w-12 h-12 rounded-2xl border transition-all duration-500", intensity === 'INTENSE' ? "bg-orange-500/20 border-orange-500/40 text-orange-500" : "bg-white/5 border-white/10 hover:bg-white/10 text-white")}
+              onClick={() => setIntensity(intensity === 'INTENSE' ? 'CHILL' : 'INTENSE')}
+              title={intensity === 'INTENSE' ? 'Switch to normal focus' : 'Switch to deep focus (double XP)'}
+            >
+              <Zap className="w-5 h-5" />
+            </Button>
+
+            <Button variant="ghost" size="icon" className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white" onClick={toggleFullscreen}>
+              <Maximize2 className="w-5 h-5" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "w-12 h-12 rounded-2xl border transition-all",
+                isPaused ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/30" : "bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20"
+              )}
+              onClick={() => isPaused ? resumeFocus() : pauseFocus()}
+            >
+              {isPaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
+            </Button>
           </div>
         </div>
 
@@ -1384,86 +1427,217 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
 
         {/* ============ WORKSPACE ============ */}
         {viewMode === 'TIMER' ? (
-          /* ---------- TIMER VIEW: the ring, then your goals ---------- */
-          <div className="relative z-10 flex flex-1 flex-col items-center justify-center overflow-y-auto px-4 pb-4">
-            <motion.div
-              animate={{ scale: isPaused ? 0.98 : 1 }}
-              transition={{ duration: 0.4 }}
-            >
-              <FocusRing
-                time={timeLeft}
-                fraction={elapsedFraction}
-                paused={isPaused}
-                accent={ringAccent}
-                fontClass={clockFontClass(clockFont)}
-                subject={task.subject}
-                status={isPaused ? 'Paused' : onBreak ? 'Break' : isIntense ? 'Deep focus' : 'Focusing'}
-                detail={isPaused ? 'Space to carry on' : openEnded ? 'no set length' : `${initialDurationMinutes} min`}
-              />
-            </motion.div>
+          /* ---------- TIMER VIEW ---------- */
+          <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-24 px-8 md:px-16 relative z-10 overflow-y-auto pb-16">
+            <AnimatePresence>
+              {!isZenMode && (
+                <motion.div
+                  initial={{ opacity: 0, x: -40 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -40 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 26 }}
+                  className="w-full lg:w-[320px] shrink-0 space-y-6 hidden lg:block lg:self-center lg:h-[min(450px,62vh)]"
+                >
+                  <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 flex items-center gap-2">
+                        <ListTodo className="w-4 h-4 text-white/60" /> Goals
+                      </h3>
+                    </div>
 
-            {/* Goals */}
-            <div className="mt-6 flex max-w-2xl flex-wrap items-center justify-center gap-2">
-              {goals.map((goal, i) =>
-                goal.trim() ? (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => toggleGoal(i)}
-                    aria-pressed={!!completedGoals[i]}
-                    className={cn(
-                      'inline-flex max-w-full items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-4 text-sm backdrop-blur-xl transition-colors',
-                      completedGoals[i]
-                        ? 'border-white/5 bg-black/15 text-white/45'
-                        : 'border-white/10 bg-black/25 text-white hover:bg-white/10'
-                    )}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={newGoalInput}
+                          onChange={(e) => setNewGoalInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newGoalInput.trim()) {
+                              setGoals([...goals, newGoalInput.trim()]);
+                              setCompletedGoals([...completedGoals, false]);
+                              setNewGoalInput('');
+                            }
+                          }}
+                          placeholder="Add a goal"
+                          className="h-10 rounded-xl bg-white/5 border-white/10 font-bold px-4 text-xs placeholder:text-white/20"
+                        />
+                        <Button
+                          size="icon"
+                          onClick={() => {
+                            if (newGoalInput.trim()) {
+                              setGoals([...goals, newGoalInput.trim()]);
+                              setCompletedGoals([...completedGoals, false]);
+                              setNewGoalInput('');
+                            }
+                          }}
+                          aria-label="Add goal"
+                          className="h-10 w-10 shrink-0 rounded-xl border border-white/10 bg-white/10 text-white hover:bg-white/20"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+
+                      <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                        {goals.filter(g => g.trim()).length === 0 ? (
+                          <p className="text-xs font-bold text-white/30 text-center py-4">No goals yet.</p>
+                        ) : (
+                          goals.filter(g => g.trim()).map((goal, i) => (
+                            <div
+                              key={i}
+                              onClick={() => toggleGoal(i)}
+                              className={cn(
+                                "flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer",
+                                completedGoals[i] ? "bg-emerald-400/10 border-emerald-400/20 text-white/50" : "bg-white/5 border-white/5 hover:border-white/10"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-5 h-5 rounded-full border-2 transition-colors flex items-center justify-center shrink-0",
+                                completedGoals[i] ? "bg-emerald-400 border-emerald-400" : "border-white/30"
+                              )}>
+                                {completedGoals[i] && <Check className="w-3 h-3 text-black" strokeWidth={3} />}
+                              </div>
+                              <span className={cn("text-sm font-bold line-clamp-2 break-words", completedGoals[i] && "line-through")}>{goal}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* The clock. min-w-0 lets the column shrink so the digits never push
+                the side panels off-screen; containerType powers the cqw sizing. */}
+            <div className="flex-1 min-w-0 w-full flex flex-col items-center justify-center py-4" style={{ containerType: 'inline-size' }}>
+              <motion.div
+                className="flex w-full flex-col items-center text-center px-4"
+                animate={{ scale: isPaused ? 0.985 : [1, 1.006, 1] }}
+                transition={isPaused ? { duration: 0.4 } : { duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                {/* What this session is */}
+                <div className="mb-8 inline-flex max-w-full items-center gap-3 rounded-full border border-white/10 bg-white/[0.06] py-1.5 pl-1.5 pr-5 backdrop-blur-xl">
+                  <span
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em]"
+                    style={{ backgroundColor: isPaused ? '#f59e0b26' : 'rgba(255,255,255,0.12)', color: isPaused ? '#fbbf24' : sceneAccent }}
                   >
-                    <span
-                      className={cn(
-                        'grid size-5 shrink-0 place-items-center rounded-full border',
-                        completedGoals[i] ? 'border-emerald-400 bg-emerald-400' : 'border-white/35'
-                      )}
-                    >
-                      {completedGoals[i] && <Check className="size-3 text-black" strokeWidth={3} />}
-                    </span>
-                    <span className={cn('truncate', completedGoals[i] && 'line-through')}>{goal}</span>
-                  </button>
-                ) : null
-              )}
-              {addingGoal ? (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const text = newGoalInput.trim();
-                    if (text) {
-                      setGoals([...goals, text]);
-                      setCompletedGoals([...completedGoals, false]);
-                    }
-                    setNewGoalInput('');
-                    setAddingGoal(false);
-                  }}
+                    <span className={cn('size-1.5 rounded-full bg-current', !isPaused && 'motion-safe:animate-pulse')} />
+                    {isPaused ? 'Paused' : onBreak ? 'Break' : isIntense ? 'Deep focus' : 'Focusing'}
+                  </span>
+                  <span className="min-w-0 truncate text-sm font-bold text-white">{task.subject}</span>
+                  <span className="hidden shrink-0 text-xs font-semibold text-white/50 sm:inline">{typeLabel}</span>
+                </div>
+
+                {/* Time left */}
+                <div
+                  role="timer"
+                  aria-label={`${openEnded ? 'Time so far' : 'Time left'}: ${timeLeft.h > 0 ? `${timeLeft.h} hours ` : ''}${timeLeft.m} minutes ${timeLeft.s} seconds`}
+                  className={cn(
+                    'flex max-w-full items-baseline justify-center tabular-nums leading-[0.8] tracking-tight text-white transition-[font-size,opacity] duration-700 ease-in-out drop-shadow-[0_10px_40px_rgba(0,0,0,0.35)]',
+                    isPaused && 'opacity-45',
+                    clockFontClass(clockFont)
+                  )}
+                  style={{ fontSize: timeLeft.h > 0 ? 'clamp(3.5rem, 24cqw, 14rem)' : 'clamp(4.5rem, 34cqw, 18rem)' }}
                 >
-                  <input
-                    autoFocus
-                    value={newGoalInput}
-                    onChange={(e) => setNewGoalInput(e.target.value)}
-                    onBlur={() => { if (!newGoalInput.trim()) setAddingGoal(false); }}
-                    onKeyDown={(e) => { if (e.key === 'Escape') { setNewGoalInput(''); setAddingGoal(false); } }}
-                    placeholder="What will you get done?"
-                    aria-label="New goal"
-                    className="h-9 w-64 rounded-full border border-white/20 bg-black/30 px-4 text-sm text-white outline-none backdrop-blur-xl placeholder:text-white/40 focus:border-white/40"
-                  />
-                </form>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setAddingGoal(true)}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-dashed border-white/25 px-4 text-sm text-white/65 transition-colors hover:border-white/45 hover:text-white"
-                >
-                  <Plus className="size-4" /> {goals.some((g) => g.trim()) ? 'Add a goal' : 'Add a goal for this session'}
-                </button>
-              )}
+                  {timeLeft.h > 0 && (
+                    <>
+                      <span>{timeLeft.h.toString().padStart(2, '0')}</span>
+                      <span className="mx-[0.04em] -translate-y-[0.06em] font-sans font-extralight text-white/30">:</span>
+                    </>
+                  )}
+                  <span>{timeLeft.m.toString().padStart(2, '0')}</span>
+                  <span className="mx-[0.04em] -translate-y-[0.06em] font-sans font-extralight text-white/30">:</span>
+                  <span className="text-white/75">{timeLeft.s.toString().padStart(2, '0')}</span>
+                </div>
+                <p className="mt-6 text-[11px] font-black uppercase tracking-[0.35em] text-white/45">
+                  {openEnded ? 'Time so far' : 'Time left'}
+                </p>
+
+                {/* Progress through the session */}
+                <div className="mt-8 w-full max-w-[min(32rem,80cqw)]">
+                  <div className="relative h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-1000 ease-linear"
+                      style={{
+                        width: `${Math.max(elapsedPercent, 1)}%`,
+                        background: `linear-gradient(to right, color-mix(in srgb, ${sceneAccent} 55%, transparent), ${sceneAccent})`,
+                      }}
+                    />
+                  </div>
+                  <div className="mt-2.5 flex items-center justify-between text-[11px] font-bold tabular-nums text-white/45">
+                    <span>{openEnded ? 'No set length' : `${elapsedPercent}% done`}</span>
+                    <span>{openEnded ? 'Finish when you are ready' : `${initialDurationMinutes} min session`}</span>
+                  </div>
+                </div>
+
+                {isPaused && (
+                  <p className="mt-6 text-xs font-semibold text-white/50">
+                    Press <kbd className="rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 font-mono text-[11px] text-white/80">Space</kbd> to carry on
+                  </p>
+                )}
+              </motion.div>
             </div>
+
+            <AnimatePresence>
+              {!isZenMode && (
+                <motion.div
+                  initial={{ opacity: 0, x: 40 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 40 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 26 }}
+                  className="w-full lg:w-[320px] shrink-0 space-y-6 hidden lg:block lg:self-center lg:h-[min(450px,62vh)]"
+                >
+                  <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 space-y-6">
+                    <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-white/60" /> Files
+                    </h3>
+                    <div className="space-y-3">
+                       {resources.length === 0 ? (
+                         <p className="text-xs font-bold text-white/30 text-center py-4">No files for this subject yet.</p>
+                       ) : (
+                         resources.map((res) => (
+                           <a
+                             key={res.id}
+                             href={res.url}
+                             target="_blank"
+                             rel="noreferrer"
+                             className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors group"
+                           >
+                             <span className="text-sm font-bold truncate pr-4">{res.title}</span>
+                             <ChevronRight className="w-4 h-4 text-white/30 group-hover:translate-x-0.5 transition-all" />
+                           </a>
+                         ))
+                       )}
+                    </div>
+                  </div>
+
+                  {/* Next focus sessions today */}
+                  {nextSessions.length > 0 && (
+                    <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 space-y-4">
+                      <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 flex items-center gap-2">
+                        <CalendarClock className="w-4 h-4 text-white/60" /> Later today
+                      </h3>
+                      <div className="space-y-2">
+                        {nextSessions.map((next) => (
+                          <Link
+                            key={next.id}
+                            href={`/focus/${next.id}`}
+                            className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-white/5 border border-white/5 hover:border-white/15 hover:bg-white/10 transition-colors group"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold truncate">{next.subject}</p>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-white/35">{next.type === 'REVISION' ? 'Revision' : 'Homework'}</p>
+                            </div>
+                            <span className="text-xs font-black tabular-nums text-white/55 group-hover:text-white shrink-0">
+                              {next.startTime}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ) : (
           /* ---------- MUSIC VIEW ---------- */
@@ -1629,7 +1803,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                           currentTime={player.currentTime}
                           onSeek={player.seek}
                           immersive
-                          accent={scenePalette[2] || '#ffffff'}
+                          accent={sceneAccent}
                           className="absolute inset-0 h-full"
                         />
                       </div>
@@ -1679,99 +1853,53 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
           </div>
         )}
 
-        {/* ============ DOCK: music, pause, finish, tools ============ */}
-        <div className="relative z-20 flex shrink-0 justify-center px-3 pb-5 pt-2">
-          {!showProofForm ? (
-            <div className="flex max-w-full items-center gap-1.5 rounded-[28px] border border-white/10 bg-black/35 p-1.5 shadow-2xl backdrop-blur-2xl">
-              {viewMode === 'TIMER' && (
-                <>
-                  {currentSong ? (
-                    <div className="hidden min-w-0 items-center gap-2.5 pl-1 pr-1 md:flex md:w-[250px]">
-                      <button type="button" onClick={() => setViewMode('SONG')} title="Music view (V)" className="shrink-0">
-                        <CoverArt song={currentSong} palette={palette} className="size-11 rounded-2xl" iconSize="w-4 h-4" />
-                      </button>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{currentSong.title}</p>
-                        <p className="truncate text-xs text-white/50">{currentSong.artist || 'Unknown artist'}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={player.togglePlay}
-                        title={player.isPlaying ? 'Pause music' : 'Play music'}
-                        className="grid size-9 shrink-0 place-items-center rounded-full text-white transition-colors hover:bg-white/10"
-                      >
-                        {player.isPlaying ? <Pause className="size-4 fill-current" /> : <Play className="size-4 fill-current" />}
-                      </button>
-                      <button type="button" onClick={player.next} title="Next song (→)" className="grid size-9 shrink-0 place-items-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white">
-                        <SkipForward className="size-4 fill-current" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setIsLibraryOpen(true)}
-                      className="hidden h-12 items-center gap-2 rounded-[22px] px-4 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white md:inline-flex"
-                    >
-                      <Music className="size-4" /> Add music
-                    </button>
-                  )}
-                  <span aria-hidden className="mx-1 hidden h-8 w-px bg-white/10 md:block" />
-                </>
-              )}
-
-              <button
-                type="button"
-                onClick={() => isPaused ? resumeFocus() : pauseFocus()}
-                title={isPaused ? 'Carry on (Space)' : 'Pause (Space)'}
-                aria-label={isPaused ? 'Carry on' : 'Pause'}
-                className={cn(
-                  'grid size-12 shrink-0 place-items-center rounded-[22px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40',
-                  isPaused ? 'bg-emerald-400 text-black hover:bg-emerald-300' : 'bg-white/10 text-white hover:bg-white/20'
-                )}
-              >
-                {isPaused ? <Play className="size-5 fill-current" /> : <Pause className="size-5 fill-current" />}
-              </button>
-              <Button
-                onClick={() => setShowProofForm(true)}
-                className="h-12 shrink-0 gap-2 rounded-[22px] bg-white px-5 text-base font-semibold text-black hover:bg-white/90"
-              >
-                <CheckCircle2 className="size-5" />
-                Finish
-              </Button>
-
-              <span aria-hidden className="mx-1 h-8 w-px bg-white/10" />
-
-              <DockButton
-                title={intensity === 'INTENSE' ? 'Deep focus is on (double XP). Turn off' : 'Deep focus: double XP'}
-                active={intensity === 'INTENSE'}
-                tone="ember"
-                onClick={() => setIntensity(intensity === 'INTENSE' ? 'CHILL' : 'INTENSE')}
-              >
-                <Zap />
-              </DockButton>
-              <DockButton title="Files and later today (D)" active={showSessionPanel} onClick={() => setShowSessionPanel(v => !v)}>
-                <FolderOpen />
-              </DockButton>
-              <DockButton
-                title={viewMode === 'TIMER' ? 'Music view (V)' : 'Timer view (V)'}
-                active={viewMode === 'SONG'}
-                onClick={() => setViewMode(viewMode === 'TIMER' ? 'SONG' : 'TIMER')}
-              >
-                {viewMode === 'TIMER' ? <Disc3 /> : <Timer />}
-              </DockButton>
-              <DockButton title="Music library" active={isLibraryOpen} onClick={() => setIsLibraryOpen(!isLibraryOpen)}>
-                <ListMusic />
-              </DockButton>
+        {/* Mini now-playing bar (timer view only) */}
+        {viewMode === 'TIMER' && currentSong && (
+          <div className="absolute bottom-8 left-8 z-20 hidden md:flex items-center gap-3 pl-3 pr-4 py-3 bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[24px] shadow-2xl max-w-[360px]">
+            <button onClick={() => setViewMode('SONG')} className="shrink-0 group relative" title="Open Song View">
+              <CoverArt song={currentSong} palette={palette} className="w-12 h-12 rounded-xl" iconSize="w-5 h-5" />
+              <div className="absolute inset-0 rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <Disc3 className="w-5 h-5 text-white" />
+              </div>
+            </button>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-black truncate">{currentSong.title}</p>
+              <p className="text-[10px] font-bold text-white/40 truncate">{currentSong.artist || 'Unknown artist'}</p>
             </div>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <Button variant="ghost" size="icon" onClick={player.prev} className="w-8 h-8 rounded-lg hover:bg-white/10 text-white/80">
+                <SkipBack className="w-4 h-4 fill-current" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={player.togglePlay} className="w-9 h-9 rounded-lg hover:bg-white/10 text-white">
+                {player.isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={player.next} className="w-8 h-8 rounded-lg hover:bg-white/10 text-white/80">
+                <SkipForward className="w-4 h-4 fill-current" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Footer Actions */}
+        {(
+        <div className="p-8 flex justify-center relative z-10 bg-gradient-to-t from-black/70 to-transparent">
+          {!showProofForm ? (
+            <Button
+              onClick={() => setShowProofForm(true)}
+              className="h-16 px-12 rounded-[24px] bg-white text-black hover:bg-white/90 font-black text-lg gap-3 shadow-2xl hover:scale-105 transition-all"
+            >
+              <CheckCircle2 className="w-6 h-6" />
+              Finish session
+            </Button>
           ) : (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="max-w-xl w-full rounded-3xl border border-white/10 bg-zinc-950/85 p-6 space-y-5 shadow-2xl backdrop-blur-xl text-left"
+              className="max-w-2xl w-full bg-zinc-900/90 backdrop-blur-3xl border border-white/10 p-8 rounded-[32px] space-y-6 shadow-2xl text-left"
             >
               <div className="flex justify-between items-center">
-                 <h3 className="font-heading text-lg font-semibold">What did you get done?</h3>
-                 <Button variant="ghost" size="icon" onClick={() => setShowProofForm(false)} className="hover:bg-white/5 text-white/80" aria-label="Back to the session">
+                 <h3 className="text-xl font-black">What did you get done?</h3>
+                 <Button variant="ghost" size="icon" onClick={() => setShowProofForm(false)} className="hover:bg-white/5 text-white/80">
                    <X className="w-5 h-5" />
                  </Button>
               </div>
@@ -1781,13 +1909,13 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                    placeholder="Optional: a sentence about what you worked on."
                    value={proofDescription}
                    onChange={(e) => setProofDescription(e.target.value)}
-                   className="min-h-[96px] rounded-2xl border-white/10 bg-white/[0.06] text-white placeholder:text-white/35"
+                   className="bg-white/5 border-white/10 min-h-[100px] rounded-2xl font-bold placeholder:text-white/25 text-white"
                  />
 
-                 <div className="flex flex-col sm:flex-row gap-3">
-                    <label className="flex h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 transition-colors hover:bg-white/10">
-                       <Paperclip className="size-4 text-white/60" />
-                       <span className="truncate text-sm font-medium">
+                 <div className="flex flex-col sm:flex-row gap-4">
+                    <label className="flex-1 flex items-center justify-center gap-2 h-14 bg-white/5 border border-white/10 rounded-2xl cursor-pointer hover:bg-white/10 transition-colors px-4">
+                       <Paperclip className="w-5 h-5 text-primary" />
+                       <span className="font-bold text-sm truncate">
                          {proofFile ? proofFile.name : 'Attach a PDF (optional)'}
                        </span>
                        <input
@@ -1801,9 +1929,9 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     <Button
                       disabled={isFinishing}
                       onClick={handleFinishWithProof}
-                      className="h-12 gap-2 rounded-full bg-white px-6 font-semibold text-black hover:bg-white/90"
+                      className="h-14 px-8 rounded-2xl bg-primary font-black gap-2 shadow-lg"
                     >
-                       {isFinishing ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                       {isFinishing ? <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /> : <Send className="w-5 h-5" />}
                        Finish session
                     </Button>
                  </div>
@@ -1811,95 +1939,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
             </motion.div>
           )}
         </div>
-
-        {/* ============ SESSION DRAWER: files + later today ============ */}
-        <AnimatePresence>
-          {showSessionPanel && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 z-40 bg-black/30"
-                onClick={() => setShowSessionPanel(false)}
-              />
-              <motion.aside
-                initial={{ x: '-100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '-100%' }}
-                transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-                aria-label="This session"
-                className="absolute inset-y-0 left-0 z-50 flex w-full max-w-[380px] flex-col border-r border-white/10 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl"
-              >
-                <div className="flex shrink-0 items-start justify-between gap-3 px-6 pb-4 pt-6">
-                  <div className="min-w-0">
-                    <p className="text-sm text-white/50">{typeLabel}{isScheduled ? ` · ${task.startTime}–${task.endTime}` : ''}</p>
-                    <h3 className="truncate font-heading text-2xl font-semibold">{task.subject}</h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowSessionPanel(false)}
-                    aria-label="Close"
-                    className="grid size-9 shrink-0 place-items-center rounded-full text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-                  >
-                    <X className="size-5" />
-                  </button>
-                </div>
-
-                <div className="flex-1 space-y-7 overflow-y-auto custom-scrollbar px-4 pb-6">
-                  <section className="space-y-2">
-                    <h4 className="flex items-center gap-2 px-2 text-sm font-semibold text-white/85">
-                      <BookOpen className="size-4 text-white/45" /> Files
-                    </h4>
-                    {resources.length === 0 ? (
-                      <p className="px-2 py-2 text-sm text-white/45">No files for this subject yet. Add them in Resources.</p>
-                    ) : (
-                      <div className="space-y-0.5">
-                        {resources.map((res) => (
-                          <a
-                            key={res.id}
-                            href={res.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="group flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-white/10"
-                          >
-                            <span className="truncate text-sm font-medium">{res.title}</span>
-                            <ChevronRight className="size-4 shrink-0 text-white/35 transition-transform group-hover:translate-x-0.5" />
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-
-                  <section className="space-y-2">
-                    <h4 className="flex items-center gap-2 px-2 text-sm font-semibold text-white/85">
-                      <CalendarClock className="size-4 text-white/45" /> Later today
-                    </h4>
-                    {nextSessions.length === 0 ? (
-                      <p className="px-2 py-2 text-sm text-white/45">Nothing else planned today.</p>
-                    ) : (
-                      <div className="space-y-0.5">
-                        {nextSessions.map((next) => (
-                          <Link
-                            key={next.id}
-                            href={`/focus/${next.id}`}
-                            className="group flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-white/10"
-                          >
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">{next.subject}</p>
-                              <p className="text-xs text-white/45">{next.type === 'REVISION' ? 'Revision' : 'Homework'}</p>
-                            </div>
-                            <span className="shrink-0 text-sm tabular-nums text-white/60 group-hover:text-white">{next.startTime}</span>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-                </div>
-              </motion.aside>
-            </>
-          )}
-        </AnimatePresence>
+        )}
 
         {/* Hidden upload inputs */}
         <input
@@ -2413,7 +2453,7 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                     {[
                       { key: 'Space', desc: 'Pause or resume' },
                       { key: 'V', desc: 'Timer or music view' },
-                      { key: 'D', desc: 'Files and later today' },
+                      { key: 'Z', desc: 'Hide or show side panels' },
                       { key: 'M', desc: 'Mute music' },
                       { key: 'F', desc: 'Full screen' },
                       { key: '← / →', desc: 'Previous or next song' },
@@ -2440,51 +2480,110 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
     // not the length the session was set to.
     const focusedMinutes = Math.round(secondsFocused / 60);
     const focusedLabel = secondsFocused < 60 ? 'Under a minute' : `${focusedMinutes} ${focusedMinutes === 1 ? 'minute' : 'minutes'}`;
-    const goalsTotal = goals.filter((g) => g.trim()).length;
-    const goalsDone = goals.filter((g, i) => g.trim() && completedGoals[i]).length;
-    const stats = [
-      { label: 'Minutes', value: secondsFocused < 60 ? '<1' : focusedMinutes },
-      { label: 'XP earned', value: `+${sessionXP}` },
-      { label: goalsTotal ? 'Goals done' : 'No goals set', value: goalsTotal ? `${goalsDone}/${goalsTotal}` : '–' },
-    ];
+    const doneGoals = goals.map((g, i) => ({ text: g.trim(), done: !!completedGoals[i] })).filter((g) => g.text);
+    const goalsDone = doneGoals.filter((g) => g.done).length;
+    const focused = {
+      h: Math.floor(secondsFocused / 3600),
+      m: Math.floor((secondsFocused % 3600) / 60),
+      s: Math.floor(secondsFocused % 60),
+    };
+    const rise = (i: number) => ({
+      initial: { opacity: 0, y: 16 },
+      animate: { opacity: 1, y: 0 },
+      transition: { delay: 0.25 + i * 0.08, duration: 0.45, ease: [0.2, 0, 0, 1] as const },
+    });
 
     return (
-      <div className="flex h-full items-center justify-center overflow-y-auto bg-background px-4 py-10 text-foreground">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md space-y-6 rounded-2xl border border-border/60 bg-card p-8 text-center shadow-sm"
-        >
-          <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-success/10 text-success">
-            <CheckCircle2 className="size-7" />
-          </span>
-          <div className="space-y-1">
-            <h1 className="font-heading text-3xl font-bold tracking-tight">Session complete</h1>
-            <p className="text-muted-foreground">
-              {focusedLabel} on <span className="font-medium text-foreground">{task.subject}</span>.
-            </p>
+      <div className="dark relative h-full overflow-hidden bg-black text-white">
+        <FluidGradient colors={basePalette} className="absolute inset-0 overflow-hidden" />
+        <div className="pointer-events-none absolute inset-0 bg-black/40" />
+
+        <div className="relative z-10 flex h-full items-center overflow-y-auto custom-scrollbar">
+          <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 px-6 py-10 md:px-10 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:gap-14">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.88, rotate: -3 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 18 }}
+              className="mx-auto w-full max-w-[min(380px,44vh)]"
+            >
+              <FocusCard
+                subject={task.subject}
+                time={focused}
+                chip="Done"
+                chipTone="done"
+                note="focused"
+                palette={basePalette}
+                accent={brightestColour(basePalette)}
+                fontClass={clockFontClass(clockFont)}
+              >
+                <motion.span
+                  initial={{ scale: 0, rotate: -45 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ delay: 0.35, type: 'spring', stiffness: 400, damping: 14 }}
+                  className="absolute right-4 top-4 grid size-11 place-items-center rounded-full bg-emerald-400 text-black shadow-[0_0_0_8px_rgba(52,211,153,0.18)]"
+                >
+                  <Check className="size-6" strokeWidth={3} />
+                </motion.span>
+              </FocusCard>
+            </motion.div>
+
+            <div className="space-y-7">
+              <motion.div {...rise(0)}>
+                <p className="text-sm font-medium text-emerald-300">Session complete</p>
+                <h1 className="mt-1 font-heading text-4xl font-semibold tracking-tight md:text-5xl">Nice work on {task.subject}.</h1>
+                <p className="mt-2 text-base text-white/60">
+                  {focusedLabel} of focus{doneGoals.length ? `, ${goalsDone} of ${doneGoals.length} ${doneGoals.length === 1 ? 'goal' : 'goals'} done` : ''}.
+                </p>
+              </motion.div>
+
+              <motion.dl {...rise(1)} className="grid grid-cols-3 gap-3">
+                {[
+                  { label: 'Minutes focused', value: secondsFocused < 60 ? '<1' : String(focusedMinutes), prefix: '' },
+                  { label: 'XP earned', value: String(sessionXP), prefix: '+' },
+                  { label: doneGoals.length ? 'Goals done' : 'No goals set', value: doneGoals.length ? `${goalsDone}/${doneGoals.length}` : '–', prefix: '' },
+                ].map((stat) => (
+                  <div key={stat.label} className="rounded-2xl border border-white/10 bg-black/25 p-4 backdrop-blur-xl">
+                    <dd className="font-heading text-3xl font-semibold tabular-nums">
+                      {stat.prefix}<CountUp value={stat.value} />
+                    </dd>
+                    <dt className="mt-1 text-xs text-white/55">{stat.label}</dt>
+                  </div>
+                ))}
+              </motion.dl>
+
+              {doneGoals.length > 0 && (
+                <motion.ul {...rise(2)} className="space-y-1 rounded-3xl border border-white/10 bg-black/25 p-2 backdrop-blur-xl">
+                  {doneGoals.map((g, i) => (
+                    <li key={i} className="flex items-center gap-3 rounded-2xl p-2.5">
+                      <span className={cn('grid size-6 shrink-0 place-items-center rounded-full border-2', g.done ? 'border-emerald-400 bg-emerald-400 text-black' : 'border-white/25')}>
+                        {g.done && <Check className="size-3.5" strokeWidth={3} />}
+                      </span>
+                      <span className={cn('min-w-0 flex-1 truncate text-sm', g.done ? 'font-medium' : 'text-white/50')}>{g.text}</span>
+                      {!g.done && <span className="shrink-0 text-xs text-white/40">Not yet</span>}
+                    </li>
+                  ))}
+                </motion.ul>
+              )}
+
+              <motion.div {...rise(3)} className="flex flex-wrap gap-3">
+                <Link
+                  href="/"
+                  onClick={() => resetFocus()}
+                  className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-6 text-base font-semibold text-black shadow-2xl transition-colors hover:bg-white/90"
+                >
+                  Back to today <ArrowRight className="size-4" />
+                </Link>
+                <Link
+                  href="/focus"
+                  onClick={() => resetFocus()}
+                  className="inline-flex h-12 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-6 text-base font-medium text-white backdrop-blur-xl transition-colors hover:bg-white/15"
+                >
+                  <RotateCcw className="size-4" /> Another session
+                </Link>
+              </motion.div>
+            </div>
           </div>
-          <dl className="grid grid-cols-3 gap-3">
-            {stats.map((s) => (
-              <div key={s.label} className="rounded-xl border border-border/60 bg-background px-2 py-3">
-                <dd className="font-heading text-2xl font-black tabular-nums">{s.value}</dd>
-                <dt className="mt-0.5 text-xs text-muted-foreground">{s.label}</dt>
-              </div>
-            ))}
-          </dl>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button asChild variant="outline" size="lg" className="flex-1 gap-2">
-              <Link href="/focus" onClick={() => resetFocus()}>
-                <RotateCcw className="size-4" /> Another session
-              </Link>
-            </Button>
-            <Button asChild size="lg" className="flex-1 gap-2">
-              <Link href="/" onClick={() => resetFocus()}>
-                Back to today <ChevronRight className="size-4" />
-              </Link>
-            </Button>
-          </div>
-        </motion.div>
+        </div>
       </div>
     );
   }

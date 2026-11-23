@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { CountUp } from '@/components/ui/count-up';
 import { format } from 'date-fns';
 import { examStatus, examDaysAway, examTimeLabel } from '@/lib/exam-time';
 import { ExamStatusRefresh } from '@/components/ExamStatusRefresh';
@@ -66,7 +67,7 @@ export function ExamCountdown({ events, timezone }: { events: ExamEvent[]; timez
           }
         />
       ) : (
-        <div className="space-y-4">
+        <div className="stagger-in space-y-4">
           <Link
             href={`/exams/${next.id}`}
             className="block rounded-2xl border border-border/40 bg-muted/40 px-5 py-4 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
@@ -76,7 +77,7 @@ export function ExamCountdown({ events, timezone }: { events: ExamEvent[]; timez
             </p>
             <p className="mt-1 flex items-baseline gap-2">
               <span className="font-heading text-5xl font-black tracking-tight tabular-nums">
-                {examStatus(next, timezone, now) === 'IN_PROGRESS' ? 'Now' : next.days === 0 ? 'Today' : next.days}
+                {examStatus(next, timezone, now) === 'IN_PROGRESS' ? 'Now' : next.days === 0 ? 'Today' : <CountUp value={next.days} />}
               </span>
               <span className="text-lg font-bold text-muted-foreground">
                 {next.days > 0 ? `${next.days === 1 ? 'day' : 'days'} left` : ''}

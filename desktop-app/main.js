@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, screen, dialog, shell, powerMonitor } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, screen, dialog, shell, powerMonitor, session } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const { safeToRestart } = require('./update-policy');
 const path = require('path');
@@ -452,6 +452,38 @@ async function createWindow() {
       contextIsolation: true,
       backgroundThrottling: false
     }
+  });
+
+  // Never open a bare Electron window. A web page asked for in a new window
+  // (a saved link's "Open in browser", a link clicked inside a viewed page)
+  // goes to the default browser; the app's own pages may still open.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    const ownPage = /^http:\/\/(127\.0\.0\.1|localhost):\d+\//.test(url);
+    if (ownPage) return { action: 'allow' };
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  // Saved links open inside the app (Resources > a link). Many sites send
+  // X-Frame-Options / CSP frame-ancestors to refuse being shown in a frame;
+  // inside this app the frame is ours and sandboxed (FileViewer LinkBody), so
+  // those two headers are dropped for frames only. Top-level pages, scripts
+  // and everything else keep every header.
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    if (details.resourceType !== 'subFrame' || !details.responseHeaders) return callback({});
+    const headers = {};
+    for (const [key, value] of Object.entries(details.responseHeaders)) {
+      const name = key.toLowerCase();
+      if (name === 'x-frame-options') continue;
+      if (name === 'content-security-policy') {
+        headers[key] = value.map((policy) =>
+          policy.split(';').filter((d) => !/^\s*frame-ancestors\b/i.test(d)).join(';')
+        );
+        continue;
+      }
+      headers[key] = value;
+    }
+    callback({ responseHeaders: headers });
   });
 
   mainWindow.once('ready-to-show', () => {

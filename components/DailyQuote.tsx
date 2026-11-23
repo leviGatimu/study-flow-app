@@ -137,12 +137,12 @@ export function DailyQuote() {
   // The card links to the reader; the bookmark sits beside the link rather
   // than inside it, so it is its own control and not a button nested in an <a>.
   return (
-    <div className="relative">
+    <div className="blur-in relative">
       <Link
         href="/bible"
         className="block bg-card border border-border/60 border-l-4 border-l-primary p-6 sm:p-8 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       >
-        <blockquote className="italic text-muted-foreground text-lg leading-relaxed pr-10">
+        <blockquote key={verse.ref} className="blur-in italic text-muted-foreground text-lg leading-relaxed pr-10">
           &quot;{verse.text}&quot;
           <footer className="mt-4 text-sm font-bold text-foreground/80 not-italic flex items-center gap-2">
             <span aria-hidden className="w-4 h-0.5 bg-primary rounded-full"></span> {verse.ref}
@@ -161,7 +161,7 @@ export function DailyQuote() {
           isBookmarked ? "text-primary" : "text-muted-foreground hover:text-foreground"
         )}
       >
-        <Bookmark className={cn("size-5", isBookmarked && "fill-current")} />
+        <Bookmark key={String(isBookmarked)} className={cn("size-5", isBookmarked && "fill-current bookmark-pop")} />
       </Button>
     </div>
   );

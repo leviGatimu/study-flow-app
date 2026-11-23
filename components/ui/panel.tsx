@@ -3,9 +3,9 @@ import { cn } from "@/lib/utils";
 
 /**
  * The app's one surface, copied from the dashboard's panels
- * (docs/ui-contract.md "Surfaces"). No gradient, no glow, no hover lift, no
- * arbitrary radius. `interactive` adds the dashboard's hover shadow and is only
- * for panels that respond to the pointer. `padded={false}` is for panels whose
+ * (docs/ui-contract.md "Surfaces"). No gradient, no glow, no arbitrary radius.
+ * `interactive` adds a hover shadow and a small lift, and is only for panels
+ * that respond to the pointer. `padded={false}` is for panels whose
  * content is a flush list or a table.
  */
 export function Panel({
@@ -20,7 +20,7 @@ export function Panel({
       className={cn(
         "bg-card text-card-foreground border border-border/60 shadow-sm rounded-2xl",
         padded && "p-6",
-        interactive && "hover:shadow-md transition-shadow duration-200",
+        interactive && "hover:shadow-md hover:-translate-y-0.5 transition-[box-shadow,translate] duration-200 motion-reduce:hover:translate-y-0",
         className
       )}
       {...props}

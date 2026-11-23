@@ -36,3 +36,16 @@ describe('file preview', () => {
     }
   });
 });
+
+test('saved links open at an address that can sit inside the app', async () => {
+  const { linkEmbedUrl } = await import('../lib/file-preview.ts');
+  assert.equal(linkEmbedUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10'), 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0');
+  assert.equal(linkEmbedUrl('https://youtu.be/dQw4w9WgXcQ'), 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0');
+  assert.equal(linkEmbedUrl('https://docs.google.com/document/d/abc_123/edit?usp=sharing'), 'https://docs.google.com/document/d/abc_123/preview');
+  assert.equal(linkEmbedUrl('https://docs.google.com/presentation/d/XYZ/edit#slide=id.p'), 'https://docs.google.com/presentation/d/XYZ/preview');
+  assert.equal(linkEmbedUrl('https://drive.google.com/file/d/FILEID/view?usp=drive_link'), 'https://drive.google.com/file/d/FILEID/preview');
+  assert.equal(linkEmbedUrl('https://en.wikipedia.org/wiki/Physics'), 'https://en.wikipedia.org/wiki/Physics');
+  assert.equal(linkEmbedUrl('javascript:alert(1)'), null);
+  assert.equal(linkEmbedUrl('file:///C:/secret.txt'), null);
+  assert.equal(linkEmbedUrl('not a link'), null);
+});

@@ -3,6 +3,7 @@ import { Target } from 'lucide-react';
 
 import { Panel, PanelTitle } from '@/components/ui/panel';
 import { cn } from '@/lib/utils';
+import { CountUp } from '@/components/ui/count-up';
 
 const RADIUS = 40;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -29,11 +30,12 @@ export function ProgressWidget({ percentage, completed, total }: { percentage: n
       </PanelTitle>
 
       <div className="flex items-center gap-6">
-        <div className="relative size-28 shrink-0">
+        <div className={cn('relative size-28 shrink-0 rounded-full', isComplete && 'progress-complete')}>
           <svg className="size-full -rotate-90" viewBox="0 0 100 100" aria-hidden>
             <circle className="text-muted stroke-current" strokeWidth="8" cx="50" cy="50" r={RADIUS} fill="transparent" />
             <circle
-              className={cn('stroke-current transition-[stroke-dashoffset] duration-700 ease-out', isComplete ? 'text-success' : 'text-primary')}
+              className={cn('ring-draw stroke-current transition-[stroke-dashoffset] duration-700 ease-out', isComplete ? 'text-success' : 'text-primary')}
+              style={{ ['--ring-full' as string]: CIRCUMFERENCE }}
               strokeWidth="8"
               strokeLinecap="round"
               cx="50"
@@ -50,7 +52,7 @@ export function ProgressWidget({ percentage, completed, total }: { percentage: n
               isComplete ? 'text-success' : 'text-foreground'
             )}
           >
-            {total === 0 ? '–' : `${pct}%`}
+            {total === 0 ? '–' : <CountUp value={`${pct}%`} />}
           </span>
         </div>
 

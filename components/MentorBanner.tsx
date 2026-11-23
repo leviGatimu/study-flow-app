@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { Eye, LayoutDashboard, LogOut } from "lucide-react";
+import { Eye, LogOut } from "lucide-react";
 
 import { logoutUser } from "@/lib/actions";
 import type { MentorView } from "@/components/ArchiveContext";
@@ -20,12 +19,6 @@ export function MentorBanner({ mentor }: { mentor: NonNullable<MentorView> }) {
         <span className="font-medium">You&apos;re viewing {mentor.studentName}&apos;s Study Flow</span>
         <span className="hidden text-muted-foreground sm:inline"> &mdash; as a mentor. Read only.</span>
       </p>
-      <Button asChild variant="ghost" size="sm" className="shrink-0">
-        <Link href="/mentor">
-          <LayoutDashboard />
-          <span className="hidden sm:inline">Mentor dashboard</span>
-        </Link>
-      </Button>
       {/* Signing out only clears the cookie, so the read-only guard lets it through. */}
       <form action={logoutUser} className="shrink-0">
         <Button type="submit" variant="outline" size="sm">

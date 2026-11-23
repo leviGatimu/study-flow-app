@@ -29,12 +29,15 @@ export function Page({
   );
 }
 
-/** Everything below the page header, on the dashboard's gutter and rhythm. */
+/**
+ * Everything below the page header, on the dashboard's gutter and rhythm.
+ * Its sections rise in one after another (.stagger-in in app/globals.css).
+ */
 export function PageBody({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="page-body"
-      className={cn("px-4 md:px-8 pt-8 space-y-8", className)}
+      className={cn("stagger-in px-4 md:px-8 pt-8 space-y-8", className)}
       {...props}
     />
   );

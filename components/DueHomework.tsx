@@ -62,7 +62,7 @@ export function DueHomework({ homework, todayKey }: { homework: Homework[]; toda
           }
         />
       ) : (
-        <div className="space-y-3">
+        <div className="stagger-in space-y-3">
           {shown.map((h) => (
             <ListRow
               key={h.id}

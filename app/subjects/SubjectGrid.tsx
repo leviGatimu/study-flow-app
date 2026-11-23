@@ -156,7 +156,7 @@ export function SubjectGrid({
                 }
               />
             ) : (
-              <ul className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
+              <ul className="stagger-in grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
                 {shown.map((s) => (
                   <SubjectCard
                     key={s.id}

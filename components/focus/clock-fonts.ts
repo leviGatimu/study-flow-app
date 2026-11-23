@@ -10,9 +10,11 @@ const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['500'], display: 'swa
 const rounded = Nunito({ subsets: ['latin'], weight: ['800'], display: 'swap' });
 const classic = Fraunces({ subsets: ['latin'], weight: ['600'], display: 'swap' });
 
-export type ClockFontId = 'BOLD' | 'MONO' | 'ROUNDED' | 'CLASSIC';
+export type ClockFontId = 'ORIGINAL' | 'BOLD' | 'MONO' | 'ROUNDED' | 'CLASSIC';
 
 export const CLOCK_FONTS: { id: ClockFontId; label: string; className: string }[] = [
+  // The app's own heavy heading type: the look the focus clock always had.
+  { id: 'ORIGINAL', label: 'Original', className: 'font-heading font-black' },
   { id: 'BOLD', label: 'Bold', className: outfit.className },
   { id: 'MONO', label: 'Mono', className: mono.className },
   { id: 'ROUNDED', label: 'Rounded', className: rounded.className },

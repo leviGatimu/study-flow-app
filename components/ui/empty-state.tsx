@@ -26,7 +26,7 @@ export function EmptyState({
         className
       )}
     >
-      {icon && <div className="mb-1 text-muted-foreground [&_svg]:size-5">{icon}</div>}
+      {icon && <div className="float-soft mb-1 text-muted-foreground [&_svg]:size-5">{icon}</div>}
       <p className="text-sm font-semibold text-foreground">{title}</p>
       {description && (
         <p className="max-w-md text-sm font-medium text-muted-foreground">{description}</p>

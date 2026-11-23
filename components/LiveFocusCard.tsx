@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { Zap, ArrowRight, Clock, School, CheckCircle2 } from 'lucide-react';
+import { Zap, ArrowRight, Clock, School, CheckCircle2, Flame, Pause, CalendarClock, BookOpen, Coffee, PartyPopper, CalendarCheck } from 'lucide-react';
+import { CardDecor, NextChip, RollingTime, StatusChip, SubjectBadge } from '@/components/home/LiveCardBits';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -293,13 +294,13 @@ export function LiveFocusCard({
             CARD_SHELL, "transition-all duration-500",
             isPaused ? "bg-amber-500 shadow-amber-500/20" : "bg-primary shadow-primary/20"
           )}>
-            <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[100px] -z-0 translate-x-1/3 -translate-y-1/3" />
+            <CardDecor icon={isPaused ? Pause : Flame} />
             <div className={CARD_ROW}>
-               <div className="space-y-4 flex-1 text-white">
+               <div className="stagger-in space-y-4 flex-1 text-white">
                   <div className="flex items-center gap-3">
-                     <div className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] bg-white/20 border border-white/20 backdrop-blur-md text-white">
+                     <StatusChip icon={isPaused ? Pause : Flame} live={!isPaused}>
                         {isPaused ? 'SESSION PAUSED' : 'SESSION ACTIVE'}
-                     </div>
+                     </StatusChip>
                      <div className="h-1.5 w-1.5 rounded-full bg-white/40" />
                      <div className="flex items-center gap-2 text-xs font-bold text-white/80">
                         <Clock className="w-3.5 h-3.5" />
@@ -307,9 +308,12 @@ export function LiveFocusCard({
                      </div>
                   </div>
                   <div className="space-y-2">
-                     <h2 className="text-3xl md:text-4xl font-heading font-black tracking-tighter leading-[0.95]">
-                        {activeTask.subject}
-                     </h2>
+                     <div className="flex items-center gap-4">
+                       <SubjectBadge name={activeTask.subject} />
+                       <h2 className="text-3xl md:text-4xl font-heading font-black tracking-tighter leading-[0.95]">
+                          {activeTask.subject}
+                       </h2>
+                     </div>
                      <p className="text-white/75 text-sm font-medium max-w-xl">
                         Your focus session is in progress. Every minute counts towards your mastery.
                      </p>
@@ -317,14 +321,7 @@ export function LiveFocusCard({
                </div>
                <div className="flex flex-col items-center gap-4 min-w-[240px]">
                   <div className="flex flex-col items-center gap-6">
-                     <div className={cn("flex items-baseline font-heading font-black tracking-tighter tabular-nums text-white", isPaused ? "opacity-60" : "opacity-100")}>
-                        <span className="text-5xl md:text-6xl">
-                           {displayTime.h > 0 && `${displayTime.h.toString().padStart(2, '0')}:`}
-                           {displayTime.m.toString().padStart(2, '0')}
-                        </span>
-                        <span className="text-2xl md:text-3xl opacity-40 mx-1">:</span>
-                        <span className="text-2xl md:text-3xl opacity-60">{displayTime.s.toString().padStart(2, '0')}</span>
-                     </div>
+                     <RollingTime time={displayTime} className={isPaused ? "opacity-60" : "opacity-100"} />
                      <div className="flex items-center gap-3 w-full">
                         <Link href={`/focus/${activeTask.id}`} className="flex-1">
                             <Button className="w-full h-12 rounded-xl font-black text-base gap-3 bg-white text-black hover:bg-white/90 shadow-2xl">
@@ -366,13 +363,13 @@ export function LiveFocusCard({
       return (
         <motion.div key="school-lesson" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full">
           <Card className={cn(CARD_SHELL, "bg-primary shadow-primary/20")}>
-            <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[100px] -z-0 translate-x-1/3 -translate-y-1/3" />
+            <CardDecor icon={School} />
             <div className={CARD_ROW}>
-               <div className="space-y-4 flex-1 min-w-0 text-white">
+               <div className="stagger-in space-y-4 flex-1 min-w-0 text-white">
                   <div className="flex items-center gap-3">
-                     <div className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] bg-white/20 border border-white/20 backdrop-blur-md text-white">
+                     <StatusChip icon={School}>
                         SCHOOL IN SESSION
-                     </div>
+                     </StatusChip>
                      <div className="h-1.5 w-1.5 rounded-full bg-white/40" />
                      <div className="flex items-center gap-2 text-xs font-bold text-white/80">
                         <Clock className="w-3.5 h-3.5" />
@@ -380,37 +377,32 @@ export function LiveFocusCard({
                      </div>
                   </div>
                   <div className="space-y-2">
-                     <h2 className={cn(
-                       "font-heading font-black tracking-tighter leading-[0.95] text-balance max-w-2xl",
-                       headlineSize(activeSchoolLesson.subject)
-                     )}>
-                        {activeSchoolLesson.subject}
-                     </h2>
+                     <div className="flex items-center gap-4">
+                       <SubjectBadge name={activeSchoolLesson.subject} />
+                       <h2 className={cn(
+                         "font-heading font-black tracking-tighter leading-[0.95] text-balance max-w-2xl",
+                         headlineSize(activeSchoolLesson.subject)
+                       )}>
+                          {activeSchoolLesson.subject}
+                       </h2>
+                     </div>
                      <p className="text-white/75 text-sm font-medium max-w-xl">
                         {schoolDayEnd
                           ? `You are in class right now. Your own study blocks pick up once the school day ends at ${schoolDayEnd}.`
                           : 'You are in class right now. Your own study blocks pick up once the school day ends.'}
                      </p>
                   </div>
-                  <div className="flex items-center gap-3 bg-white/10 border border-white/10 px-3.5 py-2 rounded-xl w-fit max-w-xl backdrop-blur-md">
-                     <School className="w-4 h-4 shrink-0 text-white" />
+                  <NextChip icon={School} subject={nextSchoolLesson?.subject}>
                      <span className="truncate font-black text-xs uppercase tracking-widest">
                         {nextSchoolLesson
                           ? `Then ${nextSchoolLesson.subject} at ${nextSchoolLesson.startTime}`
                           : 'Last lesson of the school day'}
                      </span>
-                  </div>
+                  </NextChip>
                </div>
                <div className="flex flex-col items-center gap-3 min-w-[240px]">
                   <div className="text-white/80 text-xs font-black uppercase tracking-widest mb-1">Session Ends In</div>
-                  <div className="flex items-baseline font-heading font-black tracking-tighter tabular-nums text-white">
-                     <span className="text-5xl md:text-6xl">
-                        {schoolTimeLeft.h > 0 && `${schoolTimeLeft.h.toString().padStart(2, '0')}:`}
-                        {schoolTimeLeft.m.toString().padStart(2, '0')}
-                     </span>
-                     <span className="text-2xl md:text-3xl opacity-40 mx-1">:</span>
-                     <span className="text-2xl md:text-3xl opacity-60">{schoolTimeLeft.s.toString().padStart(2, '0')}</span>
-                  </div>
+                  <RollingTime time={schoolTimeLeft} className="" />
                   <Link href="/school-timetable" className="w-full mt-4">
                     <Button className="w-full h-12 rounded-xl bg-white text-primary hover:bg-white/90 font-black tracking-widest text-xs uppercase gap-2">
                        VIEW FULL TIMETABLE <ArrowRight className="w-4 h-4" />
@@ -430,13 +422,13 @@ export function LiveFocusCard({
       return (
         <motion.div key="scheduled-task" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="w-full">
           <Card className={cn(CARD_SHELL, "transition-all duration-500 bg-orange-500 shadow-orange-500/20")}>
-            <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[100px] -z-0 translate-x-1/3 -translate-y-1/3" />
+            <CardDecor icon={BookOpen} />
             <div className={CARD_ROW}>
-               <div className="space-y-4 flex-1 text-white">
+               <div className="stagger-in space-y-4 flex-1 text-white">
                   <div className="flex items-center gap-3">
-                     <div className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] bg-white/20 border border-white/20 backdrop-blur-md text-white">
+                     <StatusChip icon={CalendarClock}>
                         SCHEDULED NOW
-                     </div>
+                     </StatusChip>
                      <div className="h-1.5 w-1.5 rounded-full bg-white/40" />
                      <div className="flex items-center gap-2 text-xs font-bold text-white/80">
                         <Clock className="w-3.5 h-3.5" />
@@ -444,9 +436,12 @@ export function LiveFocusCard({
                      </div>
                   </div>
                   <div className="space-y-2">
-                     <h2 className="text-3xl md:text-4xl font-heading font-black tracking-tighter leading-[0.95]">
-                        {currentScheduledTask.subject}
-                     </h2>
+                     <div className="flex items-center gap-4">
+                       <SubjectBadge name={currentScheduledTask.subject} />
+                       <h2 className="text-3xl md:text-4xl font-heading font-black tracking-tighter leading-[0.95]">
+                          {currentScheduledTask.subject}
+                       </h2>
+                     </div>
                      <p className="text-white/75 text-sm font-medium max-w-xl">
                         It&apos;s time for your scheduled session. Open it when you&apos;re ready.
                      </p>
@@ -454,14 +449,7 @@ export function LiveFocusCard({
                </div>
                <div className="flex flex-col items-center gap-4 min-w-[240px]">
                   <div className="flex flex-col items-center gap-6">
-                     <div className="flex items-baseline font-heading font-black tracking-tighter tabular-nums text-white opacity-90">
-                        <span className="text-5xl md:text-6xl">
-                           {displayTime.h > 0 && `${displayTime.h.toString().padStart(2, '0')}:`}
-                           {displayTime.m.toString().padStart(2, '0')}
-                        </span>
-                        <span className="text-2xl md:text-3xl opacity-40 mx-1">:</span>
-                        <span className="text-2xl md:text-3xl opacity-60">{displayTime.s.toString().padStart(2, '0')}</span>
-                     </div>
+                     <RollingTime time={displayTime} className="opacity-90" />
                      <Link href={`/focus/${currentScheduledTask.id}`} className="w-full">
                         <Button className="w-full h-12 rounded-xl font-black text-base gap-4 bg-white text-orange-600 hover:bg-white/90 shadow-2xl group transition-all">
                            START FOCUSING <ArrowRight className="w-6 h-6 transition-transform group-hover:translate-x-2" />
@@ -484,13 +472,13 @@ export function LiveFocusCard({
       return (
         <motion.div key="school-break" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full">
           <Card className={cn(CARD_SHELL, "bg-primary shadow-primary/20")}>
-            <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[100px] -z-0 translate-x-1/3 -translate-y-1/3" />
+            <CardDecor icon={Coffee} />
             <div className={CARD_ROW}>
-               <div className="space-y-4 flex-1 min-w-0 text-white">
+               <div className="stagger-in space-y-4 flex-1 min-w-0 text-white">
                   <div className="flex items-center gap-3">
-                     <div className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] bg-white/20 border border-white/20 backdrop-blur-md text-white">
+                     <StatusChip icon={Coffee}>
                         SCHOOL BREAK
-                     </div>
+                     </StatusChip>
                      <div className="h-1.5 w-1.5 rounded-full bg-white/40" />
                      <div className="flex items-center gap-2 text-xs font-bold text-white/80">
                         <Clock className="w-3.5 h-3.5" />
@@ -505,21 +493,13 @@ export function LiveFocusCard({
                         Your next lesson, {nextSchoolLesson.subject}, starts soon. Use this time to prepare.
                      </p>
                   </div>
-                  <div className="flex items-center gap-3 bg-white/10 border border-white/10 px-3.5 py-2 rounded-xl w-fit max-w-xl backdrop-blur-md">
-                     <Zap className="w-4 h-4 shrink-0 text-white animate-pulse" />
+                  <NextChip icon={Zap} subject={nextSchoolLesson.subject}>
                      <span className="truncate font-black text-xs uppercase tracking-widest">Upcoming: {nextSchoolLesson.subject}</span>
-                  </div>
+                  </NextChip>
                </div>
                <div className="flex flex-col items-center gap-3 min-w-[240px]">
                   <div className="text-white/80 text-xs font-black uppercase tracking-widest mb-1">Next Lesson In</div>
-                  <div className="flex items-baseline font-heading font-black tracking-tighter tabular-nums text-white">
-                     <span className="text-5xl md:text-6xl">
-                        {schoolTimeLeft.h > 0 && `${schoolTimeLeft.h.toString().padStart(2, '0')}:`}
-                        {schoolTimeLeft.m.toString().padStart(2, '0')}
-                     </span>
-                     <span className="text-2xl md:text-3xl opacity-40 mx-1">:</span>
-                     <span className="text-2xl md:text-3xl opacity-60">{schoolTimeLeft.s.toString().padStart(2, '0')}</span>
-                  </div>
+                  <RollingTime time={schoolTimeLeft} className="" />
                   <Link href="/school-timetable" className="w-full mt-4">
                     <Button className="w-full h-12 rounded-xl bg-white text-primary hover:bg-white/90 font-black tracking-widest text-xs uppercase gap-2">
                        VIEW FULL TIMETABLE <ArrowRight className="w-4 h-4" />
@@ -597,13 +577,13 @@ export function LiveFocusCard({
     return (
       <motion.div key="fallback-break" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full">
         <Card className={cn(CARD_SHELL, "bg-primary shadow-primary/20")}>
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[100px] -z-0 translate-x-1/3 -translate-y-1/3" />
+          <CardDecor icon={hasCountdown ? Coffee : totalToday > 0 && doneToday === totalToday ? PartyPopper : CalendarCheck} />
           <div className={CARD_ROW}>
-             <div className="space-y-4 flex-1 text-white">
+             <div className="stagger-in space-y-4 flex-1 text-white">
                 <div className="flex items-center gap-3">
-                   <div className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] bg-white/20 border border-white/20 backdrop-blur-md text-white">
+                   <StatusChip icon={Coffee} live={hasCountdown}>
                       On a break
-                   </div>
+                   </StatusChip>
                    {(hasCountdown || dayWindow) && (
                      <>
                        <div className="h-1.5 w-1.5 rounded-full bg-white/40" />
@@ -619,22 +599,24 @@ export function LiveFocusCard({
                    )}
                 </div>
                 <div className="space-y-2">
-                   <h2 className="text-3xl md:text-4xl font-heading font-black tracking-tighter leading-[0.95]">
-                      {headline}
-                   </h2>
+                   <div className="flex items-center gap-4">
+                     {hasCountdown && <SubjectBadge name={nextTask!.subject} />}
+                     <h2 className="text-3xl md:text-4xl font-heading font-black tracking-tighter leading-[0.95]">
+                        {headline}
+                     </h2>
+                   </div>
                    <p className="text-white/75 text-sm font-medium max-w-xl">
                       {blurb}
                    </p>
                 </div>
                 {hasCountdown ? (
-                  <div className="flex items-center gap-3 bg-white/10 border border-white/10 px-3.5 py-2 rounded-xl w-fit backdrop-blur-md">
-                     <Zap className="w-4 h-4 shrink-0 text-white" />
+                  <NextChip icon={Zap} subject={afterNext?.subject}>
                      <span className="font-black text-xs uppercase tracking-widest">
                         {afterNext
                           ? `Then ${afterNext.subject} at ${afterNext.startTime}`
                           : nextIsToday ? 'Last block of the day' : 'First block tomorrow'}
                      </span>
-                  </div>
+                  </NextChip>
                 ) : totalToday > 0 ? (
                   <div className="flex items-center gap-3 bg-white/10 border border-white/10 px-3.5 py-2 rounded-xl w-fit backdrop-blur-md">
                      <CheckCircle2 className="w-4 h-4 shrink-0 text-white" />
@@ -651,14 +633,7 @@ export function LiveFocusCard({
                    {hasCountdown ? 'Starts in' : totalToday > 0 ? "Today's progress" : 'Your timetable'}
                 </div>
                 {hasCountdown ? (
-                  <div className="flex items-baseline font-heading font-black tracking-tighter tabular-nums text-white">
-                     <span className="text-5xl md:text-6xl">
-                        {breakTimeLeft.h > 0 && `${breakTimeLeft.h.toString().padStart(2, '0')}:`}
-                        {breakTimeLeft.m.toString().padStart(2, '0')}
-                     </span>
-                     <span className="text-2xl md:text-3xl opacity-40 mx-1">:</span>
-                     <span className="text-2xl md:text-3xl opacity-60">{breakTimeLeft.s.toString().padStart(2, '0')}</span>
-                  </div>
+                  <RollingTime time={breakTimeLeft} className="" />
                 ) : totalToday > 0 ? (
                   <div className="flex items-baseline font-heading font-black tracking-tighter tabular-nums text-white">
                      <span className="text-5xl md:text-6xl">{doneToday}</span>

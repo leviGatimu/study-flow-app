@@ -47,9 +47,13 @@ export function ScheduleFrame({
         {legend && <div className="hidden xl:block">{legend}</div>}
 
         <div className="ml-auto flex min-w-0 flex-wrap items-center gap-3">
+          {/* A plain row, never a scroll box: on the Windows desktop app a
+              scroll box reserved room for its (hidden) scrollbar, which made
+              the grey track ~17px taller and pushed the tabs off-centre. On a
+              narrow window the whole group wraps to its own line instead. */}
           <nav
             aria-label="Schedule pages"
-            className="scrollbar-none flex max-w-full items-center gap-1 overflow-x-auto overflow-y-hidden rounded-lg bg-muted p-1"
+            className="flex h-9 shrink-0 items-center gap-1 rounded-lg bg-muted p-1"
           >
             {PAGES.map((page) => {
               const active = pathname === page.href;

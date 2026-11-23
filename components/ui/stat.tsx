@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { CountUp } from "@/components/ui/count-up";
 
 /**
  * A single headline number with a label, in the dashboard's type: a muted
@@ -37,7 +38,7 @@ export function Stat({
         {label}
       </p>
       <p className={cn("mt-1 font-heading text-3xl font-black tracking-tight tabular-nums", toneClass)}>
-        {value}
+        {typeof value === "number" || typeof value === "string" ? <CountUp value={value} /> : value}
       </p>
       {hint && <p className="mt-0.5 text-xs font-medium text-muted-foreground">{hint}</p>}
     </div>

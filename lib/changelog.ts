@@ -28,6 +28,35 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.36',
+    date: '2026-11-23',
+    title: 'Animations everywhere, a new practice screen, and links that open inside the app',
+    changes: {
+      new: [
+        'Study Flow moves now. Every icon plays a small animation when you point at it or open its page, page sections rise in one after another, numbers count up, progress bars and the Today ring fill themselves, and ticking a block springs its tick.',
+        'The Today card has icons for each state, your subject\u2019s own icon next to its name, a countdown whose digits roll as they tick, and soft moving light behind it.',
+        'A new way to make a practice set: drop in a document, tap a subject, pick how many and what kind of questions, and watch a preview card of the set fill in before it is written.',
+        'Answering questions looks and feels new: a soft background in the subject\u2019s colour, a progress bar you can tap to jump, questions that slide and blur from one to the next, a green glow for a right answer and a shake for a wrong one.',
+        'On the desktop app, saved links in Resources open inside Study Flow (YouTube plays, Google Docs, Slides and Drive show their preview), with an Open in browser button.',
+        'The focus setup and finish screens are now dark like the focus room, and the clock font has an Original option, which is the default.',
+      ],
+      better: [
+        'Mentors now see your own pages exactly as you see them, read only, instead of a separate mentor dashboard.',
+        'The focus screen is back to its original layout, tidied: the status label above the time is readable again, side panels line up, and long goals wrap.',
+      ],
+      fixed: [
+        'The Schedule tabs (Week, Month, Study routine, School lessons) no longer sit off-centre in a too-tall grey bar on the desktop app.',
+        'Links in the desktop app no longer open a bare extra window; anything that needs a browser opens in your normal browser.',
+      ],
+      dev: [
+        'Animated icons are CSS keyed on lucide-<name> classes (app/globals.css); .stagger-in, CountUp (components/ui/count-up.tsx), ring-draw, blur-in. Live card bits in components/home/LiveCardBits.tsx.',
+        'app/ai/PracticeBuilder.tsx (builder + writing screen); QuestionRunner/PracticeWorkspace restyled with framer-motion blur transitions, logic unchanged.',
+        'desktop-app/main.js: setWindowOpenHandler sends web pages to the default browser; X-Frame-Options and CSP frame-ancestors are dropped for sub-frames only (link viewer). lib/file-preview.ts linkEmbedUrl (tested).',
+        'Mentor dashboard removed (app/mentor redirects home, lib/mentor-model.ts deleted). ScheduleFrame nav is a plain row, no scroll box.',
+      ],
+    },
+  },
+  {
     version: '1.0.35',
     date: '2026-11-23',
     title: 'The website has moved, and mentors get their own dashboard',

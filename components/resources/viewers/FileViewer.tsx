@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { AlertCircle, Download, X } from "lucide-react";
+import { AlertCircle, Download, ExternalLink, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { MAX_PREVIEW_BYTES, modernFormatFor, previewKind } from "@/lib/file-preview";
+import { linkEmbedUrl, MAX_PREVIEW_BYTES, modernFormatFor, previewKind } from "@/lib/file-preview";
 import type { ResourceItem } from "@/lib/library-actions";
 import { displayName, formatBytes, KindIcon, kindLabel } from "../file-kind";
 import { DocxViewer, SheetViewer, SlidesViewer, TextViewer } from "./office-viewers";
@@ -24,7 +24,7 @@ export function FileViewer({ item, onClose }: { item: ResourceItem | null; onClo
         showCloseButton={false}
         className="flex h-[100dvh] max-h-[100dvh] w-screen max-w-none flex-col gap-0 overflow-hidden rounded-none p-0 ring-0 sm:max-w-none md:h-[94dvh] md:w-[96vw] md:rounded-2xl md:ring-1"
       >
-        {item && <ViewerBody key={item.id} item={item} onClose={onClose} />}
+        {item && (item.type === "LINK" ? <LinkBody key={item.id} item={item} onClose={onClose} /> : <ViewerBody key={item.id} item={item} onClose={onClose} />)}
       </DialogContent>
     </Dialog>
   );
@@ -33,6 +33,62 @@ export function FileViewer({ item, onClose }: { item: ResourceItem | null; onClo
 /** The same URL, asking the server to send it as a download. */
 export function downloadUrl(url: string): string {
   return `${url}${url.includes("?") ? "&" : "?"}download=1`;
+}
+
+/**
+ * A saved web link, shown inside the app (desktop only: the desktop app lets
+ * any site sit in this frame, a browser does not). The frame is sandboxed so
+ * the site can run but can never take over Study Flow's own window.
+ */
+function LinkBody({ item, onClose }: { item: ResourceItem; onClose: () => void }) {
+  const src = linkEmbedUrl(item.url);
+  let host = item.url;
+  try {
+    host = new URL(item.url).hostname.replace(/^www\./, "");
+  } catch {}
+  const where = [item.subject, ...(item.folder ? item.folder.split("/") : [])].join(" › ");
+
+  return (
+    <>
+      <header className="flex items-center gap-3 border-b border-border/60 px-3 py-2.5 sm:px-4">
+        <KindIcon item={item} size="sm" />
+        <div className="min-w-0 flex-1">
+          <DialogTitle className="truncate text-sm font-semibold text-foreground sm:text-base">{displayName(item)}</DialogTitle>
+          <DialogDescription className="truncate text-xs text-muted-foreground">
+            {host}
+            {where ? ` · ${where}` : ""}
+          </DialogDescription>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <a href={item.url} target="_blank" rel="noreferrer">
+            <ExternalLink />
+            <span className="hidden sm:inline">Open in browser</span>
+          </a>
+        </Button>
+        <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close">
+          <X />
+        </Button>
+      </header>
+      <div className="relative min-h-0 flex-1 bg-white">
+        {src ? (
+          <iframe
+            src={src}
+            title={displayName(item)}
+            className="h-full w-full border-0"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-downloads"
+            allow="autoplay; encrypted-media; fullscreen; picture-in-picture; clipboard-write"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+            <AlertCircle className="size-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">This link is not a web page, so it cannot be shown here.</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
 }
 
 function ViewerBody({ item, onClose }: { item: ResourceItem; onClose: () => void }) {

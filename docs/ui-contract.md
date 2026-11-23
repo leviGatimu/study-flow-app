@@ -104,9 +104,20 @@ No decorative glow orbs: `blur-3xl`, `blur-[100px]` and friends behind a card.
 
 ## Motion
 
-State feedback only: shadow, colour, opacity, a progress fill. No hover lift,
-no hover scale, no press shrink. One duration, one easing (see the motion
-budget in `app/globals.css`).
+The app should feel alive, but motion stays short and never blocks you
+(changed Nov 2026: the owner found the app too static).
+
+- Icons animate by themselves: every lucide icon plays a short move that fits
+  it when its link or button is hovered, focused or becomes the current page
+  ("Animated icons" in `app/globals.css`, keyed by the `lucide-<name>` class).
+  A new icon gets a move by adding its class to one of those lists.
+- Page sections rise in one after another (`PageBody` has `.stagger-in`; use
+  the class on big card grids too). Progress bars fill, `Stat` numbers count up,
+  a ticked task springs its tick.
+- Buttons shrink a little when pressed; `Panel interactive` lifts on hover.
+  Nothing else scales or lifts.
+- Everything turns off under prefers-reduced-motion (the global rule in
+  `app/globals.css`), so never add motion that is needed to understand the page.
 
 ## Accessibility (fix while you are in a file)
 
