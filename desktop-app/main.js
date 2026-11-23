@@ -671,18 +671,26 @@ async function createWindow() {
   // IPC handlers for widget mode
   let widgetWindow = null;
 
+  // The mini window comes in fixed sizes rather than free resizing, so each
+  // layout is designed for its size. Keep in step with WIDGET_SIZES in
+  // app/focus/widget/page.tsx.
+  const WIDGET_SIZES = {
+    mini: { width: 360, height: 88 },
+    compact: { width: 380, height: 184 },
+    card: { width: 320, height: 420 },
+  };
+  const widgetSize = (name) => WIDGET_SIZES[name] || WIDGET_SIZES.compact;
+
   ipcMain.on('enter-widget', (event, arg) => {
     if (widgetWindow) return;
 
     mainWindow.hide();
 
-    // Position the widget window in the bottom-right corner of the screen by default
-    const primaryDisplay = screen.getPrimaryDisplay();
-    const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
-    const widgetWidth = 344;
-    const widgetHeight = 208;
-    const x = screenWidth - widgetWidth - 24;
-    const y = screenHeight - widgetHeight - 24;
+    // Bottom-right corner of the screen by default.
+    const { width: widgetWidth, height: widgetHeight } = widgetSize(arg && arg.size);
+    const { x: areaX, y: areaY, width: areaWidth, height: areaHeight } = screen.getPrimaryDisplay().workArea;
+    const x = areaX + areaWidth - widgetWidth - 24;
+    const y = areaY + areaHeight - widgetHeight - 24;
 
     widgetWindow = new BrowserWindow({
       width: widgetWidth,
@@ -692,11 +700,11 @@ async function createWindow() {
       frame: false,
       transparent: true,
       alwaysOnTop: true,
-      resizable: true,
-      minWidth: 300,
-      minHeight: 132,
-      maxWidth: 600,
-      maxHeight: 300,
+      resizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      skipTaskbar: false,
+      hasShadow: false,
       show: false,
       icon: path.join(__dirname, 'icon.ico'),
       webPreferences: {
@@ -706,12 +714,14 @@ async function createWindow() {
         backgroundThrottling: false
       }
     });
+    // Stay above full-screen apps too (videos, slides).
+    widgetWindow.setAlwaysOnTop(true, 'floating');
 
     widgetWindow.once('ready-to-show', () => {
       widgetWindow.show();
     });
 
-    widgetWindow.loadURL(`http://127.0.0.1:${port}/focus/widget?taskId=${arg.taskId}`);
+    widgetWindow.loadURL(`http://127.0.0.1:${port}/focus/widget?taskId=${encodeURIComponent((arg && arg.taskId) || '')}`);
 
     widgetWindow.on('closed', () => {
       widgetWindow = null;
@@ -721,6 +731,22 @@ async function createWindow() {
         mainWindow.focus();
       }
     });
+  });
+
+  // Switch preset size. The corner nearest the screen's edge stays put, so a
+  // widget parked bottom-right grows up and to the left.
+  ipcMain.on('widget:size', (event, name) => {
+    if (!widgetWindow || widgetWindow.isDestroyed() || event.sender !== widgetWindow.webContents) return;
+    const next = widgetSize(name);
+    const now = widgetWindow.getBounds();
+    const area = screen.getDisplayMatching(now).workArea;
+    const anchorRight = now.x + now.width / 2 > area.x + area.width / 2;
+    const anchorBottom = now.y + now.height / 2 > area.y + area.height / 2;
+    let x = anchorRight ? now.x + now.width - next.width : now.x;
+    let y = anchorBottom ? now.y + now.height - next.height : now.y;
+    x = Math.min(Math.max(x, area.x), area.x + area.width - next.width);
+    y = Math.min(Math.max(y, area.y), area.y + area.height - next.height);
+    widgetWindow.setBounds({ x, y, width: next.width, height: next.height });
   });
 
   ipcMain.on('exit-widget', () => {

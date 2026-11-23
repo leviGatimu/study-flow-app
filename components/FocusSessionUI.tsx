@@ -1080,7 +1080,9 @@ export function FocusSessionUI({ task, resources, songs: initialSongs, playlists
                 size="icon"
                 className="w-12 h-12 rounded-2xl border bg-white/5 border-white/10 hover:bg-white/10 text-white transition-all duration-300"
                 onClick={() => {
-                  (window as any).electron.send('enter-widget', { taskId: task.id });
+                  let size: string | null = null;
+                  try { size = localStorage.getItem('study-flow-widget-size'); } catch {}
+                  (window as any).electron.send('enter-widget', { taskId: task.id, size });
                 }}
                 title="Small always-on-top window"
               >

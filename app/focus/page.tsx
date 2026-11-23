@@ -1,18 +1,16 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { CalendarPlus, ListTodo, Play, Timer } from 'lucide-react';
 
-import { getTodayTasks } from '@/lib/actions';
+import { getCurrentUserTimezone, getTodayTasks } from '@/lib/actions';
 import { getUserId } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 import { TaskWithTemplate } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { DEFAULT_TIMEZONE } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Page, PageBody } from '@/components/ui/page';
 import { PageHeader } from '@/components/ui/page-header';
-import { Panel, PanelTitle } from '@/components/ui/panel';
-import { ListRow, Pill } from '@/components/ui/list-row';
-import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
+import { FocusLauncher, type PlanTask } from '@/components/focus/FocusLauncher';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,9 +82,37 @@ export default async function FocusPage({
       Number(isMatch(b)) - Number(isMatch(a)) ||
       a.startTime.localeCompare(b.startTime)
   );
-  const next = ordered.find((t) => !t.isDone);
   const matchCount = tasks.filter((t) => !t.isDone && isMatch(t)).length;
-  const done = tasks.filter((t) => t.isDone).length;
+
+  // Extras for the page; it still works if any of them fail.
+  const [focusByTask, progress, timezone] = await Promise.all([
+    tasks.length
+      ? prisma.xpEvent
+          .groupBy({
+            by: ['taskId'],
+            where: { userId, source: 'FOCUS', deletedAt: null, taskId: { in: tasks.map((t) => t.id) } },
+            _sum: { focusSeconds: true },
+          })
+          .catch(() => [])
+      : Promise.resolve([]),
+    prisma.userProgress
+      .findUnique({ where: { userId }, select: { currentStreak: true, totalFocusMinutes: true, focusSessions: true } })
+      .catch(() => null),
+    getCurrentUserTimezone().catch(() => DEFAULT_TIMEZONE),
+  ]);
+  const focused = new Map(focusByTask.map((row) => [row.taskId, row._sum.focusSeconds ?? 0]));
+
+  const plan: PlanTask[] = ordered.map((t) => ({
+    id: t.id,
+    subject: t.subject,
+    revision: t.type === 'REVISION',
+    startTime: t.startTime,
+    endTime: t.endTime,
+    isDone: t.isDone,
+    isMissed: Boolean(t.isMissed),
+    focusedSeconds: focused.get(t.id) ?? 0,
+    match: isMatch(t),
+  }));
 
   return (
     <Page>
@@ -100,108 +126,19 @@ export default async function FocusPage({
               : `Nothing left on today's plan for ${subject}. A free session will be labelled with it.`
             : undefined
         }
-        highlight={tasks.length > 0 ? { label: 'Done today', value: `${done} / ${tasks.length}` } : undefined}
-        actions={
-          next ? (
-            <Button asChild size="lg">
-              <Link href={`/focus/${next.id}`}>
-                <Play />
-                Start {next.subject}
-              </Link>
-            </Button>
-          ) : (
-            <Button asChild size="lg">
-              <Link href={freeHref(subject)}>
-                <Play />
-                Start a free session
-              </Link>
-            </Button>
-          )
-        }
       />
       <PageBody>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="lg:col-span-8">
-            <Panel>
-              <PanelTitle icon={<ListTodo />}>Today&apos;s tasks</PanelTitle>
-              {ordered.length === 0 ? (
-                <EmptyState
-                  title="Nothing scheduled today"
-                  description="Start a free session, or add study blocks to your routine so they show up here."
-                  action={
-                    <>
-                      <Button asChild>
-                        <Link href={freeHref(subject)}>Start a free session</Link>
-                      </Button>
-                      <Button asChild variant="outline">
-                        <Link href="/manage">
-                          <CalendarPlus />
-                          Study routine
-                        </Link>
-                      </Button>
-                    </>
-                  }
-                />
-              ) : (
-                <ul className="space-y-3">
-                  {ordered.map((task) => {
-                    const revision = task.type === 'REVISION';
-                    return (
-                      <li key={task.id}>
-                        <ListRow
-                          className={cn(
-                            // The app's focus-mode convention: homework solid
-                            // blue, revision dashed orange.
-                            revision ? 'border-dashed border-orange-500/50' : 'border-primary/40',
-                            isMatch(task) && !task.isDone && 'bg-primary/5',
-                            task.isDone && 'opacity-70'
-                          )}
-                          title={task.subject}
-                          subtitle={`${revision ? 'Revision' : 'Homework'} · ${task.startTime}–${task.endTime}`}
-                          trailing={
-                            task.isDone ? (
-                              <Pill tone="success">Done</Pill>
-                            ) : (
-                              <>
-                                {isMatch(task) && (
-                                  <Pill tone="primary" className="hidden sm:inline-flex">
-                                    {subject}
-                                  </Pill>
-                                )}
-                                <Button asChild size="sm" variant={task.id === next?.id ? 'default' : 'outline'}>
-                                  <Link href={`/focus/${task.id}`} aria-label={`Start a focus session for ${task.subject}`}>
-                                    <Play />
-                                    Start
-                                  </Link>
-                                </Button>
-                              </>
-                            )
-                          }
-                        />
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </Panel>
-          </div>
-
-          <div className="lg:col-span-4">
-            <Panel>
-              <PanelTitle icon={<Timer />}>Free session</PanelTitle>
-              <p className="text-sm text-muted-foreground">
-                No task attached, and a timer you set yourself. Good for unplanned study or
-                {subject ? ` a quick round of ${subject}.` : ' anything not on the plan.'}
-              </p>
-              <Button asChild variant="outline" className="mt-4 w-full">
-                <Link href={freeHref(subject)}>
-                  <Play />
-                  Start a free session
-                </Link>
-              </Button>
-            </Panel>
-          </div>
-        </div>
+        <FocusLauncher
+          tasks={plan}
+          subject={subject}
+          freeHref={freeHref(subject)}
+          timezone={timezone}
+          stats={
+            progress
+              ? { streak: progress.currentStreak, totalMinutes: progress.totalFocusMinutes, sessions: progress.focusSessions }
+              : null
+          }
+        />
       </PageBody>
     </Page>
   );
