@@ -28,6 +28,22 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.35',
+    date: '2026-11-23',
+    title: 'The website has moved, and mentors get their own dashboard',
+    changes: {
+      new: [
+        'Mentors now have their own dashboard: one page about how you are doing, with study time this week against last week, blocks done, your streak, your exam average, a 14-day chart, each subject over the last 30 days, recent marks, your latest reports and homework due. Links open your Week, History, Reports and Marks read-only.',
+      ],
+      fixed: [
+        'The Study Flow website moved to study-flow-lm0j.onrender.com while the old address is paused. The app now syncs there by itself. Because the move came with a new sign-in key, the app asks you to sign in to sync once more.',
+      ],
+      dev: [
+        'lib/sync/server-url.ts: SYNC_SERVER_URL = Render, studyingflow.vercel.app retired (a saved pairing moves once). app/mentor/page.tsx + lib/mentor-model.ts (test/mentor-model.test.mjs); "/" redirects a mentor to /mentor, which is a bare route.',
+      ],
+    },
+  },
+  {
     version: '1.0.34',
     date: '2026-11-22',
     title: 'A new focus screen',
