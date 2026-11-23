@@ -5,7 +5,7 @@ import { CalendarDays, CheckCircle2, History } from 'lucide-react';
 
 import { getTodayTasks, syncStreak, getEvents, getTomorrowTasks, getYesterdayTasks } from '@/lib/actions';
 import { getCurrentScheduleState } from '@/lib/term-actions';
-import { getUserId } from '@/lib/auth';
+import { getUserId, getMentorSession } from '@/lib/auth';
 import { getViewScope } from '@/lib/scope';
 import { listSubjects } from '@/lib/subject-actions';
 import { getSchoolLessons } from '@/lib/school-actions';
@@ -42,6 +42,9 @@ export default async function Dashboard() {
   if (!userId) redirect('/welcome');
 
   // "Today" means nothing in a finished year: its home is the year's highlights.
+  // A mentor's home is their own dashboard, not the student's planner.
+  if (await getMentorSession()) redirect('/mentor');
+
   const scope = await getViewScope(userId);
   if (scope?.isArchive) redirect(`/year/${scope.classId}`);
 
