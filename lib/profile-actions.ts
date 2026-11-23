@@ -38,3 +38,26 @@ export async function updateProfile(form: FormData) {
   revalidatePath('/settings');
   return { success: true };
 }
+
+/**
+ * Set or clear the birthday ("MM-DD" or "YYYY-MM-DD"; null clears it). The
+ * app celebrates on that day (components/birthday). Validated here, not
+ * trusted from the form.
+ */
+export async function setBirthday(value: string | null) {
+  const userId = await getUserId();
+  if (!userId) return { error: 'Sign in to save your birthday.' };
+  const { parseBirthday } = await import('@/lib/birthday');
+  if (value !== null && !parseBirthday(value)) return { error: 'That is not a real date. Check the day and month.' };
+  try {
+    await prisma.userProgress.upsert({
+      where: { userId },
+      create: { userId, birthday: value },
+      update: { birthday: value },
+    });
+  } catch {
+    return { error: 'Your birthday could not be saved. Please try again.' };
+  }
+  revalidatePath('/', 'layout');
+  return { success: true };
+}

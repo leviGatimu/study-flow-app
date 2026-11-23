@@ -26,6 +26,7 @@ import {
   Plus,
   Trash2,
   X,
+  Cake,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -75,6 +76,8 @@ export type CalendarData = {
   markedDays: string[];
   /** Public holidays in view, date key -> name. The routine is off on these. */
   holidays: Record<string, string>;
+  /** The student's birthday, as date keys in view (at most one or two). */
+  birthdays?: string[];
   /** The running term of the active year, or null (none, or an archive is open). */
   term: { name: string | null; start: string | null; end: string | null } | null;
 };
@@ -182,6 +185,7 @@ export function CalendarGrid({
       isTermEnd: key === termEndKey,
       isToday: key === todayKey,
       holiday: data.holidays[key] ?? null,
+      isBirthday: (data.birthdays ?? []).includes(key),
     };
   };
 
@@ -348,6 +352,12 @@ export function CalendarGrid({
                         <Flag aria-hidden="true" className="size-3" /> Term ends
                       </span>
                     )}
+                    {s.isBirthday && (
+                      <span className="flex min-w-0 items-center gap-1 text-[11px] font-semibold text-pink-600 dark:text-pink-400">
+                        <Cake aria-hidden="true" className="size-3 shrink-0 motion-safe:animate-bounce" />
+                        <span className="truncate">Your birthday</span>
+                      </span>
+                    )}
                     {s.holiday && (
                       <span className="flex min-w-0 items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
                         <PartyPopper aria-hidden="true" className="size-3 shrink-0" />
@@ -439,6 +449,7 @@ type DaySummary = {
   isTermEnd: boolean;
   isToday: boolean;
   holiday: string | null;
+  isBirthday: boolean;
 };
 
 function DayNumber({
@@ -563,6 +574,7 @@ function DayDetails({
           {summary.isToday && <Pill tone="primary">Today</Pill>}
           {summary.isTermEnd && <Pill tone="warning">Last day of term</Pill>}
           {summary.holiday && <Pill tone="success">{summary.holiday}</Pill>}
+          {summary.isBirthday && <Pill className="bg-pink-500/15 text-pink-600 dark:text-pink-400"><Cake /> Your birthday</Pill>}
         </Title>
         <Description className="mt-1 text-sm text-muted-foreground">
           {summary.holiday && 'Public holiday - your study routine is off. '}

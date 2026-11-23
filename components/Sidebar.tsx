@@ -59,19 +59,32 @@ export function Sidebar({
 
   return (
     <aside data-tour="sidebar" className="group/sidebar relative z-40 hidden w-[72px] shrink-0 md:block">
+      {/* While the panel is open the page behind dims and softens, so the
+          panel reads as sliding out in front of it. Never catches the pointer. */}
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none fixed inset-y-0 left-[72px] right-0 bg-black/0 backdrop-blur-0 transition-[background-color,backdrop-filter] duration-300",
+          "group-hover/sidebar:bg-black/[0.06] group-hover/sidebar:backdrop-blur-[2px] dark:group-hover/sidebar:bg-black/30",
+          "group-focus-within/sidebar:bg-black/[0.06] dark:group-focus-within/sidebar:bg-black/30",
+          "motion-reduce:backdrop-blur-0"
+        )}
+      />
       <div
         className={cn(
-          "absolute inset-y-0 left-0 flex w-[72px] flex-col overflow-hidden border-r border-sidebar-border bg-sidebar",
-          "transition-[width,box-shadow] duration-200 ease-out",
-          "group-hover/sidebar:w-60 group-hover/sidebar:shadow-[8px_0_32px_-8px_rgb(0_0_0/0.45)]",
-          "group-focus-within/sidebar:w-60 group-focus-within/sidebar:shadow-[8px_0_32px_-8px_rgb(0_0_0/0.45)]"
+          // Closed it is part of the frame; open it becomes a card with the
+          // same rounded edge as the page panel beside it.
+          "absolute inset-y-0 left-0 flex w-[72px] flex-col overflow-hidden rounded-r-none border-r border-transparent bg-sidebar",
+          "transition-[width,box-shadow,border-radius,border-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          "group-hover/sidebar:w-60 group-hover/sidebar:rounded-r-3xl group-hover/sidebar:border-sidebar-border group-hover/sidebar:shadow-[12px_0_40px_-12px_rgb(0_0_0/0.35)]",
+          "group-focus-within/sidebar:w-60 group-focus-within/sidebar:rounded-r-3xl group-focus-within/sidebar:border-sidebar-border group-focus-within/sidebar:shadow-[12px_0_40px_-12px_rgb(0_0_0/0.35)]"
         )}
       >
-        {/* Same height and rule as the app header, so the two read as one bar. */}
+        {/* Same height as the app header, so the two read as one frame. */}
         <Link
           href="/"
           aria-label="Study Flow home"
-          className="flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-border px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+          className="flex h-16 shrink-0 items-center gap-3 px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
         >
           <Image
             src="/logo.png"
@@ -88,8 +101,8 @@ export function Sidebar({
 
         <nav aria-label="Primary" className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-3 py-3">
           <ul className="flex flex-col gap-1">
-            {(mentor ? mentorVisible(MAIN) : MAIN).map((section) => (
-              <li key={section.name}>
+            {(mentor ? mentorVisible(MAIN) : MAIN).map((section, i) => (
+              <li key={section.name} style={{ ['--i' as string]: i + 1 }}>
                 <RailLink section={section} active={isActive(section)} />
               </li>
             ))}
@@ -99,12 +112,12 @@ export function Sidebar({
 
           <ul className="flex flex-col gap-1">
             {(mentor ? mentorVisible(SETTINGS) : SETTINGS).map((section) => (
-              <li key={section.name}>
+              <li key={section.name} style={{ ['--i' as string]: MAIN.length + 1 }}>
                 <RailLink section={section} active={isActive(section)} />
               </li>
             ))}
             {isAdmin && (
-              <li>
+              <li style={{ ['--i' as string]: MAIN.length + 2 }}>
                 <RailLink section={ADMIN_SECTION} active={isActive(ADMIN_SECTION)} />
               </li>
             )}
@@ -117,14 +130,21 @@ export function Sidebar({
   );
 }
 
-/** A label that is invisible on the rail and fades in once the panel opens. */
+/**
+ * A label that is invisible on the rail and, once the panel opens, slides in
+ * from the left out of a soft blur. Each item waits a little longer than the
+ * one above it (--i on its <li>), so the names arrive top to bottom. Closing
+ * is immediate, so nothing lingers when the pointer leaves.
+ */
 function Label({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
     <span
       className={cn(
-        "block whitespace-nowrap opacity-0 transition-opacity duration-150",
-        "group-hover/sidebar:opacity-100 group-hover/sidebar:delay-75",
-        "group-focus-within/sidebar:opacity-100",
+        "block whitespace-nowrap opacity-0 -translate-x-2 blur-[3px] transition-[opacity,translate,filter] duration-100",
+        "group-hover/sidebar:translate-x-0 group-hover/sidebar:opacity-100 group-hover/sidebar:blur-none group-hover/sidebar:duration-300",
+        "group-hover/sidebar:[transition-delay:calc(60ms+var(--i,0)*28ms)]",
+        "group-focus-within/sidebar:translate-x-0 group-focus-within/sidebar:opacity-100 group-focus-within/sidebar:blur-none",
+        "motion-reduce:translate-x-0 motion-reduce:blur-none",
         className
       )}
     >

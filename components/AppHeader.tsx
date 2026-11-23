@@ -58,7 +58,7 @@ export function AppHeader({
 
   return (
     <>
-      <header className="titlebar-drag flex h-16 shrink-0 items-center gap-3 border-b border-border bg-background px-4">
+      <header className="titlebar-drag flex h-16 shrink-0 items-center gap-3 border-b border-border bg-sidebar px-4 md:border-b-0">
         {/* Where you are */}
         <div className="min-w-0 flex-1 md:max-w-56 md:flex-none">
           <p className="truncate font-heading text-base font-semibold text-foreground">

@@ -19,6 +19,7 @@ import { ProgressWidget } from '@/components/ProgressWidget';
 import { LiveFocusCard } from '@/components/LiveFocusCard';
 import { DailyQuote } from '@/components/DailyQuote';
 import { DynamicGreeting } from '@/components/DynamicGreeting';
+import { BirthdayCard } from '@/components/birthday/BirthdayCard';
 import { ExamCountdown } from '@/components/ExamCountdown';
 import { DueHomework } from '@/components/DueHomework';
 import { QuickAddForm } from '@/components/QuickAddForm';
@@ -87,7 +88,7 @@ export default async function Dashboard() {
           toggle all live in the app header now, so they are not repeated here. */}
       <section className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 px-4 md:px-8 pt-8 pb-6 border-b border-border/40">
         <div className="space-y-2">
-          <DynamicGreeting name={streakData?.name || 'Student'} timezone={timezone} />
+          <DynamicGreeting name={streakData?.name || 'Student'} timezone={timezone} birthday={streakData?.birthday} />
           <p className="text-base text-muted-foreground font-medium">
             {format(zonedNow, "EEEE, MMMM do, yyyy")}
           </p>
@@ -126,6 +127,8 @@ export default async function Dashboard() {
         <TermStatusBanner state={schedule} />
 
         <HolidayBanner holiday={todayHoliday} />
+
+        <BirthdayCard birthday={streakData?.birthday} timezone={timezone} name={streakData?.name || 'Student'} />
 
         {/* What is happening right now: the block in progress, the next one,
             a school lesson, or the break between. The page's strongest element

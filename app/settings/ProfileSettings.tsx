@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { BirthdayDialog } from '@/components/birthday/BirthdayDialog';
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -128,6 +129,9 @@ function DetailsCard({ data }: { data: SettingsData }) {
         description={`You sign in with this. Joined ${format(new Date(data.createdAt), "d MMMM yyyy")}.`}
       >
         <span className="rounded-lg border border-border bg-muted/40 px-3 py-2 font-mono text-sm">{data.username}</span>
+      </SettingRow>
+      <SettingRow id="birthday" label="Birthday" description="On the day, Study Flow dresses up for you. Also on the Month calendar.">
+        <BirthdayDialog birthday={data.progress?.birthday} />
       </SettingRow>
       <SettingRow id="full-profile" label="Profile and photo" description="Your photo, school and bio.">
         <Button variant="outline" asChild>

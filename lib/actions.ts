@@ -1023,6 +1023,8 @@ const PROGRESS_WITHOUT_KEYS = {
   bio: true,
   school: true,
   avatarUrl: true,
+  // Not a secret: the app celebrates on it (components/birthday).
+  birthday: true,
   currentStreak: true,
   longestStreak: true,
   lastActiveDate: true,

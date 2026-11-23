@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { DEFAULT_TIMEZONE } from '@/lib/utils';
+import { useBirthdayToday } from '@/components/birthday/BirthdayMode';
 
-export function DynamicGreeting({ name = 'Student', timezone = DEFAULT_TIMEZONE }: { name?: string; timezone?: string }) {
+export function DynamicGreeting({ name = 'Student', timezone = DEFAULT_TIMEZONE, birthday }: { name?: string; timezone?: string; birthday?: string | null }) {
+  const { isToday: isBirthday } = useBirthdayToday(birthday, timezone);
   const [greeting, setGreeting] = useState('Good morning');
   const [mounted, setMounted] = useState(false);
 
@@ -44,7 +46,11 @@ export function DynamicGreeting({ name = 'Student', timezone = DEFAULT_TIMEZONE 
 
   return (
     <h1 className="text-4xl font-heading font-black tracking-tight text-foreground">
-      {greeting}, {name}.
+      {isBirthday ? (
+        <span className="bg-gradient-to-r from-pink-500 via-fuchsia-500 to-violet-500 bg-clip-text text-transparent">Happy birthday, {name}.</span>
+      ) : (
+        <>{greeting}, {name}.</>
+      )}
     </h1>
   );
 }

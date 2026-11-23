@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { birthdayKeysBetween, parseBirthday } from '@/lib/birthday';
+import { BirthdayDialog } from '@/components/birthday/BirthdayDialog';
 import { redirect } from 'next/navigation';
 import { endOfMonth, endOfWeek, startOfDay, startOfMonth, startOfWeek } from 'date-fns';
 
@@ -35,7 +37,7 @@ async function loadMonth(userId: string, month: Date, tz: string): Promise<Calen
   const to = endOfWeek(endOfMonth(month), { weekStartsOn: 1 });
   const scope = await getViewScope(userId);
 
-  const [tasks, exams, homework, markedDays, schedule] = await Promise.all([
+  const [tasks, exams, homework, markedDays, schedule, progress] = await Promise.all([
     getAllTasks({ from, to }),
     getEvents(),
     prisma.homework.findMany({
@@ -45,6 +47,7 @@ async function loadMonth(userId: string, month: Date, tz: string): Promise<Calen
     }),
     getMarkedDays(),
     getCurrentScheduleState(),
+    prisma.userProgress.findUnique({ where: { userId }, select: { birthday: true } }),
   ]);
 
   const inRange = (d: Date) => d >= from && d <= to;
@@ -78,6 +81,7 @@ async function loadMonth(userId: string, month: Date, tz: string): Promise<Calen
       dateKey: dayKey(h.dueDate),
     })),
     markedDays: markedDays.filter(inRange).map(dayKey),
+    birthdays: birthdayKeysBetween(parseBirthday(progress?.birthday), dayKey(from), dayKey(to)),
     holidays: Object.fromEntries(
       [...holidaysBetween(tz, dayKey(from), dayKey(to))].map(([key, h]) => [key, h.name])
     ),
@@ -116,7 +120,13 @@ export default async function MonthPage({
     console.error('Month page failed to load', error);
   }
 
-  const addTask = <QuickAddForm subjects={subjects} variant="default" />;
+  const birthday = (await prisma.userProgress.findUnique({ where: { userId }, select: { birthday: true } }).catch(() => null))?.birthday ?? null;
+  const addTask = (
+    <>
+      <BirthdayDialog birthday={birthday} />
+      <QuickAddForm subjects={subjects} variant="default" />
+    </>
+  );
 
   if (data) {
     return <CalendarGrid monthKey={monthKey(month)} todayKey={dayKey(today)} data={data} subjects={subjects} actions={addTask} />;

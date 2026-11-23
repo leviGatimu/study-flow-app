@@ -28,6 +28,23 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.37',
+    date: '2026-11-23',
+    title: 'Your birthday, a softer frame, and a new sidebar',
+    changes: {
+      new: [
+        'Add your birthday (Month calendar, or Settings > Account). It shows on the calendar every year, and on the day Study Flow dresses up for you: party colours across the whole app, confetti and balloons when you open it, and a birthday card on Today. The year is optional; it only says which birthday it is.',
+      ],
+      better: [
+        'The sidebar and the top bar are now one frame, and the page sits inside it with a rounded corner instead of two sharp lines.',
+        'The sidebar opens as a rounded card that matches that corner: it eases out, the names slide in one after another, and the page behind softly dims.',
+      ],
+      dev: [
+        'UserProgress.birthday (TEXT, "MM-DD" or "YYYY-MM-DD"), migration 20261123000000_birthday for Postgres and SQLite. lib/birthday.ts (tested); components/birthday (BirthdayDialog, BirthdayMode on html[data-birthday], BirthdayCard).',
+      ],
+    },
+  },
+  {
     version: '1.0.36',
     date: '2026-11-23',
     title: 'Animations everywhere, a new practice screen, and links that open inside the app',

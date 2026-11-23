@@ -626,6 +626,9 @@ model UserProgress {
   bio               String?
   school            String?
   avatarUrl         String? // Private normalized photo, served through /uploads
+  /// "MM-DD", or "YYYY-MM-DD" when a year was given (lib/birthday.ts). The app
+  /// celebrates on this day in the student's own timezone.
+  birthday          String?
   currentStreak     Int       @default(0)
   longestStreak     Int       @default(0)
   lastActiveDate    DateTime?

@@ -15,6 +15,8 @@ import { ArchiveProvider, MentorProvider, type ArchiveView, type MentorView } fr
 import { MentorBanner } from "@/components/MentorBanner";
 import { SafeUserProgress as UserProgress } from "@/lib/types";
 import { isBareRoute } from "@/lib/nav";
+import { BirthdayMode } from "@/components/birthday/BirthdayMode";
+import { DEFAULT_TIMEZONE } from "@/lib/utils";
 
 // Client-only: it lives in this device's localStorage, which the server cannot see.
 const CalmToolbar = dynamic(() => import("@/components/calm/CalmToolbar").then((m) => m.CalmToolbar), { ssr: false });
@@ -63,14 +65,17 @@ export function AppShell({
             the page under you and says so. Does nothing on the web build. */}
         {!mentor && <SyncWatcher />}
         {!mentor && <PresencePing />}
+        {!mentor && <BirthdayMode birthday={userProgress?.birthday} timezone={userProgress?.timezone || DEFAULT_TIMEZONE} />}
 
         <Sidebar userProgress={userProgress} isAdmin={isAdmin && !mentor} />
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        {/* The sidebar and header are one frame (bg-sidebar); the page sits in it
+            as a panel with a rounded top-left corner where the two meet. */}
+        <div className="flex min-w-0 flex-1 flex-col bg-sidebar">
           <AppHeader userProgress={userProgress} subjects={subjects} />
           {/* Outside <main>, so it cannot scroll out of sight. */}
           {mentor ? <MentorBanner mentor={mentor} /> : <ArchiveBanner />}
-          <main className="app-scroll flex-1 overflow-y-auto bg-background">
+          <main className="app-scroll flex-1 overflow-y-auto bg-background md:rounded-tl-3xl md:border-l md:border-t md:border-border">
             {children}
           </main>
           <MobileTabBar />
