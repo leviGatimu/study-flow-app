@@ -1,6 +1,8 @@
 # HANDOFF
 
 ## Current Task
+2026-11-23 (Claude) DESKTOP 1.0.39 PUBLISHED (owner said release): f9278d3 on origin/main, tag v1.0.39, releases/latest = v1.0.39, latest.yml matches. Main window frame:false so the header window buttons work. NEXT: owner confirms the buttons in the installed app.
+
 2026-11-23 (Claude) 1.0.38 WINDOW BUTTONS BROKEN (owner: minimise/restore/close do nothing). Cause found with REAL mouse clicks (scratchpad elec/wc2.js vs wc3.js + click.ps1, window always-on-top, dipToScreenPoint): with titleBarStyle "hidden" Windows keeps the top strip as its caption and a click on maximise triggered minimise; with frame:false the click hits the right button (maximise -> maximised, minimise -> minimised). Fix UNCOMMITTED: desktop-app/main.js frame: false; WindowControls onClick arrow functions (harmless). Changelog 1.0.39 + version bump written; 558/558. Commit/push/release was BLOCKED by the permission classifier: needs the owner to say release 1.0.39.
 
 2026-11-23 (Claude) DESKTOP 1.0.38 PUBLISHED: e9ee607 pushed to origin/main, tag v1.0.38, releases/latest = v1.0.38, published latest.yml = local exe. Own title bar + notification centre + restyled toasts. No DB change. preview-login deleted, preview stopped, Prisma client on Postgres. Render STILL not auto-deploying (owner: Manual Deploy). NEXT: owner checks the window buttons and the Schedule tabs in the installed app.
