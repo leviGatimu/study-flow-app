@@ -15,6 +15,7 @@ import { ArchiveProvider, MentorProvider, type ArchiveView, type MentorView } fr
 import { MentorBanner } from "@/components/MentorBanner";
 import { SafeUserProgress as UserProgress } from "@/lib/types";
 import { isBareRoute } from "@/lib/nav";
+import { DesktopTitleStrip } from "@/components/DesktopTitleStrip";
 import { BirthdayMode } from "@/components/birthday/BirthdayMode";
 import { DEFAULT_TIMEZONE } from "@/lib/utils";
 
@@ -49,7 +50,15 @@ export function AppShell({
   // The Electron mini widget is its own tiny always-on-top window, and the
   // auth/marketing pages own their full canvas: both render bare.
   if (isBareRoute(pathname)) {
-    return <div className="h-full w-full">{children}</div>;
+    // The widget is its own small window with its own controls; every other
+    // bare page gets a slim title bar on the desktop app (DesktopTitleStrip).
+    if (pathname?.startsWith("/focus/widget")) return <div className="h-full w-full">{children}</div>;
+    return (
+      <div className="flex h-full w-full flex-col">
+        <DesktopTitleStrip />
+        <div className="min-h-0 w-full flex-1">{children}</div>
+      </div>
+    );
   }
 
   return (

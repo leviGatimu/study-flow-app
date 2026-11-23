@@ -28,6 +28,24 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.38',
+    date: '2026-11-23',
+    title: 'Our own title bar, and better notifications',
+    changes: {
+      new: [
+        'The bell is now a notification centre: switch study-block reminders on or off, see which blocks are coming up and when each reminder goes off, and read the notifications you have had this session, with how long ago each arrived. The bell rings and shows a dot when something new comes in.',
+        'Study-block reminders now also pop up inside Study Flow, with an Open button that takes you to the block.',
+      ],
+      better: [
+        'The desktop app has no Windows title bar any more: the Study Flow header is the top of the window, with its own round minimise, maximise and close buttons. Drag the header to move the window; double-click it to maximise.',
+        'Pop-up notifications are redesigned: a rounded card with a coloured edge and icon, the message across its full width and any button underneath. They slide in out of a soft blur and follow light and dark mode.',
+      ],
+      dev: [
+        'desktop-app/main.js titleBarStyle "hidden" + ipc window:control / window:is-maximized / window:maximized; components/WindowControls.tsx, DesktopTitleStrip.tsx (bare pages). components/ui/app-toaster.tsx (sonner styled, restyled in globals.css "Notifications"); ReminderManager.tsx is the notification centre (radix Popover, toast.getHistory()).',
+      ],
+    },
+  },
+  {
     version: '1.0.37',
     date: '2026-11-23',
     title: 'Your birthday, a softer frame, and a new sidebar',

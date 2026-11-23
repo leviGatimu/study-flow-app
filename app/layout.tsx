@@ -11,7 +11,7 @@ import { getActiveScope, getViewScope } from "@/lib/scope";
 import type { ArchiveView, MentorView } from "@/components/ArchiveContext";
 import { isCurrentUserAdmin } from "@/lib/admin-actions";
 import { FocusProvider } from "@/lib/FocusContext";
-import { Toaster } from "sonner";
+import { AppToaster } from "@/components/ui/app-toaster";
 import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
@@ -79,7 +79,7 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Toaster position="top-right" richColors />
+          <AppToaster />
           <FocusProvider>
             <GlobalShortcuts />
             <AppShell

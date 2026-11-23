@@ -15,6 +15,19 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.send(channel, data);
     }
   },
+  windowControls: {
+    /** The app header's own window buttons (the window has no Windows title bar). */
+    minimize: () => ipcRenderer.send('window:control', 'minimize'),
+    toggleMaximize: () => ipcRenderer.send('window:control', 'toggle-maximize'),
+    close: () => ipcRenderer.send('window:control', 'close'),
+    isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
+    /** Calls back with true/false whenever the window is maximised or restored. Returns an unsubscribe. */
+    onMaximized: (callback) => {
+      const listener = (_event, value) => callback(Boolean(value));
+      ipcRenderer.on('window:maximized', listener);
+      return () => ipcRenderer.removeListener('window:maximized', listener);
+    },
+  },
   library: {
     /** Open a folder of the resource library in Explorer. */
     open: (absolutePath) => ipcRenderer.invoke('library:open', absolutePath),

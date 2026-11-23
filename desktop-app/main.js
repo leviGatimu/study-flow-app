@@ -67,6 +67,17 @@ ipcMain.handle('library:reveal', (_event, target) => {
   return { ok: true };
 });
 
+// The window has no Windows title bar; the app header draws its own window
+// buttons (components/WindowControls.tsx) and calls these.
+ipcMain.on('window:control', (event, action) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return;
+  if (action === 'minimize') win.minimize();
+  else if (action === 'toggle-maximize') (win.isMaximized() ? win.unmaximize() : win.maximize());
+  else if (action === 'close') win.close();
+});
+ipcMain.handle('window:is-maximized', (event) => BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false);
+
 /**
  * A signing secret that belongs to THIS INSTALL and nothing else.
  *
@@ -446,6 +457,12 @@ async function createWindow() {
     backgroundColor: '#050505',
     show: false,
     icon: path.join(__dirname, 'icon.ico'),
+    // No Windows title bar: the app's own header is the title bar (its empty
+    // space is the drag region, .titlebar-drag in app/globals.css) and it
+    // draws its own round minimise / maximise / close buttons
+    // (components/WindowControls.tsx, ipc 'window:*' below). Dragging,
+    // double-click to maximise and snapping to screen edges still work.
+    titleBarStyle: 'hidden',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -453,6 +470,11 @@ async function createWindow() {
       backgroundThrottling: false
     }
   });
+
+  // The header's maximise button swaps to "restore" while maximised.
+  for (const evt of ['maximize', 'unmaximize']) {
+    mainWindow.on(evt, () => mainWindow.webContents.send('window:maximized', evt === 'maximize'));
+  }
 
   // Never open a bare Electron window. A web page asked for in a new window
   // (a saved link's "Open in browser", a link clicked inside a viewed page)

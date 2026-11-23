@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { WindowControls } from "@/components/WindowControls";
 import { usePathname } from "next/navigation";
 import {
   LogOut,
@@ -173,6 +174,9 @@ export function AppHeader({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Desktop app: the window's own buttons, in the header's style. */}
+          <WindowControls />
         </div>
       </header>
 
