@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { setExamCategory } from '@/lib/exam-actions';
-import { inCategory, normaliseCategory, CATEGORY_MAX_LENGTH } from '@/lib/exam-category';
+import { inCategory, normaliseCategory, CATEGORY_MAX_LENGTH, SUGGESTED_CATEGORIES } from '@/lib/exam-category';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -29,11 +29,14 @@ export function CategoryDialog({
   exams,
   names,
   onClose,
+  onSaved,
 }: {
   initialName: string | null;
   exams: PickableExam[];
   names: string[];
   onClose: () => void;
+  /** Called with the category's new name (null once removed) instead of refreshing the page. */
+  onSaved?: (name: string | null) => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -79,7 +82,8 @@ export function CategoryDialog({
         }
         toast.success(`${clean}: ${picked.size} ${picked.size === 1 ? 'exam' : 'exams'}.`);
         onClose();
-        router.refresh();
+        if (onSaved) onSaved(clean);
+        else router.refresh();
       } catch {
         setError('Could not save the category. Please try again.');
       }
@@ -94,7 +98,8 @@ export function CategoryDialog({
         if (result.error) return setError(result.error);
         toast.success(`${initialName} removed. The exams are kept.`);
         onClose();
-        router.refresh();
+        if (onSaved) onSaved(null);
+        else router.refresh();
       } catch {
         setError('Could not remove the category. Please try again.');
       }
@@ -129,6 +134,25 @@ export function CategoryDialog({
                 <option key={n} value={n} />
               ))}
             </datalist>
+            {!initialName && (
+              <div className="flex flex-wrap gap-1.5 pt-1" aria-label="Suggestions">
+                {SUGGESTED_CATEGORIES.filter((n) => !names.some((have) => have.toLowerCase() === n.toLowerCase())).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setName(n)}
+                    className={cn(
+                      'rounded-full border px-3 py-1 text-xs font-bold transition-colors',
+                      name.trim().toLowerCase() === n.toLowerCase()
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                    )}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

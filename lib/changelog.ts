@@ -28,6 +28,25 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.41',
+    date: '2026-11-23',
+    title: 'New Exams page and a page for each category',
+    changes: {
+      new: [
+        "Every exam category (Midterm, End of term, Mock...) has its own page: all its exams, done and coming up, your average, best and lowest subject, and a bar for each result.",
+        'Quick name suggestions when you make a category: Midterm, End of term, Mock exam, Quiz, CAT, Assignment, Practical, Finals.',
+      ],
+      better: [
+        'The Exams page has a big card for your next exam with a countdown, numbers for what is coming up and your average mark, and a card for each category.',
+        'Exams show their subject icon, and marks are coloured green, amber or red.',
+        "An exam's page now leads back to its category.",
+      ],
+      dev: [
+        'New route app/exams/sitting/[name] (name URL-encoded, _none for no category). lib/exam-rows.ts builds exam rows for both pages; categoryLook picks the icon and colour (tested).',
+      ],
+    },
+  },
+  {
     version: '1.0.40',
     date: '2026-11-23',
     title: 'New Focus page and mini window sizes',

@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { Brain, CalendarDays, CheckCircle2, CircleDashed, FolderOpen, ListChecks, Target, Timer, XCircle } from 'lucide-react';
 
 import { getCurrentUserTimezone, getEventById, getEvents, getSubjectStats, getMasteryItems, getSubjectSessions } from '@/lib/actions';
-import { categoryNames, normaliseCategory } from '@/lib/exam-category';
+import { categoryHref, categoryNames, normaliseCategory } from '@/lib/exam-category';
 import { examStatus, examDaysAway, examTimeLabel } from '@/lib/exam-time';
 import { ExamStatusRefresh } from '@/components/ExamStatusRefresh';
 import { EditExamButton } from '@/components/ExamTimingForm';
@@ -85,7 +85,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
     <Page>
       <ExamStatusRefresh exams={[exam]} timezone={timezone} renderedAt={now.toISOString()} />
       <PageHeader
-        back={{ href: '/exams', label: 'All exams' }}
+        back={category ? { href: categoryHref(category), label: category } : { href: '/exams', label: 'All exams' }}
         title={<span className="break-words">{exam.title}</span>}
         highlight={
           isPast

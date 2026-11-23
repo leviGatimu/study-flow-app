@@ -109,3 +109,58 @@ export function inCategory(exam: { category: string | null }, name: string): boo
   const wanted = normaliseCategory(name);
   return Boolean(own && wanted && keyOf(own) === keyOf(wanted));
 }
+
+/**
+ * Each category's page lives at /exams/sitting/<slug>: the name itself,
+ * URL-encoded, so nothing has to be stored. Exams with no category share the
+ * reserved slug below.
+ */
+export const NO_CATEGORY_SLUG = '_none';
+
+export function categoryHref(name: string | null): string {
+  const clean = normaliseCategory(name);
+  return `/exams/sitting/${clean ? encodeURIComponent(clean) : NO_CATEGORY_SLUG}`;
+}
+
+/** The category a slug names, matched like the groups; null for the "no category" page. */
+export function categoryFromSlug(slug: string): { none: true } | { none: false; name: string } | null {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(slug);
+  } catch {
+    return null;
+  }
+  if (decoded === NO_CATEGORY_SLUG) return { none: true };
+  const name = normaliseCategory(decoded);
+  return name ? { none: false, name } : null;
+}
+
+export type CategoryLook =
+  | 'midterm'
+  | 'final'
+  | 'mock'
+  | 'quiz'
+  | 'coursework'
+  | 'national'
+  | 'other';
+
+/**
+ * A look for a category from its name, for its icon and colour. First match
+ * wins, so "Mid-term mock" is a mock and "End of term" a final.
+ */
+const LOOKS: [RegExp, CategoryLook][] = [
+  [/\b(mock|trial|pre-?exam|practice|rehearsal)\b/, 'mock'],
+  [/\b(national|board|ib|gcse|igcse|a-?levels?|o-?levels?|waec|kcse|neb|nesa|leaving)\b/, 'national'],
+  [/\b(quiz(zes)?|cats?|tests?|continuous|class ?test|spot ?test)\b/, 'quiz'],
+  [/\b(assignments?|projects?|coursework|labs?|practicals?|portfolio)\b/, 'coursework'],
+  [/\b(mid-?\s?terms?|mid-?\s?semester|half-?\s?term|mid-?\s?year)\b/, 'midterm'],
+  [/\b(end|final|finals|semester|annual|term exams?|end-?of-?term|end-?of-?year)\b/, 'final'],
+];
+
+export function categoryLook(name: string | null): CategoryLook {
+  const t = (name ?? '').toLowerCase();
+  return LOOKS.find(([re]) => re.test(t))?.[1] ?? 'other';
+}
+
+/** Names offered when making a new category. */
+export const SUGGESTED_CATEGORIES = ['Midterm', 'End of term', 'Mock exam', 'Quiz', 'CAT', 'Assignment', 'Practical', 'Finals'];

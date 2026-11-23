@@ -1,19 +1,18 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { format } from 'date-fns';
-import { Brain, CalendarClock, ChevronRight } from 'lucide-react';
+import { CalendarClock } from 'lucide-react';
 
 import { getEvents, getSubjectStats, getMasteryItems, getCurrentUserTimezone } from '@/lib/actions';
 import { getUserId } from '@/lib/auth';
-import { examStatus, examDaysAway, examTimeLabel } from '@/lib/exam-time';
+import { toExamRow } from '@/lib/exam-rows';
 import { ExamStatusRefresh } from '@/components/ExamStatusRefresh';
 import { isSubjectSimilar } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { Page, PageBody } from '@/components/ui/page';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ExamsClient } from '@/components/ExamsClient';
 import { ExamsView, type ExamRowData } from '@/components/exams/ExamsView';
+import { NextExamHero } from '@/components/exams/exam-ui';
 import { UploadTimetableDialog } from '@/components/UploadTimetableDialog';
 import { categoryNames, normaliseCategory, summariseCategories } from '@/lib/exam-category';
 import { listSubjects } from '@/lib/subject-actions';
@@ -40,22 +39,7 @@ export default async function ExamsPage({
     : events;
 
   const now = new Date();
-  const rows: ExamRowData[] = shown.map((exam) => {
-    const status = examStatus(exam, timezone, now);
-    return {
-      id: exam.id,
-      title: exam.title,
-      subject: exam.subject?.name ?? null,
-      category: normaliseCategory(exam.category),
-      at: new Date(exam.date).getTime(),
-      when: [format(new Date(exam.date), 'EEE d MMM yyyy'), examTimeLabel(exam)].filter(Boolean).join(' · '),
-      days: examDaysAway(exam, timezone, now),
-      inProgress: status === 'IN_PROGRESS',
-      isDone: status === 'DONE',
-      percent: exam.score !== null && exam.maxScore ? Math.round((exam.score / exam.maxScore) * 1000) / 10 : null,
-      priority: exam.priority,
-    };
-  });
+  const rows: ExamRowData[] = shown.map((exam) => toExamRow(exam, timezone, now));
 
   const nextRow = rows.filter((r) => !r.isDone).sort((a, b) => a.at - b.at)[0] ?? null;
   const next = nextRow ? shown.find((e) => e.id === nextRow.id) ?? null : null;
@@ -100,59 +84,26 @@ export default async function ExamsPage({
         }
       />
 
-      <PageBody className="space-y-6 pt-6">
+      <PageBody className="space-y-10 pt-6">
         {nextRow && next && (
-          <section aria-label="Next exam" className="flex flex-wrap items-center gap-x-8 gap-y-4 rounded-xl border border-primary/30 bg-primary/5 px-5 py-4">
-            <div className="min-w-0 flex-1 basis-72">
-              <p className="text-xs font-semibold text-primary">Next exam</p>
-              <Link href={`/exams/${next.id}`} className="mt-0.5 block break-words font-heading text-xl font-bold tracking-tight text-foreground hover:text-primary">
-                {next.title}
-                {nextRow.category && <span className="font-medium text-muted-foreground"> · {nextRow.category}</span>}
-              </Link>
-              <p className="text-sm text-muted-foreground">{nextRow.when}</p>
-            </div>
-
-            <div className="shrink-0 text-right">
-              <p className="font-heading text-3xl font-black tabular-nums tracking-tight text-foreground">
-                {nextRow.inProgress ? 'Now' : nextRow.days === 0 ? 'Today' : nextRow.days}
-              </p>
-              {!nextRow.inProgress && nextRow.days > 0 && (
-                <p className="text-xs font-semibold text-muted-foreground">{nextRow.days === 1 ? 'day' : 'days'} left</p>
-              )}
-            </div>
-
-            {nextSubject && (
-              <dl className="flex shrink-0 gap-6 text-sm">
-                <div>
-                  <dt className="text-muted-foreground">Sessions done</dt>
-                  <dd className="font-semibold tabular-nums text-foreground">{stats?.completionRate ?? 0}%</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Focus time</dt>
-                  <dd className="font-semibold tabular-nums text-foreground">{stats?.timeSpent || '0m'}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Topics</dt>
-                  <dd className="font-semibold tabular-nums text-foreground">{mastery.length ? `${topicsDone}/${mastery.length}` : '0'}</dd>
-                </div>
-              </dl>
-            )}
-
-            <div className="flex shrink-0 flex-wrap gap-2">
-              {nextSubject && (
-                <Button asChild variant="outline">
-                  <Link href={`/ai/practices?subject=${encodeURIComponent(nextSubject)}`}>
-                    <Brain /> Practice
-                  </Link>
-                </Button>
-              )}
-              <Button asChild>
-                <Link href={`/exams/${next.id}`}>
-                  Open <ChevronRight />
-                </Link>
-              </Button>
-            </div>
-          </section>
+          <NextExamHero
+            exam={{
+              id: next.id,
+              title: next.title,
+              subject: nextSubject,
+              category: nextRow.category,
+              when: nextRow.when,
+              days: nextRow.days,
+              inProgress: nextRow.inProgress,
+              stats: nextSubject
+                ? {
+                    sessions: stats?.completionRate ?? 0,
+                    focus: stats?.timeSpent || '0m',
+                    topics: mastery.length ? `${topicsDone}/${mastery.length}` : '0',
+                  }
+                : null,
+            }}
+          />
         )}
 
         {rows.length === 0 ? (
