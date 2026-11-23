@@ -28,6 +28,19 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.39',
+    date: '2026-11-23',
+    title: 'Window buttons fixed',
+    changes: {
+      fixed: [
+        'The minimise, maximise and close buttons at the top right now work. In 1.0.38 Windows still treated the top of the window as its own title bar, so clicks there went to the wrong place.',
+      ],
+      dev: [
+        'desktop-app/main.js: frame: false instead of titleBarStyle: "hidden". Verified with real mouse clicks; scripted clicks from the page did not show the bug.',
+      ],
+    },
+  },
+  {
     version: '1.0.38',
     date: '2026-11-23',
     title: 'Our own title bar, and better notifications',

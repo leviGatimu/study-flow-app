@@ -461,8 +461,13 @@ async function createWindow() {
     // space is the drag region, .titlebar-drag in app/globals.css) and it
     // draws its own round minimise / maximise / close buttons
     // (components/WindowControls.tsx, ipc 'window:*' below). Dragging,
-    // double-click to maximise and snapping to screen edges still work.
-    titleBarStyle: 'hidden',
+    // double-click to maximise, snapping and resizing from the edges work.
+    //
+    // frame: false, NOT titleBarStyle: 'hidden'. With 'hidden' (1.0.38) Windows
+    // kept treating the top strip as its own title bar and real clicks there
+    // landed on the wrong element: clicking maximise minimised. Tested with
+    // real mouse clicks (scripted calls from the page do not show it).
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
