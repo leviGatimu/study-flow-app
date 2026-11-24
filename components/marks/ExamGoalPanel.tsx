@@ -22,8 +22,9 @@ export function ExamGoalPanel({ progress }: { progress: SubjectProgress }) {
   const needed = neededText(progress);
 
   return (
-    <Panel>
+    <Panel className="rounded-3xl">
       <PanelTitle
+        tone="emerald"
         icon={<Flag />}
         action={
           gap !== null &&

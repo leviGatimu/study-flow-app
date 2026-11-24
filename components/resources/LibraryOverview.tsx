@@ -26,6 +26,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useIsDesktopApp } from "@/components/DesktopUpdater";
 import { deleteSubject } from "@/lib/actions";
 import type { LibraryOverview as Overview, LibrarySubject, ResourceItem } from "@/lib/library-actions";
+import { ResourceShare } from "@/components/resources/ResourceShare";
 import { cn } from "@/lib/utils";
 import { safeSegment } from "@/lib/library-names";
 import { ContextMenu, type MenuEntry } from "./ContextMenu";
@@ -151,6 +152,7 @@ export function LibraryOverview({ overview }: { overview: Overview }) {
           {totals.files} files · {totals.links} links
         </p>
         <div className="ml-auto flex items-center gap-2">
+          <ResourceShare subject={null} items={[]} subjects={overview.subjects.map((s) => s.name)} canImport={canWrite} />
           {onDesktop && overview.folderPath && (
             <Button variant="ghost" onClick={() => show(null)} title={overview.folderPath}>
               <FolderSymlink /> Show in Explorer

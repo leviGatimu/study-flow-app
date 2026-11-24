@@ -16,10 +16,12 @@ export function EditExamButton({
   exam,
   timezone,
   categories = [],
+  className,
 }: {
   exam: TimedExam & { id: string; category?: string | null };
   timezone: string;
   categories?: string[];
+  className?: string;
 }) {
   const router = useRouter();
   const archived = useIsArchived();
@@ -33,7 +35,7 @@ export function EditExamButton({
   if (archived) return null;
   return (
     <>
-    <Button variant="outline" onClick={() => setOpen(true)}><Pencil /> Edit</Button>
+    <Button variant="outline" className={className} onClick={() => setOpen(true)}><Pencil /> Edit</Button>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-lg">
       <DialogHeader>

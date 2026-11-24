@@ -28,6 +28,23 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.42',
+    date: '2026-11-24',
+    title: 'Share your Resources, a new exam page and better daily verses',
+    changes: {
+      new: [
+        'Share a subject\'s Resources: on the subject\'s page choose Share > Download to share. You get one zip with every folder, file and link, to send by WhatsApp, email or USB. The other person opens Resources > Import a share, picks the zip and chooses the subject, and everything is added in the same folders. Importing only adds; nothing you already have is changed. A zip of files made anywhere else imports too.',
+      ],
+      better: [
+        'Each exam\'s page has a new look: a big card with the subject\'s icon, the countdown (or your mark once it is in) and all the buttons, coloured icons on every panel, a score ring for your result, and sections that slide in.',
+        'The daily verse now comes from a list of 210 hand-picked verses on study, strength, peace, wisdom and hope (World English Bible), a new one every hour. With no internet it shows the verses it had before.',
+      ],
+      dev: [
+        'lib/zip.ts is a small zip reader/writer of our own (test/resource-share.test.mjs); lib/resource-pack.ts plans an import. Verses: lib/verses.ts + lib/verse-actions.ts (bible-api.com, listed references only, kept in memory).',
+      ],
+    },
+  },
+  {
     version: '1.0.41',
     date: '2026-11-23',
     title: 'New Exams page and a page for each category',

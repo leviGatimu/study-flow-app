@@ -4,13 +4,14 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { CalendarClock, CheckCircle2, Circle, Link2, Loader2, Trash2, Trophy, Wand2 } from 'lucide-react';
+import { CalendarClock, CalendarRange, CheckCircle2, Circle, Clock, Link2, Loader2, Repeat, Trash2, Trophy, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
 import { useIsArchived } from '@/components/ArchiveContext';
 import { Button } from '@/components/ui/button';
 import { Panel, PanelTitle } from '@/components/ui/panel';
+import { ScoreRing } from '@/components/exams/exam-ui';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -92,8 +93,8 @@ export function ExamPlanner({
     <div className="space-y-6">
       {/* 1. What does this exam actually assess? */}
       {show === 'prepare' && !subjectId && !archived && (
-        <Panel className="border-orange-500/30">
-          <PanelTitle icon={<Link2 />}>Link a subject</PanelTitle>
+        <Panel className="rounded-3xl border-orange-500/30">
+          <PanelTitle tone="orange" icon={<Link2 />}>Link a subject</PanelTitle>
           <p className="mb-4 text-sm text-muted-foreground">
             This exam is not linked to a subject yet. Link it so preparation
             stats, syllabus topics, practice and revision planning know what it
@@ -135,8 +136,9 @@ export function ExamPlanner({
       {/* 2. Plan the revision backwards from the date. Never offered in a
           finished year - there is nothing left to revise for. */}
       {show === 'prepare' && !isPast && !archived && (
-        <Panel className="space-y-4">
+        <Panel className="space-y-4 rounded-3xl">
           <PanelTitle
+            tone="violet"
             icon={<CalendarClock />}
             className="mb-0"
             action={
@@ -173,12 +175,15 @@ export function ExamPlanner({
               </div>
               <div className="space-y-1.5">
                 {revisionTasks.slice(0, 8).map((t) => (
-                  <div key={t.id} className="flex items-center gap-2.5 text-sm">
-                    {t.isDone ? (
-                      <CheckCircle2 className="size-4 shrink-0 text-success" />
-                    ) : (
-                      <Circle className="size-4 shrink-0 text-muted-foreground/50" />
-                    )}
+                  <div key={t.id} className="flex items-center gap-3 rounded-xl px-2 py-1 text-sm transition-colors hover:bg-muted/50">
+                    <span
+                      className={cn(
+                        'grid size-7 shrink-0 place-items-center rounded-lg',
+                        t.isDone ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'
+                      )}
+                    >
+                      {t.isDone ? <CheckCircle2 className="size-3.5" /> : <Circle className="size-3.5" />}
+                    </span>
                     <span
                       className={cn(
                         'truncate',
@@ -187,7 +192,7 @@ export function ExamPlanner({
                     >
                       {format(new Date(t.date), 'EEE d MMM')}
                     </span>
-                    <span className="ml-auto shrink-0 tabular-nums text-muted-foreground">
+                    <span className="ml-auto shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">
                       {t.startTime}–{t.endTime}
                     </span>
                   </div>
@@ -203,7 +208,7 @@ export function ExamPlanner({
 
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1.5">
-              <Label htmlFor="revision-sessions" className="text-xs text-muted-foreground">Sessions</Label>
+              <Label htmlFor="revision-sessions" className="text-xs text-muted-foreground"><Repeat className="size-3.5 text-violet-500" />Sessions</Label>
               <Input
                 id="revision-sessions"
                 type="number"
@@ -215,7 +220,7 @@ export function ExamPlanner({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="revision-days-before" className="text-xs text-muted-foreground">Days before</Label>
+              <Label htmlFor="revision-days-before" className="text-xs text-muted-foreground"><CalendarRange className="size-3.5 text-violet-500" />Days before</Label>
               <Input
                 id="revision-days-before"
                 type="number"
@@ -227,7 +232,7 @@ export function ExamPlanner({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="revision-start-time" className="text-xs text-muted-foreground">Start at</Label>
+              <Label htmlFor="revision-start-time" className="text-xs text-muted-foreground"><Clock className="size-3.5 text-violet-500" />Start at</Label>
               <Input
                 id="revision-start-time"
                 type="time"
@@ -245,6 +250,7 @@ export function ExamPlanner({
 
           <Button
             disabled={isPending}
+            className="rounded-full px-5"
             onClick={() =>
               run(
                 () => planRevision(examId, { sessions, daysBefore, startTime }),
@@ -259,9 +265,9 @@ export function ExamPlanner({
       )}
 
       {/* 3. How did it go? */}
-      {show === 'result' && <Panel className="space-y-4">
+      {show === 'result' && <Panel className="space-y-4 rounded-3xl">
         <div>
-          <PanelTitle icon={<Trophy />} className="mb-1">Result</PanelTitle>
+          <PanelTitle tone="amber" icon={<Trophy />} className="mb-2">Result</PanelTitle>
           <p className="text-sm text-muted-foreground">
             {score !== null && maxScore
               ? `You scored ${score} out of ${maxScore} (${Math.round((score / maxScore) * 100)}%).`
@@ -270,6 +276,11 @@ export function ExamPlanner({
                 : 'Record your mark once you have it. It counts towards your goal for this subject in Marks.'}
           </p>
         </div>
+        {score !== null && maxScore ? (
+          <div className="flex justify-center py-1">
+            <ScoreRing percent={(score / maxScore) * 100} size={128} label="your mark" />
+          </div>
+        ) : null}
         <div className={cn("flex flex-wrap items-end gap-3", archived && "hidden")}>
           <div className="space-y-1.5">
             <Label htmlFor="exam-score" className="text-xs text-muted-foreground">Score</Label>
@@ -295,6 +306,7 @@ export function ExamPlanner({
           </div>
           <Button
             disabled={isPending}
+            className="rounded-full px-5"
             onClick={() =>
               run(
                 () =>

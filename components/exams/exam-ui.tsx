@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { motion, type Variants } from 'framer-motion';
 import {
+  ArrowDown,
   Award,
   BookMarked,
   Brain,
@@ -10,6 +11,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
+  Flame,
   FlaskConical,
   FolderKanban,
   GraduationCap,
@@ -294,6 +296,175 @@ export function NextExamHero({ exam }: { exam: NextExamData }) {
   );
 }
 
+/** Buttons that sit on the gradient card: frosted glass, white text. */
+export const GLASS_BUTTON =
+  'inline-flex h-10 items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 text-sm font-bold text-white shadow-none backdrop-blur-md transition-colors hover:bg-white/20 hover:text-white dark:border-white/25 dark:bg-white/10 dark:hover:bg-white/20 [&_svg]:size-4';
+
+/** The solid white button on the gradient card, for the main thing to do. */
+export const WHITE_BUTTON =
+  'group inline-flex h-10 items-center gap-2 rounded-full bg-white px-5 font-bold text-primary shadow-lg shadow-black/10 transition-transform hover:scale-[1.03] active:scale-[0.97] [&_svg]:size-4';
+
+export type ExamDetailHeroData = {
+  title: string;
+  subject: string | null;
+  category: string | null;
+  /** "Monday 30 November 2026". */
+  date: string;
+  /** "09:00–11:00" or "Time not set". */
+  time: string;
+  priority: string;
+  days: number;
+  status: 'UPCOMING' | 'IN_PROGRESS' | 'DONE';
+  /** Rounded percentage once a mark is in. */
+  percent: number | null;
+};
+
+/**
+ * The top of one exam's page: the same gradient card as the next exam on the
+ * Exams page, holding everything the old header showed (title, category, date,
+ * time, priority, time left or the result) and the page's buttons.
+ */
+export function ExamDetailHero({ exam, actions }: { exam: ExamDetailHeroData; actions?: React.ReactNode }) {
+  const done = exam.status === 'DONE';
+  const status = done
+    ? { text: 'Finished', icon: CheckCircle2, live: false }
+    : exam.status === 'IN_PROGRESS'
+      ? { text: 'Happening now', icon: Radio, live: true }
+      : exam.days === 0
+        ? { text: 'Today', icon: Radio, live: true }
+        : exam.days === 1
+          ? { text: 'Tomorrow', icon: Hourglass, live: true }
+          : { text: `In ${exam.days} days`, icon: CalendarClock, live: false };
+  const { icon: CategoryGlyph } = categoryStyle(exam.category);
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 16, filter: 'blur(10px)' }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+      transition={{ duration: 0.6, ease: [0.2, 0, 0, 1] }}
+      aria-label={exam.title}
+      className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-primary/75 p-6 text-white shadow-xl shadow-primary/20 md:p-8"
+    >
+      <CardDecor icon={CategoryGlyph} />
+      <div className="relative flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 space-y-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusChip icon={status.icon} live={status.live}>
+              {status.text}
+            </StatusChip>
+            {exam.priority === 'HIGH' && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200/30 bg-red-500/30 py-1.5 pl-2.5 pr-3.5 text-[10px] font-black uppercase tracking-[0.2em] backdrop-blur-md">
+                <Flame className="size-3.5" />
+                High priority
+              </span>
+            )}
+            {exam.priority === 'LOW' && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 py-1.5 pl-2.5 pr-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-white/80 backdrop-blur-md">
+                <ArrowDown className="size-3.5" />
+                Low priority
+              </span>
+            )}
+          </div>
+
+          <div className="flex min-w-0 items-center gap-4">
+            <SubjectBadge name={exam.subject ?? exam.title} />
+            <div className="min-w-0">
+              <h1 className="break-words font-heading text-3xl font-black tracking-tight md:text-4xl">{exam.title}</h1>
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm font-semibold text-white/80">
+                {exam.category && (
+                  <Link href={categoryHref(exam.category)} className="inline-flex items-center gap-1.5 hover:text-white">
+                    <CategoryGlyph className="size-4 text-white/60" />
+                    {exam.category}
+                  </Link>
+                )}
+                <span className="inline-flex items-center gap-1.5">
+                  <CalendarClock className="size-4 text-white/60" />
+                  {exam.date}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="size-4 text-white/60" />
+                  {exam.time}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+        </div>
+
+        <div className="shrink-0 lg:text-right">
+          {done ? (
+            exam.percent !== null ? (
+              <>
+                <p className="font-heading text-7xl font-black leading-none tracking-tighter tabular-nums">
+                  <CountUp value={`${exam.percent}%`} />
+                </p>
+                <p className="mt-1 text-xs font-black uppercase tracking-[0.2em] text-white/70">your mark</p>
+              </>
+            ) : (
+              <>
+                <p className="font-heading text-3xl font-black leading-none tracking-tight">Marks pending</p>
+                <p className="mt-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">add it below</p>
+              </>
+            )
+          ) : exam.status === 'IN_PROGRESS' || exam.days === 0 ? (
+            <>
+              <p className="font-heading text-5xl font-black leading-none tracking-tighter">{exam.status === 'IN_PROGRESS' ? 'Now' : 'Today'}</p>
+              <p className="mt-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">good luck</p>
+            </>
+          ) : (
+            <>
+              <p className="font-heading text-7xl font-black leading-none tracking-tighter tabular-nums">
+                <CountUp value={exam.days} />
+              </p>
+              <p className="mt-1 text-xs font-black uppercase tracking-[0.2em] text-white/70">{exam.days === 1 ? 'day left' : 'days left'}</p>
+            </>
+          )}
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+const MINI_TONES = {
+  primary: 'bg-primary/10 text-primary',
+  emerald: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+  amber: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  sky: 'bg-sky-500/10 text-sky-600 dark:text-sky-400',
+  violet: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
+};
+
+/** One figure with its icon tile: "Focus time 3h 20m". */
+export function MiniStat({
+  icon,
+  label,
+  value,
+  tone = 'primary',
+  children,
+}: {
+  /** An icon element (<Clock />): a server page cannot pass the component itself. */
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  tone?: keyof typeof MINI_TONES;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-muted/30 p-3.5 transition-colors hover:bg-muted/50">
+      <div className="flex items-center gap-2.5">
+        <span aria-hidden className={cn('grid size-8 shrink-0 place-items-center rounded-xl [&_svg]:size-4', MINI_TONES[tone])}>
+          {icon}
+        </span>
+        <span className="truncate text-xs font-semibold text-muted-foreground">{label}</span>
+      </div>
+      <p className="mt-2.5 font-heading text-2xl font-black leading-none tabular-nums tracking-tight">
+        <CountUp value={value} />
+      </p>
+      {children}
+    </div>
+  );
+}
+
 /* --------------------------------------------------------------- stats */
 
 export function StatTile({
@@ -332,7 +503,7 @@ export function StatTile({
 }
 
 /** A score ring (0–100). Null shows an empty ring. */
-export function ScoreRing({ percent, size = 112, className }: { percent: number | null; size?: number; className?: string }) {
+export function ScoreRing({ percent, size = 112, className, label = 'average' }: { percent: number | null; size?: number; className?: string; label?: string }) {
   const r = 42;
   const c = 2 * Math.PI * r;
   const tone = percent === null ? 'stroke-muted' : percent >= 70 ? 'stroke-emerald-500' : percent >= 50 ? 'stroke-amber-500' : 'stroke-rose-500';
@@ -358,7 +529,7 @@ export function ScoreRing({ percent, size = 112, className }: { percent: number 
       <div className="absolute inset-0 grid place-items-center text-center">
         <div>
           <p className="font-heading text-2xl font-black tabular-nums leading-none">{percent === null ? '–' : <CountUp value={shownPercent(percent)} />}</p>
-          <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">average</p>
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
         </div>
       </div>
     </div>

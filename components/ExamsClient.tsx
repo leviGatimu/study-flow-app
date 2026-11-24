@@ -15,6 +15,7 @@ import { ConfirmModal } from '@/components/ConfirmModal';
 import { createEvent, deleteEvent } from '@/lib/actions';
 import { validateExamTimes } from '@/lib/exam-time';
 import { useIsArchived } from '@/components/ArchiveContext';
+import { cn } from '@/lib/utils';
 
 const EMPTY = { subjectId: '', date: '', priority: 'NORMAL', startTime: '', endTime: '', category: '' };
 
@@ -166,11 +167,13 @@ export function DeleteExamButton({
   title,
   redirectTo,
   withLabel = false,
+  className,
 }: {
   id: string;
   title?: string;
   redirectTo?: string;
   withLabel?: boolean;
+  className?: string;
 }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
@@ -186,7 +189,7 @@ export function DeleteExamButton({
         size={withLabel ? 'lg' : 'icon'}
         aria-label={withLabel ? undefined : `Delete ${title ?? 'exam'}`}
         disabled={isPending}
-        className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        className={cn('text-muted-foreground hover:bg-destructive/10 hover:text-destructive', className)}
         onClick={(e) => {
           e.preventDefault();
           setConfirming(true);

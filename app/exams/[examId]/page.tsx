@@ -1,7 +1,21 @@
 import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import { format } from 'date-fns';
-import { Brain, CalendarDays, CheckCircle2, CircleDashed, FolderOpen, ListChecks, Target, Timer, XCircle } from 'lucide-react';
+import {
+  ArrowLeft,
+  Brain,
+  CalendarCheck,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  CircleDashed,
+  Clock,
+  FolderOpen,
+  ListChecks,
+  Target,
+  Timer,
+  XCircle,
+} from 'lucide-react';
 
 import { getCurrentUserTimezone, getEventById, getEvents, getSubjectStats, getMasteryItems, getSubjectSessions } from '@/lib/actions';
 import { categoryHref, categoryNames, normaliseCategory } from '@/lib/exam-category';
@@ -11,9 +25,7 @@ import { EditExamButton } from '@/components/ExamTimingForm';
 import { getExamWithPrep } from '@/lib/exam-actions';
 import { getUserId } from '@/lib/auth';
 import { MasteryItem } from '@/lib/types';
-import { Button } from '@/components/ui/button';
 import { Page, PageBody } from '@/components/ui/page';
-import { PageHeader } from '@/components/ui/page-header';
 import { Panel, PanelTitle } from '@/components/ui/panel';
 import { Pill } from '@/components/ui/list-row';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -23,8 +35,10 @@ import { DeleteExamButton } from '@/components/ExamsClient';
 import { MasteryList } from '@/components/MasteryList';
 import { AddMasteryForm } from '@/components/AddMasteryForm';
 import { ExamGoalPanel } from '@/components/marks/ExamGoalPanel';
+import { ExamDetailHero, GLASS_BUTTON, MiniStat, WHITE_BUTTON } from '@/components/exams/exam-ui';
 import { loadSubjectProgress } from '@/lib/subject-progress-data';
 import { progressKey } from '@/lib/subject-progress';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -81,63 +95,77 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
     isPast,
   };
 
+  const back = category ? { href: categoryHref(category), label: category } : { href: '/exams', label: 'All exams' };
+
   return (
     <Page>
       <ExamStatusRefresh exams={[exam]} timezone={timezone} renderedAt={now.toISOString()} />
-      <PageHeader
-        back={category ? { href: categoryHref(category), label: category } : { href: '/exams', label: 'All exams' }}
-        title={<span className="break-words">{exam.title}</span>}
-        highlight={
-          isPast
-            ? { label: 'Result', value: percent !== null ? `${percent}%` : 'Marks pending' }
-            : {
-                label: 'Time left',
-                value: status === 'IN_PROGRESS' ? 'In progress' : daysRemaining === 0 ? 'Today' : `${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'}`,
-              }
-        }
-        description={[category, format(examDate, 'EEEE d MMMM yyyy'), examTimeLabel(exam)].filter(Boolean).join(' · ')}
-        meta={
-          exam.priority === 'HIGH' ? <Pill tone="danger">High priority</Pill> : exam.priority === 'LOW' ? <Pill>Low priority</Pill> : undefined
-        }
-      />
 
       <PageBody className="space-y-6 pt-6">
-        <div className="flex flex-wrap items-center gap-2">
-          {encoded && !isPast && (
-            <Button asChild>
-              <Link href={`/ai/practices?subject=${encoded}`}>
-                <Brain /> Practice
-              </Link>
-            </Button>
-          )}
-          {!isPast && (
-            <Button asChild variant="outline">
-              <Link href={encoded ? `/focus?subject=${encoded}` : '/focus'}>
-                <Timer /> Focus
-              </Link>
-            </Button>
-          )}
-          {encoded && (
-            <Button asChild variant="outline">
-              <Link href={`/resources/${encoded}`}>
-                <FolderOpen /> Resources
-              </Link>
-            </Button>
-          )}
-          <EditExamButton exam={exam} timezone={timezone} categories={categoryNames(allExams)} />
-          <div className="ml-auto">
-            <DeleteExamButton id={exam.id} title={exam.title} redirectTo="/exams" withLabel />
-          </div>
-        </div>
+        <Link
+          href={back.href}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary"
+        >
+          <ArrowLeft className="size-4" />
+          {back.label}
+        </Link>
+
+        <ExamDetailHero
+          exam={{
+            title: exam.title,
+            subject,
+            category,
+            date: format(examDate, 'EEEE d MMMM yyyy'),
+            time: examTimeLabel(exam),
+            priority: exam.priority,
+            days: daysRemaining,
+            status: status === 'DONE' ? 'DONE' : status === 'IN_PROGRESS' ? 'IN_PROGRESS' : 'UPCOMING',
+            percent,
+          }}
+          actions={
+            <>
+              {encoded && !isPast && (
+                <Link href={`/ai/practices?subject=${encoded}`} className={WHITE_BUTTON}>
+                  <Brain /> Practice
+                </Link>
+              )}
+              {!isPast && (
+                <Link href={encoded ? `/focus?subject=${encoded}` : '/focus'} className={GLASS_BUTTON}>
+                  <Timer /> Focus
+                </Link>
+              )}
+              {encoded && (
+                <Link href={`/resources/${encoded}`} className={GLASS_BUTTON}>
+                  <FolderOpen /> Resources
+                </Link>
+              )}
+              <EditExamButton exam={exam} timezone={timezone} categories={categoryNames(allExams)} className={GLASS_BUTTON} />
+              <DeleteExamButton
+                id={exam.id}
+                title={exam.title}
+                redirectTo="/exams"
+                withLabel
+                className={cn(GLASS_BUTTON, 'border-transparent bg-transparent text-white/80 hover:bg-red-500/30 hover:text-white dark:bg-transparent')}
+              />
+            </>
+          }
+        />
 
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-          <div className="min-w-0 space-y-6 lg:col-span-7 xl:col-span-8">
+          <div className="stagger-in min-w-0 space-y-6 lg:col-span-7 xl:col-span-8">
             {planner && <ExamPlanner {...planner} show="prepare" />}
 
-            <Panel>
+            <Panel className="rounded-3xl">
               <PanelTitle
+                tone="sky"
                 icon={<ListChecks />}
-                action={topicsTotal > 0 && <Pill tone={topicsDone === topicsTotal ? 'success' : 'default'}>{topicsDone}/{topicsTotal} mastered</Pill>}
+                action={
+                  topicsTotal > 0 && (
+                    <Pill tone={topicsDone === topicsTotal ? 'success' : 'default'}>
+                      {topicsDone}/{topicsTotal} mastered
+                    </Pill>
+                  )
+                }
               >
                 Topics to cover
               </PanelTitle>
@@ -149,6 +177,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
                 </div>
               ) : (
                 <EmptyState
+                  icon={<ListChecks />}
                   title="Link a subject first"
                   description="Topics belong to a subject's syllabus. Link this exam to its subject and its topics appear here."
                 />
@@ -156,65 +185,74 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
             </Panel>
           </div>
 
-          <div className="min-w-0 space-y-6 lg:col-span-5 xl:col-span-4">
+          <div className="stagger-in min-w-0 space-y-6 lg:col-span-5 xl:col-span-4">
             {planner && <ExamPlanner {...planner} show="result" />}
 
             {subjectProgress && <ExamGoalPanel progress={subjectProgress} />}
 
             {subject && (
-              <Panel>
-                <PanelTitle icon={<Target />}>Your preparation</PanelTitle>
-                <div className="space-y-2">
-                  <div className="flex items-baseline justify-between text-sm">
-                    <span className="text-muted-foreground">Study sessions done</span>
-                    <span className="font-heading text-lg font-bold tabular-nums text-foreground">{completionRate}%</span>
-                  </div>
-                  <Progress value={completionRate} className="h-2" />
+              <Panel className="rounded-3xl">
+                <PanelTitle tone="primary" icon={<Target />}>
+                  Your preparation
+                </PanelTitle>
+                <div className="grid grid-cols-2 gap-3">
+                  <MiniStat icon={<CheckCircle2 />} tone="emerald" label="Study sessions done" value={`${completionRate}%`}>
+                    <Progress value={completionRate} className="mt-3 h-1.5" />
+                  </MiniStat>
+                  <MiniStat icon={<Clock />} tone="sky" label="Focus time" value={stats?.timeSpent || '0m'} />
+                  <MiniStat
+                    icon={<Timer />}
+                    tone="amber"
+                    label="Average session"
+                    value={stats && stats.totalSessions > 0 ? `${Math.round(stats.totalMinutes / stats.totalSessions)}m` : '0m'}
+                  />
+                  <MiniStat
+                    icon={<CalendarCheck />}
+                    tone="violet"
+                    label="Sessions"
+                    value={`${stats?.completedSessions || 0} of ${stats?.totalSessions || 0}`}
+                  />
                 </div>
-                <dl className="mt-3 divide-y divide-border/60 text-sm">
-                  <div className="flex justify-between gap-4 py-2">
-                    <dt className="text-muted-foreground">Focus time</dt>
-                    <dd className="font-medium tabular-nums">{stats?.timeSpent || '0m'}</dd>
-                  </div>
-                  <div className="flex justify-between gap-4 py-2">
-                    <dt className="text-muted-foreground">Average session</dt>
-                    <dd className="font-medium tabular-nums">{stats && stats.totalSessions > 0 ? `${Math.round(stats.totalMinutes / stats.totalSessions)}m` : '0m'}</dd>
-                  </div>
-                  <div className="flex justify-between gap-4 py-2">
-                    <dt className="text-muted-foreground">Sessions</dt>
-                    <dd className="font-medium tabular-nums">{stats?.completedSessions || 0} of {stats?.totalSessions || 0}</dd>
-                  </div>
-                </dl>
               </Panel>
             )}
 
             {subject && (
-              <Panel>
-                <PanelTitle icon={<CalendarDays />} action={sessions.length > 0 && <Pill>{sessions.length}</Pill>}>
+              <Panel className="rounded-3xl">
+                <PanelTitle tone="rose" icon={<CalendarDays />} action={sessions.length > 0 && <Pill>{sessions.length}</Pill>}>
                   Recent sessions
                 </PanelTitle>
                 {sessions.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Blocks on your schedule for {subject} show here, done or missed.</p>
                 ) : (
-                  <ul className="divide-y divide-border/60 text-sm">
-                    {sessions.slice(0, SESSIONS_SHOWN).map((s) => (
-                      <li key={s.id} className="flex items-center gap-2.5 py-2">
-                        {s.isDone ? (
-                          <CheckCircle2 aria-label="Done" className="size-4 shrink-0 text-success" />
-                        ) : s.isMissed ? (
-                          <XCircle aria-label="Missed" className="size-4 shrink-0 text-destructive" />
-                        ) : (
-                          <CircleDashed aria-label="Still to do" className="size-4 shrink-0 text-muted-foreground" />
-                        )}
-                        <span className="min-w-0 flex-1 truncate">{format(new Date(s.date), 'EEE d MMM')}</span>
-                        <span className="shrink-0 tabular-nums text-muted-foreground">{s.startTime}–{s.endTime}</span>
-                      </li>
-                    ))}
+                  <ul className="space-y-1.5 text-sm">
+                    {sessions.slice(0, SESSIONS_SHOWN).map((s) => {
+                      const look = s.isDone
+                        ? { icon: CheckCircle2, label: 'Done', tile: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' }
+                        : s.isMissed
+                          ? { icon: XCircle, label: 'Missed', tile: 'bg-rose-500/10 text-rose-600 dark:text-rose-400' }
+                          : { icon: CircleDashed, label: 'Still to do', tile: 'bg-muted text-muted-foreground' };
+                      const Icon = look.icon;
+                      return (
+                        <li key={s.id} className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted/50">
+                          <span className={cn('grid size-8 shrink-0 place-items-center rounded-xl', look.tile)}>
+                            <Icon aria-label={look.label} className="size-4" />
+                          </span>
+                          <span className="min-w-0 flex-1 truncate font-medium">{format(new Date(s.date), 'EEE d MMM')}</span>
+                          <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold tabular-nums text-muted-foreground">
+                            {s.startTime}–{s.endTime}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
                 {sessions.length > SESSIONS_SHOWN && (
-                  <Link href={`/subjects?subject=${encoded}`} className="mt-2 block text-sm font-medium text-primary hover:underline">
+                  <Link
+                    href={`/subjects?subject=${encoded}`}
+                    className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
+                  >
                     See all {sessions.length} in {subject}
+                    <ChevronRight className="size-4" />
                   </Link>
                 )}
               </Panel>

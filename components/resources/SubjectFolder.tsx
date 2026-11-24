@@ -61,6 +61,7 @@ import { uploadIntoResources } from "./upload-files";
 import { LinkDialog, MoveDialog, NameDialog } from "./explorer-dialogs";
 import { displayName, formatBytes, formatWhen, hostOf, KindGlyph, kindLabel, kindOf } from "./file-kind";
 import { useStoredPref } from "./use-stored-view";
+import { ResourceShare } from "@/components/resources/ResourceShare";
 
 /**
  * One subject's resources as a Study Flow page, not a file manager.
@@ -522,6 +523,7 @@ export function SubjectFolder({ library, initialPath }: Props) {
               </Button>
             </>
           )}
+          <ResourceShare subject={library.subject} items={library.items} subjects={library.subjects} canImport={canWrite} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="More">
