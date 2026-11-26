@@ -1,6 +1,8 @@
 # HANDOFF
 
 ## Current Task
+2026-11-26 (Claude) DESKTOP 1.0.44 PUBLISHED (owner: release and push): 65e554e on origin/main, tag v1.0.44, releases/latest = v1.0.44, latest.yml matches; asar has loading.html + logo.png. Contains chat memory, new loader, AI rename + Practice icon, Practice revamp, Progress restyle. Preview stopped; Prisma client back on Postgres. No DB change. Render needs Manual Deploy. Open question still: Practice pages use the gradient hero card the owner dislikes elsewhere.
+
 2026-11-26 (Claude) PROGRESS RESTYLE (History > Completed work + Overview), UNCOMMITTED. First attempt (new charts + gradient hero card) was REJECTED by the owner ("I WANT THE OTHER GRAPH... stop adding that one card every page... copy similar structure") and fully reverted (git checkout; extra model/test/component deleted). Now: SAME structure, same charts, restyle only: stat numbers on separate rounded cards with coloured icons, PanelTitle tone tiles, rounded-3xl panels, donut cornerRadius + subject icons in its legend, area charts with gradient fill + dots, grade line with ring dots, goals bars gradient + rounded, subject table/log/cards with SubjectIcon, completion bars coloured by result, stagger-in. Memory ui-fix-means-restyle updated (no copy-paste hero card). OPEN QUESTION for owner: Practice library/set/results (PracticeViews.tsx, earlier today) DO use that gradient hero card - ask whether to replace it too.
 
 2026-11-26 (Claude) LOADER + NAV + PRACTICE REVAMP, UNCOMMITTED, NOT RELEASED (on top of the CHAT MEMORY entry below, also unreleased).
