@@ -111,16 +111,18 @@ export const NAV: NavSection[] = [
         keywords: "ai chat ask copilot tutor explain question help assistant marks",
         hidden: true,
       },
-      {
-        name: "Practices",
-        href: "/ai/practices",
-        icon: BrainCircuit,
-        keywords: "ai quiz flashcards mock exam generate questions pdf word document revision test me scores",
-        hidden: true,
-      },
       { name: "Focus", href: "/focus", icon: Timer, keywords: "focus mode timer pomodoro concentrate music", hidden: true },
       { name: "Bible", href: "/bible", icon: Book, keywords: "verse scripture", hidden: true },
     ],
+  },
+  {
+    // Its own place in the sidebar (owner asked), not hidden under Study. On a
+    // phone it rides under the Study tab.
+    name: "Practice",
+    href: "/ai/practices",
+    icon: BrainCircuit,
+    keywords: "ai quiz flashcards mock exam generate questions pdf word document revision test me scores practices",
+    mobileGroup: "Study",
   },
   {
     name: "Progress",

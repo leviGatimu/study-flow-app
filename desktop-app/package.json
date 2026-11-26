@@ -1,6 +1,6 @@
 {
   "name": "study-tracker-desktop",
-  "version": "1.0.42",
+  "version": "1.0.43",
   "main": "main.js",
   "description": "Desktop wrapper for Study Tracker",
   "author": "User",
@@ -83,7 +83,8 @@
       "package.json",
       "desktop.css",
       "icon.ico",
-      "error.html"
+      "error.html",
+      "loading.html"
     ],
     "win": {
       "target": [

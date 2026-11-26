@@ -128,20 +128,17 @@ function log(msg) {
   const formatted = `[${timestamp}] ${msg}\n`;
   console.log(msg);
   try { fs.appendFileSync(logPath, formatted); } catch(e) {}
-  
-  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.getURL().startsWith('data:')) {
-    mainWindow.webContents.executeJavaScript(`
-      (() => {
-        try {
-          var logEl = document.getElementById('log');
-          if (logEl) {
-            logEl.innerText += "\\n" + ${JSON.stringify(msg)};
-            window.scrollTo(0, document.body.scrollHeight);
-          }
-        } catch (e) {}
-      })();
-    `).catch(() => {});
-  }
+}
+
+const loadingPagePath = path.join(__dirname, 'loading.html');
+
+/** Plain-words progress line on the loading screen (desktop-app/loading.html). */
+function showStatus(text) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (!mainWindow.webContents.getURL().startsWith('file:')) return;
+  mainWindow.webContents
+    .executeJavaScript(`window.setStatus && window.setStatus(${JSON.stringify(text)})`)
+    .catch(() => {});
 }
 
 // Function to find an available port
@@ -530,33 +527,16 @@ async function createWindow() {
     // Ignore aborted loads (errorCode -3 is triggered when a navigation is cancelled or redirected)
     if (errorCode === -3) return;
     
-    // Ignore loader page errors
-    if (validatedURL && validatedURL.startsWith('data:')) return;
+    // Ignore the app's own local pages (loading screen, error page)
+    if (validatedURL && validatedURL.startsWith('file:')) return;
 
     log(`CLIENT CONNECTION FAILURE [Code ${errorCode}]: ${errorDescription} (at ${validatedURL})`);
     
     mainWindow.loadFile(path.join(__dirname, 'error.html'), { query: { port: port.toString() } });
   });
 
-  // Loading Screen with verbose diagnostic log
-  const loadingHtml = `
-    data:text/html,
-    <html>
-      <body style="background:#050505;color:white;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;margin:0;font-family:sans-serif;text-align:center;overflow:hidden;">
-        <div style="max-width:600px;width:90%;">
-          <h1 style="margin:0;font-size:4rem;letter-spacing:-0.05em;font-weight:900;italic">STUDY FLOW</h1>
-          <p style="color:#444;text-transform:uppercase;letter-spacing:0.4em;font-size:0.8rem;margin-bottom:3rem;font-weight:bold;">Elite Workstation Protocol</p>
-          <div style="width:100%;height:4px;background:#111;position:relative;overflow:hidden;margin-bottom:2rem;border-radius:2px;">
-            <div style="position:absolute;width:40%;height:100%;background:#3b82f6;animation:load 2s infinite ease-in-out;box-shadow: 0 0 20px #3b82f6;"></div>
-          </div>
-          <pre id="log" style="text-align:left;font-size:0.7rem;color:#333;background:#030303;padding:1.5rem;border-radius:20px;border:1px solid #111;overflow-y:auto;white-space:pre-wrap;height:180px;font-family:monospace;"></pre>
-        </div>
-        <style>@keyframes load { 0% { left:-40%; } 100% { left:100%; } }</style>
-      </body>
-    </html>
-  `.trim().replace(/\n/g, '');
-
-  mainWindow.loadURL(loadingHtml);
+  // A real file, not a data: URL - see the comment at the top of loading.html.
+  mainWindow.loadFile(loadingPagePath);
 
   log(`Locating free communications channel...`);
   port = await getFreePort(3000);
@@ -621,8 +601,28 @@ async function createWindow() {
     });
   };
 
-  const maxAttempts = 60; // 60 seconds for slow HDDs
+  // 60 seconds for slow HDDs. Checked every 100 ms: it used to be once a
+  // second, which added up to a second of waiting after the server was up.
+  const deadline = Date.now() + 60_000;
+  const POLL_MS = 100;
   let attempts = 0;
+
+  /**
+   * Signed in already (a session cookie is kept for 30 days): open the
+   * dashboard straight away. /login would only render, load its scripts and
+   * then redirect to / in the browser - a second page load on every launch.
+   * An expired cookie is still handled: the server's proxy sends it on.
+   */
+  const startUrl = async () => {
+    const base = `http://${hostname}:${port}`;
+    try {
+      const cookies = await session.defaultSession.cookies.get({ url: base, name: 'session' });
+      if (cookies.length > 0) return `${base}/`;
+    } catch (e) {
+      log(`Could not read the saved sign-in: ${e.message}`);
+    }
+    return `${base}/login`;
+  };
 
   const waitForServer = async () => {
     // Both: the port accepts connections AND it is OUR engine that opened it.
@@ -631,10 +631,10 @@ async function createWindow() {
     const isReady = engineReady && (await checkServer());
     if (isReady) {
       log('Engine stabilized. Synchronizing visual layers...');
-      
-      // We load /login but check for redirect loop
-      mainWindow.loadURL(`http://${hostname}:${port}/login`);
-      
+      showStatus('Opening your plan…');
+
+      mainWindow.loadURL(await startUrl());
+
       mainWindow.webContents.on('did-finish-load', () => {
         // Apply custom desktop styling
         const cssPath = path.join(__dirname, 'desktop.css');
@@ -648,10 +648,10 @@ async function createWindow() {
           window.addEventListener('contextmenu', (e) => e.preventDefault());
         `);
       });
-    } else if (attempts < maxAttempts) {
+    } else if (Date.now() < deadline) {
       attempts++;
-      if (attempts % 5 === 0) log(`Synchronization attempt ${attempts}...`);
-      setTimeout(waitForServer, 1000);
+      if (attempts % 50 === 0) log(`Still waiting for the engine (attempt ${attempts})...`);
+      setTimeout(waitForServer, POLL_MS);
     } else {
       log('CRITICAL: Handshake timeout. System unstable.');
       mainWindow.loadFile(path.join(__dirname, 'error.html'), { query: { port: port.toString() } });

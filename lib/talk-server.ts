@@ -25,13 +25,23 @@ const FIRST_BYTE_MS = { cloud: 15_000, ollama: 4_000 };
 
 type Attempt = { label: string; open: (signal: AbortSignal) => Promise<Response>; chunk: (line: string) => string };
 
+/** What to tell the model and how long it may answer. Defaults are Talk it out's. */
+export type TalkOptions = { system?: string; maxOutputTokens?: number; temperature?: number };
+type Settings = { system: string; maxOutputTokens: number; temperature: number };
+
 export class TalkUnavailableError extends Error {}
 
 export async function openTalkStream(
   userId: string,
   messages: TalkMessage[],
   signal: AbortSignal,
+  options: TalkOptions = {},
 ): Promise<{ provider: string; stream: ReadableStream<Uint8Array> }> {
+  const settings: Settings = {
+    system: options.system ?? TALK_SYSTEM_PROMPT,
+    maxOutputTokens: options.maxOutputTokens ?? TALK_LIMITS.maxOutputTokens,
+    temperature: options.temperature ?? 0.8,
+  };
   const progress = await prisma.userProgress.findUnique({
     where: { userId },
     select: {
@@ -47,13 +57,13 @@ export async function openTalkStream(
   const gemini = progress?.geminiApiKey?.trim();
   const openai = progress?.openaiApiKey?.trim();
   const cloud: Attempt[] = [];
-  const geminiAttempts = gemini ? GEMINI_MODELS.map((model) => geminiAttempt(gemini, model, messages)) : [];
-  const openaiAttempts = openai ? [openAIAttempt(openai, messages)] : [];
+  const geminiAttempts = gemini ? GEMINI_MODELS.map((model) => geminiAttempt(gemini, model, messages, settings)) : [];
+  const openaiAttempts = openai ? [openAIAttempt(openai, messages, settings)] : [];
   if (progress?.primaryAiProvider === 'openai') cloud.push(...openaiAttempts, ...geminiAttempts);
   else cloud.push(...geminiAttempts, ...openaiAttempts);
 
   const local = progress?.ollamaEnabled
-    ? [ollamaAttempt(progress.ollamaBaseUrl, progress.ollamaModel, messages)]
+    ? [ollamaAttempt(progress.ollamaBaseUrl, progress.ollamaModel, messages, settings)]
     : [];
   const attempts = progress?.primaryAiProvider === 'ollama' ? [...local, ...cloud] : [...cloud, ...local];
 
@@ -125,7 +135,7 @@ function toTextStream(body: ReadableStream<Uint8Array>, chunk: (line: string) =>
   });
 }
 
-function geminiAttempt(key: string, model: string, messages: TalkMessage[]): Attempt {
+function geminiAttempt(key: string, model: string, messages: TalkMessage[], settings: Settings): Attempt {
   return {
     label: `Gemini ${model}`,
     chunk: geminiChunkText,
@@ -136,15 +146,15 @@ function geminiAttempt(key: string, model: string, messages: TalkMessage[]): Att
         cache: 'no-store',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
         body: JSON.stringify({
-          systemInstruction: { parts: [{ text: TALK_SYSTEM_PROMPT }] },
+          systemInstruction: { parts: [{ text: settings.system }] },
           contents: messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
-          generationConfig: { maxOutputTokens: TALK_LIMITS.maxOutputTokens, temperature: 0.8 },
+          generationConfig: { maxOutputTokens: settings.maxOutputTokens, temperature: settings.temperature },
         }),
       }),
   };
 }
 
-function openAIAttempt(key: string, messages: TalkMessage[]): Attempt {
+function openAIAttempt(key: string, messages: TalkMessage[], settings: Settings): Attempt {
   return {
     label: `OpenAI ${OPENAI_MODEL}`,
     chunk: openAIChunkText,
@@ -157,10 +167,10 @@ function openAIAttempt(key: string, messages: TalkMessage[]): Attempt {
         body: JSON.stringify({
           model: OPENAI_MODEL,
           stream: true,
-          max_tokens: TALK_LIMITS.maxOutputTokens,
-          temperature: 0.8,
+          max_tokens: settings.maxOutputTokens,
+          temperature: settings.temperature,
           messages: [
-            { role: 'system', content: TALK_SYSTEM_PROMPT },
+            { role: 'system', content: settings.system },
             ...messages.map((m) => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.text })),
           ],
         }),
@@ -168,7 +178,7 @@ function openAIAttempt(key: string, messages: TalkMessage[]): Attempt {
   };
 }
 
-function ollamaAttempt(baseUrl: string | null, model: string | null, messages: TalkMessage[]): Attempt {
+function ollamaAttempt(baseUrl: string | null, model: string | null, messages: TalkMessage[], settings: Settings): Attempt {
   const url = (baseUrl?.trim() || DEFAULT_OLLAMA_URL).replace(/\/+$/, '');
   return {
     label: 'Ollama (offline)',
@@ -189,9 +199,9 @@ function ollamaAttempt(baseUrl: string | null, model: string | null, messages: T
         body: JSON.stringify({
           model: name,
           stream: true,
-          options: { num_predict: TALK_LIMITS.maxOutputTokens, temperature: 0.8 },
+          options: { num_predict: settings.maxOutputTokens, temperature: settings.temperature },
           messages: [
-            { role: 'system', content: TALK_SYSTEM_PROMPT },
+            { role: 'system', content: settings.system },
             ...messages.map((m) => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.text })),
           ],
         }),

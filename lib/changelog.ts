@@ -28,6 +28,28 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.43',
+    date: '2026-11-26',
+    title: 'A faster, smarter Study AI',
+    changes: {
+      new: [
+        "The Study AI can plan for you: tell it about an exam and it proposes the exam plus revision blocks in your free time. You see every step and press Yes to add them, or Not now. Nothing changes until you say yes, and anything that clashes with your schedule is skipped and explained.",
+        "The Study AI draws its answers: your schedule for a day, exams, homework and marks as real cards from your records, plus charts, numbered steps, checklists, tips and tables when they help.",
+        "A download button in the top bar: check for updates, watch the download and restart into the new version without going to Settings.",
+        "Practice has its own place in the sidebar.",
+      ],
+      better: [
+        "Study AI answers appear word by word as they are written, instead of all at once at the end.",
+        "The Study AI knows more about you: your name, what is next, the next two weeks, your school hours and how your past exams went.",
+        "The Study AI page has a new look: a sidebar you can fold down to icons, chat search and groups by day, a greeting with what is next, a new message box with quick buttons, and a thinking animation while it works.",
+        "The desktop app shows a proper loading screen while it starts, instead of a black window, and opens a little faster.",
+      ],
+      dev: [
+        "Chat replies stream through app/api/ask/route.ts (lib/talk-server.ts fast path); turn logic in lib/copilot-server.ts. Plans: lib/copilot-plan.ts, cards: lib/chat-ui.ts (data cards filled on the server). Startup: desktop-app/loading.html replaces an empty data: URL, ready poll 100 ms.",
+      ],
+    },
+  },
+  {
     version: '1.0.42',
     date: '2026-11-24',
     title: 'Share your Resources, a new exam page and better daily verses',

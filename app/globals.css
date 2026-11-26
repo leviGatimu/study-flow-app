@@ -760,3 +760,17 @@ ol.app-toaster[data-sonner-toaster] [data-sonner-toast][data-mounted='true'] .to
 .mentor .m-heat-2 { background: color-mix(in oklch, var(--primary) 48%, transparent); }
 .mentor .m-heat-3 { background: color-mix(in oklch, var(--primary) 72%, transparent); }
 .mentor .m-heat-4 { background: var(--primary); }
+
+/* Study AI: the "Reading your schedule..." line shimmers while the AI works. */
+@keyframes ai-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.ai-shimmer {
+  background: linear-gradient(90deg, var(--muted-foreground) 0%, var(--muted-foreground) 35%, var(--primary) 50%, var(--muted-foreground) 65%, var(--muted-foreground) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ai-shimmer 2.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-shimmer { animation: none; color: var(--muted-foreground); background: none; }
+}

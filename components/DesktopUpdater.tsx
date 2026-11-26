@@ -28,7 +28,7 @@ type Phase =
   | "downloaded"
   | "error";
 
-type UpdateState = {
+export type UpdateState = {
   phase: Phase;
   version: string | null;
   percent: number;
@@ -38,7 +38,7 @@ type UpdateState = {
   autoInstall?: boolean;
 };
 
-type UpdatesBridge = {
+export type UpdatesBridge = {
   status: () => Promise<UpdateState>;
   check: () => Promise<UpdateState>;
   install: () => Promise<UpdateState>;
@@ -46,7 +46,7 @@ type UpdatesBridge = {
   subscribe: (callback: (state: UpdateState) => void) => () => void;
 };
 
-const bridge = (): UpdatesBridge | null => {
+export const updatesBridge = (): UpdatesBridge | null => {
   if (typeof window === "undefined") return null;
   return (window as { electron?: { updates?: UpdatesBridge } }).electron?.updates ?? null;
 };
@@ -62,7 +62,7 @@ const noopSubscribe = () => () => {};
 export function useIsDesktopApp() {
   return useSyncExternalStore(
     noopSubscribe,
-    () => bridge() !== null,
+    () => updatesBridge() !== null,
     () => false
   );
 }
@@ -72,7 +72,7 @@ export function DesktopUpdater() {
   const [state, setState] = useState<UpdateState | null>(null);
 
   useEffect(() => {
-    const api = bridge();
+    const api = updatesBridge();
     if (!api) return;
 
     let alive = true;
@@ -138,18 +138,18 @@ export function DesktopUpdater() {
           : RefreshCw;
 
   const onCheck = () => {
-    bridge()
+    updatesBridge()
       ?.check()
       .then((next) => setState(next))
       .catch(() => {});
   };
 
   const onInstall = () => {
-    bridge()?.install().catch(() => {});
+    updatesBridge()?.install().catch(() => {});
   };
 
   const onToggleAuto = (enabled: boolean) => {
-    bridge()
+    updatesBridge()
       ?.setAuto(enabled)
       .then((next) => setState(next))
       .catch(() => {});

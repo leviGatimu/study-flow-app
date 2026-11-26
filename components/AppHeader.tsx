@@ -21,6 +21,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { QuickAddForm } from "@/components/QuickAddForm";
 import { HeaderStats } from "@/components/HeaderStats";
 import { ReminderManager } from "@/components/ReminderManager";
+import { UpdateButton } from "@/components/UpdateButton";
 import { openCommandMenu } from "@/components/CommandMenu";
 import { logoutUser } from "@/lib/actions";
 import { SafeUserProgress as UserProgress } from "@/lib/types";
@@ -114,6 +115,8 @@ export function AppHeader({
               <Zap />
             </Link>
           </Button>
+
+          <UpdateButton />
 
           <ReminderManager timezone={userProgress?.timezone} />
 

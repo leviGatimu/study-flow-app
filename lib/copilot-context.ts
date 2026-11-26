@@ -34,6 +34,20 @@ export type CopilotContext = {
   /** The weekly study routine, one line per day that has blocks. */
   routine: { day: string; blocks: string[] }[];
   upcomingHolidays: { date: string; name: string }[];
+  /** "2026-11-26": today's date for plans, which use YYYY-MM-DD. */
+  todayKey?: string;
+  /** Who the student is. */
+  student?: { name: string; school: string | null; streak: number; focusHours: number; level: number; birthday: string | null };
+  /** The next thing on the plan from now, in words. */
+  nextUp?: string | null;
+  /** The days after tomorrow (about two weeks), with what is already on each. */
+  daysAhead?: { label: string; key: string; blocks: string[] }[];
+  /** When school runs on each weekday, e.g. "Monday 07:30-16:30". */
+  schoolDays?: string[];
+  /** Exams already sat, newest first, with the mark when known. */
+  pastExams?: { title: string; date: string; result: string | null; category: string | null }[];
+  /** The student's own subject names. */
+  subjects?: string[];
 };
 
 export type SuggestedPrompt = { label: string; prompt: string };
@@ -60,12 +74,24 @@ function section(title: string, lines: string[], empty: string): string {
 
 export function buildCopilotPrompt(ctx: CopilotContext): string {
   const facts = [
-    `Today is ${ctx.today}, and it is ${ctx.now} where the student is.`,
+    `Today is ${ctx.today}${ctx.todayKey ? ` (${ctx.todayKey})` : ''}, and it is ${ctx.now} where the student is.`,
+    ctx.student
+      ? `THE STUDENT: ${ctx.student.name}${ctx.student.school ? `, at ${ctx.student.school}` : ''}. Level ${ctx.student.level}, ${ctx.student.streak}-day streak, ${ctx.student.focusHours} hours focused in total.${ctx.student.birthday ? ` Birthday: ${ctx.student.birthday}.` : ''}`
+      : null,
+    ctx.nextUp ? `NEXT UP: ${ctx.nextUp}` : null,
     ctx.holidayToday
       ? `Today is a public holiday (${ctx.holidayToday}); the study routine is off.`
       : null,
     section("TODAY'S STUDY BLOCKS:", ctx.todayBlocks.map(blockLine), '(none today)'),
     section("TOMORROW'S STUDY BLOCKS:", ctx.tomorrowBlocks.map(blockLine), '(none tomorrow)'),
+    ctx.daysAhead?.length
+      ? section(
+          'THE DAYS AFTER TOMORROW (date key in brackets; what is already planned):',
+          ctx.daysAhead.map((d) => `- ${d.label} (${d.key}): ${d.blocks.length ? d.blocks.join(', ') : 'nothing planned'}`),
+          ''
+        )
+      : null,
+    ctx.schoolDays?.length ? section('SCHOOL HOURS (busy, never plan study then):', ctx.schoolDays.map((d) => `- ${d}`), '') : null,
     section(
       'UNFINISHED HOMEWORK (soonest first):',
       ctx.homework
@@ -83,6 +109,14 @@ export function buildCopilotPrompt(ctx: CopilotContext): string {
         ),
       '(no upcoming exams)'
     ),
+    ctx.pastExams?.length
+      ? section(
+          'EXAMS ALREADY SAT (newest first):',
+          ctx.pastExams.map((e) => `- ${e.title}${e.category ? ` [${e.category}]` : ''} - ${e.date}: ${e.result ?? 'mark not entered yet'}`),
+          ''
+        )
+      : null,
+    ctx.subjects?.length ? `THEIR SUBJECTS: ${ctx.subjects.join(', ')}` : null,
     section(
       'SUBJECT METRICS (discuss only when the student asks):',
       ctx.weakSubjects.map((s) => `- ${s.subject}: ${s.reason}`),
@@ -112,7 +146,8 @@ HOW TO ANSWER
 - When explaining a topic, teach it: start simple, build up, give a worked example, then check understanding with one short question.
 - Use Markdown: short headings, bullet lists, tables when comparing, fenced code blocks with a language for code. Write maths in LaTeX: $...$ inline and $$...$$ for display.
 - Respect student autonomy and their choice of what and when to study. Do not recommend practice, rank weak subjects, or add revision tasks unless explicitly asked. Avoid guilt, pressure and unsolicited urgency. Answer the question they chose. Keep it concise.
-- You cannot change their timetable or records yourself. If they ask you to set something up, say exactly what to add (day, time, subject) so they can add it.`;
+- You can add exams and study blocks, but only as a plan the student confirms (see MAKING PLANS). Never claim you changed anything yourself.
+- Use their name now and then, naturally. Keep replies short unless they ask for depth: a few sentences or a short list beats an essay.`;
 }
 
 /**
