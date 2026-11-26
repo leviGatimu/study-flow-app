@@ -2,7 +2,7 @@ import {
   Activity,
   Megaphone,
   BookOpen,
-  BrainCircuit,
+  Target,
   Book,
   Calendar,
   CalendarClock,
@@ -98,14 +98,14 @@ export const NAV: NavSection[] = [
   { name: "Exams", href: "/exams", icon: GraduationCap, keywords: "assessments tests papers midterm categories", mobileGroup: "Subjects" },
   { name: "Resources", href: "/resources", icon: FolderOpen, keywords: "files links pdfs library documents reports", mobileGroup: "Subjects" },
   {
-    name: "Study",
+    name: "AI",
     // The page is the AI chat. The owner asked for Study to be just the chat,
     // so the rest are reachable (palette, links) without being pills.
     href: "/ai",
     icon: Sparkles,
     children: [
       {
-        name: "Study chat",
+        name: "AI chat",
         href: "/ai",
         icon: MessageSquare,
         keywords: "ai chat ask copilot tutor explain question help assistant marks",
@@ -116,13 +116,13 @@ export const NAV: NavSection[] = [
     ],
   },
   {
-    // Its own place in the sidebar (owner asked), not hidden under Study. On a
-    // phone it rides under the Study tab.
+    // Its own place in the sidebar (owner asked), not hidden under AI. On a
+    // phone it rides under the AI tab.
     name: "Practice",
     href: "/ai/practices",
-    icon: BrainCircuit,
+    icon: Target,
     keywords: "ai quiz flashcards mock exam generate questions pdf word document revision test me scores practices",
-    mobileGroup: "Study",
+    mobileGroup: "AI",
   },
   {
     name: "Progress",

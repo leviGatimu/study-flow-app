@@ -37,7 +37,7 @@ export default async function StudyPage({ searchParams }: { searchParams: Promis
   if (!data) {
     return (
       <Page>
-        <PageHeader title="Study" description="Ask the AI, or have it make a practice for you." />
+        <PageHeader title="AI" description="Ask the AI, or have it make a practice for you." />
         <PageBody>
           <ErrorState
             title="Your chats could not be loaded"

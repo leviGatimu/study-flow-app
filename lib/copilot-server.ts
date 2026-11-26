@@ -45,7 +45,9 @@ const AHEAD_DAYS = 12;
 
 export const MODE = 'ASK';
 /** Older turns are dropped from what the model sees; the chat keeps them all. */
-const HISTORY_TURNS = 20;
+const HISTORY_TURNS = 30;
+/** Other recent chats the assistant is reminded of, so it can pick up where they left off. */
+const OTHER_CHATS = 5;
 export const MAX_QUESTION = 8000;
 
 export type CopilotMessage = {
@@ -500,7 +502,7 @@ export async function prepareCopilotTurn(
     return { kind: 'answered', sessionId, session, userMessage: toMessage(finished.userMessage), reply: toMessage(finished.reply) };
   }
 
-  const [earlier, gathered] = await Promise.all([
+  const [earlier, gathered, otherChats] = await Promise.all([
     prisma.chatMessage.findMany({
       where: { sessionId, createdAt: { lt: userMessage.createdAt }, NOT: { status: 'FAILED' } },
       select: { role: true, content: true },
@@ -508,6 +510,16 @@ export async function prepareCopilotTurn(
       take: HISTORY_TURNS,
     }),
     gatheredPromise,
+    prisma.chatSession.findMany({
+      where: { userId, mode: MODE, id: { not: sessionId }, deletedAt: null, updatedAt: { gte: new Date(Date.now() - 14 * 86_400_000) } },
+      orderBy: { updatedAt: 'desc' },
+      take: OTHER_CHATS,
+      select: {
+        title: true,
+        updatedAt: true,
+        messages: { where: { role: 'user', NOT: { status: 'FAILED' } }, orderBy: { createdAt: 'desc' }, take: 2, select: { content: true } },
+      },
+    }),
   ]);
   // Practice and plan references are for the app; the model gets them as words.
   const history: TalkMessage[] = earlier
@@ -517,8 +529,16 @@ export async function prepareCopilotTurn(
 
   const intent = detectIntent(question, recentUser, gathered.subjects);
   const evidence = buildEvidence(intent, gathered.rows);
+  const earlierChats = otherChats.length
+    ? `EARLIER CHATS WITH THIS STUDENT (newest first; bring one up only if it is relevant):
+${otherChats
+        .map((c) => `- ${formatDistanceToNowStrict(c.updatedAt, { addSuffix: true })}: "${c.title}"${c.messages.length ? `, they asked: ${c.messages.map((m) => `"${m.content.replace(/\s+/g, ' ').slice(0, 140)}"`).join(' and ')}` : ''}`)
+        .join('\n')}`
+    : '';
   const system = `${buildCopilotPrompt(gathered.context)}
 
+THIS IS AN ONGOING CONVERSATION. Read the earlier messages before answering. Short follow-ups ("make it simpler", "and tomorrow?", "the second one", "why?", "more") are about what was just discussed: answer them in that context and do not start over. Keep track of the topic, the subject and anything the student told you earlier in the chat (their level, what they find hard, dates they mentioned).
+${earlierChats ? `\n${earlierChats}\n` : ''}
 ${evidencePrompt(evidence, intent)}
 
 When you state a fact from the RECORDS, cite it right after with its number, like [S2]. Do not cite anything for general explanations.

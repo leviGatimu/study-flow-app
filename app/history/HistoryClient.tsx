@@ -24,6 +24,7 @@ import { Section } from "@/components/ui/section";
 import { Stat } from "@/components/ui/stat";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pill } from "@/components/ui/list-row";
+import { SubjectIcon } from "@/components/subjects/SubjectIcon";
 import { Segmented } from "../insights/Segmented";
 import { bestDay, changeLabel, cleanSubject, groupByDay, subjectScores, taskMinutes } from "./history-model";
 import {
@@ -254,20 +255,20 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
           />
         ) : (
           <>
-            <Panel className="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 xl:grid-cols-5">
-              <Stat icon={<BookOpen />} tone="primary" label="Homework done" value={stats.homeworks} hint={(previous && changeLabel(stats.homeworks, previous.homeworks)) ?? periodLabel} />
-              <Stat icon={<Repeat />} tone="warning" label="Revision done" value={stats.revisions} hint={(previous && changeLabel(stats.revisions, previous.revisions)) ?? periodLabel} />
-              <Stat icon={<Clock />} label="Planned time completed" value={formatMinutes(stats.totalMinutes)} hint={(previous && changeLabel(Math.round(stats.totalMinutes / 60), previous.hours, "h")) ?? "Scheduled length of finished blocks"} />
-              <Stat
+            <div className="stagger-in grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+              <Tile tone="primary"><Stat icon={<BookOpen />} tone="primary" label="Homework done" value={stats.homeworks} hint={(previous && changeLabel(stats.homeworks, previous.homeworks)) ?? periodLabel} /></Tile>
+              <Tile tone="orange"><Stat icon={<Repeat />} tone="warning" label="Revision done" value={stats.revisions} hint={(previous && changeLabel(stats.revisions, previous.revisions)) ?? periodLabel} /></Tile>
+              <Tile tone="violet"><Stat icon={<Clock />} label="Planned time completed" value={formatMinutes(stats.totalMinutes)} hint={(previous && changeLabel(Math.round(stats.totalMinutes / 60), previous.hours, "h")) ?? "Scheduled length of finished blocks"} /></Tile>
+              <Tile tone="emerald"><Stat
                 icon={<CheckCircle2 />}
                 tone="success"
                 label="Completion"
                 value={stats.completionRate == null ? "No data" : `${stats.completionRate}%`}
                 hint={`${stats.missed} missed ${periodLabel}`}
-              />
+              /></Tile>
               <Link
                 href="/streak"
-                className="-m-2 rounded-xl p-2 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                className="group block rounded-3xl border border-border/60 bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 [&_p:first-child_svg]:text-amber-500"
               >
                 <Stat
                   icon={<Trophy />}
@@ -276,18 +277,18 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
                   hint="Your all-time record"
                 />
               </Link>
-            </Panel>
+            </div>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-              <Panel className="lg:col-span-5">
-                <PanelTitle icon={<Clock />}>Planned time by subject</PanelTitle>
+            <div className="stagger-in grid grid-cols-1 gap-6 lg:grid-cols-12">
+              <Panel className="rounded-3xl lg:col-span-5">
+                <PanelTitle tone="violet" icon={<Clock />}>Planned time by subject</PanelTitle>
                 {subjectSplit.length > 0 ? (
                   <>
                     <div className="relative">
                       <ChartFrame>
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
-                            <Pie data={subjectSplit} cx="50%" cy="50%" innerRadius={75} outerRadius={105} paddingAngle={4} dataKey="value" stroke="none">
+                            <Pie data={subjectSplit} cx="50%" cy="50%" innerRadius={75} outerRadius={105} paddingAngle={3} cornerRadius={8} dataKey="value" stroke="none" animationDuration={900}>
                               {subjectSplit.map((item, index) => (
                                 <Cell key={item.name} fill={SUBJECT_COLORS[index % SUBJECT_COLORS.length]} />
                               ))}
@@ -303,10 +304,11 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
                     </div>
                     <ul className="mt-4 grid grid-cols-2 gap-3 border-t border-border/40 pt-4">
                       {subjectSplit.slice(0, 6).map((item, i) => (
-                        <li key={item.name} className="flex min-w-0 items-center gap-2">
+                        <li key={item.name} className="flex min-w-0 items-center gap-2 rounded-xl px-1.5 py-1 transition-colors hover:bg-muted/50">
                           <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: SUBJECT_COLORS[i % SUBJECT_COLORS.length] }} />
-                          <span className="truncate text-xs text-muted-foreground" title={item.name}>{item.name}</span>
-                          <span className="ml-auto shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+                          <SubjectIcon name={item.name} className="size-6 rounded-md" iconClassName="!size-3.5" />
+                          <span className="truncate text-xs font-semibold text-foreground/85" title={item.name}>{item.name}</span>
+                          <span className="ml-auto shrink-0 text-xs font-bold tabular-nums text-muted-foreground">
                             {Math.round((item.value / stats.totalMinutes) * 100)}%
                           </span>
                         </li>
@@ -326,16 +328,22 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
                 )}
               </Panel>
 
-              <Panel className="lg:col-span-7">
-                <PanelTitle icon={<Sparkles />}>Completed schedule time</PanelTitle>
+              <Panel className="rounded-3xl lg:col-span-7">
+                <PanelTitle tone="primary" icon={<Sparkles />}>Completed schedule time</PanelTitle>
                 <ChartFrame>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={dailyMinutes} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="history-minutes" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.35} />
+                          <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                       <XAxis dataKey="dateLabel" axisLine={false} tickLine={false} tick={AXIS_TICK} />
                       <YAxis axisLine={false} tickLine={false} tick={AXIS_TICK} unit="m" />
                       <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value) => [`${value} min`, "Scheduled minutes"]} />
-                      <Area type="monotone" dataKey="minutes" stroke={CHART_PRIMARY} strokeWidth={2.5} fill={CHART_PRIMARY} fillOpacity={0.12} />
+                      <Area type="monotone" dataKey="minutes" stroke={CHART_PRIMARY} strokeWidth={3} fill="url(#history-minutes)" dot={{ r: 3, fill: CHART_PRIMARY, strokeWidth: 0 }} activeDot={{ r: 6 }} animationDuration={900} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </ChartFrame>
@@ -362,9 +370,9 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
             </div>
 
             {scores.length > 0 && (
-              <Panel padded={false} className="overflow-hidden">
+              <Panel padded={false} className="overflow-hidden rounded-3xl">
                 <div className="px-5 pt-5">
-                  <PanelTitle icon={<Layers />}>By subject</PanelTitle>
+                  <PanelTitle tone="emerald" icon={<Layers />}>By subject</PanelTitle>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[560px] text-sm">
@@ -381,7 +389,7 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
                     <tbody className="divide-y divide-border/60">
                       {scores.map((score) => (
                         <tr key={score.subject} className="transition-colors hover:bg-muted/40">
-                          <th scope="row" className="px-5 py-2 text-left font-medium">
+                          <th scope="row" className="px-5 py-2.5 text-left font-medium">
                             <button
                               type="button"
                               onClick={() => {
@@ -389,8 +397,9 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
                                 setActiveTab("ALL");
                                 setLogLimit(LOG_PAGE);
                               }}
-                              className="break-words text-left hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                              className="flex items-center gap-2.5 break-words text-left font-semibold hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                             >
+                              <SubjectIcon name={score.subject} className="size-8 rounded-lg" iconClassName="!size-4" />
                               {score.subject}
                             </button>
                           </th>
@@ -399,10 +408,13 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
                           <td className="px-3 py-2 text-right tabular-nums">{formatMinutes(score.minutes)}</td>
                           <td className="px-5 py-2">
                             <span className="flex items-center gap-2">
-                              <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                                <span className="block h-full rounded-full bg-primary" style={{ width: `${score.completion}%` }} />
+                              <span className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                                <span
+                                  className={cn("progress-fill block h-full rounded-full", score.completion >= 80 ? "bg-emerald-500" : score.completion >= 50 ? "bg-amber-500" : "bg-rose-500")}
+                                  style={{ width: `${score.completion}%` }}
+                                />
                               </span>
-                              <span className="w-9 text-right text-xs tabular-nums text-muted-foreground">{score.completion}%</span>
+                              <span className="w-9 text-right text-xs font-bold tabular-nums text-foreground">{score.completion}%</span>
                             </span>
                           </td>
                         </tr>
@@ -483,8 +495,8 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
                 <div className="space-y-4">
                   {sortBy === "DATE_DESC" || sortBy === "DATE_ASC" ? (
                     groupByDay(filteredTasks.slice(0, logLimit), dayKeyOf).map((day) => (
-                      <section key={day.key} aria-label={format(day.date, "EEEE d MMMM yyyy")} className="overflow-hidden rounded-xl border border-border/60 bg-card">
-                        <header className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-border/60 bg-muted/30 px-4 py-2 text-sm">
+                      <section key={day.key} aria-label={format(day.date, "EEEE d MMMM yyyy")} className="overflow-hidden rounded-3xl border border-border/60 bg-card shadow-sm">
+                        <header className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-border/60 bg-muted/30 px-5 py-2.5 text-sm">
                           <h3 className="font-semibold text-foreground">{format(day.date, "EEEE d MMMM yyyy")}</h3>
                           <span className="text-xs tabular-nums text-muted-foreground">
                             {day.tasks.length} {day.tasks.length === 1 ? "entry" : "entries"}{day.minutes > 0 && ` · ${formatMinutes(day.minutes)} finished`}
@@ -498,7 +510,7 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
                       </section>
                     ))
                   ) : (
-                    <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-card">
+                    <ul className="divide-y divide-border/60 overflow-hidden rounded-3xl border border-border/60 bg-card shadow-sm">
                       {filteredTasks.slice(0, logLimit).map((task) => (
                         <LogRow key={task.id} task={task} showDate />
                       ))}
@@ -523,16 +535,19 @@ export function HistoryClient({ tasks, userProgress, tabs }: HistoryClientProps 
 function LogRow({ task, showDate = false }: { task: TaskWithTemplate; showDate?: boolean }) {
   const minutes = taskMinutes(task);
   return (
-    <li className="flex items-center gap-1 pr-2 transition-colors hover:bg-muted/40">
+    <li className="group flex items-center gap-1 pr-2 transition-colors hover:bg-muted/40">
       <Link href={`/history/${task.id}`} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50">
-        {task.isDone ? (
-          <CheckCircle2 className="size-5 shrink-0 text-success" aria-label="Completed" />
-        ) : (
-          <XCircle className="size-5 shrink-0 text-destructive" aria-label="Missed" />
-        )}
+        <span className="relative shrink-0">
+          <SubjectIcon name={cleanSubject(task.subject) || task.subject} className="size-10 rounded-xl" iconClassName="!size-[18px]" />
+          {task.isDone ? (
+            <CheckCircle2 className="absolute -bottom-1 -right-1 size-4.5 rounded-full bg-card text-success" aria-label="Completed" />
+          ) : (
+            <XCircle className="absolute -bottom-1 -right-1 size-4.5 rounded-full bg-card text-destructive" aria-label="Missed" />
+          )}
+        </span>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-x-2">
-            <span className="break-words font-medium text-foreground">{cleanSubject(task.subject) || task.subject}</span>
+            <span className="break-words font-semibold text-foreground group-hover:text-primary">{cleanSubject(task.subject) || task.subject}</span>
             <Pill tone={task.type === "REVISION" ? "warning" : "default"}>{task.type === "REVISION" ? "Revision" : "Homework"}</Pill>
           </span>
           <span className="block text-xs tabular-nums text-muted-foreground">
@@ -540,9 +555,21 @@ function LogRow({ task, showDate = false }: { task: TaskWithTemplate; showDate?:
           </span>
           {task.workDescription && <span className="mt-0.5 block truncate text-xs text-muted-foreground">{task.workDescription}</span>}
         </span>
-        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
       </Link>
       <DeleteTaskButton taskId={task.id} className="size-11 shrink-0" />
     </li>
   );
+}
+
+/** One headline number on its own card, its icon in a soft coloured tile. */
+const TILE_TONE = {
+  primary: "[&_p:first-child_svg]:text-primary",
+  orange: "[&_p:first-child_svg]:text-orange-500",
+  violet: "[&_p:first-child_svg]:text-violet-500",
+  emerald: "[&_p:first-child_svg]:text-emerald-500",
+} as const;
+
+function Tile({ tone, children }: { tone: keyof typeof TILE_TONE; children: React.ReactNode }) {
+  return <div className={cn("rounded-3xl border border-border/60 bg-card p-5 shadow-sm", TILE_TONE[tone])}>{children}</div>;
 }

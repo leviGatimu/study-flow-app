@@ -28,6 +28,25 @@ export type Release = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.0.44',
+    date: '2026-11-26',
+    title: 'A new loading screen, Practice and Progress look better',
+    changes: {
+      new: [
+        "The loading screen shows the Study Flow logo with a turning ring of light, and a study fun fact that changes every few seconds.",
+      ],
+      better: [
+        "The AI keeps track of the conversation: short follow-ups like \"make it simpler\" or \"and tomorrow?\" carry on from what was just said. It sees more of a long chat, and it knows what you asked in your recent chats.",
+        "Practice has a new look: your sets as cards with their best score, subject filters, search and sorting; each set shows how to practise and a chart of your attempts; results show a big score ring, what to do next and a clear review of every question.",
+        "Progress (Completed work and Overview) looks better: every number on its own card, coloured icons, softer charts and each subject's icon in the tables and the log. Same graphs, same layout.",
+        "Study is now called AI in the sidebar, and Practice has its own icon.",
+      ],
+      dev: [
+        "lib/copilot-server.ts: 30 earlier messages, an ONGOING CONVERSATION note and the 5 latest other chats in the prompt. app/ai/PracticeViews.tsx holds the Practice library, set and results screens. desktop-app/logo.png ships with the loading screen.",
+      ],
+    },
+  },
+  {
     version: '1.0.43',
     date: '2026-11-26',
     title: 'A faster, smarter Study AI',

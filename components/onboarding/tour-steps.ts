@@ -144,8 +144,8 @@ export const TOUR_STEPS: TourStep[] = [
     chapter: 'Studying',
     route: '/ai',
     selector: '[data-tour="ask-intro"]',
-    title: 'Study with the AI',
-    body: 'The Study chat knows your subjects, schedule and marks. Ask "what should I revise tonight?" or "explain this question", or say "quiz me on photosynthesis" and it makes a practice you can take, with your score saved.',
+    title: 'Your AI',
+    body: 'The AI chat knows your subjects, schedule and marks. Ask "what should I revise tonight?" or "explain this question", or say "quiz me on photosynthesis" and it makes a practice you can take, with your score saved.',
     placement: 'bottom',
   },
   {

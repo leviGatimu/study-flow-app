@@ -19,6 +19,7 @@ import { Section } from "@/components/ui/section";
 import { Stat } from "@/components/ui/stat";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pill } from "@/components/ui/list-row";
+import { SubjectIcon } from "@/components/subjects/SubjectIcon";
 import { Segmented } from "./Segmented";
 import {
   ChartFrame, TOOLTIP_STYLE, AXIS_TICK, CHART_PRIMARY, CHART_ORANGE,
@@ -99,7 +100,7 @@ export function InsightsClient({
       <PageBody>
         {/* The four numbers worth knowing before anything else. Each opens the
             page that explains it. */}
-        <Panel className="grid grid-cols-2 gap-x-4 gap-y-6 lg:grid-cols-4">
+        <div className="stagger-in grid grid-cols-2 gap-4 lg:grid-cols-4">
           <HeadlineLink href="/streak">
             <Stat
               icon={<Flame />}
@@ -141,7 +142,7 @@ export function InsightsClient({
               }
             />
           </HeadlineLink>
-        </Panel>
+        </div>
 
         {!hasAnyData ? (
           <EmptyState
@@ -163,9 +164,9 @@ export function InsightsClient({
           <>
 
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <Panel>
-                <PanelTitle icon={<TrendingUp />}>Grade trend</PanelTitle>
+            <div className="stagger-in grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <Panel className="rounded-3xl">
+                <PanelTitle tone="primary" icon={<TrendingUp />}>Grade trend</PanelTitle>
                 <p className="-mt-2 mb-4 text-sm text-muted-foreground">Overall average on each report card.</p>
                 {gradeTrajectory.length > 0 ? (
                   <ChartFrame>
@@ -175,7 +176,7 @@ export function InsightsClient({
                         <XAxis dataKey="term" axisLine={false} tickLine={false} tick={AXIS_TICK} />
                         <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={AXIS_TICK} unit="%" />
                         <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${v}%`, "Average"]} />
-                        <Line type="monotone" dataKey="average" stroke={CHART_PRIMARY} strokeWidth={3} dot={{ r: 4, fill: CHART_PRIMARY }} activeDot={{ r: 6 }} />
+                        <Line type="monotone" dataKey="average" stroke={CHART_PRIMARY} strokeWidth={3.5} dot={{ r: 5, fill: "var(--card)", stroke: CHART_PRIMARY, strokeWidth: 3 }} activeDot={{ r: 7 }} animationDuration={900} />
                       </LineChart>
                     </ResponsiveContainer>
                   </ChartFrame>
@@ -193,8 +194,8 @@ export function InsightsClient({
                 )}
               </Panel>
 
-              <Panel>
-                <PanelTitle icon={<Target />}>Practice scores</PanelTitle>
+              <Panel className="rounded-3xl">
+                <PanelTitle tone="orange" icon={<Target />}>Practice scores</PanelTitle>
                 <p className="-mt-2 mb-4 text-sm text-muted-foreground">Score on each practice attempt, oldest first.</p>
                 {quizTrend.length > 0 ? (
                   <ChartFrame>
@@ -207,7 +208,13 @@ export function InsightsClient({
                           contentStyle={TOOLTIP_STYLE}
                           formatter={(v, _n, p) => [`${v}%`, (p?.payload as { subject?: string } | undefined)?.subject || "Score"]}
                         />
-                        <Area type="monotone" dataKey="score" stroke={CHART_ORANGE} strokeWidth={2.5} fill={CHART_ORANGE} fillOpacity={0.12} />
+                        <defs>
+                          <linearGradient id="practice-fill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={CHART_ORANGE} stopOpacity={0.35} />
+                            <stop offset="100%" stopColor={CHART_ORANGE} stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <Area type="monotone" dataKey="score" stroke={CHART_ORANGE} strokeWidth={3} fill="url(#practice-fill)" dot={{ r: 3, fill: CHART_ORANGE, strokeWidth: 0 }} activeDot={{ r: 6 }} animationDuration={900} />
                       </AreaChart>
                     </ResponsiveContainer>
                   </ChartFrame>
@@ -223,8 +230,9 @@ export function InsightsClient({
             </div>
 
             {graded.length > 0 && (
-              <Panel>
+              <Panel className="rounded-3xl">
                 <PanelTitle
+                  tone="emerald"
                   icon={<Target />}
                   action={
                     <Button asChild variant="ghost" size="sm">
@@ -241,13 +249,19 @@ export function InsightsClient({
                       data={graded.map((s) => ({ subject: s.subject, Mark: s.grade, Target: s.target }))}
                       margin={{ top: 10, right: 16, left: -20, bottom: 0 }}
                     >
+                      <defs>
+                        <linearGradient id="mark-fill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="var(--primary)" stopOpacity={1} />
+                          <stop offset="100%" stopColor="var(--primary)" stopOpacity={0.6} />
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                       <XAxis dataKey="subject" axisLine={false} tickLine={false} tick={AXIS_TICK} />
                       <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={AXIS_TICK} unit="%" />
-                      <Tooltip contentStyle={TOOLTIP_STYLE} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "var(--muted)", opacity: 0.5 }} />
                       <Legend wrapperStyle={{ fontSize: 12, fontWeight: 600 }} />
-                      <Bar dataKey="Mark" fill={CHART_PRIMARY} radius={[6, 6, 0, 0]} />
-                      <Bar dataKey="Target" fill="var(--muted-foreground)" radius={[6, 6, 0, 0]} fillOpacity={0.4} />
+                      <Bar dataKey="Mark" fill="url(#mark-fill)" radius={[8, 8, 0, 0]} maxBarSize={36} animationDuration={900} />
+                      <Bar dataKey="Target" fill="var(--muted-foreground)" radius={[8, 8, 0, 0]} fillOpacity={0.3} maxBarSize={36} animationDuration={900} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartFrame>
@@ -255,7 +269,7 @@ export function InsightsClient({
             )}
 
             <Section title="Every subject" description="Completion, topic mastery and practice average, side by side.">
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+              <div className="stagger-in grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {[...subjects].sort((a, b) => a.subject.localeCompare(b.subject)).map((s) => (
                   <SubjectCard key={s.subject} s={s} />
                 ))}
@@ -272,7 +286,7 @@ function HeadlineLink({ href, children }: { href: string; children: React.ReactN
   return (
     <Link
       href={href}
-      className="-m-2 rounded-xl p-2 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      className="block rounded-3xl border border-border/60 bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
     >
       {children}
     </Link>
@@ -281,13 +295,14 @@ function HeadlineLink({ href, children }: { href: string; children: React.ReactN
 
 function SubjectCard({ s }: { s: SubjectInsight }) {
   return (
-    <Panel>
+    <Panel interactive className="rounded-3xl">
       <PanelTitle
         action={
           s.gradeLabel ? <Pill tone="primary">{s.gradeLabel}</Pill> : undefined
         }
       >
-        <Link href={subjectHref(s.subject)} className="hover:text-primary transition-colors">
+        <Link href={subjectHref(s.subject)} className="flex items-center gap-2.5 transition-colors hover:text-primary">
+          <SubjectIcon name={s.subject} className="size-9 rounded-xl" iconClassName="!size-[18px]" />
           {s.subject}
         </Link>
       </PanelTitle>
@@ -316,8 +331,8 @@ function Meter({ label, value, barClass }: { label: string; value: number | null
         <span className="text-xs font-medium text-muted-foreground">{label}</span>
         <span className="text-xs font-bold tabular-nums text-foreground">{value != null ? `${value}%` : "No data"}</span>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-        {value != null && <div className={cn("h-full rounded-full", barClass)} style={{ width: `${value}%` }} />}
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+        {value != null && <div className={cn("progress-fill h-full rounded-full", barClass)} style={{ width: `${value}%` }} />}
       </div>
     </div>
   );
