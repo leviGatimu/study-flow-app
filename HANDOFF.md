@@ -1,6 +1,8 @@
 # HANDOFF
 
 ## Current Task
+2026-11-26 (Claude) DESKTOP 1.0.43 PUBLISHED (owner: release changes; chose to include the faster-start fix): 51b35c7 on origin/main, tag v1.0.43, releases/latest = v1.0.43, latest.yml matches. Study AI revamp + plans + cards + Practice in sidebar + top-bar update button + desktop loading screen. Packaged app launched once with --user-data-dir=scratch: fresh DB, all migrations, server ready (moved off port 3000 because the installed app had it). Loading screen itself not seen on screen (a firewall prompt covered it). Preview stopped; Prisma client back on Postgres. No DB change. Render needs Manual Deploy (new /api/ask route).
+
 2026-11-26 (Claude) STUDY AI REVAMP, UNCOMMITTED, NOT RELEASED, owner previewing. (Leave desktop-app/main.js, package.json, loading.html alone: those are the FASTER DESKTOP START entry, not this.)
 - SPEED: replies stream. New app/api/ask/route.ts (NDJSON start/delta/working/done/error) uses lib/talk-server.ts openTalkStream (now takes {system,maxOutputTokens,temperature}; Gemini flash-lite first, no model listing). askCopilot (server action that waited for the whole answer via askAIBuddy) REMOVED. Measured on preview: start event ~0.4 s warm, words follow straight away.
 - Turn logic moved to lib/copilot-server.ts (NOT 'use server': prepareCopilotTurn/completeCopilotTurn/failCopilotTurn/gather/toMessage). lib/copilot-actions.ts keeps getAskAIPage, stop, delete + NEW applyCopilotPlan / dismissCopilotPlan.
