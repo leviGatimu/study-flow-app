@@ -1,16 +1,13 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { after } from 'next/server';
-import { addDays, format } from 'date-fns';
 import { CalendarDays, FileText } from 'lucide-react';
 
-import { getCurrentUserTimezone, getDailySummaries, getSettingsData, getWeeklySummaries } from '@/lib/actions';
+import { getSettingsData } from '@/lib/actions';
 import { getUserId } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { byTerm, getViewScope } from '@/lib/scope';
-import { getTimeZoneOffsetMinutes } from '@/lib/utils';
 import { DEFAULT_DAILY_SUMMARY_TIME, dailySummaryTime as resolveDailySummaryTime } from '@/lib/daily-summary-time';
-import { dailyReports, weeklyReports, type ReportKind } from '@/lib/report-model';
+import { type ReportData, type ReportKind } from '@/lib/report-model';
+import { loadReports } from '@/lib/report-load';
 import { fileReports, filedReportUrls } from '@/lib/report-filing';
 import { Page, PageBody } from '@/components/ui/page';
 import { PageHeader } from '@/components/ui/page-header';
@@ -25,10 +22,6 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const DESCRIPTION = 'A graded report for each day and each week, written automatically and saved as a PDF in Resources › Reports.';
-const DAY = 'yyyy-MM-dd';
-
-/** Report dates are stored as the start of the user's calendar day. */
-const keyOf = (d: Date) => format(d, DAY);
 
 /**
  * Reports: the list on the left, the chosen report on the right. Reading the
@@ -48,44 +41,16 @@ export default async function ReportsPage({
   const view: ReportKind = params.view === 'weekly' ? 'weekly' : 'daily';
 
   let dailySummaryTime = DEFAULT_DAILY_SUMMARY_TIME;
-  let daily: ReturnType<typeof dailyReports> = [];
-  let weekly: ReturnType<typeof weeklyReports> = [];
+  let daily: ReportData[] = [];
+  let weekly: ReportData[] = [];
   let urls: Record<string, string> = {};
   let failed = false;
   try {
-    const [dailyList, weeklyList, settings, timeZone, scope] = await Promise.all([
-      getDailySummaries(),
-      getWeeklySummaries(),
-      getSettingsData(),
-      getCurrentUserTimezone(),
-      getViewScope(userId),
-    ]);
+    const [loaded, settings] = await Promise.all([loadReports(userId), getSettingsData()]);
     dailySummaryTime = resolveDailySummaryTime(settings?.progress?.dailySummaryTime);
-
-    // Homework finished in the span the reports cover, by the user's day.
-    const dates = [...dailyList.map((d) => d.date), ...weeklyList.map((w) => w.startDate)];
-    const since = dates.length ? new Date(Math.min(...dates.map((d) => d.getTime()))) : new Date();
-    const finished = await prisma.homework.findMany({
-      where: { userId, ...byTerm(scope), isCompleted: true, completedAt: { gte: addDays(since, -1) } },
-      select: { title: true, subject: true, completedAt: true },
-      orderBy: { completedAt: 'asc' },
-    });
-    const byDay = new Map<string, { title: string; subject: string }[]>();
-    for (const h of finished) {
-      const at = h.completedAt!;
-      const local = new Date(at.getTime() + getTimeZoneOffsetMinutes(timeZone, at) * 60_000);
-      const key = local.toISOString().slice(0, 10);
-      byDay.set(key, [...(byDay.get(key) ?? []), { title: h.title, subject: h.subject }]);
-    }
-    const byWeek = new Map<string, { title: string; subject: string }[]>();
-    const weeks = weeklyList.map((w) => ({ ...w, startKey: keyOf(w.startDate), endKey: keyOf(w.endDate) }));
-    for (const [key, items] of byDay) {
-      const week = weeks.find((w) => w.startKey <= key && key <= w.endKey);
-      if (week) byWeek.set(week.startKey, [...(byWeek.get(week.startKey) ?? []), ...items]);
-    }
-
-    daily = dailyReports(dailyList.map((d) => ({ ...d, key: keyOf(d.date) })), byDay);
-    weekly = weeklyReports(weeks, byWeek);
+    const { scope } = loaded;
+    daily = loaded.daily;
+    weekly = loaded.weekly;
     urls = await filedReportUrls(userId, scope);
 
     const toFile = [...daily, ...weekly];

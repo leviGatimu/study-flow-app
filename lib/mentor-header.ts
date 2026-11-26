@@ -4,12 +4,13 @@
  */
 export const MENTOR_HEADER = 'x-study-flow-mentor';
 
-/**
- * Pages a mentor is sent away from: the student's settings, AI chat, focus
- * room and private side areas. Everything about progress stays open.
- */
-const MENTOR_BLOCKED = ['/settings', '/setup', '/admin', '/ai', '/ask', '/focus', '/profile', '/projects', '/notes'];
+/** Where a mentor's own pages live. */
+export const MENTOR_HOME = '/mentor';
 
-export function isMentorBlockedPath(pathname: string): boolean {
-  return MENTOR_BLOCKED.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+/**
+ * A mentor has a section of their own (app/mentor) and sees none of the
+ * student's pages. Anything outside it sends them to their overview.
+ */
+export function isMentorPath(pathname: string): boolean {
+  return pathname === MENTOR_HOME || pathname.startsWith(`${MENTOR_HOME}/`);
 }

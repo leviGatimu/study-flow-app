@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
-import { isMentorBlockedPath, MENTOR_HEADER } from './lib/mentor-header';
+import { isMentorPath, MENTOR_HEADER, MENTOR_HOME } from './lib/mentor-header';
 
 if (!process.env.JWT_SECRET) {
   throw new Error(
@@ -56,11 +56,10 @@ export async function proxy(request: NextRequest) {
   headers.delete(MENTOR_HEADER);
   if (!mentor) return NextResponse.next({ request: { headers } });
 
-  // A mentor sees the student's schedule, logs, reports and progress - not
-  // their settings, AI chats or focus room. Re-checked server-side by the
-  // pages that hold private details (notes, answers, proof).
-  if (isMentorBlockedPath(pathname)) {
-    return NextResponse.redirect(new URL('/', request.url));
+  // A mentor has pages of their own (app/mentor) built from the student's
+  // schedule, logs, reports and progress, and never opens the student's pages.
+  if (!isMentorPath(pathname)) {
+    return NextResponse.redirect(new URL(MENTOR_HOME, request.url));
   }
   // Marks the request so lib/mentor-guard.ts refuses any write a server action attempts.
   headers.set(MENTOR_HEADER, '1');

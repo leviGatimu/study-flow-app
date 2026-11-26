@@ -156,7 +156,13 @@ export const BARE_ROUTES = ["/login", "/register", "/welcome", "/setup"];
 
 export function isBareRoute(pathname: string | null): boolean {
   if (!pathname) return false;
-  return BARE_ROUTES.includes(pathname) || pathname.startsWith("/focus/widget");
+  // The mentor section has its own frame (app/mentor/layout.tsx).
+  return (
+    BARE_ROUTES.includes(pathname) ||
+    pathname.startsWith("/focus/widget") ||
+    pathname === "/mentor" ||
+    pathname.startsWith("/mentor/")
+  );
 }
 
 /**

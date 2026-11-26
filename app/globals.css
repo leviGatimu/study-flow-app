@@ -742,3 +742,21 @@ ol.app-toaster[data-sonner-toaster] [data-sonner-toast][data-mounted='true'] .to
 .notif-panel[data-state='open'] { animation: notif-panel-in 320ms cubic-bezier(0.32, 0.72, 0, 1) both; }
 .notif-panel[data-state='closed'] { animation: notif-panel-out 180ms ease-in both; }
 .notif-row { animation: rise-in 380ms var(--ease-out) both; }
+
+/* ---------------------------------------------------------------------------
+   Mentor section (app/mentor). Same palette as the rest of the app: done is
+   the primary blue, missed the destructive red, "due soon" the app's orange
+   (Stat's warning), and planned-but-open a quiet track. Named once here so
+   the mentor pages and their charts read one set. */
+.mentor {
+  --m-accent: var(--primary);
+  --m-accent-fg: var(--primary-foreground);
+  --m-missed: var(--destructive);
+  --m-warn: oklch(0.7 0.19 47);
+  --m-planned: var(--border);
+}
+.mentor .m-heat-0 { background: var(--muted); }
+.mentor .m-heat-1 { background: color-mix(in oklch, var(--primary) 25%, transparent); }
+.mentor .m-heat-2 { background: color-mix(in oklch, var(--primary) 48%, transparent); }
+.mentor .m-heat-3 { background: color-mix(in oklch, var(--primary) 72%, transparent); }
+.mentor .m-heat-4 { background: var(--primary); }
